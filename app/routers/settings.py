@@ -58,9 +58,7 @@ async def get_indicator_settings(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """
-    取得用戶的指標顯示設定
-    """
+    """取得用戶的指標顯示設定"""
     stmt = select(UserIndicatorSettings).where(
         UserIndicatorSettings.user_id == user.id
     )
@@ -68,7 +66,6 @@ async def get_indicator_settings(
     settings = result.scalar_one_or_none()
     
     if not settings:
-        # 建立預設設定
         settings = UserIndicatorSettings.create_default(user.id)
         db.add(settings)
         await db.commit()
@@ -86,9 +83,7 @@ async def update_indicator_settings(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """
-    更新用戶的指標顯示設定
-    """
+    """更新用戶的指標顯示設定"""
     stmt = select(UserIndicatorSettings).where(
         UserIndicatorSettings.user_id == user.id
     )
@@ -99,7 +94,6 @@ async def update_indicator_settings(
         settings = UserIndicatorSettings.create_default(user.id)
         db.add(settings)
     
-    # 更新設定
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(settings, key, value)
@@ -121,9 +115,7 @@ async def get_alert_settings(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """
-    取得用戶的通知設定
-    """
+    """取得用戶的通知設定"""
     stmt = select(UserAlertSettings).where(
         UserAlertSettings.user_id == user.id
     )
@@ -148,9 +140,7 @@ async def update_alert_settings(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """
-    更新用戶的通知設定
-    """
+    """更新用戶的通知設定"""
     stmt = select(UserAlertSettings).where(
         UserAlertSettings.user_id == user.id
     )
@@ -161,7 +151,6 @@ async def update_alert_settings(
         settings = UserAlertSettings.create_default(user.id)
         db.add(settings)
     
-    # 更新設定
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(settings, key, value)
@@ -183,9 +172,7 @@ async def get_indicator_params(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """
-    取得用戶的指標參數設定
-    """
+    """取得用戶的指標參數設定"""
     stmt = select(UserIndicatorParams).where(
         UserIndicatorParams.user_id == user.id
     )
@@ -210,9 +197,7 @@ async def update_indicator_params(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """
-    更新用戶的指標參數設定
-    """
+    """更新用戶的指標參數設定"""
     stmt = select(UserIndicatorParams).where(
         UserIndicatorParams.user_id == user.id
     )
@@ -223,7 +208,6 @@ async def update_indicator_params(
         params = UserIndicatorParams.create_default(user.id)
         db.add(params)
     
-    # 更新參數
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(params, key, value)
@@ -242,93 +226,21 @@ async def update_indicator_params(
 
 TEMPLATES = {
     "minimal": {
-        "indicators": {
-            "show_ma": True,
-            "show_rsi": False,
-            "show_macd": False,
-            "show_kd": False,
-            "show_bollinger": False,
-            "show_obv": False,
-            "show_volume": True,
-        },
-        "alerts": {
-            "alert_ma_cross": True,
-            "alert_ma_breakout": True,
-            "alert_rsi": False,
-            "alert_macd": False,
-            "alert_kd": False,
-            "alert_bollinger": False,
-            "alert_volume": False,
-            "alert_sentiment": False,
-        },
+        "indicators": {"show_ma": True, "show_rsi": False, "show_macd": False, "show_kd": False, "show_bollinger": False, "show_obv": False, "show_volume": True},
+        "alerts": {"alert_ma_cross": True, "alert_ma_breakout": True, "alert_rsi": False, "alert_macd": False, "alert_kd": False, "alert_bollinger": False, "alert_volume": False, "alert_sentiment": False},
     },
     "standard": {
-        "indicators": {
-            "show_ma": True,
-            "show_rsi": True,
-            "show_macd": True,
-            "show_kd": False,
-            "show_bollinger": True,
-            "show_obv": False,
-            "show_volume": True,
-        },
-        "alerts": {
-            "alert_ma_cross": True,
-            "alert_ma_breakout": True,
-            "alert_rsi": True,
-            "alert_macd": True,
-            "alert_kd": False,
-            "alert_bollinger": False,
-            "alert_volume": False,
-            "alert_sentiment": True,
-        },
+        "indicators": {"show_ma": True, "show_rsi": True, "show_macd": True, "show_kd": False, "show_bollinger": True, "show_obv": False, "show_volume": True},
+        "alerts": {"alert_ma_cross": True, "alert_ma_breakout": True, "alert_rsi": True, "alert_macd": True, "alert_kd": False, "alert_bollinger": False, "alert_volume": False, "alert_sentiment": True},
     },
     "full": {
-        "indicators": {
-            "show_ma": True,
-            "show_rsi": True,
-            "show_macd": True,
-            "show_kd": True,
-            "show_bollinger": True,
-            "show_obv": True,
-            "show_volume": True,
-        },
-        "alerts": {
-            "alert_ma_cross": True,
-            "alert_ma_breakout": True,
-            "alert_rsi": True,
-            "alert_macd": True,
-            "alert_kd": True,
-            "alert_bollinger": True,
-            "alert_volume": True,
-            "alert_sentiment": True,
-        },
+        "indicators": {"show_ma": True, "show_rsi": True, "show_macd": True, "show_kd": True, "show_bollinger": True, "show_obv": True, "show_volume": True},
+        "alerts": {"alert_ma_cross": True, "alert_ma_breakout": True, "alert_rsi": True, "alert_macd": True, "alert_kd": True, "alert_bollinger": True, "alert_volume": True, "alert_sentiment": True},
     },
     "short_term": {
-        "indicators": {
-            "show_ma": True,
-            "show_rsi": True,
-            "show_macd": True,
-            "show_kd": True,
-            "show_bollinger": True,
-            "show_obv": False,
-            "show_volume": True,
-        },
-        "alerts": {
-            "alert_ma_cross": True,
-            "alert_ma_breakout": True,
-            "alert_rsi": True,
-            "alert_macd": True,
-            "alert_kd": True,
-            "alert_bollinger": True,
-            "alert_volume": True,
-            "alert_sentiment": False,
-        },
-        "params": {
-            "ma_short": 5,
-            "ma_mid": 10,
-            "ma_long": 20,
-        },
+        "indicators": {"show_ma": True, "show_rsi": True, "show_macd": True, "show_kd": True, "show_bollinger": True, "show_obv": False, "show_volume": True},
+        "alerts": {"alert_ma_cross": True, "alert_ma_breakout": True, "alert_rsi": True, "alert_macd": True, "alert_kd": True, "alert_bollinger": True, "alert_volume": True, "alert_sentiment": False},
+        "params": {"ma_short": 5, "ma_mid": 10, "ma_long": 20},
     },
 }
 
@@ -339,68 +251,42 @@ async def apply_template(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """
-    套用預設設定模板
-    
-    可用模板：
-    - **minimal**: 極簡 (只顯示均線和成交量)
-    - **standard**: 標準 (預設，含主要指標)
-    - **full**: 完整 (顯示所有指標)
-    - **short_term**: 短線 (使用較短的均線週期)
-    """
+    """套用預設設定模板"""
     if template_name not in TEMPLATES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"不存在的模板: {template_name}"
-        )
+        raise HTTPException(status_code=400, detail=f"不存在的模板: {template_name}")
     
     template = TEMPLATES[template_name]
     
-    # 更新指標設定
     if "indicators" in template:
-        stmt = select(UserIndicatorSettings).where(
-            UserIndicatorSettings.user_id == user.id
-        )
+        stmt = select(UserIndicatorSettings).where(UserIndicatorSettings.user_id == user.id)
         result = await db.execute(stmt)
         ind_settings = result.scalar_one_or_none()
         if not ind_settings:
             ind_settings = UserIndicatorSettings.create_default(user.id)
             db.add(ind_settings)
-        
         for key, value in template["indicators"].items():
             setattr(ind_settings, key, value)
     
-    # 更新通知設定
     if "alerts" in template:
-        stmt = select(UserAlertSettings).where(
-            UserAlertSettings.user_id == user.id
-        )
+        stmt = select(UserAlertSettings).where(UserAlertSettings.user_id == user.id)
         result = await db.execute(stmt)
         alert_settings = result.scalar_one_or_none()
         if not alert_settings:
             alert_settings = UserAlertSettings.create_default(user.id)
             db.add(alert_settings)
-        
         for key, value in template["alerts"].items():
             setattr(alert_settings, key, value)
     
-    # 更新參數設定
     if "params" in template:
-        stmt = select(UserIndicatorParams).where(
-            UserIndicatorParams.user_id == user.id
-        )
+        stmt = select(UserIndicatorParams).where(UserIndicatorParams.user_id == user.id)
         result = await db.execute(stmt)
         params = result.scalar_one_or_none()
         if not params:
             params = UserIndicatorParams.create_default(user.id)
             db.add(params)
-        
         for key, value in template["params"].items():
             setattr(params, key, value)
     
     await db.commit()
     
-    return ResponseBase(
-        success=True,
-        message=f"已套用模板: {template_name}",
-    )
+    return ResponseBase(success=True, message=f"已套用模板: {template_name}")

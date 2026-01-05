@@ -62,10 +62,10 @@ async def get_stock_analysis(
             return round((current_price - old_price) / old_price * 100, 2)
         return None
     
-    # 均線資訊
-    ma20 = float(latest.get('MA20', 0)) if 'MA20' in latest else None
-    ma50 = float(latest.get('MA50', 0)) if 'MA50' in latest else None
-    ma200 = float(latest.get('MA200', 0)) if 'MA200' in latest else None
+    # 均線資訊 (indicator_service 用小寫: ma20, ma50, ma200)
+    ma20 = float(latest.get('ma20', 0)) if 'ma20' in latest else None
+    ma50 = float(latest.get('ma50', 0)) if 'ma50' in latest else None
+    ma200 = float(latest.get('ma200', 0)) if 'ma200' in latest else None
     
     # 判斷均線排列
     alignment = "neutral"
@@ -75,14 +75,14 @@ async def get_stock_analysis(
         elif current_price < ma20 < ma50 < ma200:
             alignment = "bearish"
     
-    # RSI
-    rsi_value = float(latest.get('RSI', 50)) if 'RSI' in latest else 50
+    # RSI (小寫: rsi)
+    rsi_value = float(latest.get('rsi', 50)) if 'rsi' in latest else 50
     rsi_status = "overbought" if rsi_value > 70 else "oversold" if rsi_value < 30 else "neutral"
     
-    # MACD
-    macd_dif = float(latest.get('MACD_DIF', 0)) if 'MACD_DIF' in latest else 0
-    macd_dea = float(latest.get('MACD_DEA', 0)) if 'MACD_DEA' in latest else 0
-    macd_hist = float(latest.get('MACD_HIST', 0)) if 'MACD_HIST' in latest else 0
+    # MACD (小寫: macd_dif, macd_dea, macd_hist)
+    macd_dif = float(latest.get('macd_dif', 0)) if 'macd_dif' in latest else 0
+    macd_dea = float(latest.get('macd_dea', 0)) if 'macd_dea' in latest else 0
+    macd_hist = float(latest.get('macd_hist', 0)) if 'macd_hist' in latest else 0
     macd_status = "bullish" if macd_dif > macd_dea else "bearish"
     
     # 成交量

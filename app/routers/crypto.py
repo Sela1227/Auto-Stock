@@ -70,13 +70,13 @@ async def get_crypto_analysis(
         elif current_price < ma7 < ma25 < ma99:
             alignment = "bearish"
     
-    # RSI
-    rsi_value = float(latest.get('RSI', 50)) if 'RSI' in latest else 50
+    # RSI (小寫: rsi)
+    rsi_value = float(latest.get('rsi', 50)) if 'rsi' in latest else 50
     rsi_status = "overbought" if rsi_value > 70 else "oversold" if rsi_value < 30 else "neutral"
     
-    # MACD
-    macd_dif = float(latest.get('MACD_DIF', 0)) if 'MACD_DIF' in latest else 0
-    macd_dea = float(latest.get('MACD_DEA', 0)) if 'MACD_DEA' in latest else 0
+    # MACD (小寫: macd_dif, macd_dea)
+    macd_dif = float(latest.get('macd_dif', 0)) if 'macd_dif' in latest else 0
+    macd_dea = float(latest.get('macd_dea', 0)) if 'macd_dea' in latest else 0
     macd_status = "bullish" if macd_dif > macd_dea else "bearish"
     
     # 綜合評分
