@@ -5,7 +5,10 @@ FastAPI 主程式
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 import logging
+import os
 
 from app.config import settings
 from app.database import init_db
@@ -84,10 +87,22 @@ app.include_router(crypto_router)
 app.include_router(watchlist_router)
 app.include_router(settings_router)
 
+# 掛載靜態檔案
+static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+if os.path.exists(static_path):
+    app.mount("/static", StaticFiles(directory=static_path, html=True), name="static")
 
-# 根路徑
+
+# 根路徑 - 重導向到登入頁
 @app.get("/", tags=["系統"])
 async def root():
+    """重導向到首頁"""
+    return RedirectResponse(url="/static/index.html")
+
+
+# API 狀態
+@app.get("/api", tags=["系統"])
+async def api_root():
     """API 根路徑"""
     return {
         "name": settings.APP_NAME,

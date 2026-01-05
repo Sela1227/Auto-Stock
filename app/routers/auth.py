@@ -46,7 +46,7 @@ async def line_login():
     return RedirectResponse(url=auth_url)
 
 
-@router.get("/line/callback", summary="LINE 登入回調", response_model=LoginResponse)
+@router.get("/line/callback", summary="LINE 登入回調")
 async def line_callback(
     code: str = Query(..., description="授權碼"),
     state: str = Query(..., description="State"),
@@ -59,8 +59,10 @@ async def line_callback(
     - 用 code 換取 access token
     - 取得用戶資料
     - 建立/更新用戶
-    - 回傳 JWT Token
+    - 回傳 HTML 頁面儲存 Token 並跳轉
     """
+    from fastapi.responses import HTMLResponse
+    
     # 驗證 state
     if state not in _states:
         raise HTTPException(
@@ -79,13 +81,73 @@ async def line_callback(
             detail="LINE 登入失敗"
         )
     
-    return LoginResponse(
-        success=True,
-        message="登入成功",
-        token=result["token"],
-        user=UserResponse.model_validate(result["user"]),
-        is_new_user=result["is_new_user"],
-    )
+    # 回傳 HTML 頁面，將 Token 存入 localStorage 並跳轉到儀表板
+    token = result["token"]
+    user = result["user"]
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>登入中...</title>
+        <style>
+            body {{
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }}
+            .card {{
+                background: white;
+                padding: 3rem;
+                border-radius: 1rem;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+                text-align: center;
+            }}
+            .spinner {{
+                width: 50px;
+                height: 50px;
+                border: 4px solid #e2e8f0;
+                border-top: 4px solid #3b82f6;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 1.5rem;
+            }}
+            @keyframes spin {{
+                0% {{ transform: rotate(0deg); }}
+                100% {{ transform: rotate(360deg); }}
+            }}
+            h2 {{ color: #1e293b; margin: 0 0 0.5rem; }}
+            p {{ color: #64748b; margin: 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="spinner"></div>
+            <h2>登入成功！</h2>
+            <p>歡迎回來，{user.display_name}</p>
+        </div>
+        <script>
+            localStorage.setItem('token', '{token}');
+            localStorage.setItem('user', JSON.stringify({{
+                id: {user.id},
+                display_name: "{user.display_name}",
+                picture_url: "{user.picture_url or ''}",
+                line_user_id: "{user.line_user_id}"
+            }}));
+            setTimeout(function() {{
+                window.location.href = '/static/dashboard.html';
+            }}, 1500);
+        </script>
+    </body>
+    </html>
+    """
+    
+    return HTMLResponse(content=html_content)
 
 
 @router.post("/logout", summary="登出")
