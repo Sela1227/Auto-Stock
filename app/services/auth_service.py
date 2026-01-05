@@ -135,17 +135,19 @@ class AuthService:
     
     # ==================== 用戶管理 ====================
     
-    def get_user_by_line_id(self, line_user_id: str) -> Optional[User]:
+    async def get_user_by_line_id(self, line_user_id: str) -> Optional[User]:
         """根據 LINE User ID 取得用戶"""
         stmt = select(User).where(User.line_user_id == line_user_id)
-        return self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
     
-    def get_user_by_id(self, user_id: int) -> Optional[User]:
+    async def get_user_by_id(self, user_id: int) -> Optional[User]:
         """根據 ID 取得用戶"""
         stmt = select(User).where(User.id == user_id)
-        return self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
     
-    def create_user(
+    async def create_user(
         self,
         line_user_id: str,
         display_name: str = None,
@@ -164,7 +166,7 @@ class AuthService:
             email=email,
         )
         self.db.add(user)
-        self.db.flush()  # 取得 user.id
+        await self.db.flush()  # 取得 user.id
         
         # 建立預設設定
         indicator_settings = UserIndicatorSettings.create_default(user.id)
@@ -175,20 +177,20 @@ class AuthService:
         self.db.add(alert_settings)
         self.db.add(params)
         
-        self.db.commit()
-        self.db.refresh(user)
+        await self.db.commit()
+        await self.db.refresh(user)
         
         logger.info(f"新用戶建立: {user.id} ({display_name})")
         return user
     
-    def update_user_login(self, user: User, display_name: str = None, picture_url: str = None):
+    async def update_user_login(self, user: User, display_name: str = None, picture_url: str = None):
         """更新用戶登入資訊"""
         if display_name:
             user.display_name = display_name
         if picture_url:
             user.picture_url = picture_url
         user.last_login = datetime.utcnow()
-        self.db.commit()
+        await self.db.commit()
     
     async def login_with_line(self, code: str) -> Optional[Dict[str, Any]]:
         """
@@ -221,12 +223,12 @@ class AuthService:
         picture_url = profile.get("pictureUrl")
         
         # 3. 檢查用戶是否存在
-        user = self.get_user_by_line_id(line_user_id)
+        user = await self.get_user_by_line_id(line_user_id)
         is_new_user = False
         
         if user:
             # 更新登入資訊
-            self.update_user_login(user, display_name, picture_url)
+            await self.update_user_login(user, display_name, picture_url)
         else:
             # 建立新用戶
             # 嘗試從 ID token 取得 email
@@ -236,7 +238,7 @@ class AuthService:
                 if id_token_data:
                     email = id_token_data.get("email")
             
-            user = self.create_user(
+            user = await self.create_user(
                 line_user_id=line_user_id,
                 display_name=display_name,
                 picture_url=picture_url,
@@ -299,7 +301,7 @@ class AuthService:
             logger.warning(f"JWT 驗證失敗: {e}")
             return None
     
-    def get_user_from_token(self, token: str) -> Optional[User]:
+    async def get_user_from_token(self, token: str) -> Optional[User]:
         """
         從 JWT Token 取得用戶
         
@@ -317,7 +319,7 @@ class AuthService:
         if not user_id:
             return None
         
-        return self.get_user_by_id(int(user_id))
+        return await self.get_user_by_id(int(user_id))
 
 
 # ==================== 同步版本（CLI 用）====================

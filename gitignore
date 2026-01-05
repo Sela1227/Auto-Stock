@@ -86,3 +86,6 @@ Thumbs.db
 .env.local
 .env.production
 secrets/
+
+# 更新檔
+更新檔/

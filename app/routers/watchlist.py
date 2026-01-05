@@ -36,7 +36,7 @@ async def get_current_user(
     
     token = auth_header.split(" ")[1]
     auth_service = AuthService(db)
-    user = auth_service.get_user_from_token(token)
+    user = await auth_service.get_user_from_token(token)
     
     if not user:
         raise HTTPException(
