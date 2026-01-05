@@ -47,7 +47,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="""
-## 📈 股票技術分析系統 API
+## 📈 SELA 自動選股系統 API
 
 多用戶股票與加密貨幣技術分析平台
 

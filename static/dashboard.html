@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>股票分析系統 - 儀表板</title>
+    <title>SELA 自動選股系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -15,6 +15,9 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+        .brand-orange { background-color: #FA7A35; }
+        .brand-text { color: #FA7A35; }
+        .brand-border { border-color: #FA7A35; }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -23,8 +26,8 @@
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <i class="fas fa-chart-line text-blue-600 text-2xl mr-2"></i>
-                    <span class="font-bold text-xl text-gray-800">股票分析系統</span>
+                    <div class="brand-orange text-white font-bold px-2 py-1 rounded mr-2">SELA</div>
+                    <span class="font-bold text-xl text-gray-800">自動選股系統</span>
                 </div>
                 <div class="flex items-center space-x-4">
                     <span id="userName" class="text-gray-600"></span>

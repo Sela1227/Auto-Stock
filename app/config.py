@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     """應用程式設定"""
     
     # 應用程式
-    APP_NAME: str = "Stock Analysis System"
+    APP_NAME: str = "SELA 自動選股系統"
     APP_VERSION: str = "0.3.0"
     APP_ENV: str = "development"
     DEBUG: bool = True

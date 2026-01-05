@@ -97,7 +97,6 @@ async def get_crypto_chart(
 @router.get("/api/market/sentiment", summary="取得市場情緒", response_model=MarketSentimentResponse)
 async def get_market_sentiment(
     market: str = Query("all", description="市場類型 (stock, crypto, all)"),
-    db: AsyncSession = Depends(get_async_session),
 ):
     """
     取得市場情緒指數
@@ -114,11 +113,22 @@ async def get_market_sentiment(
     - 56-75: 貪婪
     - 76-100: 極度貪婪
     """
-    service = CryptoService(db)
-    sentiment = service.get_market_sentiment(market)
+    from app.data_sources.fear_greed import fear_greed
+    
+    result = {}
+    
+    if market in ("all", "stock"):
+        stock_sentiment = fear_greed.get_stock_fear_greed()
+        if stock_sentiment:
+            result["stock"] = stock_sentiment
+    
+    if market in ("all", "crypto"):
+        crypto_sentiment = fear_greed.get_crypto_fear_greed()
+        if crypto_sentiment:
+            result["crypto"] = crypto_sentiment
     
     return MarketSentimentResponse(
         success=True,
-        stock=sentiment.get("stock"),
-        crypto=sentiment.get("crypto"),
+        stock=result.get("stock"),
+        crypto=result.get("crypto"),
     )

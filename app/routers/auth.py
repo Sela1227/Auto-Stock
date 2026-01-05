@@ -90,7 +90,7 @@ async def line_callback(
     <html>
     <head>
         <meta charset="UTF-8">
-        <title>登入中...</title>
+        <title>SELA 自動選股系統</title>
         <style>
             body {{
                 display: flex;
@@ -108,11 +108,21 @@ async def line_callback(
                 box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
                 text-align: center;
             }}
+            .logo {{
+                background-color: #FA7A35;
+                color: white;
+                font-weight: bold;
+                font-size: 1.5rem;
+                padding: 0.5rem 1rem;
+                border-radius: 0.5rem;
+                display: inline-block;
+                margin-bottom: 1.5rem;
+            }}
             .spinner {{
                 width: 50px;
                 height: 50px;
                 border: 4px solid #e2e8f0;
-                border-top: 4px solid #3b82f6;
+                border-top: 4px solid #FA7A35;
                 border-radius: 50%;
                 animation: spin 1s linear infinite;
                 margin: 0 auto 1.5rem;
@@ -127,6 +137,7 @@ async def line_callback(
     </head>
     <body>
         <div class="card">
+            <div class="logo">SELA</div>
             <div class="spinner"></div>
             <h2>登入成功！</h2>
             <p>歡迎回來，{user.display_name}</p>
