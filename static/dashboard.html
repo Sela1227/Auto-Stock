@@ -351,7 +351,7 @@
                 });
                 const data = await res.json();
                 
-                if (!data.success || data.data.length === 0) {
+                if (!data.success || !data.data || data.data.length === 0) {
                     container.innerHTML = `
                         <div class="text-center py-8">
                             <i class="fas fa-star text-gray-300 text-4xl mb-3"></i>
@@ -552,7 +552,7 @@
                 });
                 const data = await res.json();
                 
-                if (!data.success || data.data.length === 0) {
+                if (!data.success || !data.data || data.data.length === 0) {
                     container.innerHTML = `
                         <div class="text-center py-12">
                             <i class="fas fa-star text-gray-300 text-5xl mb-4"></i>

@@ -1,15 +1,13 @@
 """
-追蹤清單服務
+追蹤清單服務 (Async 版本)
 """
 from typing import Optional, Dict, Any, List
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 import logging
 
 from app.models.watchlist import Watchlist
 from app.models.user import User
-from app.services.stock_service import StockService
-from app.services.crypto_service import CryptoService
 from app.data_sources.coingecko import CRYPTO_MAP
 
 logger = logging.getLogger(__name__)
@@ -19,18 +17,16 @@ SUPPORTED_CRYPTO = set(k for k in CRYPTO_MAP.keys() if k not in ("BITCOIN", "ETH
 
 
 class WatchlistService:
-    """追蹤清單服務"""
+    """追蹤清單服務 (Async)"""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
-        self.stock_service = StockService(db)
-        self.crypto_service = CryptoService(db)
     
     def _get_asset_type(self, symbol: str) -> str:
         """判斷資產類型"""
         return "crypto" if symbol.upper() in SUPPORTED_CRYPTO else "stock"
     
-    def add_to_watchlist(
+    async def add_to_watchlist(
         self,
         user_id: int,
         symbol: str,
@@ -55,7 +51,7 @@ class WatchlistService:
         asset_type = self._get_asset_type(symbol)
         
         # 檢查是否已存在
-        existing = self._get_watchlist_item(user_id, symbol, asset_type)
+        existing = await self._get_watchlist_item(user_id, symbol, asset_type)
         if existing:
             return {
                 "success": False,
@@ -86,8 +82,8 @@ class WatchlistService:
             note=note,
         )
         self.db.add(watchlist)
-        self.db.commit()
-        self.db.refresh(watchlist)
+        await self.db.commit()
+        await self.db.refresh(watchlist)
         
         logger.info(f"用戶 {user_id} 新增追蹤: {symbol} ({asset_type})")
         
@@ -97,7 +93,7 @@ class WatchlistService:
             "watchlist": watchlist,
         }
     
-    def remove_from_watchlist(
+    async def remove_from_watchlist(
         self,
         user_id: int,
         symbol: str = None,
@@ -137,7 +133,8 @@ class WatchlistService:
                 "message": "請提供 symbol 或 watchlist_id",
             }
         
-        watchlist = self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        watchlist = result.scalar_one_or_none()
         
         if not watchlist:
             return {
@@ -146,8 +143,8 @@ class WatchlistService:
             }
         
         symbol = watchlist.symbol
-        self.db.delete(watchlist)
-        self.db.commit()
+        await self.db.delete(watchlist)
+        await self.db.commit()
         
         logger.info(f"用戶 {user_id} 移除追蹤: {symbol}")
         
@@ -156,7 +153,7 @@ class WatchlistService:
             "message": f"已從追蹤清單移除 {symbol}",
         }
     
-    def update_note(
+    async def update_note(
         self,
         user_id: int,
         symbol: str,
@@ -176,7 +173,7 @@ class WatchlistService:
         symbol = symbol.upper()
         asset_type = self._get_asset_type(symbol)
         
-        watchlist = self._get_watchlist_item(user_id, symbol, asset_type)
+        watchlist = await self._get_watchlist_item(user_id, symbol, asset_type)
         if not watchlist:
             return {
                 "success": False,
@@ -184,14 +181,14 @@ class WatchlistService:
             }
         
         watchlist.note = note
-        self.db.commit()
+        await self.db.commit()
         
         return {
             "success": True,
             "message": f"已更新 {symbol} 的備註",
         }
     
-    def get_watchlist(self, user_id: int) -> List[Watchlist]:
+    async def get_watchlist(self, user_id: int) -> List[Watchlist]:
         """
         取得用戶追蹤清單
         
@@ -206,72 +203,10 @@ class WatchlistService:
             .where(Watchlist.user_id == user_id)
             .order_by(Watchlist.added_at.desc())
         )
-        return list(self.db.execute(stmt).scalars().all())
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
     
-    def get_watchlist_overview(self, user_id: int) -> Dict[str, Any]:
-        """
-        取得追蹤清單總覽（含即時資訊）
-        
-        Args:
-            user_id: 用戶 ID
-            
-        Returns:
-            {
-                "stocks": [...],
-                "crypto": [...],
-                "sentiment": {...}
-            }
-        """
-        watchlists = self.get_watchlist(user_id)
-        
-        stocks = []
-        cryptos = []
-        
-        for item in watchlists:
-            if item.asset_type == "stock":
-                # 取得股票資訊
-                analysis = self.stock_service.get_stock_analysis(item.symbol)
-                if analysis:
-                    stocks.append({
-                        "id": item.id,
-                        "symbol": item.symbol,
-                        "name": analysis.get("name"),
-                        "price": analysis["price"]["current"],
-                        "change_day": analysis["change"].get("day"),
-                        "ma_alignment": analysis["indicators"]["ma"].get("alignment"),
-                        "rsi": analysis["indicators"]["rsi"].get("value"),
-                        "score": analysis["score"],
-                        "note": item.note,
-                        "added_at": item.added_at.isoformat() if item.added_at else None,
-                    })
-            else:
-                # 取得加密貨幣資訊
-                analysis = self.crypto_service.get_crypto_analysis(item.symbol)
-                if analysis:
-                    cryptos.append({
-                        "id": item.id,
-                        "symbol": item.symbol,
-                        "name": analysis.get("name"),
-                        "price": analysis["price"]["current"],
-                        "change_24h": analysis["change"].get("day"),
-                        "ma_alignment": analysis["indicators"]["ma"].get("alignment"),
-                        "rsi": analysis["indicators"]["rsi"].get("value"),
-                        "score": analysis["score"],
-                        "note": item.note,
-                        "added_at": item.added_at.isoformat() if item.added_at else None,
-                    })
-        
-        # 取得市場情緒
-        sentiment = self.crypto_service.get_market_sentiment("all")
-        
-        return {
-            "stocks": stocks,
-            "crypto": cryptos,
-            "sentiment": sentiment,
-            "total_count": len(watchlists),
-        }
-    
-    def get_watchlist_symbols(self, user_id: int) -> Dict[str, List[str]]:
+    async def get_watchlist_symbols(self, user_id: int) -> Dict[str, List[str]]:
         """
         取得用戶追蹤的代號列表（用於通知系統）
         
@@ -281,7 +216,7 @@ class WatchlistService:
                 "crypto": ["BTC", "ETH"]
             }
         """
-        watchlists = self.get_watchlist(user_id)
+        watchlists = await self.get_watchlist(user_id)
         
         stocks = []
         cryptos = []
@@ -297,7 +232,7 @@ class WatchlistService:
             "crypto": cryptos,
         }
     
-    def _get_watchlist_item(
+    async def _get_watchlist_item(
         self,
         user_id: int,
         symbol: str,
@@ -311,9 +246,10 @@ class WatchlistService:
                 Watchlist.asset_type == asset_type,
             )
         )
-        return self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
     
-    def get_all_tracked_symbols(self) -> Dict[str, set]:
+    async def get_all_tracked_symbols(self) -> Dict[str, set]:
         """
         取得所有用戶追蹤的代號（用於批次更新）
         
@@ -324,7 +260,8 @@ class WatchlistService:
             }
         """
         stmt = select(Watchlist.symbol, Watchlist.asset_type).distinct()
-        results = self.db.execute(stmt).all()
+        result = await self.db.execute(stmt)
+        results = result.all()
         
         stocks = set()
         cryptos = set()

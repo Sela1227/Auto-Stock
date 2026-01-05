@@ -56,7 +56,7 @@ async def get_watchlist(
     取得用戶的追蹤清單
     """
     service = WatchlistService(db)
-    items = service.get_watchlist(user.id)
+    items = await service.get_watchlist(user.id)
     
     return WatchlistListResponse(
         success=True,
@@ -78,7 +78,7 @@ async def add_to_watchlist(
     - **note**: 自訂備註（選填）
     """
     service = WatchlistService(db)
-    result = service.add_to_watchlist(
+    result = await service.add_to_watchlist(
         user_id=user.id,
         symbol=data.symbol,
         note=data.note,
@@ -107,7 +107,7 @@ async def remove_from_watchlist(
     從追蹤清單移除標的
     """
     service = WatchlistService(db)
-    result = service.remove_from_watchlist(
+    result = await service.remove_from_watchlist(
         user_id=user.id,
         symbol=symbol,
     )
@@ -135,7 +135,7 @@ async def update_watchlist_note(
     更新追蹤標的的備註
     """
     service = WatchlistService(db)
-    result = service.update_note(
+    result = await service.update_note(
         user_id=user.id,
         symbol=symbol,
         note=data.note,
@@ -153,7 +153,7 @@ async def update_watchlist_note(
     )
 
 
-@router.get("/overview", summary="追蹤清單總覽", response_model=WatchlistOverviewResponse)
+@router.get("/overview", summary="追蹤清單總覽")
 async def get_watchlist_overview(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
@@ -161,15 +161,22 @@ async def get_watchlist_overview(
     """
     取得追蹤清單總覽
     
-    包含所有追蹤標的的即時價格、技術指標和市場情緒
+    包含所有追蹤標的的基本資訊
     """
     service = WatchlistService(db)
-    overview = service.get_watchlist_overview(user.id)
+    items = await service.get_watchlist(user.id)
     
-    return WatchlistOverviewResponse(
-        success=True,
-        stocks=overview["stocks"],
-        crypto=overview["crypto"],
-        sentiment=overview.get("sentiment"),
-        total_count=overview["total_count"],
-    )
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": item.id,
+                "symbol": item.symbol,
+                "asset_type": item.asset_type,
+                "note": item.note,
+                "added_at": item.added_at.isoformat() if item.added_at else None,
+            }
+            for item in items
+        ],
+        "total": len(items),
+    }
