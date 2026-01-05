@@ -49,7 +49,7 @@ class FearGreedClient:
             data = response.json()
             
             if not data.get("data"):
-                return None
+                return self._get_fallback_crypto()
             
             latest = data["data"][0]
             value = int(latest["value"])
@@ -77,7 +77,18 @@ class FearGreedClient:
             
         except Exception as e:
             logger.error(f"取得加密貨幣情緒指數失敗: {e}")
-            return None
+            return self._get_fallback_crypto()
+    
+    def _get_fallback_crypto(self) -> Dict[str, Any]:
+        """加密貨幣情緒的備用值"""
+        return {
+            "value": 50,
+            "classification": "neutral",
+            "classification_zh": "中性",
+            "timestamp": date.today().strftime("%Y-%m-%d"),
+            "market": "crypto",
+            "is_fallback": True,
+        }
     
     # ==================== 美股情緒 (CNN Fear & Greed) ====================
     
@@ -104,8 +115,16 @@ class FearGreedClient:
         if result:
             return result
         
-        logger.warning("無法取得美股情緒指數")
-        return None
+        logger.warning("無法取得美股情緒指數，使用備用值")
+        # 返回備用值而非 None
+        return {
+            "value": 50,
+            "classification": "neutral",
+            "classification_zh": "中性",
+            "timestamp": date.today().strftime("%Y-%m-%d"),
+            "market": "stock",
+            "is_fallback": True,
+        }
     
     def _get_cnn_fear_greed_api(self) -> Optional[Dict[str, Any]]:
         """從 CNN API 取得 Fear & Greed"""

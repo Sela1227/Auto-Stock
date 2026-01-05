@@ -379,12 +379,30 @@
                 console.log('Sentiment data:', data);
                 
                 if (data.success) {
-                    // API 直接返回 data.stock 和 data.crypto，不是 data.data.stock
-                    updateSentimentCard('stock', data.stock);
-                    updateSentimentCard('crypto', data.crypto);
+                    // API 直接返回 data.stock 和 data.crypto
+                    if (data.stock) {
+                        updateSentimentCard('stock', data.stock);
+                    } else {
+                        // 無美股情緒資料時顯示預設值
+                        updateSentimentCard('stock', { value: 50, classification: 'neutral' });
+                    }
+                    
+                    if (data.crypto) {
+                        updateSentimentCard('crypto', data.crypto);
+                    } else {
+                        // 無幣圈情緒資料時顯示預設值
+                        updateSentimentCard('crypto', { value: 50, classification: 'neutral' });
+                    }
+                } else {
+                    // API 失敗時顯示預設值
+                    updateSentimentCard('stock', { value: 50, classification: 'neutral' });
+                    updateSentimentCard('crypto', { value: 50, classification: 'neutral' });
                 }
             } catch (e) {
                 console.error('載入情緒失敗', e);
+                // 錯誤時顯示預設值
+                updateSentimentCard('stock', { value: 50, classification: 'neutral' });
+                updateSentimentCard('crypto', { value: 50, classification: 'neutral' });
             }
         }
 
@@ -529,6 +547,8 @@
                 }
 
                 console.log('準備渲染結果');
+                console.log('chart_data 存在?', !!data.chart_data);
+                console.log('chart_data:', data.chart_data);
                 // 資料直接在頂層，不在 data.data 裡
                 renderStockResult(data, isCrypto);
                 console.log('渲染完成');
@@ -638,6 +658,14 @@
                         </div>
                     </div>
 
+                    <!-- 價格走勢圖 -->
+                    ${stock.chart_data ? `
+                    <h4 class="font-semibold text-gray-700 mb-3">價格走勢與均線</h4>
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6" style="height: 300px;">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                    ` : ''}
+
                     <!-- 綜合評分 -->
                     ${stock.score ? `
                     <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-4 text-white">
@@ -656,6 +684,132 @@
             `;
             
             container.innerHTML = html;
+            
+            // 繪製價格走勢圖
+            console.log('檢查 chart_data:', {
+                exists: !!stock.chart_data,
+                hasDates: stock.chart_data?.dates?.length > 0,
+            });
+            
+            if (stock.chart_data && stock.chart_data.dates && stock.chart_data.dates.length > 0) {
+                console.log('即將渲染圖表...');
+                setTimeout(() => {
+                    renderPriceChart(stock.chart_data);
+                }, 100);
+            } else {
+                console.log('沒有 chart_data 或數據為空');
+            }
+        }
+        
+        // 繪製價格走勢圖
+        function renderPriceChart(chartData) {
+            console.log('renderPriceChart called with:', chartData);
+            
+            const canvas = document.getElementById('priceChart');
+            if (!canvas) {
+                console.error('priceChart canvas not found!');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            
+            // 檢查數據
+            console.log('Chart data lengths:', {
+                dates: chartData.dates?.length,
+                prices: chartData.prices?.length,
+                ma20: chartData.ma20?.length,
+                ma50: chartData.ma50?.length,
+                ma200: chartData.ma200?.length,
+            });
+            
+            // 格式化日期標籤 (只顯示部分)
+            const labels = chartData.dates.map((d, i) => {
+                if (i % 20 === 0) return d.slice(5); // 只顯示 MM-DD
+                return '';
+            });
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '收盤價',
+                            data: chartData.prices,
+                            borderColor: '#3B82F6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.1,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: 'MA20',
+                            data: chartData.ma20,
+                            borderColor: '#10B981',
+                            borderWidth: 1.5,
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: 'MA50',
+                            data: chartData.ma50,
+                            borderColor: '#F59E0B',
+                            borderWidth: 1.5,
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: 'MA200',
+                            data: chartData.ma200,
+                            borderColor: '#EF4444',
+                            borderWidth: 1.5,
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 0,
+                        },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index',
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15,
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.raw === null) return null;
+                                    return `${context.dataset.label}: $${context.raw.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false,
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)',
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         // 載入追蹤清單

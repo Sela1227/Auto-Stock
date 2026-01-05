@@ -3,6 +3,7 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
+import pandas as pd
 
 from app.schemas.schemas import MarketSentimentResponse
 
@@ -146,6 +147,14 @@ async def get_crypto_analysis(
             "buy": buy_score,
             "sell": sell_score,
             "rating": rating,
+        },
+        # 添加圖表數據 (最近 120 天)
+        "chart_data": {
+            "dates": [str(d) for d in df['date'].tail(120).tolist()] if 'date' in df.columns else [],
+            "prices": [float(p) for p in df['close'].tail(120).tolist()] if 'close' in df.columns else [],
+            "ma20": [float(v) if not pd.isna(v) else None for v in df['ma20'].tail(120).tolist()] if 'ma20' in df.columns else [],
+            "ma50": [float(v) if not pd.isna(v) else None for v in df['ma50'].tail(120).tolist()] if 'ma50' in df.columns else [],
+            "ma200": [float(v) if not pd.isna(v) else None for v in df['ma200'].tail(120).tolist()] if 'ma200' in df.columns else [],
         },
     }
 
