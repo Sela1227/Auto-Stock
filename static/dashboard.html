@@ -405,7 +405,7 @@
         async function searchSymbol(symbol) {
             const container = document.getElementById('searchResult');
             container.classList.remove('hidden');
-            container.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center"><i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i><p class="mt-2 text-gray-500">查詢中...</p></div>';
+            container.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center"><i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i><p class="mt-2 text-gray-500">查詢中...（首次查詢可能需要 10-30 秒）</p></div>';
             
             // 切換到搜尋頁
             showSection('search');
@@ -415,8 +415,21 @@
                 const isCrypto = ['BTC', 'ETH'].includes(symbol);
                 const endpoint = isCrypto ? `/api/crypto/${symbol}` : `/api/stock/${symbol}`;
                 
-                const res = await fetch(`${API_BASE}${endpoint}`);
+                // 加入超時控制 (60秒)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
+                
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
                 const data = await res.json();
+                
+                if (!res.ok) {
+                    container.innerHTML = `<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">${data.detail || '查詢失敗'}</div>`;
+                    return;
+                }
                 
                 if (!data.success) {
                     container.innerHTML = `<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">${data.detail || data.error?.message || '查詢失敗'}</div>`;
@@ -428,7 +441,11 @@
                 
             } catch (e) {
                 console.error('Search error:', e);
-                container.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">查詢失敗，請稍後再試</div>';
+                if (e.name === 'AbortError') {
+                    container.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">查詢超時，請稍後再試</div>';
+                } else {
+                    container.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">查詢失敗，請稍後再試</div>';
+                }
             }
         }
 
