@@ -18,36 +18,50 @@
         .brand-orange { background-color: #FA7A35; }
         .brand-text { color: #FA7A35; }
         .brand-border { border-color: #FA7A35; }
+        /* 預設隱藏主內容 */
+        #app-content { display: none; }
     </style>
 </head>
 <body class="bg-gray-100">
-    <!-- 頂部導覽列 -->
-    <nav class="bg-white shadow-sm border-b fixed w-full z-50">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <div class="brand-orange text-white font-bold px-2 py-1 rounded mr-2">SELA</div>
-                    <span class="font-bold text-xl text-gray-800">自動選股系統</span>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <span id="userName" class="text-gray-600"></span>
-                    <img id="userAvatar" class="w-8 h-8 rounded-full" src="" alt="">
-                    <button onclick="logout()" class="text-gray-500 hover:text-red-500">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </button>
+    <!-- 載入畫面 - 驗證登入時顯示 -->
+    <div id="loading-screen" class="fixed inset-0 bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center z-50">
+        <div class="text-center">
+            <img src="/static/logo.png" alt="SELA" class="w-24 h-24 mx-auto mb-4 rounded-xl">
+            <p class="text-white text-lg">載入中...</p>
+            <i class="fas fa-spinner fa-spin text-white text-2xl mt-4"></i>
+        </div>
+    </div>
+
+    <!-- 主應用程式內容 -->
+    <div id="app-content">
+        <!-- 頂部導覽列 -->
+        <nav class="bg-white shadow-sm border-b fixed w-full z-50">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <img src="/static/logo.png" alt="SELA" class="w-10 h-10 rounded-lg mr-2">
+                        <span class="font-bold text-xl text-gray-800">自動選股系統</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span id="sessionTimer" class="text-xs text-gray-400"></span>
+                        <span id="userName" class="text-gray-600"></span>
+                        <img id="userAvatar" class="w-8 h-8 rounded-full" src="" alt="">
+                        <button onclick="logout()" class="text-gray-500 hover:text-red-500" title="登出">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    </nav>
+        </nav>
 
-    <!-- 主內容 -->
-    <div class="pt-16 flex">
-        <!-- 側邊欄 -->
-        <aside class="w-64 bg-white shadow-sm min-h-screen fixed">
-            <nav class="p-4 space-y-2">
-                <a href="#" onclick="showSection('dashboard', event)" class="nav-link flex items-center px-4 py-2 text-gray-700 bg-blue-50 rounded-lg">
-                    <i class="fas fa-tachometer-alt mr-3"></i>
-                    <span>儀表板</span>
+        <!-- 主內容 -->
+        <div class="pt-16 flex">
+            <!-- 側邊欄 -->
+            <aside class="w-64 bg-white shadow-sm min-h-screen fixed">
+                <nav class="p-4 space-y-2">
+                    <a href="#" onclick="showSection('dashboard', event)" class="nav-link flex items-center px-4 py-2 text-gray-700 bg-blue-50 rounded-lg">
+                        <i class="fas fa-tachometer-alt mr-3"></i>
+                        <span>儀表板</span>
                 </a>
                 <a href="#" onclick="showSection('search', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
                     <i class="fas fa-search mr-3"></i>
@@ -227,14 +241,62 @@
     <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg hidden transition-opacity">
         <span id="toastMessage"></span>
     </div>
+    </div><!-- 結束 app-content -->
 
     <script>
         const API_BASE = '';
         let token = localStorage.getItem('token');
         let currentUser = null;
+        
+        // ========== 自動登出功能 ==========
+        const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 分鐘
+        let sessionTimer = null;
+        let lastActivity = Date.now();
+        
+        function resetSessionTimer() {
+            lastActivity = Date.now();
+        }
+        
+        function checkSessionTimeout() {
+            const elapsed = Date.now() - lastActivity;
+            const remaining = SESSION_TIMEOUT - elapsed;
+            
+            if (remaining <= 0) {
+                // 超時，自動登出
+                showToast('閒置超過 5 分鐘，已自動登出');
+                setTimeout(() => logout(), 1500);
+            } else {
+                // 更新倒數顯示
+                const mins = Math.floor(remaining / 60000);
+                const secs = Math.floor((remaining % 60000) / 1000);
+                const timerEl = document.getElementById('sessionTimer');
+                if (timerEl) {
+                    timerEl.textContent = `閒置登出: ${mins}:${secs.toString().padStart(2, '0')}`;
+                }
+            }
+        }
+        
+        function startSessionMonitor() {
+            // 監聽用戶活動
+            ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'].forEach(event => {
+                document.addEventListener(event, resetSessionTimer, { passive: true });
+            });
+            
+            // 每秒檢查
+            sessionTimer = setInterval(checkSessionTimeout, 1000);
+        }
+        
+        function stopSessionMonitor() {
+            if (sessionTimer) {
+                clearInterval(sessionTimer);
+                sessionTimer = null;
+            }
+        }
+        // ========== 自動登出功能結束 ==========
 
         // 檢查登入狀態
         async function checkAuth() {
+            // 沒有 token，直接跳轉登入頁
             if (!token) {
                 window.location.href = '/static/index.html';
                 return;
@@ -251,9 +313,17 @@
                 document.getElementById('userName').textContent = currentUser.display_name;
                 document.getElementById('userAvatar').src = currentUser.picture_url || 'https://via.placeholder.com/40';
                 
+                // 驗證成功 - 隱藏載入畫面，顯示主內容
+                document.getElementById('loading-screen').style.display = 'none';
+                document.getElementById('app-content').style.display = 'block';
+                
+                // 啟動自動登出監控
+                startSessionMonitor();
+                
                 // 載入資料
                 loadDashboard();
             } catch (e) {
+                // 驗證失敗 - 清除 token，跳轉登入頁
                 localStorage.removeItem('token');
                 window.location.href = '/static/index.html';
             }
@@ -261,6 +331,7 @@
 
         // 登出
         function logout() {
+            stopSessionMonitor();
             localStorage.removeItem('token');
             window.location.href = '/static/index.html';
         }
