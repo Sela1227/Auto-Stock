@@ -8,9 +8,26 @@ from sqlalchemy.orm import sessionmaker
 
 from app.config import settings
 
+
+def get_async_url(url: str) -> str:
+    """將一般的 sqlite URL 轉換為 async 格式"""
+    if url.startswith("sqlite:///") and "+aiosqlite" not in url:
+        return url.replace("sqlite:///", "sqlite+aiosqlite:///")
+    elif url.startswith("postgresql://") and "+asyncpg" not in url:
+        return url.replace("postgresql://", "postgresql+asyncpg://")
+    return url
+
+
+def get_sync_url(url: str) -> str:
+    """確保是同步格式的 URL"""
+    url = url.replace("+aiosqlite", "").replace("+asyncpg", "")
+    return url
+
+
 # 非同步引擎 (FastAPI 用)
+async_database_url = get_async_url(settings.DATABASE_URL)
 async_engine = create_async_engine(
-    settings.DATABASE_URL,
+    async_database_url,
     echo=settings.DEBUG,
 )
 
@@ -22,7 +39,7 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 # 同步引擎 (CLI 用)
-sync_database_url = settings.DATABASE_URL.replace("+aiosqlite", "")
+sync_database_url = get_sync_url(settings.DATABASE_URL)
 sync_engine = create_engine(
     sync_database_url,
     echo=settings.DEBUG,
