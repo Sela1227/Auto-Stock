@@ -34,7 +34,7 @@ async def get_stock_analysis(
     symbol = symbol.upper()
     
     # 取得股票資料
-    df = yahoo_finance.get_stock_data(symbol, period="1y")
+    df = yahoo_finance.get_stock_history(symbol, period="1y")
     if df is None or df.empty:
         raise HTTPException(
             status_code=404,
@@ -183,7 +183,7 @@ async def get_stock_chart(
     
     symbol = symbol.upper()
     
-    df = yahoo_finance.get_stock_data(symbol, period="1y")
+    df = yahoo_finance.get_stock_history(symbol, period="1y")
     
     if df is None or df.empty:
         raise HTTPException(

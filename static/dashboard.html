@@ -419,13 +419,15 @@
                 const data = await res.json();
                 
                 if (!data.success) {
-                    container.innerHTML = `<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">${data.error?.message || '查詢失敗'}</div>`;
+                    container.innerHTML = `<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">${data.detail || data.error?.message || '查詢失敗'}</div>`;
                     return;
                 }
 
-                renderStockResult(data.data, isCrypto);
+                // 資料直接在頂層，不在 data.data 裡
+                renderStockResult(data, isCrypto);
                 
             } catch (e) {
+                console.error('Search error:', e);
                 container.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">查詢失敗，請稍後再試</div>';
             }
         }

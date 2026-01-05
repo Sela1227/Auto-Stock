@@ -32,8 +32,8 @@ async def get_crypto_analysis(
             detail=f"不支援的加密貨幣: {symbol}"
         )
     
-    # 取得歷史資料
-    df = coingecko.get_historical_data(symbol, days=365)
+    # 取得歷史資料 (OHLC)
+    df = coingecko.get_ohlc(symbol, days=365)
     if df is None or df.empty:
         raise HTTPException(
             status_code=404,
@@ -168,7 +168,7 @@ async def get_crypto_chart(
     
     symbol = symbol.upper()
     
-    df = coingecko.get_historical_data(symbol, days=days)
+    df = coingecko.get_ohlc(symbol, days=days)
     
     if df is None or df.empty:
         raise HTTPException(
