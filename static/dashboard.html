@@ -95,34 +95,35 @@
             
             .collapsible-content.open { max-height: 500px; }
             
-            /* 全螢幕圖表 */
-            .chart-fullscreen {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100vw;
-                height: 100vh;
-                background: white;
-                z-index: 2000;
-                display: none;
-            }
-            
-            .chart-fullscreen.open { display: block; }
-            
-            /* 強制橫向提示 */
-            .rotate-hint {
-                display: none;
-            }
-            
-            @media (orientation: portrait) {
-                .chart-fullscreen .rotate-hint { display: flex; }
-                .chart-fullscreen .chart-container { display: none; }
-            }
-            
-            @media (orientation: landscape) {
-                .chart-fullscreen .rotate-hint { display: none; }
-                .chart-fullscreen .chart-container { display: block; }
-            }
+        }
+        
+        /* 全螢幕圖表 - 放在 media query 外面 */
+        .chart-fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            z-index: 2000;
+            display: none;
+        }
+        
+        .chart-fullscreen.open { display: block; }
+        
+        /* 電腦版：直接顯示圖表，不顯示橫放提示 */
+        .chart-fullscreen .rotate-hint { display: none; }
+        .chart-fullscreen .chart-container { display: flex; flex-direction: column; height: 100%; }
+        
+        /* 手機版：根據方向顯示 */
+        @media (max-width: 767px) {
+            .chart-fullscreen .rotate-hint { display: none; }
+            .chart-fullscreen .chart-container { display: flex; }
+        }
+        
+        @media (max-width: 767px) and (orientation: portrait) {
+            .chart-fullscreen .rotate-hint { display: flex !important; }
+            .chart-fullscreen .chart-container { display: none !important; }
         }
         
         /* 底部導航列 */
@@ -449,8 +450,8 @@
     </div>
 
     <!-- ===== 新增追蹤清單 Modal ===== -->
-    <div id="addWatchlistModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl w-full max-w-md p-6">
+    <div id="addWatchlistModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[3000] p-4">
+        <div class="bg-white rounded-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <h3 class="text-lg font-bold text-gray-800 mb-4">新增追蹤</h3>
             <div class="space-y-4">
                 <div>
@@ -1123,7 +1124,7 @@
                                     <span class="font-bold text-lg text-gray-800">${item.symbol}</span>
                                     <span class="ml-2 px-2 py-0.5 rounded text-xs ${typeClass}">${typeText}</span>
                                 </div>
-                                <button onclick="removeFromWatchlist(${item.id})" class="p-2 text-gray-400 hover:text-red-500 touch-target">
+                                <button onclick="removeFromWatchlist('${item.symbol}')" class="p-2 text-gray-400 hover:text-red-500 touch-target">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -1218,11 +1219,11 @@
             }
         }
         
-        async function removeFromWatchlist(id) {
-            if (!confirm('確定要移除此追蹤？')) return;
+        async function removeFromWatchlist(symbol) {
+            if (!confirm(`確定要移除 ${symbol} 的追蹤？`)) return;
             
             try {
-                const res = await fetch(`${API_BASE}/api/watchlist/${id}`, {
+                const res = await fetch(`${API_BASE}/api/watchlist/${symbol}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -1230,13 +1231,14 @@
                 const data = await res.json();
                 
                 if (data.success) {
-                    showToast('已移除');
+                    showToast(`${symbol} 已移除`);
                     loadWatchlist();
                     loadWatchlistOverview();
                 } else {
-                    showToast('移除失敗');
+                    showToast(data.detail || '移除失敗');
                 }
             } catch (e) {
+                console.error('移除失敗:', e);
                 showToast('移除失敗');
             }
         }
