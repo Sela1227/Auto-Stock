@@ -45,23 +45,23 @@
         <!-- 側邊欄 -->
         <aside class="w-64 bg-white shadow-sm min-h-screen fixed">
             <nav class="p-4 space-y-2">
-                <a href="#" onclick="showSection('dashboard')" class="nav-link flex items-center px-4 py-2 text-gray-700 bg-blue-50 rounded-lg">
+                <a href="#" onclick="showSection('dashboard', event)" class="nav-link flex items-center px-4 py-2 text-gray-700 bg-blue-50 rounded-lg">
                     <i class="fas fa-tachometer-alt mr-3"></i>
                     <span>儀表板</span>
                 </a>
-                <a href="#" onclick="showSection('search')" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+                <a href="#" onclick="showSection('search', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
                     <i class="fas fa-search mr-3"></i>
                     <span>股票查詢</span>
                 </a>
-                <a href="#" onclick="showSection('watchlist')" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+                <a href="#" onclick="showSection('watchlist', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
                     <i class="fas fa-star mr-3"></i>
                     <span>追蹤清單</span>
                 </a>
-                <a href="#" onclick="showSection('sentiment')" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+                <a href="#" onclick="showSection('sentiment', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
                     <i class="fas fa-heart-pulse mr-3"></i>
                     <span>市場情緒</span>
                 </a>
-                <a href="#" onclick="showSection('settings')" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+                <a href="#" onclick="showSection('settings', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
                     <i class="fas fa-cog mr-3"></i>
                     <span>設定</span>
                 </a>
@@ -266,16 +266,26 @@
         }
 
         // 切換區塊
-        function showSection(name) {
+        function showSection(name, evt) {
             document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
-            document.getElementById(`section-${name}`).classList.remove('hidden');
+            const section = document.getElementById(`section-${name}`);
+            if (section) {
+                section.classList.remove('hidden');
+            }
             
             document.querySelectorAll('.nav-link').forEach(l => {
                 l.classList.remove('bg-blue-50', 'text-gray-700');
                 l.classList.add('text-gray-600');
             });
-            event.target.closest('.nav-link').classList.add('bg-blue-50', 'text-gray-700');
-            event.target.closest('.nav-link').classList.remove('text-gray-600');
+            
+            // 只有點擊導航時才更新高亮
+            if (evt && evt.target) {
+                const navLink = evt.target.closest('.nav-link');
+                if (navLink) {
+                    navLink.classList.add('bg-blue-50', 'text-gray-700');
+                    navLink.classList.remove('text-gray-600');
+                }
+            }
 
             // 載入對應資料
             if (name === 'watchlist') loadWatchlist();
@@ -295,9 +305,12 @@
                 const res = await fetch(`${API_BASE}/api/market/sentiment`);
                 const data = await res.json();
                 
+                console.log('Sentiment data:', data);
+                
                 if (data.success) {
-                    updateSentimentCard('stock', data.data.stock);
-                    updateSentimentCard('crypto', data.data.crypto);
+                    // API 直接返回 data.stock 和 data.crypto，不是 data.data.stock
+                    updateSentimentCard('stock', data.stock);
+                    updateSentimentCard('crypto', data.crypto);
                 }
             } catch (e) {
                 console.error('載入情緒失敗', e);
@@ -415,6 +428,8 @@
                 const isCrypto = ['BTC', 'ETH'].includes(symbol);
                 const endpoint = isCrypto ? `/api/crypto/${symbol}` : `/api/stock/${symbol}`;
                 
+                console.log('開始查詢:', endpoint);
+                
                 // 加入超時控制 (60秒)
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 60000);
@@ -424,27 +439,35 @@
                 });
                 clearTimeout(timeoutId);
                 
+                console.log('回應狀態:', res.status);
+                
                 const data = await res.json();
                 
+                console.log('回應資料:', data);
+                
                 if (!res.ok) {
-                    container.innerHTML = `<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">${data.detail || '查詢失敗'}</div>`;
+                    console.error('HTTP 錯誤:', res.status);
+                    container.innerHTML = `<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">HTTP ${res.status}: ${data.detail || '查詢失敗'}</div>`;
                     return;
                 }
                 
                 if (!data.success) {
+                    console.error('API 錯誤:', data);
                     container.innerHTML = `<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">${data.detail || data.error?.message || '查詢失敗'}</div>`;
                     return;
                 }
 
+                console.log('準備渲染結果');
                 // 資料直接在頂層，不在 data.data 裡
                 renderStockResult(data, isCrypto);
+                console.log('渲染完成');
                 
             } catch (e) {
                 console.error('Search error:', e);
                 if (e.name === 'AbortError') {
                     container.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">查詢超時，請稍後再試</div>';
                 } else {
-                    container.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">查詢失敗，請稍後再試</div>';
+                    container.innerHTML = `<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">查詢失敗: ${e.message}</div>`;
                 }
             }
         }
