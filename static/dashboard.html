@@ -121,9 +121,18 @@
             .chart-fullscreen .chart-container { display: flex; }
         }
         
+        /* 手機直立時顯示提醒橫條 */
+        .rotate-banner {
+            display: none;
+            background: #FEF3C7;
+            color: #92400E;
+            padding: 8px 16px;
+            text-align: center;
+            font-size: 12px;
+        }
+        
         @media (max-width: 767px) and (orientation: portrait) {
-            .chart-fullscreen .rotate-hint { display: flex !important; }
-            .chart-fullscreen .chart-container { display: none !important; }
+            .chart-fullscreen .rotate-banner { display: block; }
         }
         
         /* 底部導航列 */
@@ -419,17 +428,12 @@
 
     <!-- ===== 全螢幕圖表 ===== -->
     <div id="chartFullscreen" class="chart-fullscreen">
-        <!-- 橫向提示 -->
-        <div class="rotate-hint fixed inset-0 bg-white flex flex-col items-center justify-center z-10">
-            <div class="text-6xl mb-4">📱🔄</div>
-            <p class="text-lg text-gray-700 mb-2">請將手機橫向放置</p>
-            <p class="text-gray-500 text-sm">以獲得最佳圖表體驗</p>
-            <button onclick="closeChartFullscreen()" class="mt-6 px-6 py-2 border border-gray-300 rounded-lg text-gray-600">
-                返回
-            </button>
-        </div>
-        <!-- 橫向圖表 -->
+        <!-- 圖表容器 -->
         <div class="chart-container h-full flex flex-col">
+            <!-- 橫放提醒橫條 (手機直立時顯示) -->
+            <div class="rotate-banner">
+                📱 橫向放置手機可獲得更好的圖表體驗
+            </div>
             <div class="flex items-center justify-between p-3 border-b bg-white">
                 <button onclick="closeChartFullscreen()" class="p-2 text-gray-600 touch-target">
                     <i class="fas fa-times text-xl"></i>
@@ -437,7 +441,7 @@
                 <span id="chartFullscreenTitle" class="font-bold text-lg"></span>
                 <div class="w-10"></div>
             </div>
-            <div class="flex-1 p-2 bg-gray-50">
+            <div class="flex-1 p-2 bg-gray-50" style="min-height: 200px;">
                 <canvas id="fullscreenChart"></canvas>
             </div>
             <div class="flex items-center justify-center gap-2 p-2 bg-white border-t">
@@ -1033,7 +1037,7 @@
                         {
                             label: 'MA20',
                             data: chartData.ma20.slice(startIdx),
-                            borderColor: '#10B981',
+                            borderColor: '#EF4444',  // 紅色
                             borderWidth: 1.5,
                             fill: false,
                             tension: 0.1,
@@ -1042,7 +1046,7 @@
                         {
                             label: 'MA50',
                             data: chartData.ma50.slice(startIdx),
-                            borderColor: '#F59E0B',
+                            borderColor: '#10B981',  // 綠色
                             borderWidth: 1.5,
                             fill: false,
                             tension: 0.1,
@@ -1051,7 +1055,16 @@
                         {
                             label: 'MA200',
                             data: chartData.ma200.slice(startIdx),
-                            borderColor: '#EF4444',
+                            borderColor: '#EAB308',  // 黃色
+                            borderWidth: 1.5,
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: 'MA250',
+                            data: chartData.ma250 ? chartData.ma250.slice(startIdx) : [],
+                            borderColor: '#A855F7',  // 淺紫色
                             borderWidth: 1.5,
                             fill: false,
                             tension: 0.1,

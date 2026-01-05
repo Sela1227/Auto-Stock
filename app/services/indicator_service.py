@@ -92,12 +92,13 @@ class IndicatorService:
         新增移動平均線指標
         
         Returns:
-            新增 ma20, ma50, ma200 欄位的 DataFrame
+            新增 ma20, ma50, ma200, ma250 欄位的 DataFrame
         """
         df = df.copy()
         df[f"ma{self.ma_short}"] = self.calculate_ma(df, self.ma_short)
         df[f"ma{self.ma_mid}"] = self.calculate_ma(df, self.ma_mid)
         df[f"ma{self.ma_long}"] = self.calculate_ma(df, self.ma_long)
+        df["ma250"] = self.calculate_ma(df, 250)  # 添加 MA250
         return df
     
     def get_ma_alignment(self, df: pd.DataFrame) -> Tuple[TrendDirection, str]:

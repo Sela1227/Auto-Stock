@@ -173,6 +173,7 @@ async def get_stock_analysis(
                 "ma20": [float(v) if not pd.isna(v) else None for v in df['ma20'].tail(120).tolist()] if 'ma20' in df.columns else [],
                 "ma50": [float(v) if not pd.isna(v) else None for v in df['ma50'].tail(120).tolist()] if 'ma50' in df.columns else [],
                 "ma200": [float(v) if not pd.isna(v) else None for v in df['ma200'].tail(120).tolist()] if 'ma200' in df.columns else [],
+                "ma250": [float(v) if not pd.isna(v) else None for v in df['ma250'].tail(120).tolist()] if 'ma250' in df.columns else [],
             },
         }
     except HTTPException:
