@@ -1,0 +1,19 @@
+{
+  "$schema": "project-meta-v1",
+  "name": "stock-analysis",
+  "version": "0.3.0",
+  "type": "api",
+  "status": "active",
+  "description": "多用戶股票與加密貨幣技術分析平台",
+  "tags": ["Python", "FastAPI", "Stock", "Crypto", "Technical Analysis"],
+  "created_at": "2025-01-05",
+  "docs": {
+    "readme": "README.md",
+    "changelog": "CHANGELOG.md"
+  },
+  "scripts": {
+    "dev": "uvicorn app.main:app --reload",
+    "cli": "python -m app.cli",
+    "test": "pytest tests/"
+  }
+}

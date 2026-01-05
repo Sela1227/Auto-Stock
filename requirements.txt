@@ -1,0 +1,35 @@
+# Core Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-dotenv>=1.0.0
+
+# Database
+sqlalchemy>=2.0.0
+aiosqlite>=0.19.0
+greenlet>=3.0.0
+
+# Data Sources
+yfinance>=0.2.36
+requests>=2.31.0
+
+# Data Processing
+pandas>=2.2.0
+numpy>=1.26.0
+# pandas-ta>=0.3.14b  # 已在 indicator_service.py 手動實作指標計算
+
+# Chart Generation
+matplotlib>=3.8.0
+mplfinance>=0.12.9b7
+
+# Authentication
+python-jose[cryptography]>=3.3.0
+httpx>=0.26.0
+
+# Utilities
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+rich>=13.7.0  # CLI 美化輸出
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
