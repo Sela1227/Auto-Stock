@@ -127,7 +127,6 @@ async def line_login():
 
 @router.get("/line/callback", summary="LINE 登入回調")
 async def line_callback(
-    request: Request,
     code: str = Query(..., description="授權碼"),
     state: str = Query(..., description="State"),
     db: AsyncSession = Depends(get_async_session),
@@ -150,54 +149,15 @@ async def line_callback(
             detail="Invalid state"
         )
     
-    # 取得客戶端資訊
-    client_ip = request.client.host if request.client else None
-    user_agent = request.headers.get("user-agent")
-    
     # 執行登入流程
     auth_service = AuthService(db)
-    result = await auth_service.login_with_line(code, client_ip, user_agent)
+    result = await auth_service.login_with_line(code)
     
     if not result:
-        # 可能是被封鎖的用戶
-        html_content = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>SELA 自動選股系統</title>
-            <style>
-                body {
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    height: 100vh;
-                    margin: 0;
-                    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                }
-                .card {
-                    background: white;
-                    padding: 3rem;
-                    border-radius: 1rem;
-                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-                    text-align: center;
-                }
-                h2 { color: #dc2626; margin: 0 0 1rem; }
-                p { color: #64748b; margin: 0; }
-                a { color: #3b82f6; }
-            </style>
-        </head>
-        <body>
-            <div class="card">
-                <h2>⚠️ 登入失敗</h2>
-                <p>您的帳號已被停用或登入過程發生錯誤</p>
-                <p style="margin-top: 1rem;"><a href="/static/index.html">返回首頁</a></p>
-            </div>
-        </body>
-        </html>
-        """
-        return HTMLResponse(content=html_content, status_code=403)
+        raise HTTPException(
+            status_code=401,
+            detail="LINE 登入失敗"
+        )
     
     # 回傳 HTML 頁面，將 Token 存入 localStorage 並跳轉到儀表板
     token = result["token"]
@@ -266,8 +226,7 @@ async def line_callback(
                 id: {user.id},
                 display_name: "{user.display_name}",
                 picture_url: "{user.picture_url or ''}",
-                line_user_id: "{user.line_user_id}",
-                is_admin: {'true' if user.is_admin else 'false'}
+                line_user_id: "{user.line_user_id}"
             }}));
             setTimeout(function() {{
                 window.location.href = '/static/dashboard.html';
