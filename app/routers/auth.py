@@ -6,6 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 import secrets
+import hashlib
+import hmac
+import time
+import urllib.parse
 
 from app.database import get_async_session
 from app.services.auth_service import AuthService
@@ -14,8 +18,48 @@ from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["認證"])
 
-# 儲存 state（正式環境應使用 Redis）
-_states = {}
+
+def create_state_token() -> str:
+    """建立 state token (HMAC 簽名，有效期 10 分鐘)"""
+    # 格式: timestamp.nonce.signature
+    timestamp = str(int(time.time()))
+    nonce = secrets.token_hex(8)  # 16 字元
+    
+    # 簽名
+    message = f"{timestamp}.{nonce}"
+    signature = hmac.new(
+        settings.JWT_SECRET_KEY.encode(),
+        message.encode(),
+        hashlib.sha256
+    ).hexdigest()[:16]  # 只取前 16 字元
+    
+    return f"{timestamp}.{nonce}.{signature}"
+
+
+def verify_state_token(state: str) -> bool:
+    """驗證 state token"""
+    try:
+        parts = state.split(".")
+        if len(parts) != 3:
+            return False
+        
+        timestamp, nonce, signature = parts
+        
+        # 檢查是否過期 (10 分鐘)
+        if int(time.time()) - int(timestamp) > 600:
+            return False
+        
+        # 驗證簽名
+        message = f"{timestamp}.{nonce}"
+        expected_signature = hmac.new(
+            settings.JWT_SECRET_KEY.encode(),
+            message.encode(),
+            hashlib.sha256
+        ).hexdigest()[:16]
+        
+        return hmac.compare_digest(signature, expected_signature)
+    except Exception:
+        return False
 
 
 @router.get("/line", summary="LINE 登入")
@@ -30,15 +74,17 @@ async def line_login():
         )
     
     # 產生 state
-    state = secrets.token_urlsafe(32)
-    _states[state] = True
+    state = create_state_token()
+    
+    # URL encode callback URL
+    callback_url = urllib.parse.quote(settings.LINE_LOGIN_CALLBACK_URL, safe='')
     
     # 建立授權 URL
     auth_url = (
         "https://access.line.me/oauth2/v2.1/authorize"
         f"?response_type=code"
         f"&client_id={settings.LINE_LOGIN_CHANNEL_ID}"
-        f"&redirect_uri={settings.LINE_LOGIN_CALLBACK_URL}"
+        f"&redirect_uri={callback_url}"
         f"&state={state}"
         f"&scope=profile%20openid%20email"
     )
@@ -63,13 +109,12 @@ async def line_callback(
     """
     from fastapi.responses import HTMLResponse
     
-    # 驗證 state
-    if state not in _states:
+    # 驗證 state (使用 JWT 驗證)
+    if not verify_state_token(state):
         raise HTTPException(
             status_code=400,
             detail="Invalid state"
         )
-    del _states[state]
     
     # 執行登入流程
     auth_service = AuthService(db)
