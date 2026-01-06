@@ -25,6 +25,7 @@ async def get_stock_analysis(
     from app.services.indicator_service import indicator_service
     
     symbol = symbol.upper()
+    original_symbol = symbol
     logger.info(f"開始查詢股票: {symbol}")
     
     try:
@@ -32,11 +33,20 @@ async def get_stock_analysis(
         logger.info(f"正在從 Yahoo Finance 取得 {symbol} 資料...")
         df = yahoo_finance.get_stock_history(symbol, period="2y")
         
+        # 如果 .TW 找不到，嘗試 .TWO (上櫃股票)
+        if (df is None or df.empty) and symbol.endswith('.TW'):
+            two_symbol = symbol.replace('.TW', '.TWO')
+            logger.info(f"{symbol} 找不到，嘗試上櫃股票: {two_symbol}")
+            df = yahoo_finance.get_stock_history(two_symbol, period="2y")
+            if df is not None and not df.empty:
+                symbol = two_symbol
+                logger.info(f"成功找到上櫃股票: {two_symbol}")
+        
         if df is None or df.empty:
-            logger.warning(f"找不到股票資料: {symbol}")
+            logger.warning(f"找不到股票資料: {original_symbol}")
             raise HTTPException(
                 status_code=404,
-                detail=f"找不到股票: {symbol}"
+                detail=f"找不到股票: {original_symbol}（已嘗試上市 .TW 和上櫃 .TWO）"
             )
         
         logger.info(f"取得 {len(df)} 筆資料，正在計算技術指標...")
