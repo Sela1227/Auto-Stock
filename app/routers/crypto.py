@@ -73,13 +73,17 @@ async def get_crypto_analysis(
                 data_source = "Yahoo Finance"
                 logger.info(f"成功從 Yahoo Finance 取得 {len(df)} 筆資料")
                 # 從 Yahoo Finance 取得基本資訊
-                yf_info = yahoo_finance.get_stock_info(yahoo_symbol)
-                if yf_info:
-                    info = {
-                        "name": yf_info.get("shortName", symbol),
-                        "market_cap": yf_info.get("marketCap"),
-                        "total_volume": yf_info.get("volume24Hr") or yf_info.get("volume"),
-                    }
+                try:
+                    yf_info = yahoo_finance.get_stock_info(yahoo_symbol)
+                    if yf_info:
+                        info = {
+                            "name": yf_info.get("shortName") or yf_info.get("name") or symbol,
+                            "market_cap": yf_info.get("market_cap") or yf_info.get("marketCap"),
+                            "total_volume": yf_info.get("total_volume"),
+                        }
+                except Exception as e:
+                    logger.warning(f"取得 Yahoo Finance info 失敗: {e}")
+                    info = {"name": symbol}
         except Exception as e:
             logger.error(f"Yahoo Finance 也失敗: {e}")
     
@@ -92,6 +96,14 @@ async def get_crypto_analysis(
     
     logger.info(f"使用 {data_source} 資料，共 {len(df)} 筆")
     
+    # 確保有必要的欄位 (在 try 塊外面先處理)
+    if 'volume' not in df.columns:
+        df['volume'] = 0
+        logger.warning(f"{symbol} 沒有 volume 資料，已填入 0")
+    
+    # 確保 volume 不是 None 或 NaN
+    df['volume'] = df['volume'].fillna(0).astype(float)
+    
     try:
         # 計算技術指標
         df = indicator_service.calculate_all_indicators(df)
@@ -102,9 +114,12 @@ async def get_crypto_analysis(
         
         # 漲跌幅計算
         def calc_change(days):
-            if len(df) > days:
-                old_price = float(df.iloc[-days-1]['close'])
-                return round((current_price - old_price) / old_price * 100, 2)
+            try:
+                if len(df) > days:
+                    old_price = float(df.iloc[-days-1]['close'])
+                    return round((current_price - old_price) / old_price * 100, 2)
+            except:
+                pass
             return None
         
         # 均線資訊 (加密貨幣用 MA7/25/99)

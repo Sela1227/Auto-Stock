@@ -495,6 +495,10 @@ class IndicatorService:
     def add_obv_indicator(self, df: pd.DataFrame) -> pd.DataFrame:
         """新增 OBV 指標"""
         df = df.copy()
+        # 檢查是否有 volume 欄位
+        if "volume" not in df.columns:
+            df["obv"] = None
+            return df
         df["obv"] = self.calculate_obv(df)
         return df
     
@@ -538,6 +542,11 @@ class IndicatorService:
     def add_volume_indicator(self, df: pd.DataFrame) -> pd.DataFrame:
         """新增成交量指標"""
         df = df.copy()
+        # 檢查是否有 volume 欄位
+        if "volume" not in df.columns:
+            df["volume_ma20"] = None
+            df["volume_ratio"] = None
+            return df
         df["volume_ma20"] = df["volume"].rolling(window=20).mean()
         df["volume_ratio"] = self.calculate_volume_ratio(df)
         return df
