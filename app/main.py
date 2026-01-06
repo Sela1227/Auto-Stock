@@ -12,6 +12,14 @@ import os
 
 from app.config import settings
 from app.database import init_db
+
+# 確保所有 models 被載入，這樣 Base.metadata 才會包含所有表格
+from app.models import (
+    User, Watchlist, StockPrice, CryptoPrice, 
+    MarketSentiment, Notification,
+    UserIndicatorSettings, UserAlertSettings, UserIndicatorParams
+)
+
 from app.routers import (
     auth_router,
     stock_router,
