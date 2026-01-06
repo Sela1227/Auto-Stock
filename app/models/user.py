@@ -1,7 +1,7 @@
 """
 用戶資料模型
 """
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -57,15 +57,14 @@ class LoginLog(Base):
     __tablename__ = "login_logs"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     action = Column(String(20), nullable=False)  # login, logout, token_refresh
     ip_address = Column(String(50))
     user_agent = Column(String(500))
     created_at = Column(DateTime, server_default=func.now())
     
     # 關聯
-    user = relationship("User", back_populates="login_logs", foreign_keys=[user_id],
-                       primaryjoin="LoginLog.user_id == User.id")
+    user = relationship("User", back_populates="login_logs")
     
     def to_dict(self):
         return {
