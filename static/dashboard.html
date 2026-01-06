@@ -429,8 +429,284 @@
             <!-- ===== 設定區塊 ===== -->
             <section id="section-settings" class="section hidden">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">設定</h2>
-                <div id="settingsContent" class="bg-white rounded-xl shadow p-4 md:p-6">
-                    <p class="text-gray-500 text-center py-4">載入中...</p>
+                
+                <!-- 快速模板 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-magic mr-2 text-purple-500"></i>
+                        快速套用模板
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <button onclick="applyTemplate('minimal')" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                            <i class="fas fa-minus-circle text-gray-400 mr-1"></i>極簡
+                        </button>
+                        <button onclick="applyTemplate('standard')" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 border-blue-500 text-blue-600">
+                            <i class="fas fa-check-circle text-blue-500 mr-1"></i>標準
+                        </button>
+                        <button onclick="applyTemplate('full')" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                            <i class="fas fa-layer-group text-green-500 mr-1"></i>完整
+                        </button>
+                        <button onclick="applyTemplate('short_term')" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                            <i class="fas fa-bolt text-yellow-500 mr-1"></i>短線
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 指標顯示設定 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-chart-line mr-2 text-blue-500"></i>
+                        指標顯示設定
+                    </h3>
+                    <p class="text-gray-500 text-sm mb-4">選擇在股票分析中要顯示的技術指標</p>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_ma" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">均線 MA</span>
+                                <span class="block text-xs text-gray-500">20/50/200日</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_rsi" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">RSI</span>
+                                <span class="block text-xs text-gray-500">相對強弱指標</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_macd" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">MACD</span>
+                                <span class="block text-xs text-gray-500">指數平滑異同</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_kd" class="indicator-toggle w-5 h-5 text-blue-600 rounded">
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">KD</span>
+                                <span class="block text-xs text-gray-500">隨機指標</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_bollinger" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">布林通道</span>
+                                <span class="block text-xs text-gray-500">Bollinger Bands</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_obv" class="indicator-toggle w-5 h-5 text-blue-600 rounded">
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">OBV</span>
+                                <span class="block text-xs text-gray-500">能量潮指標</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_volume" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">成交量</span>
+                                <span class="block text-xs text-gray-500">Volume</span>
+                            </span>
+                        </label>
+                    </div>
+                    <button onclick="saveIndicatorSettings()" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                        <i class="fas fa-save mr-2"></i>儲存指標設定
+                    </button>
+                </div>
+
+                <!-- 通知設定 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-bell mr-2 text-yellow-500"></i>
+                        通知設定
+                        <span class="ml-2 text-xs text-gray-400">(即將推出)</span>
+                    </h3>
+                    <p class="text-gray-500 text-sm mb-4">選擇要接收的技術訊號通知</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_ma_cross" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">均線交叉</span>
+                                <span class="block text-xs text-gray-500">黃金交叉/死亡交叉</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_ma_breakout" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">均線突破</span>
+                                <span class="block text-xs text-gray-500">價格穿越均線</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_rsi" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">RSI 超買超賣</span>
+                                <span class="block text-xs text-gray-500">進入極端區域</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_macd" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">MACD 交叉</span>
+                                <span class="block text-xs text-gray-500">DIF 穿越 MACD</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_kd" class="alert-toggle w-5 h-5 text-yellow-600 rounded">
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">KD 交叉</span>
+                                <span class="block text-xs text-gray-500">K 穿越 D</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_bollinger" class="alert-toggle w-5 h-5 text-yellow-600 rounded">
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">布林突破</span>
+                                <span class="block text-xs text-gray-500">觸及上下軌</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_volume" class="alert-toggle w-5 h-5 text-yellow-600 rounded">
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">量能異常</span>
+                                <span class="block text-xs text-gray-500">成交量暴增</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_sentiment" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">情緒極端</span>
+                                <span class="block text-xs text-gray-500">極度恐懼/貪婪</span>
+                            </span>
+                        </label>
+                    </div>
+                    <button onclick="saveAlertSettings()" class="mt-4 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">
+                        <i class="fas fa-save mr-2"></i>儲存通知設定
+                    </button>
+                </div>
+
+                <!-- 指標參數 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-sliders-h mr-2 text-green-500"></i>
+                        指標參數調整
+                    </h3>
+                    <p class="text-gray-500 text-sm mb-4">自訂技術指標的計算參數</p>
+                    
+                    <!-- 均線參數 -->
+                    <div class="mb-6">
+                        <h4 class="font-medium text-gray-600 mb-2">均線週期</h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">短期均線</label>
+                                <input type="number" id="ma_short" value="20" min="5" max="50" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">中期均線</label>
+                                <input type="number" id="ma_mid" value="50" min="20" max="100" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">長期均線</label>
+                                <input type="number" id="ma_long" value="200" min="50" max="300" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- RSI 參數 -->
+                    <div class="mb-6">
+                        <h4 class="font-medium text-gray-600 mb-2">RSI 參數</h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">RSI 週期</label>
+                                <input type="number" id="rsi_period" value="14" min="5" max="30" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">超買門檻</label>
+                                <input type="number" id="rsi_overbought" value="70" min="60" max="90" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">超賣門檻</label>
+                                <input type="number" id="rsi_oversold" value="30" min="10" max="40" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- MACD 參數 -->
+                    <div class="mb-6">
+                        <h4 class="font-medium text-gray-600 mb-2">MACD 參數</h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">快線週期</label>
+                                <input type="number" id="macd_fast" value="12" min="5" max="20" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">慢線週期</label>
+                                <input type="number" id="macd_slow" value="26" min="15" max="40" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">訊號線</label>
+                                <input type="number" id="macd_signal" value="9" min="5" max="15" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 其他參數 -->
+                    <div class="mb-6">
+                        <h4 class="font-medium text-gray-600 mb-2">其他參數</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">KD 週期</label>
+                                <input type="number" id="kd_period" value="9" min="5" max="20" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">布林週期</label>
+                                <input type="number" id="bollinger_period" value="20" min="10" max="30" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">突破預警%</label>
+                                <input type="number" id="breakout_threshold" value="2.0" min="0.5" max="5" step="0.5" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">量比警戒</label>
+                                <input type="number" id="volume_alert_ratio" value="2.0" min="1.5" max="5" step="0.5" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="saveParamSettings()" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                            <i class="fas fa-save mr-2"></i>儲存參數
+                        </button>
+                        <button onclick="resetParams()" class="px-4 py-2 border text-gray-600 rounded-lg hover:bg-gray-50">
+                            <i class="fas fa-undo mr-2"></i>恢復預設
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 帳號資訊 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-user mr-2 text-gray-500"></i>
+                        帳號資訊
+                    </h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between py-2 border-b">
+                            <span class="text-gray-500">用戶名稱</span>
+                            <span id="settingsUserName" class="font-medium">-</span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b">
+                            <span class="text-gray-500">LINE ID</span>
+                            <span id="settingsLineId" class="font-mono text-xs">-</span>
+                        </div>
+                        <div class="flex justify-between py-2">
+                            <span class="text-gray-500">系統版本</span>
+                            <span class="font-medium">v0.5.0</span>
+                        </div>
+                    </div>
+                    <button onclick="logout()" class="mt-4 w-full py-3 border border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-50">
+                        <i class="fas fa-sign-out-alt mr-2"></i>登出
+                    </button>
                 </div>
             </section>
             
@@ -1409,34 +1685,240 @@
         }
 
         // ========== 設定 ==========
+        let currentSettings = {
+            indicators: {},
+            alerts: {},
+            params: {}
+        };
+        
         async function loadSettings() {
-            const container = document.getElementById('settingsContent');
-            container.innerHTML = `
-                <div class="space-y-6">
-                    <div>
-                        <h3 class="font-semibold text-gray-700 mb-3">帳號資訊</h3>
-                        <div class="flex items-center p-4 bg-gray-50 rounded-lg">
-                            <img id="settingsAvatar" class="w-12 h-12 rounded-full mr-4" src="${currentUser?.picture_url || ''}" alt="">
-                            <div>
-                                <p class="font-medium text-gray-800">${currentUser?.display_name || ''}</p>
-                                <p class="text-gray-500 text-sm">LINE 登入</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <h3 class="font-semibold text-gray-700 mb-3">關於</h3>
-                        <div class="p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
-                            <p>SELA 自動選股系統 v0.3.2</p>
-                            <p class="mt-1">技術指標分析 · 智能預警通知</p>
-                        </div>
-                    </div>
-                    
-                    <button onclick="logout()" class="w-full py-3 border border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-50 touch-target">
-                        <i class="fas fa-sign-out-alt mr-2"></i>登出
-                    </button>
-                </div>
-            `;
+            // 載入用戶資訊
+            if (currentUser) {
+                document.getElementById('settingsUserName').textContent = currentUser.display_name || '-';
+                document.getElementById('settingsLineId').textContent = currentUser.line_user_id || '-';
+            }
+            
+            // 載入指標設定
+            try {
+                const indRes = await fetch(`${API_BASE}/api/settings/indicators`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const indData = await indRes.json();
+                if (indData.success && indData.data) {
+                    currentSettings.indicators = indData.data;
+                    applyIndicatorSettings(indData.data);
+                }
+            } catch (e) {
+                console.error('載入指標設定失敗', e);
+            }
+            
+            // 載入通知設定
+            try {
+                const alertRes = await fetch(`${API_BASE}/api/settings/alerts`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const alertData = await alertRes.json();
+                if (alertData.success && alertData.data) {
+                    currentSettings.alerts = alertData.data;
+                    applyAlertSettings(alertData.data);
+                }
+            } catch (e) {
+                console.error('載入通知設定失敗', e);
+            }
+            
+            // 載入參數設定
+            try {
+                const paramRes = await fetch(`${API_BASE}/api/settings/params`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const paramData = await paramRes.json();
+                if (paramData.success && paramData.data) {
+                    currentSettings.params = paramData.data;
+                    applyParamSettings(paramData.data);
+                }
+            } catch (e) {
+                console.error('載入參數設定失敗', e);
+            }
+        }
+        
+        function applyIndicatorSettings(data) {
+            const fields = ['show_ma', 'show_rsi', 'show_macd', 'show_kd', 'show_bollinger', 'show_obv', 'show_volume'];
+            fields.forEach(field => {
+                const el = document.getElementById(field);
+                if (el) el.checked = data[field] ?? false;
+            });
+        }
+        
+        function applyAlertSettings(data) {
+            const fields = ['alert_ma_cross', 'alert_ma_breakout', 'alert_rsi', 'alert_macd', 'alert_kd', 'alert_bollinger', 'alert_volume', 'alert_sentiment'];
+            fields.forEach(field => {
+                const el = document.getElementById(field);
+                if (el) el.checked = data[field] ?? false;
+            });
+        }
+        
+        function applyParamSettings(data) {
+            const fields = ['ma_short', 'ma_mid', 'ma_long', 'rsi_period', 'rsi_overbought', 'rsi_oversold', 
+                           'macd_fast', 'macd_slow', 'macd_signal', 'kd_period', 'bollinger_period',
+                           'breakout_threshold', 'volume_alert_ratio'];
+            fields.forEach(field => {
+                const el = document.getElementById(field);
+                if (el && data[field] !== undefined) el.value = data[field];
+            });
+        }
+        
+        async function saveIndicatorSettings() {
+            const data = {
+                show_ma: document.getElementById('show_ma').checked,
+                show_rsi: document.getElementById('show_rsi').checked,
+                show_macd: document.getElementById('show_macd').checked,
+                show_kd: document.getElementById('show_kd').checked,
+                show_bollinger: document.getElementById('show_bollinger').checked,
+                show_obv: document.getElementById('show_obv').checked,
+                show_volume: document.getElementById('show_volume').checked,
+            };
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/settings/indicators`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast('指標設定已儲存');
+                    currentSettings.indicators = result.data;
+                } else {
+                    showToast('儲存失敗: ' + (result.error?.message || '未知錯誤'));
+                }
+            } catch (e) {
+                console.error('儲存指標設定失敗', e);
+                showToast('儲存失敗');
+            }
+        }
+        
+        async function saveAlertSettings() {
+            const data = {
+                alert_ma_cross: document.getElementById('alert_ma_cross').checked,
+                alert_ma_breakout: document.getElementById('alert_ma_breakout').checked,
+                alert_rsi: document.getElementById('alert_rsi').checked,
+                alert_macd: document.getElementById('alert_macd').checked,
+                alert_kd: document.getElementById('alert_kd').checked,
+                alert_bollinger: document.getElementById('alert_bollinger').checked,
+                alert_volume: document.getElementById('alert_volume').checked,
+                alert_sentiment: document.getElementById('alert_sentiment').checked,
+            };
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/settings/alerts`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast('通知設定已儲存');
+                    currentSettings.alerts = result.data;
+                } else {
+                    showToast('儲存失敗: ' + (result.error?.message || '未知錯誤'));
+                }
+            } catch (e) {
+                console.error('儲存通知設定失敗', e);
+                showToast('儲存失敗');
+            }
+        }
+        
+        async function saveParamSettings() {
+            const data = {
+                ma_short: parseInt(document.getElementById('ma_short').value),
+                ma_mid: parseInt(document.getElementById('ma_mid').value),
+                ma_long: parseInt(document.getElementById('ma_long').value),
+                rsi_period: parseInt(document.getElementById('rsi_period').value),
+                rsi_overbought: parseInt(document.getElementById('rsi_overbought').value),
+                rsi_oversold: parseInt(document.getElementById('rsi_oversold').value),
+                macd_fast: parseInt(document.getElementById('macd_fast').value),
+                macd_slow: parseInt(document.getElementById('macd_slow').value),
+                macd_signal: parseInt(document.getElementById('macd_signal').value),
+                kd_period: parseInt(document.getElementById('kd_period').value),
+                bollinger_period: parseInt(document.getElementById('bollinger_period').value),
+                breakout_threshold: parseFloat(document.getElementById('breakout_threshold').value),
+                volume_alert_ratio: parseFloat(document.getElementById('volume_alert_ratio').value),
+            };
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/settings/params`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast('參數設定已儲存');
+                    currentSettings.params = result.data;
+                } else {
+                    showToast('儲存失敗: ' + (result.error?.message || '未知錯誤'));
+                }
+            } catch (e) {
+                console.error('儲存參數設定失敗', e);
+                showToast('儲存失敗');
+            }
+        }
+        
+        function resetParams() {
+            // 恢復預設值
+            document.getElementById('ma_short').value = 20;
+            document.getElementById('ma_mid').value = 50;
+            document.getElementById('ma_long').value = 200;
+            document.getElementById('rsi_period').value = 14;
+            document.getElementById('rsi_overbought').value = 70;
+            document.getElementById('rsi_oversold').value = 30;
+            document.getElementById('macd_fast').value = 12;
+            document.getElementById('macd_slow').value = 26;
+            document.getElementById('macd_signal').value = 9;
+            document.getElementById('kd_period').value = 9;
+            document.getElementById('bollinger_period').value = 20;
+            document.getElementById('breakout_threshold').value = 2.0;
+            document.getElementById('volume_alert_ratio').value = 2.0;
+            showToast('已恢復預設值，請按儲存套用');
+        }
+        
+        async function applyTemplate(templateName) {
+            try {
+                const res = await fetch(`${API_BASE}/api/settings/template/${templateName}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast(`已套用「${getTemplateName(templateName)}」模板`);
+                    // 重新載入設定
+                    await loadSettings();
+                } else {
+                    showToast('套用失敗: ' + (result.error?.message || '未知錯誤'));
+                }
+            } catch (e) {
+                console.error('套用模板失敗', e);
+                showToast('套用失敗');
+            }
+        }
+        
+        function getTemplateName(key) {
+            const names = {
+                'minimal': '極簡',
+                'standard': '標準',
+                'full': '完整',
+                'short_term': '短線'
+            };
+            return names[key] || key;
         }
         
         async function loadSentimentDetail() {

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # 應用程式
     APP_NAME: str = "SELA 自動選股系統"
-    APP_VERSION: str = "0.4.2"  # 升級版本
+    APP_VERSION: str = "0.5.0"  # 升級版本
     APP_ENV: str = "development"
     DEBUG: bool = True
     

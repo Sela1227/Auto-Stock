@@ -64,14 +64,15 @@ async def get_indicator_settings(
     stmt = select(UserIndicatorSettings).where(
         UserIndicatorSettings.user_id == user.id
     )
-    settings = db.execute(stmt).scalar_one_or_none()
+    result = await db.execute(stmt)
+    settings = result.scalar_one_or_none()
     
     if not settings:
         # 建立預設設定
         settings = UserIndicatorSettings.create_default(user.id)
         db.add(settings)
-        db.commit()
-        db.refresh(settings)
+        await db.commit()
+        await db.refresh(settings)
     
     return IndicatorSettingsResponse(
         success=True,
@@ -91,7 +92,8 @@ async def update_indicator_settings(
     stmt = select(UserIndicatorSettings).where(
         UserIndicatorSettings.user_id == user.id
     )
-    settings = db.execute(stmt).scalar_one_or_none()
+    result = await db.execute(stmt)
+    settings = result.scalar_one_or_none()
     
     if not settings:
         settings = UserIndicatorSettings.create_default(user.id)
@@ -102,8 +104,8 @@ async def update_indicator_settings(
     for key, value in update_data.items():
         setattr(settings, key, value)
     
-    db.commit()
-    db.refresh(settings)
+    await db.commit()
+    await db.refresh(settings)
     
     return IndicatorSettingsResponse(
         success=True,
@@ -125,13 +127,14 @@ async def get_alert_settings(
     stmt = select(UserAlertSettings).where(
         UserAlertSettings.user_id == user.id
     )
-    settings = db.execute(stmt).scalar_one_or_none()
+    result = await db.execute(stmt)
+    settings = result.scalar_one_or_none()
     
     if not settings:
         settings = UserAlertSettings.create_default(user.id)
         db.add(settings)
-        db.commit()
-        db.refresh(settings)
+        await db.commit()
+        await db.refresh(settings)
     
     return AlertSettingsResponse(
         success=True,
@@ -151,7 +154,8 @@ async def update_alert_settings(
     stmt = select(UserAlertSettings).where(
         UserAlertSettings.user_id == user.id
     )
-    settings = db.execute(stmt).scalar_one_or_none()
+    result = await db.execute(stmt)
+    settings = result.scalar_one_or_none()
     
     if not settings:
         settings = UserAlertSettings.create_default(user.id)
@@ -162,8 +166,8 @@ async def update_alert_settings(
     for key, value in update_data.items():
         setattr(settings, key, value)
     
-    db.commit()
-    db.refresh(settings)
+    await db.commit()
+    await db.refresh(settings)
     
     return AlertSettingsResponse(
         success=True,
@@ -185,13 +189,14 @@ async def get_indicator_params(
     stmt = select(UserIndicatorParams).where(
         UserIndicatorParams.user_id == user.id
     )
-    params = db.execute(stmt).scalar_one_or_none()
+    result = await db.execute(stmt)
+    params = result.scalar_one_or_none()
     
     if not params:
         params = UserIndicatorParams.create_default(user.id)
         db.add(params)
-        db.commit()
-        db.refresh(params)
+        await db.commit()
+        await db.refresh(params)
     
     return IndicatorParamsResponse(
         success=True,
@@ -219,7 +224,8 @@ async def update_indicator_params(
     stmt = select(UserIndicatorParams).where(
         UserIndicatorParams.user_id == user.id
     )
-    params = db.execute(stmt).scalar_one_or_none()
+    result = await db.execute(stmt)
+    params = result.scalar_one_or_none()
     
     if not params:
         params = UserIndicatorParams.create_default(user.id)
@@ -230,8 +236,8 @@ async def update_indicator_params(
     for key, value in update_data.items():
         setattr(params, key, value)
     
-    db.commit()
-    db.refresh(params)
+    await db.commit()
+    await db.refresh(params)
     
     return IndicatorParamsResponse(
         success=True,
@@ -363,7 +369,8 @@ async def apply_template(
         stmt = select(UserIndicatorSettings).where(
             UserIndicatorSettings.user_id == user.id
         )
-        ind_settings = db.execute(stmt).scalar_one_or_none()
+        result = await db.execute(stmt)
+        ind_settings = result.scalar_one_or_none()
         if not ind_settings:
             ind_settings = UserIndicatorSettings.create_default(user.id)
             db.add(ind_settings)
@@ -376,7 +383,8 @@ async def apply_template(
         stmt = select(UserAlertSettings).where(
             UserAlertSettings.user_id == user.id
         )
-        alert_settings = db.execute(stmt).scalar_one_or_none()
+        result = await db.execute(stmt)
+        alert_settings = result.scalar_one_or_none()
         if not alert_settings:
             alert_settings = UserAlertSettings.create_default(user.id)
             db.add(alert_settings)
@@ -389,7 +397,8 @@ async def apply_template(
         stmt = select(UserIndicatorParams).where(
             UserIndicatorParams.user_id == user.id
         )
-        params = db.execute(stmt).scalar_one_or_none()
+        result = await db.execute(stmt)
+        params = result.scalar_one_or_none()
         if not params:
             params = UserIndicatorParams.create_default(user.id)
             db.add(params)
@@ -397,7 +406,7 @@ async def apply_template(
         for key, value in template["params"].items():
             setattr(params, key, value)
     
-    db.commit()
+    await db.commit()
     
     return ResponseBase(
         success=True,
