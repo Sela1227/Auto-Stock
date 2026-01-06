@@ -214,14 +214,10 @@ class YahooFinanceClient:
         """
         try:
             ticker = yf.Ticker(symbol)
-            info = ticker.info
-            
-            if not info or "symbol" not in info:
-                logger.warning(f"無法取得股票資訊: {symbol}")
-                return None
+            info = ticker.info or {}
             
             # 取得名稱：優先使用 longName，然後 shortName
-            name = info.get("longName") or info.get("shortName", "N/A")
+            name = info.get("longName") or info.get("shortName") or symbol
             
             # 對於台股，優先使用本地映射表的中文名稱
             if symbol.endswith(".TW") or symbol.endswith(".TWO"):
@@ -236,12 +232,13 @@ class YahooFinanceClient:
                     if display_name:
                         name = display_name
             
+            # 即使 info 不完整，也返回基本資訊
             return {
                 "symbol": info.get("symbol", symbol),
                 "name": name,
                 "shortName": info.get("shortName", ""),
                 "longName": info.get("longName", ""),
-                "currency": info.get("currency", "USD"),
+                "currency": info.get("currency", "TWD" if symbol.endswith((".TW", ".TWO")) else "USD"),
                 "market_cap": info.get("marketCap"),
                 "sector": info.get("sector"),
                 "industry": info.get("industry"),
@@ -250,6 +247,22 @@ class YahooFinanceClient:
             }
         except Exception as e:
             logger.error(f"取得股票資訊失敗 {symbol}: {e}")
+            # 即使出錯，對於台股也嘗試返回本地名稱
+            if symbol.endswith(".TW") or symbol.endswith(".TWO"):
+                stock_code = symbol.replace(".TW", "").replace(".TWO", "")
+                name = TAIWAN_STOCK_NAMES.get(stock_code, symbol)
+                return {
+                    "symbol": symbol,
+                    "name": name,
+                    "shortName": "",
+                    "longName": "",
+                    "currency": "TWD",
+                    "market_cap": None,
+                    "sector": None,
+                    "industry": None,
+                    "fifty_two_week_high": None,
+                    "fifty_two_week_low": None,
+                }
             return None
     
     def get_stock_history(

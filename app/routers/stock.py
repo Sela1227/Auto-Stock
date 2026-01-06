@@ -125,10 +125,20 @@ async def get_stock_analysis(
         
         logger.info(f"{symbol} 查詢完成，評分: {rating}")
         
+        # 確保 name 正確獲取
+        stock_name = ""
+        if info:
+            stock_name = info.get("name", "")
+        if not stock_name:
+            # 再次嘗試從本地映射表獲取
+            from app.data_sources.yahoo_finance import TAIWAN_STOCK_NAMES
+            stock_code = symbol.replace(".TW", "").replace(".TWO", "")
+            stock_name = TAIWAN_STOCK_NAMES.get(stock_code, symbol)
+        
         return {
             "success": True,
             "symbol": symbol,
-            "name": info.get("name", "") if info else "",
+            "name": stock_name,
             "asset_type": "stock",
             "price": {
                 "current": current_price,

@@ -13,6 +13,9 @@
             --brand-orange-hover: #e86a25;
         }
         
+        /* 強制 hidden class 生效 */
+        .hidden { display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important; }
+        
         .brand-orange { background-color: var(--brand-orange); }
         .brand-orange:hover { background-color: var(--brand-orange-hover); }
         .brand-text { color: var(--brand-orange); }
@@ -20,6 +23,17 @@
         
         /* 預設隱藏主內容 */
         #app-content { display: none; }
+        
+        /* 確保主內容區域正確佈局 */
+        .main-content {
+            display: block !important;
+        }
+        
+        /* section 樣式 */
+        .section {
+            display: block;
+            width: 100%;
+        }
         
         /* 通用動畫 */
         .transition-all { transition: all 0.3s ease; }
@@ -36,8 +50,8 @@
             /* 隱藏電腦版側邊欄 */
             .desktop-sidebar { display: none !important; }
             
-            /* 主內容區不需要左邊距 */
-            .main-content { margin-left: 0 !important; padding-bottom: 70px; }
+            /* 主內容區不需要左邊距，增加底部間距避免被底部導航遮擋 */
+            .main-content { margin-left: 0 !important; padding-bottom: 90px; }
             
             /* 顯示手機版元素 */
             .mobile-header-menu { display: flex !important; }
@@ -988,7 +1002,7 @@
                     </div>
                     
                     <!-- 操作按鈕 -->
-                    <div class="p-4 space-y-3">
+                    <div class="p-4 pb-20 md:pb-4 space-y-3">
                         ${stock.chart_data ? `
                         <button onclick="openChartFullscreen('${stock.symbol}', ${stock.price?.current || 0})" 
                             class="w-full py-3 bg-blue-600 text-white rounded-lg font-medium flex items-center justify-center touch-target hover:bg-blue-700">
@@ -1116,10 +1130,17 @@
             const dataLength = chartData.dates.length;
             const startIdx = Math.max(0, dataLength - days);
             
-            const labels = chartData.dates.slice(startIdx).map((d, i) => {
-                if (i % Math.ceil(days / 6) === 0) return d.slice(5);
-                return '';
-            });
+            // 根據天數決定日期格式
+            const formatDate = (d) => {
+                if (days <= 180) {
+                    return d.slice(5);  // MM-DD
+                } else {
+                    return d.slice(2, 7).replace('-', '/');  // YY/MM
+                }
+            };
+            
+            // 所有日期都格式化，讓 Chart.js 自動決定顯示哪些
+            const labels = chartData.dates.slice(startIdx).map(d => formatDate(d));
             
             fullscreenChartInstance = new Chart(ctx, {
                 type: 'line',
@@ -1196,7 +1217,18 @@
                         }
                     },
                     scales: {
-                        x: { grid: { display: false } },
+                        x: { 
+                            grid: { display: false },
+                            ticks: {
+                                maxTicksLimit: days <= 60 ? 8 : 10,
+                                maxRotation: 0,
+                                callback: function(value, index) {
+                                    const label = this.getLabelForValue(value);
+                                    if (!label) return '';
+                                    return label;
+                                }
+                            }
+                        },
                         y: { grid: { color: 'rgba(0,0,0,0.05)' } }
                     }
                 }
