@@ -51,7 +51,7 @@
             .desktop-sidebar { display: none !important; }
             
             /* 主內容區不需要左邊距，增加底部間距避免被底部導航遮擋 */
-            .main-content { margin-left: 0 !important; padding-bottom: 90px; }
+            .main-content { margin-left: 0 !important; padding-bottom: 120px; }
             
             /* 顯示手機版元素 */
             .mobile-header-menu { display: flex !important; }
@@ -1002,7 +1002,7 @@
                     </div>
                     
                     <!-- 操作按鈕 -->
-                    <div class="p-4 pb-20 md:pb-4 space-y-3">
+                    <div class="p-4 pb-28 md:pb-4 space-y-3">
                         ${stock.chart_data ? `
                         <button onclick="openChartFullscreen('${stock.symbol}', ${stock.price?.current || 0})" 
                             class="w-full py-3 bg-blue-600 text-white rounded-lg font-medium flex items-center justify-center touch-target hover:bg-blue-700">
