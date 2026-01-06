@@ -126,6 +126,17 @@
             fill: #1F2937;
         }
         
+        /* 摺疊區塊 - 電腦版 */
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .collapsible-content.open { 
+            max-height: 1000px; 
+        }
+        
         /* ===== 手機版樣式 ===== */
         @media (max-width: 767px) {
             /* 隱藏電腦版側邊欄 */
@@ -192,10 +203,10 @@
             .collapsible-content {
                 max-height: 0;
                 overflow: hidden;
-                transition: max-height 0.3s ease;
+                transition: max-height 0.3s ease-out;
             }
             
-            .collapsible-content.open { max-height: 500px; }
+            .collapsible-content.open { max-height: 1000px; }
             
             /* 手機版儀表盤縮小 */
             .fear-greed-gauge {
@@ -577,17 +588,17 @@
                         <i class="fas fa-magic mr-2 text-purple-500"></i>
                         快速套用模板
                     </h3>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        <button onclick="applyTemplate('minimal')" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2" id="templateButtons">
+                        <button onclick="applyTemplate('minimal')" data-template="minimal" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-all">
                             <i class="fas fa-minus-circle text-gray-400 mr-1"></i>極簡
                         </button>
-                        <button onclick="applyTemplate('standard')" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 border-blue-500 text-blue-600">
+                        <button onclick="applyTemplate('standard')" data-template="standard" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-all border-blue-500 bg-blue-50 text-blue-600">
                             <i class="fas fa-check-circle text-blue-500 mr-1"></i>標準
                         </button>
-                        <button onclick="applyTemplate('full')" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                        <button onclick="applyTemplate('full')" data-template="full" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-all">
                             <i class="fas fa-layer-group text-green-500 mr-1"></i>完整
                         </button>
-                        <button onclick="applyTemplate('short_term')" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                        <button onclick="applyTemplate('short_term')" data-template="short_term" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-all">
                             <i class="fas fa-bolt text-yellow-500 mr-1"></i>短線
                         </button>
                     </div>
@@ -837,12 +848,12 @@
                             <span id="settingsUserName" class="font-medium">-</span>
                         </div>
                         <div class="flex justify-between py-2 border-b">
-                            <span class="text-gray-500">LINE ID</span>
-                            <span id="settingsLineId" class="font-mono text-xs">-</span>
+                            <span class="text-gray-500">會員等級</span>
+                            <span id="settingsMemberLevel" class="font-medium text-orange-500">一般會員</span>
                         </div>
                         <div class="flex justify-between py-2">
                             <span class="text-gray-500">系統版本</span>
-                            <span class="font-medium">v0.5.2</span>
+                            <span class="font-medium">v0.5.3</span>
                         </div>
                     </div>
                     <button onclick="logout()" class="mt-4 w-full py-3 border border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-50">
@@ -1710,26 +1721,57 @@
                 
                 let html = '<div class="space-y-3">';
                 
+                // 為每個追蹤項目加載價格資訊
                 for (const item of data.data) {
                     const typeClass = item.asset_type === 'crypto' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700';
                     const typeText = item.asset_type === 'crypto' ? '幣' : '股';
                     
+                    // 嘗試取得即時價格
+                    let priceInfo = '';
+                    try {
+                        const endpoint = item.asset_type === 'crypto' 
+                            ? `${API_BASE}/api/crypto/${item.symbol}`
+                            : `${API_BASE}/api/stock/${item.symbol}`;
+                        const priceRes = await fetch(endpoint);
+                        if (priceRes.ok) {
+                            const priceData = await priceRes.json();
+                            if (priceData.success && priceData.data) {
+                                const stock = priceData.data.stock || priceData.data;
+                                const price = stock.price?.current || stock.price;
+                                const change = stock.change?.day || stock.change_24h || 0;
+                                const changeClass = change >= 0 ? 'text-green-600' : 'text-red-600';
+                                const changeIcon = change >= 0 ? '▲' : '▼';
+                                priceInfo = `
+                                    <div class="flex items-baseline gap-2 mt-2">
+                                        <span class="text-xl font-bold text-gray-800">$${price?.toLocaleString() || '--'}</span>
+                                        <span class="${changeClass} text-sm font-medium">${changeIcon} ${Math.abs(change).toFixed(2)}%</span>
+                                    </div>
+                                `;
+                            }
+                        }
+                    } catch (e) {
+                        console.log('無法載入價格:', item.symbol);
+                    }
+                    
                     html += `
-                        <div class="stock-card bg-white rounded-xl shadow-sm p-4">
-                            <div class="flex items-start justify-between mb-2">
-                                <div class="flex items-center">
-                                    <span class="font-bold text-lg text-gray-800">${item.symbol}</span>
-                                    <span class="ml-2 px-2 py-0.5 rounded text-xs ${typeClass}">${typeText}</span>
+                        <div class="stock-card bg-white rounded-xl shadow-sm p-4 border-l-4 ${item.asset_type === 'crypto' ? 'border-purple-500' : 'border-blue-500'}">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center">
+                                        <span class="font-bold text-lg text-gray-800">${item.symbol}</span>
+                                        <span class="ml-2 px-2 py-0.5 rounded text-xs ${typeClass}">${typeText}</span>
+                                    </div>
+                                    ${priceInfo}
+                                    ${item.note ? `<p class="text-gray-500 text-sm mt-2 italic"><i class="fas fa-sticky-note mr-1"></i>${item.note}</p>` : ''}
                                 </div>
                                 <button onclick="removeFromWatchlist('${item.symbol}')" class="p-2 text-gray-400 hover:text-red-500 touch-target">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
-                            ${item.note ? `<p class="text-gray-500 text-sm mb-2">${item.note}</p>` : ''}
-                            <div class="flex items-center justify-between mt-3">
-                                <span class="text-gray-400 text-xs">加入於 ${new Date(item.added_at).toLocaleDateString()}</span>
-                                <button onclick="searchSymbol('${item.symbol}')" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 touch-target">
-                                    查看詳情
+                            <div class="flex items-center justify-between mt-3 pt-3 border-t">
+                                <span class="text-gray-400 text-xs"><i class="fas fa-clock mr-1"></i>加入於 ${new Date(item.added_at).toLocaleDateString()}</span>
+                                <button onclick="searchSymbol('${item.symbol}')" class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 touch-target">
+                                    <i class="fas fa-chart-line mr-1"></i>詳細分析
                                 </button>
                             </div>
                         </div>
@@ -1851,7 +1893,15 @@
             // 載入用戶資訊
             if (currentUser) {
                 document.getElementById('settingsUserName').textContent = currentUser.display_name || '-';
-                document.getElementById('settingsLineId').textContent = currentUser.line_user_id || '-';
+                // 會員等級 (之後可從用戶資料取得)
+                const levelEl = document.getElementById('settingsMemberLevel');
+                if (levelEl) {
+                    const level = currentUser.membership_level || 'free';
+                    const levelNames = { 'free': '一般會員', 'premium': '高級會員', 'diamond': '鑽石會員', 'admin': '管理員' };
+                    const levelColors = { 'free': 'text-gray-600', 'premium': 'text-blue-600', 'diamond': 'text-purple-600', 'admin': 'text-orange-600' };
+                    levelEl.textContent = levelNames[level] || '一般會員';
+                    levelEl.className = `font-medium ${levelColors[level] || 'text-gray-600'}`;
+                }
             }
             
             // 載入指標設定
@@ -2056,6 +2106,8 @@
                 const result = await res.json();
                 if (result.success) {
                     showToast(`已套用「${getTemplateName(templateName)}」模板`);
+                    // 更新按鈕樣式
+                    updateTemplateButtonStyle(templateName);
                     // 重新載入設定
                     await loadSettings();
                 } else {
@@ -2065,6 +2117,22 @@
                 console.error('套用模板失敗', e);
                 showToast('套用失敗');
             }
+        }
+        
+        function updateTemplateButtonStyle(selectedTemplate) {
+            const buttons = document.querySelectorAll('#templateButtons .template-btn');
+            buttons.forEach(btn => {
+                const template = btn.getAttribute('data-template');
+                if (template === selectedTemplate) {
+                    // 選中樣式
+                    btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-600');
+                    btn.classList.remove('border-gray-200');
+                } else {
+                    // 未選中樣式
+                    btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-600');
+                    btn.classList.add('border-gray-200');
+                }
+            });
         }
         
         function getTemplateName(key) {
