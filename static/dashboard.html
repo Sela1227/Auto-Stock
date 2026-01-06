@@ -39,19 +39,159 @@
         .transition-all { transition: all 0.3s ease; }
         
         /* ===== 電腦版樣式 (預設) ===== */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        
         .desktop-sidebar { display: block; }
         .mobile-header-menu { display: none; }
         .mobile-bottom-nav { display: none; }
         .mobile-sidebar-overlay { display: none; }
         .mobile-sidebar { transform: translateX(-100%); }
         
+        /* 頂部導航列 - 固定在最上方 */
+        .top-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            z-index: 50;
+        }
+        
+        /* 電腦版側邊欄 - 從導航列下方開始 */
+        .desktop-sidebar {
+            position: fixed;
+            top: 56px;
+            left: 0;
+            width: 256px;
+            height: calc(100vh - 56px);
+            overflow-y: auto;
+        }
+        
+        /* 主內容區 - 從導航列下方開始，左邊留出側邊欄空間 */
+        .main-content {
+            margin-top: 56px;
+            margin-left: 256px;
+            min-height: calc(100vh - 56px);
+            padding: 24px;
+        }
+        
+        /* ===== Fear & Greed 儀表盤樣式 ===== */
+        .fear-greed-gauge {
+            position: relative;
+            width: 100%;
+            max-width: 260px;
+            margin: 0 auto;
+        }
+        
+        .gauge-arc {
+            fill: none;
+            stroke-width: 24;
+        }
+        
+        .gauge-arc-extreme-fear { stroke: #DC2626; }
+        .gauge-arc-fear { stroke: #F97316; }
+        .gauge-arc-neutral { stroke: #9CA3AF; }
+        .gauge-arc-greed { stroke: #22C55E; }
+        .gauge-arc-extreme-greed { stroke: #059669; }
+        
+        .gauge-text-label {
+            font-size: 9px;
+            font-weight: 600;
+            fill: #6B7280;
+        }
+        
+        .gauge-needle-group {
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: 100px 100px;
+        }
+        
+        .gauge-needle {
+            fill: #1F2937;
+        }
+        
+        .gauge-center-dot {
+            fill: #1F2937;
+        }
+        
+        .gauge-value-text {
+            font-size: 40px;
+            font-weight: 700;
+            fill: #1F2937;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        
+        .gauge-status-text {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .gauge-tick-text {
+            font-size: 10px;
+            fill: #9CA3AF;
+        }
+        
+        .gauge-updated-text {
+            font-size: 11px;
+            color: #9CA3AF;
+            text-align: center;
+            margin-top: 8px;
+        }
+        
+        /* ===== 舊儀表盤樣式 (保留向後兼容) ===== */
+        .gauge-container {
+            position: relative;
+            width: 200px;
+            height: 120px;
+            margin: 0 auto;
+        }
+        
+        .gauge-bg {
+            fill: none;
+            stroke: #E5E7EB;
+            stroke-width: 20;
+        }
+        
+        .gauge-fill {
+            fill: none;
+            stroke-width: 20;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s ease, stroke 0.5s ease;
+        }
+        
+        .gauge-labels {
+            font-size: 10px;
+            fill: #9CA3AF;
+        }
+        
+        .gauge-value {
+            font-size: 36px;
+            font-weight: bold;
+            fill: #1F2937;
+        }
+        
+        .gauge-label {
+            font-size: 14px;
+            fill: #6B7280;
+        }
+        
         /* ===== 手機版樣式 ===== */
         @media (max-width: 767px) {
             /* 隱藏電腦版側邊欄 */
             .desktop-sidebar { display: none !important; }
             
-            /* 主內容區不需要左邊距，增加底部間距避免被底部導航遮擋 */
-            .main-content { margin-left: 0 !important; padding-bottom: 120px; }
+            /* 主內容區 */
+            .main-content { 
+                margin-left: 0 !important; 
+                margin-top: 56px;
+                padding: 16px;
+                padding-bottom: 100px;
+            }
             
             /* 顯示手機版元素 */
             .mobile-header-menu { display: flex !important; }
@@ -109,6 +249,23 @@
             
             .collapsible-content.open { max-height: 500px; }
             
+            /* 手機版儀表盤縮小 */
+            .fear-greed-gauge {
+                max-width: 200px;
+            }
+            
+            .gauge-value-text {
+                font-size: 32px;
+            }
+            
+            .gauge-container {
+                width: 160px;
+                height: 100px;
+            }
+            
+            .gauge-value {
+                font-size: 28px;
+            }
         }
         
         /* 全螢幕圖表 - 放在 media query 外面 */
@@ -269,7 +426,7 @@
         </aside>
         
         <!-- ===== 頂部導覽列 ===== -->
-        <nav class="bg-white shadow-sm border-b fixed w-full z-50 top-0">
+        <nav class="top-nav bg-white shadow-sm border-b">
             <div class="px-4 h-14 flex items-center justify-between">
                 <!-- 手機版: 漢堡選單按鈕 -->
                 <button onclick="openMobileSidebar()" class="mobile-header-menu p-2 -ml-2 text-gray-600 touch-target">
@@ -300,7 +457,7 @@
         </nav>
 
         <!-- ===== 電腦版側邊欄 ===== -->
-        <aside class="desktop-sidebar w-64 bg-white shadow-sm min-h-screen fixed top-14">
+        <aside class="desktop-sidebar bg-white shadow-sm">
             <nav class="p-4 space-y-2">
                 <a href="#" onclick="showSection('dashboard', event)" class="nav-link flex items-center px-4 py-2 text-gray-700 bg-blue-50 rounded-lg" data-section="dashboard">
                     <i class="fas fa-tachometer-alt mr-3"></i>
@@ -331,7 +488,7 @@
         </aside>
 
         <!-- ===== 主區域 ===== -->
-        <main class="main-content md:ml-64 pt-14 p-4 md:p-6">
+        <main class="main-content">
             
             <!-- ===== 儀表板區塊 ===== -->
             <section id="section-dashboard" class="section">
@@ -341,32 +498,88 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
                     <!-- 美股情緒 -->
                     <div class="bg-white rounded-xl shadow p-4 md:p-6">
-                        <div class="flex items-center justify-between mb-3 md:mb-4">
-                            <h3 class="font-semibold text-gray-700 text-sm md:text-base">美股情緒指數</h3>
-                            <span id="stockSentimentBadge" class="px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium"></span>
+                        <h3 class="font-semibold text-gray-700 text-sm md:text-base text-center mb-2">美股情緒指數</h3>
+                        <!-- CNN 風格儀表盤 -->
+                        <div class="fear-greed-gauge" id="stockGauge">
+                            <svg viewBox="0 0 200 130" class="gauge-svg">
+                                <!-- 弧形背景區段 -->
+                                <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
+                                <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
+                                <path class="gauge-arc gauge-arc-neutral" d="M 75 32 A 80 80 0 0 1 125 32" />
+                                <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
+                                <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
+                                
+                                <!-- 區段標籤 -->
+                                <text x="18" y="78" class="gauge-text-label" transform="rotate(-72, 18, 78)">EXTREME</text>
+                                <text x="18" y="88" class="gauge-text-label" transform="rotate(-72, 18, 88)">FEAR</text>
+                                <text x="48" y="42" class="gauge-text-label" transform="rotate(-36, 48, 42)">FEAR</text>
+                                <text x="100" y="22" class="gauge-text-label" text-anchor="middle">NEUTRAL</text>
+                                <text x="152" y="42" class="gauge-text-label" transform="rotate(36, 152, 42)">GREED</text>
+                                <text x="182" y="78" class="gauge-text-label" transform="rotate(72, 182, 78)">EXTREME</text>
+                                <text x="182" y="88" class="gauge-text-label" transform="rotate(72, 182, 88)">GREED</text>
+                                
+                                <!-- 刻度數字 -->
+                                <text x="12" y="112" class="gauge-tick-text">0</text>
+                                <text x="35" y="52" class="gauge-tick-text">25</text>
+                                <text x="96" y="28" class="gauge-tick-text">50</text>
+                                <text x="158" y="52" class="gauge-tick-text">75</text>
+                                <text x="180" y="112" class="gauge-tick-text">100</text>
+                                
+                                <!-- 指針 -->
+                                <g id="stockNeedleGroup" class="gauge-needle-group">
+                                    <polygon class="gauge-needle" points="100,30 96,100 104,100" />
+                                </g>
+                                <circle class="gauge-center-dot" cx="100" cy="100" r="8" />
+                                
+                                <!-- 數值顯示 -->
+                                <text id="stockGaugeValue" x="100" y="125" text-anchor="middle" class="gauge-value-text">--</text>
+                            </svg>
                         </div>
-                        <div class="flex items-center">
-                            <span id="stockSentimentValue" class="text-3xl md:text-4xl font-bold text-gray-800">--</span>
-                            <span class="text-gray-500 ml-2 text-sm">/ 100</span>
-                        </div>
-                        <div class="mt-3 md:mt-4 bg-gray-200 rounded-full h-2 md:h-3">
-                            <div id="stockSentimentBar" class="h-2 md:h-3 rounded-full transition-all" style="width: 0%"></div>
-                        </div>
+                        <p id="stockSentimentStatus" class="text-center font-semibold mt-1"></p>
+                        <p id="stockSentimentTime" class="gauge-updated-text"></p>
                     </div>
                     
                     <!-- 幣圈情緒 -->
                     <div class="bg-white rounded-xl shadow p-4 md:p-6">
-                        <div class="flex items-center justify-between mb-3 md:mb-4">
-                            <h3 class="font-semibold text-gray-700 text-sm md:text-base">幣圈情緒指數</h3>
-                            <span id="cryptoSentimentBadge" class="px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium"></span>
+                        <h3 class="font-semibold text-gray-700 text-sm md:text-base text-center mb-2">幣圈情緒指數</h3>
+                        <!-- CNN 風格儀表盤 -->
+                        <div class="fear-greed-gauge" id="cryptoGauge">
+                            <svg viewBox="0 0 200 130" class="gauge-svg">
+                                <!-- 弧形背景區段 -->
+                                <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
+                                <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
+                                <path class="gauge-arc gauge-arc-neutral" d="M 75 32 A 80 80 0 0 1 125 32" />
+                                <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
+                                <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
+                                
+                                <!-- 區段標籤 -->
+                                <text x="18" y="78" class="gauge-text-label" transform="rotate(-72, 18, 78)">EXTREME</text>
+                                <text x="18" y="88" class="gauge-text-label" transform="rotate(-72, 18, 88)">FEAR</text>
+                                <text x="48" y="42" class="gauge-text-label" transform="rotate(-36, 48, 42)">FEAR</text>
+                                <text x="100" y="22" class="gauge-text-label" text-anchor="middle">NEUTRAL</text>
+                                <text x="152" y="42" class="gauge-text-label" transform="rotate(36, 152, 42)">GREED</text>
+                                <text x="182" y="78" class="gauge-text-label" transform="rotate(72, 182, 78)">EXTREME</text>
+                                <text x="182" y="88" class="gauge-text-label" transform="rotate(72, 182, 88)">GREED</text>
+                                
+                                <!-- 刻度數字 -->
+                                <text x="12" y="112" class="gauge-tick-text">0</text>
+                                <text x="35" y="52" class="gauge-tick-text">25</text>
+                                <text x="96" y="28" class="gauge-tick-text">50</text>
+                                <text x="158" y="52" class="gauge-tick-text">75</text>
+                                <text x="180" y="112" class="gauge-tick-text">100</text>
+                                
+                                <!-- 指針 -->
+                                <g id="cryptoNeedleGroup" class="gauge-needle-group">
+                                    <polygon class="gauge-needle" points="100,30 96,100 104,100" />
+                                </g>
+                                <circle class="gauge-center-dot" cx="100" cy="100" r="8" />
+                                
+                                <!-- 數值顯示 -->
+                                <text id="cryptoGaugeValue" x="100" y="125" text-anchor="middle" class="gauge-value-text">--</text>
+                            </svg>
                         </div>
-                        <div class="flex items-center">
-                            <span id="cryptoSentimentValue" class="text-3xl md:text-4xl font-bold text-gray-800">--</span>
-                            <span class="text-gray-500 ml-2 text-sm">/ 100</span>
-                        </div>
-                        <div class="mt-3 md:mt-4 bg-gray-200 rounded-full h-2 md:h-3">
-                            <div id="cryptoSentimentBar" class="h-2 md:h-3 rounded-full transition-all" style="width: 0%"></div>
-                        </div>
+                        <p id="cryptoSentimentStatus" class="text-center font-semibold mt-1"></p>
+                        <p id="cryptoSentimentTime" class="gauge-updated-text"></p>
                     </div>
                 </div>
 
@@ -1013,38 +1226,53 @@
             
             const value = sentiment.value;
             
-            document.getElementById(`${type}SentimentValue`).textContent = value;
-            document.getElementById(`${type}SentimentBar`).style.width = `${value}%`;
+            // 更新數值顯示
+            const gaugeValue = document.getElementById(`${type}GaugeValue`);
+            if (gaugeValue) gaugeValue.textContent = value;
             
-            const badge = document.getElementById(`${type}SentimentBadge`);
-            const bar = document.getElementById(`${type}SentimentBar`);
+            // 計算指針角度 (0 = -90度, 100 = 90度)
+            const angle = -90 + (value / 100) * 180;
             
-            let badgeClass, barClass, label;
-            if (value <= 25) {
-                badgeClass = 'bg-red-100 text-red-700';
-                barClass = 'bg-red-500';
-                label = '極度恐懼';
-            } else if (value <= 45) {
-                badgeClass = 'bg-orange-100 text-orange-700';
-                barClass = 'bg-orange-500';
-                label = '恐懼';
-            } else if (value <= 55) {
-                badgeClass = 'bg-gray-100 text-gray-700';
-                barClass = 'bg-gray-500';
-                label = '中性';
-            } else if (value <= 75) {
-                badgeClass = 'bg-green-100 text-green-700';
-                barClass = 'bg-green-500';
-                label = '貪婪';
-            } else {
-                badgeClass = 'bg-emerald-100 text-emerald-700';
-                barClass = 'bg-emerald-500';
-                label = '極度貪婪';
+            // 更新指針 (新版使用 NeedleGroup)
+            const needleGroup = document.getElementById(`${type}NeedleGroup`);
+            if (needleGroup) {
+                needleGroup.style.transform = `rotate(${angle}deg)`;
             }
             
-            badge.className = `px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium ${badgeClass}`;
-            badge.textContent = label;
-            bar.className = `h-2 md:h-3 rounded-full transition-all ${barClass}`;
+            // 根據數值決定狀態文字和顏色
+            let label, colorClass;
+            if (value <= 25) {
+                label = 'Extreme Fear';
+                colorClass = 'text-red-600';
+            } else if (value <= 45) {
+                label = 'Fear';
+                colorClass = 'text-orange-500';
+            } else if (value <= 55) {
+                label = 'Neutral';
+                colorClass = 'text-gray-500';
+            } else if (value <= 75) {
+                label = 'Greed';
+                colorClass = 'text-green-500';
+            } else {
+                label = 'Extreme Greed';
+                colorClass = 'text-emerald-600';
+            }
+            
+            // 更新狀態文字
+            const statusEl = document.getElementById(`${type}SentimentStatus`);
+            if (statusEl) {
+                statusEl.textContent = label;
+                statusEl.className = `text-center font-semibold mt-1 ${colorClass}`;
+            }
+            
+            // 更新時間戳
+            const timeEl = document.getElementById(`${type}SentimentTime`);
+            if (timeEl && sentiment.updated_at) {
+                const date = new Date(sentiment.updated_at);
+                timeEl.textContent = `Last updated ${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+            } else if (timeEl) {
+                timeEl.textContent = '';
+            }
         }
 
         // ========== 追蹤清單快覽 ==========
@@ -1923,36 +2151,126 @@
         
         async function loadSentimentDetail() {
             const container = document.getElementById('sentimentContent');
+            
+            // 先嘗試取得情緒資料
+            let stockData = { value: 50, classification: 'neutral' };
+            let cryptoData = { value: 50, classification: 'neutral' };
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/market/sentiment`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.stock) stockData = data.stock;
+                    if (data.crypto) cryptoData = data.crypto;
+                }
+            } catch (e) {
+                console.error('載入情緒資料失敗', e);
+            }
+            
+            // 生成 CNN 風格儀表盤 SVG HTML
+            function createGaugeSVG(id, value) {
+                const angle = -90 + (value / 100) * 180;
+                
+                let label, colorClass;
+                if (value <= 25) {
+                    label = 'Extreme Fear';
+                    colorClass = 'text-red-600';
+                } else if (value <= 45) {
+                    label = 'Fear';
+                    colorClass = 'text-orange-500';
+                } else if (value <= 55) {
+                    label = 'Neutral';
+                    colorClass = 'text-gray-500';
+                } else if (value <= 75) {
+                    label = 'Greed';
+                    colorClass = 'text-green-500';
+                } else {
+                    label = 'Extreme Greed';
+                    colorClass = 'text-emerald-600';
+                }
+                
+                return `
+                    <div class="fear-greed-gauge">
+                        <svg viewBox="0 0 200 130" class="gauge-svg">
+                            <!-- 弧形背景區段 -->
+                            <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
+                            <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
+                            <path class="gauge-arc gauge-arc-neutral" d="M 75 32 A 80 80 0 0 1 125 32" />
+                            <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
+                            <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
+                            
+                            <!-- 區段標籤 -->
+                            <text x="18" y="78" class="gauge-text-label" transform="rotate(-72, 18, 78)">EXTREME</text>
+                            <text x="18" y="88" class="gauge-text-label" transform="rotate(-72, 18, 88)">FEAR</text>
+                            <text x="48" y="42" class="gauge-text-label" transform="rotate(-36, 48, 42)">FEAR</text>
+                            <text x="100" y="22" class="gauge-text-label" text-anchor="middle">NEUTRAL</text>
+                            <text x="152" y="42" class="gauge-text-label" transform="rotate(36, 152, 42)">GREED</text>
+                            <text x="182" y="78" class="gauge-text-label" transform="rotate(72, 182, 78)">EXTREME</text>
+                            <text x="182" y="88" class="gauge-text-label" transform="rotate(72, 182, 88)">GREED</text>
+                            
+                            <!-- 刻度數字 -->
+                            <text x="12" y="112" class="gauge-tick-text">0</text>
+                            <text x="35" y="52" class="gauge-tick-text">25</text>
+                            <text x="96" y="28" class="gauge-tick-text">50</text>
+                            <text x="158" y="52" class="gauge-tick-text">75</text>
+                            <text x="180" y="112" class="gauge-tick-text">100</text>
+                            
+                            <!-- 指針 -->
+                            <g class="gauge-needle-group" style="transform: rotate(${angle}deg); transform-origin: 100px 100px;">
+                                <polygon class="gauge-needle" points="100,30 96,100 104,100" />
+                            </g>
+                            <circle class="gauge-center-dot" cx="100" cy="100" r="8" />
+                            
+                            <!-- 數值顯示 -->
+                            <text x="100" y="125" text-anchor="middle" class="gauge-value-text">${value}</text>
+                        </svg>
+                    </div>
+                    <p class="text-center font-semibold mt-2 ${colorClass}">${label}</p>
+                `;
+            }
+            
             container.innerHTML = `
-                <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- 美股情緒 -->
                     <div class="bg-white rounded-xl shadow p-6">
-                        <h3 class="font-semibold text-gray-700 mb-4">市場情緒解讀</h3>
-                        <div class="space-y-4 text-sm text-gray-600">
-                            <div class="flex items-start">
-                                <span class="w-24 flex-shrink-0 font-medium">0-25</span>
-                                <span class="px-2 py-1 bg-red-100 text-red-700 rounded mr-2">極度恐懼</span>
-                                <span>市場恐慌，可能是買入機會</span>
-                            </div>
-                            <div class="flex items-start">
-                                <span class="w-24 flex-shrink-0 font-medium">26-45</span>
-                                <span class="px-2 py-1 bg-orange-100 text-orange-700 rounded mr-2">恐懼</span>
-                                <span>市場偏謹慎</span>
-                            </div>
-                            <div class="flex items-start">
-                                <span class="w-24 flex-shrink-0 font-medium">46-55</span>
-                                <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded mr-2">中性</span>
-                                <span>觀望為主</span>
-                            </div>
-                            <div class="flex items-start">
-                                <span class="w-24 flex-shrink-0 font-medium">56-75</span>
-                                <span class="px-2 py-1 bg-green-100 text-green-700 rounded mr-2">貪婪</span>
-                                <span>市場偏樂觀</span>
-                            </div>
-                            <div class="flex items-start">
-                                <span class="w-24 flex-shrink-0 font-medium">76-100</span>
-                                <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded mr-2">極度貪婪</span>
-                                <span>市場過熱，留意風險</span>
-                            </div>
+                        <h3 class="font-semibold text-gray-700 mb-4 text-center">美股情緒指數 (Fear & Greed)</h3>
+                        ${createGaugeSVG('stock-detail', stockData.value)}
+                    </div>
+                    
+                    <!-- 幣圈情緒 -->
+                    <div class="bg-white rounded-xl shadow p-6">
+                        <h3 class="font-semibold text-gray-700 mb-4 text-center">幣圈情緒指數</h3>
+                        ${createGaugeSVG('crypto-detail', cryptoData.value)}
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h3 class="font-semibold text-gray-700 mb-4">市場情緒解讀</h3>
+                    <div class="space-y-4 text-sm text-gray-600">
+                        <div class="flex items-start">
+                            <span class="w-24 flex-shrink-0 font-medium">0-25</span>
+                            <span class="px-2 py-1 bg-red-100 text-red-700 rounded mr-2">極度恐懼</span>
+                            <span>市場恐慌，可能是買入機會</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="w-24 flex-shrink-0 font-medium">26-45</span>
+                            <span class="px-2 py-1 bg-orange-100 text-orange-700 rounded mr-2">恐懼</span>
+                            <span>市場偏謹慎</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="w-24 flex-shrink-0 font-medium">46-55</span>
+                            <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded mr-2">中性</span>
+                            <span>觀望為主</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="w-24 flex-shrink-0 font-medium">56-75</span>
+                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded mr-2">貪婪</span>
+                            <span>市場偏樂觀</span>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="w-24 flex-shrink-0 font-medium">76-100</span>
+                            <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded mr-2">極度貪婪</span>
+                            <span>市場過熱，留意風險</span>
                         </div>
                     </div>
                 </div>
