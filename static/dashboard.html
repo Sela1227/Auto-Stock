@@ -286,6 +286,10 @@
                 <!-- 右側資訊 -->
                 <div class="flex items-center space-x-2">
                     <span id="sessionTimer" class="text-xs text-gray-400 hidden sm:inline"></span>
+                    <!-- 管理員入口 -->
+                    <a id="adminLink" href="/static/admin.html" class="text-orange-500 hover:text-orange-600 hidden p-2" title="管理後台">
+                        <i class="fas fa-user-shield"></i>
+                    </a>
                     <span id="userName" class="text-gray-600 text-sm hidden md:inline"></span>
                     <img id="userAvatar" class="w-8 h-8 rounded-full" src="" alt="">
                     <button onclick="logout()" class="text-gray-500 hover:text-red-500 hidden sm:inline p-2" title="登出">
@@ -317,6 +321,11 @@
                 <a href="#" onclick="showSection('settings', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="settings">
                     <i class="fas fa-cog mr-3"></i>
                     <span>設定</span>
+                </a>
+                <!-- 管理員入口 (預設隱藏) -->
+                <a id="adminSidebarLink" href="/static/admin.html" class="hidden flex items-center px-4 py-2 text-orange-500 hover:bg-orange-50 rounded-lg mt-4 border-t pt-4">
+                    <i class="fas fa-user-shield mr-3"></i>
+                    <span>管理後台</span>
                 </a>
             </nav>
         </aside>
@@ -596,6 +605,15 @@
                 document.getElementById('userAvatar').src = currentUser.picture_url || 'https://via.placeholder.com/40';
                 document.getElementById('sidebarUserName').textContent = currentUser.display_name;
                 document.getElementById('sidebarAvatar').src = currentUser.picture_url || 'https://via.placeholder.com/40';
+                
+                // 檢查是否為管理員，顯示管理入口
+                const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+                if (storedUser.is_admin || currentUser.is_admin) {
+                    document.getElementById('adminLink').classList.remove('hidden');
+                    // 同時顯示側邊欄的管理入口
+                    const adminSidebarLink = document.getElementById('adminSidebarLink');
+                    if (adminSidebarLink) adminSidebarLink.classList.remove('hidden');
+                }
                 
                 // 顯示主內容
                 document.getElementById('loading-screen').style.display = 'none';

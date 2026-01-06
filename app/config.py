@@ -3,7 +3,7 @@
 """
 from pydantic_settings import BaseSettings
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 
 class Settings(BaseSettings):
@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # 應用程式
     APP_NAME: str = "SELA 自動選股系統"
-    APP_VERSION: str = "0.3.0"
+    APP_VERSION: str = "0.4.1"  # 升級版本
     APP_ENV: str = "development"
     DEBUG: bool = True
     
@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # JWT (階段四)
     JWT_SECRET_KEY: str = "your-secret-key-change-in-production"
     JWT_EXPIRE_DAYS: int = 7
+    
+    # 管理員設定
+    # 初始管理員的 LINE User ID（用逗號分隔多個）
+    ADMIN_LINE_USER_IDS: str = ""
     
     # 資料更新設定
     STOCK_DATA_CACHE_HOURS: int = 4  # 股價資料快取時間（小時）
@@ -51,6 +55,12 @@ class Settings(BaseSettings):
     # 通知設定
     BREAKOUT_THRESHOLD: float = 2.0  # 突破預警門檻 (%)
     VOLUME_ALERT_RATIO: float = 2.0  # 量比警戒倍數
+    
+    def get_admin_line_ids(self) -> List[str]:
+        """取得管理員 LINE User ID 列表"""
+        if not self.ADMIN_LINE_USER_IDS:
+            return []
+        return [x.strip() for x in self.ADMIN_LINE_USER_IDS.split(",") if x.strip()]
     
     class Config:
         env_file = ".env"

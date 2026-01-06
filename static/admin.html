@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理後台 - SELA 自動選股系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="/static/logo.png">
+    <style>
+        .brand-orange { color: #FA7A35; }
+        .bg-brand-orange { background-color: #FA7A35; }
+        .hover\:bg-brand-orange-dark:hover { background-color: #e56a25; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- 頂部導航 -->
+    <nav class="bg-slate-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <span class="text-xl font-bold bg-brand-orange px-3 py-1 rounded">SELA</span>
+                    <span class="text-lg">管理後台</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/static/dashboard.html" class="text-gray-300 hover:text-white">
+                        ← 返回儀表板
+                    </a>
+                    <span id="adminName" class="text-gray-300"></span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主內容 -->
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- 統計卡片 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-gray-500 text-sm">總用戶數</div>
+                <div id="statTotal" class="text-2xl font-bold text-slate-800">-</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-gray-500 text-sm">今日登入</div>
+                <div id="statToday" class="text-2xl font-bold text-green-600">-</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-gray-500 text-sm">封鎖用戶</div>
+                <div id="statBlocked" class="text-2xl font-bold text-red-600">-</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-gray-500 text-sm">管理員</div>
+                <div id="statAdmin" class="text-2xl font-bold text-blue-600">-</div>
+            </div>
+        </div>
+
+        <!-- 搜尋和篩選 -->
+        <div class="bg-white rounded-lg shadow p-4 mb-6">
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex-1">
+                    <input type="text" id="searchInput" placeholder="搜尋用戶名稱、Email 或 LINE ID..."
+                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400">
+                </div>
+                <div class="flex gap-2">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="blockedOnly" class="mr-2">
+                        <span class="text-sm">只顯示封鎖</span>
+                    </label>
+                    <button onclick="loadUsers()" class="bg-brand-orange text-white px-4 py-2 rounded-lg hover:bg-brand-orange-dark">
+                        搜尋
+                    </button>
+                    <button onclick="kickAllUsers()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+                        踢出全部
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 用戶列表 -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">用戶</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Email</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">狀態</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">最後登入</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userList" class="divide-y divide-gray-200">
+                        <!-- 動態載入 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 分頁 -->
+            <div class="px-4 py-3 bg-gray-50 flex items-center justify-between">
+                <div id="pageInfo" class="text-sm text-gray-500"></div>
+                <div class="flex gap-2">
+                    <button id="prevPage" onclick="changePage(-1)" class="px-3 py-1 border rounded hover:bg-gray-100" disabled>上一頁</button>
+                    <button id="nextPage" onclick="changePage(1)" class="px-3 py-1 border rounded hover:bg-gray-100" disabled>下一頁</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用戶詳情 Modal -->
+    <div id="userModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold">用戶詳情</h3>
+                    <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">✕</button>
+                </div>
+                <div id="modalContent">
+                    <!-- 動態載入 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        // 檢查登入和管理員權限
+        if (!token) {
+            window.location.href = '/static/index.html';
+        }
+
+        document.getElementById('adminName').textContent = user.display_name || '';
+
+        // API 請求
+        async function apiRequest(url, options = {}) {
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+            
+            if (response.status === 401) {
+                localStorage.clear();
+                window.location.href = '/static/index.html';
+                return null;
+            }
+            
+            if (response.status === 403) {
+                alert('您沒有管理員權限');
+                window.location.href = '/static/dashboard.html';
+                return null;
+            }
+            
+            return response.json();
+        }
+
+        // 載入統計
+        async function loadStats() {
+            const data = await apiRequest('/api/admin/stats');
+            if (data && data.success) {
+                document.getElementById('statTotal').textContent = data.stats.total_users;
+                document.getElementById('statToday').textContent = data.stats.today_logins;
+                document.getElementById('statBlocked').textContent = data.stats.blocked_users;
+                document.getElementById('statAdmin').textContent = data.stats.admin_users;
+            }
+        }
+
+        // 載入用戶列表
+        async function loadUsers() {
+            const search = document.getElementById('searchInput').value;
+            const blockedOnly = document.getElementById('blockedOnly').checked;
+            
+            let url = `/api/admin/users?page=${currentPage}&page_size=20`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+            if (blockedOnly) url += `&blocked_only=true`;
+            
+            const data = await apiRequest(url);
+            if (data && data.success) {
+                renderUsers(data.users);
+                totalPages = data.pagination.total_pages;
+                document.getElementById('pageInfo').textContent = 
+                    `第 ${data.pagination.page} / ${totalPages} 頁，共 ${data.pagination.total} 筆`;
+                document.getElementById('prevPage').disabled = currentPage <= 1;
+                document.getElementById('nextPage').disabled = currentPage >= totalPages;
+            }
+        }
+
+        // 渲染用戶列表
+        function renderUsers(users) {
+            const tbody = document.getElementById('userList');
+            tbody.innerHTML = users.map(u => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3">
+                        <div class="flex items-center">
+                            <img src="${u.picture_url || '/static/logo.png'}" 
+                                class="w-10 h-10 rounded-full mr-3" 
+                                onerror="this.src='/static/logo.png'">
+                            <div>
+                                <div class="font-medium text-gray-900">${escapeHtml(u.display_name || '未命名')}</div>
+                                <div class="text-xs text-gray-500">ID: ${u.id}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">
+                        ${escapeHtml(u.email || '-')}
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex flex-wrap gap-1">
+                            ${u.is_admin ? '<span class="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">管理員</span>' : ''}
+                            ${u.is_blocked ? '<span class="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800">已封鎖</span>' : '<span class="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">正常</span>'}
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">
+                        ${formatDate(u.last_login)}
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex gap-1">
+                            <button onclick="showUserDetail(${u.id})" 
+                                class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">詳情</button>
+                            ${u.is_blocked 
+                                ? `<button onclick="unblockUser(${u.id})" class="px-2 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded">解封</button>`
+                                : `<button onclick="blockUser(${u.id})" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded">封鎖</button>`
+                            }
+                            <button onclick="kickUser(${u.id})" 
+                                class="px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded">踢出</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 顯示用戶詳情
+        async function showUserDetail(userId) {
+            const data = await apiRequest(`/api/admin/users/${userId}`);
+            if (data && data.success) {
+                const u = data.user;
+                const logs = data.recent_logs;
+                
+                document.getElementById('modalContent').innerHTML = `
+                    <div class="flex items-center mb-4">
+                        <img src="${u.picture_url || '/static/logo.png'}" 
+                            class="w-16 h-16 rounded-full mr-4"
+                            onerror="this.src='/static/logo.png'">
+                        <div>
+                            <div class="font-bold text-xl">${escapeHtml(u.display_name || '未命名')}</div>
+                            <div class="text-gray-500">${escapeHtml(u.email || '無 Email')}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="bg-gray-50 p-3 rounded">
+                            <div class="text-xs text-gray-500">用戶 ID</div>
+                            <div class="font-medium">${u.id}</div>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded">
+                            <div class="text-xs text-gray-500">LINE ID</div>
+                            <div class="font-medium text-xs break-all">${u.line_user_id}</div>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded">
+                            <div class="text-xs text-gray-500">註冊時間</div>
+                            <div class="font-medium">${formatDate(u.created_at)}</div>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded">
+                            <div class="text-xs text-gray-500">最後登入</div>
+                            <div class="font-medium">${formatDate(u.last_login)}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2 mb-4">
+                        ${u.is_admin 
+                            ? `<button onclick="removeAdmin(${u.id})" class="flex-1 py-2 bg-gray-200 hover:bg-gray-300 rounded">移除管理員</button>`
+                            : `<button onclick="setAdmin(${u.id})" class="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded">設為管理員</button>`
+                        }
+                        ${u.is_blocked 
+                            ? `<button onclick="unblockUser(${u.id})" class="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded">解除封鎖</button>`
+                            : `<button onclick="blockUser(${u.id})" class="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white rounded">封鎖用戶</button>`
+                        }
+                    </div>
+                    
+                    ${u.is_blocked ? `
+                        <div class="bg-red-50 p-3 rounded mb-4">
+                            <div class="text-red-800 font-medium">封鎖資訊</div>
+                            <div class="text-sm text-red-600">原因：${escapeHtml(u.blocked_reason || '未說明')}</div>
+                            <div class="text-sm text-red-600">時間：${formatDate(u.blocked_at)}</div>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="border-t pt-4">
+                        <div class="font-medium mb-2">最近活動記錄</div>
+                        <div class="max-h-48 overflow-y-auto">
+                            ${logs.length ? logs.map(log => `
+                                <div class="flex justify-between py-1 text-sm border-b">
+                                    <span class="text-gray-600">${getActionText(log.action)}</span>
+                                    <span class="text-gray-400">${formatDate(log.created_at)}</span>
+                                </div>
+                            `).join('') : '<div class="text-gray-400 text-sm">無記錄</div>'}
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('userModal').classList.remove('hidden');
+                document.getElementById('userModal').classList.add('flex');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('userModal').classList.add('hidden');
+            document.getElementById('userModal').classList.remove('flex');
+        }
+
+        // 操作函數
+        async function blockUser(userId) {
+            const reason = prompt('請輸入封鎖原因（可留空）：');
+            if (reason === null) return;
+            
+            const data = await apiRequest(`/api/admin/users/${userId}/block?reason=${encodeURIComponent(reason)}`, {
+                method: 'POST'
+            });
+            if (data && data.success) {
+                alert(data.message);
+                loadUsers();
+                loadStats();
+                closeModal();
+            }
+        }
+
+        async function unblockUser(userId) {
+            if (!confirm('確定要解除封鎖此用戶嗎？')) return;
+            
+            const data = await apiRequest(`/api/admin/users/${userId}/unblock`, {
+                method: 'POST'
+            });
+            if (data && data.success) {
+                alert(data.message);
+                loadUsers();
+                loadStats();
+                closeModal();
+            }
+        }
+
+        async function kickUser(userId) {
+            if (!confirm('確定要踢出此用戶嗎？用戶需要重新登入。')) return;
+            
+            const data = await apiRequest(`/api/admin/users/${userId}/kick`, {
+                method: 'POST'
+            });
+            if (data && data.success) {
+                alert(data.message);
+            }
+        }
+
+        async function kickAllUsers() {
+            if (!confirm('⚠️ 確定要踢出所有用戶嗎？所有人（包括您自己）都需要重新登入！')) return;
+            if (!confirm('再次確認：這將使所有登入 Token 失效！')) return;
+            
+            const data = await apiRequest('/api/admin/kick-all', {
+                method: 'POST'
+            });
+            if (data && data.success) {
+                alert(data.message);
+                localStorage.clear();
+                window.location.href = '/static/index.html';
+            }
+        }
+
+        async function setAdmin(userId) {
+            if (!confirm('確定要將此用戶設為管理員嗎？')) return;
+            
+            const data = await apiRequest(`/api/admin/users/${userId}/set-admin`, {
+                method: 'POST'
+            });
+            if (data && data.success) {
+                alert(data.message);
+                loadUsers();
+                loadStats();
+                closeModal();
+            }
+        }
+
+        async function removeAdmin(userId) {
+            if (!confirm('確定要移除此用戶的管理員權限嗎？')) return;
+            
+            const data = await apiRequest(`/api/admin/users/${userId}/remove-admin`, {
+                method: 'POST'
+            });
+            if (data && data.success) {
+                alert(data.message);
+                loadUsers();
+                loadStats();
+                closeModal();
+            }
+        }
+
+        function changePage(delta) {
+            currentPage += delta;
+            loadUsers();
+        }
+
+        // 工具函數
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function getActionText(action) {
+            const actions = {
+                'login': '🔑 登入',
+                'logout': '🚪 登出',
+                'blocked': '🚫 被封鎖',
+                'unblocked': '✅ 解除封鎖',
+                'kicked': '👢 被踢出',
+                'kick_all': '👢 全員踢出',
+            };
+            return actions[action] || action;
+        }
+
+        // 搜尋 Enter 鍵支援
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loadUsers();
+        });
+
+        // 初始載入
+        loadStats();
+        loadUsers();
+    </script>
+</body>
+</html>

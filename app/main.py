@@ -19,6 +19,7 @@ from app.models import (
     MarketSentiment, Notification,
     UserIndicatorSettings, UserAlertSettings, UserIndicatorParams
 )
+from app.models.user import LoginLog, TokenBlacklist, SystemConfig
 
 from app.routers import (
     auth_router,
@@ -26,6 +27,7 @@ from app.routers import (
     crypto_router,
     watchlist_router,
     settings_router,
+    admin_router,
 )
 
 # 設定日誌
@@ -94,6 +96,7 @@ app.include_router(stock_router)
 app.include_router(crypto_router)
 app.include_router(watchlist_router)
 app.include_router(settings_router)
+app.include_router(admin_router)
 
 # 掛載靜態檔案
 static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
