@@ -4,10 +4,20 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 import pandas as pd
+import logging
 
 from app.schemas.schemas import MarketSentimentResponse
 
 router = APIRouter(tags=["加密貨幣"])
+logger = logging.getLogger(__name__)
+
+# 加密貨幣對應的 Yahoo Finance 代號
+CRYPTO_YAHOO_MAP = {
+    "BTC": "BTC-USD",
+    "ETH": "ETH-USD",
+    "BITCOIN": "BTC-USD",
+    "ETHEREUM": "ETH-USD",
+}
 
 
 @router.get("/api/crypto/{symbol}", summary="查詢加密貨幣")
@@ -21,40 +31,75 @@ async def get_crypto_analysis(
     - **symbol**: 加密貨幣代號 (BTC, ETH)
     - **refresh**: 是否強制更新資料
     """
-    import logging
-    logger = logging.getLogger(__name__)
-    
     from app.data_sources.coingecko import coingecko
+    from app.data_sources.yahoo_finance import yahoo_finance
     from app.services.indicator_service import indicator_service
     
     symbol = symbol.upper()
+    logger.info(f"開始查詢加密貨幣: {symbol}")
     
     # 驗證代號
-    if not coingecko.validate_symbol(symbol):
+    yahoo_symbol = CRYPTO_YAHOO_MAP.get(symbol)
+    if not yahoo_symbol and not coingecko.validate_symbol(symbol):
+        logger.warning(f"不支援的加密貨幣: {symbol}")
         raise HTTPException(
             status_code=400,
             detail=f"不支援的加密貨幣: {symbol}，目前僅支援 BTC 和 ETH"
         )
     
+    df = None
+    info = None
+    data_source = None
+    
+    # 優先嘗試 CoinGecko
     try:
-        # 取得歷史資料 (OHLC)
+        logger.info(f"嘗試從 CoinGecko 取得 {symbol} 資料...")
         df = coingecko.get_ohlc(symbol, days=365)
-        if df is None or df.empty:
-            raise HTTPException(
-                status_code=503,
-                detail=f"無法取得 {symbol} 資料，請稍後再試（CoinGecko API 暫時無法連接）"
-            )
+        if df is not None and not df.empty:
+            info = coingecko.get_coin_info(symbol)
+            data_source = "CoinGecko"
+            logger.info(f"成功從 CoinGecko 取得 {len(df)} 筆資料")
+    except Exception as e:
+        logger.warning(f"CoinGecko API 失敗: {e}")
+    
+    # 如果 CoinGecko 失敗，使用 Yahoo Finance 備用
+    if df is None or df.empty:
+        yahoo_symbol = CRYPTO_YAHOO_MAP.get(symbol, f"{symbol}-USD")
+        logger.info(f"CoinGecko 失敗，嘗試 Yahoo Finance: {yahoo_symbol}")
         
-        # 取得即時資訊
-        info = coingecko.get_coin_info(symbol)
-        
+        try:
+            df = yahoo_finance.get_stock_history(yahoo_symbol, period="1y")
+            if df is not None and not df.empty:
+                data_source = "Yahoo Finance"
+                logger.info(f"成功從 Yahoo Finance 取得 {len(df)} 筆資料")
+                # 從 Yahoo Finance 取得基本資訊
+                yf_info = yahoo_finance.get_stock_info(yahoo_symbol)
+                if yf_info:
+                    info = {
+                        "name": yf_info.get("shortName", symbol),
+                        "market_cap": yf_info.get("marketCap"),
+                        "total_volume": yf_info.get("volume24Hr") or yf_info.get("volume"),
+                    }
+        except Exception as e:
+            logger.error(f"Yahoo Finance 也失敗: {e}")
+    
+    # 如果兩個都失敗
+    if df is None or df.empty:
+        raise HTTPException(
+            status_code=503,
+            detail=f"無法取得 {symbol} 資料。CoinGecko 和 Yahoo Finance 都無法連接。請稍後再試。"
+        )
+    
+    logger.info(f"使用 {data_source} 資料，共 {len(df)} 筆")
+    
+    try:
         # 計算技術指標
         df = indicator_service.calculate_all_indicators(df)
-    
+        
         # 取得最新資料
         latest = df.iloc[-1]
         current_price = float(latest['close'])
-    
+        
         # 漲跌幅計算
         def calc_change(days):
             if len(df) > days:
@@ -153,12 +198,12 @@ async def get_crypto_analysis(
                 "rating": rating,
             },
             "chart_data": {
-                "dates": [str(d) for d in df['date'].tail(120).tolist()] if 'date' in df.columns else [],
-                "prices": [float(p) for p in df['close'].tail(120).tolist()] if 'close' in df.columns else [],
-                "ma20": [float(v) if not pd.isna(v) else None for v in df['ma20'].tail(120).tolist()] if 'ma20' in df.columns else [],
-                "ma50": [float(v) if not pd.isna(v) else None for v in df['ma50'].tail(120).tolist()] if 'ma50' in df.columns else [],
-                "ma200": [float(v) if not pd.isna(v) else None for v in df['ma200'].tail(120).tolist()] if 'ma200' in df.columns else [],
-                "ma250": [float(v) if not pd.isna(v) else None for v in df['ma250'].tail(120).tolist()] if 'ma250' in df.columns else [],
+                "dates": [str(d) for d in df['date'].tail(365).tolist()] if 'date' in df.columns else [],
+                "prices": [float(p) for p in df['close'].tail(365).tolist()] if 'close' in df.columns else [],
+                "ma20": [float(v) if not pd.isna(v) else None for v in df['ma20'].tail(365).tolist()] if 'ma20' in df.columns else [],
+                "ma50": [float(v) if not pd.isna(v) else None for v in df['ma50'].tail(365).tolist()] if 'ma50' in df.columns else [],
+                "ma200": [float(v) if not pd.isna(v) else None for v in df['ma200'].tail(365).tolist()] if 'ma200' in df.columns else [],
+                "ma250": [float(v) if not pd.isna(v) else None for v in df['ma250'].tail(365).tolist()] if 'ma250' in df.columns else [],
             },
         }
     except HTTPException:

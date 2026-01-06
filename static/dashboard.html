@@ -165,6 +165,19 @@
         }
         
         .bottom-nav-item.active { color: var(--brand-orange); }
+        
+        /* 圖表時間範圍按鈕樣式 */
+        .chart-range-btn { 
+            min-width: 48px;
+            border-color: #D1D5DB;
+            transition: all 0.2s;
+        }
+        .chart-range-btn.active,
+        .chart-range-btn:active {
+            background-color: #EFF6FF;
+            border-color: #3B82F6;
+            color: #2563EB;
+        }
         .bottom-nav-item i { font-size: 20px; margin-bottom: 2px; }
         
         /* 載入動畫 */
@@ -353,7 +366,7 @@
                 <!-- 搜尋框 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4 md:mb-6">
                     <div class="flex flex-col sm:flex-row gap-3">
-                        <input type="text" id="searchSymbol" placeholder="輸入股票代號（如 AAPL）或加密貨幣（BTC）" 
+                        <input type="text" id="searchSymbol" placeholder="輸入股票代號（如 AAPL、2330）" 
                             class="flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
                             onkeypress="if(event.key==='Enter')searchStock()">
                         <button onclick="searchStock()" class="brand-orange text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center touch-target">
@@ -361,7 +374,7 @@
                             <span>查詢</span>
                         </button>
                     </div>
-                    <p class="text-gray-500 text-xs md:text-sm mt-2">支援美股代號及加密貨幣 (BTC, ETH)</p>
+                    <p class="text-gray-500 text-xs md:text-sm mt-2">支援美股、台股 (輸入純數字如 2330) 及加密貨幣 (BTC, ETH)</p>
                 </div>
                 
                 <!-- 搜尋結果 -->
@@ -444,11 +457,11 @@
             <div class="flex-1 p-2 bg-gray-50" style="min-height: 200px;">
                 <canvas id="fullscreenChart"></canvas>
             </div>
-            <div class="flex items-center justify-center gap-2 p-2 bg-white border-t">
-                <button onclick="setChartRange(30)" class="chart-range-btn px-3 py-1 text-sm rounded border">1M</button>
-                <button onclick="setChartRange(90)" class="chart-range-btn px-3 py-1 text-sm rounded border bg-blue-50 border-blue-500 text-blue-600">3M</button>
-                <button onclick="setChartRange(180)" class="chart-range-btn px-3 py-1 text-sm rounded border">6M</button>
-                <button onclick="setChartRange(365)" class="chart-range-btn px-3 py-1 text-sm rounded border">1Y</button>
+            <div class="flex items-center justify-center gap-2 p-2 bg-white border-t" id="chartRangeButtons">
+                <button type="button" class="chart-range-btn px-4 py-2 text-sm rounded border touch-target" data-days="30">1M</button>
+                <button type="button" class="chart-range-btn px-4 py-2 text-sm rounded border touch-target active" data-days="90">3M</button>
+                <button type="button" class="chart-range-btn px-4 py-2 text-sm rounded border touch-target" data-days="180">6M</button>
+                <button type="button" class="chart-range-btn px-4 py-2 text-sm rounded border touch-target" data-days="365">1Y</button>
             </div>
         </div>
     </div>
@@ -776,11 +789,13 @@
 
         // ========== 股票查詢 ==========
         function searchStock() {
-            const symbol = document.getElementById('searchSymbol').value.trim().toUpperCase();
+            let symbol = document.getElementById('searchSymbol').value.trim().toUpperCase();
             if (!symbol) {
                 showToast('請輸入股票代號');
                 return;
             }
+            
+            // 直接傳遞原始輸入，讓 searchSymbol 處理
             searchSymbol(symbol);
         }
 
@@ -793,8 +808,26 @@
             document.getElementById('searchSymbol').value = symbol;
 
             try {
-                const isCrypto = ['BTC', 'ETH'].includes(symbol);
-                const endpoint = isCrypto ? `/api/crypto/${symbol}` : `/api/stock/${symbol}`;
+                // 判斷資產類型
+                const upperSymbol = symbol.toUpperCase();
+                const isCrypto = ['BTC', 'ETH', 'BITCOIN', 'ETHEREUM'].includes(upperSymbol);
+                // 純數字 = 台股，或已經有 .TW 後綴
+                const isTaiwan = /^\d{4,6}$/.test(symbol) || upperSymbol.endsWith('.TW');
+                
+                let endpoint;
+                let querySymbol = upperSymbol;
+                
+                if (isCrypto) {
+                    endpoint = `/api/crypto/${upperSymbol}`;
+                } else if (isTaiwan) {
+                    // 確保有 .TW 後綴
+                    querySymbol = upperSymbol.endsWith('.TW') ? upperSymbol : `${symbol}.TW`;
+                    endpoint = `/api/stock/${querySymbol}`;
+                } else {
+                    endpoint = `/api/stock/${upperSymbol}`;
+                }
+                
+                console.log(`查詢: ${endpoint}, 類型: ${isCrypto ? '加密貨幣' : isTaiwan ? '台股' : '美股'}`);
                 
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 60000);
@@ -803,9 +836,14 @@
                 clearTimeout(timeoutId);
                 
                 const data = await res.json();
+                console.log('API 回應:', data);
                 
                 if (!res.ok) {
-                    container.innerHTML = `<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">HTTP ${res.status}: ${data.detail || '查詢失敗'}</div>`;
+                    container.innerHTML = `<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
+                        <p class="font-medium">查詢失敗</p>
+                        <p class="text-sm mt-2">${data.detail || 'HTTP ' + res.status}</p>
+                        ${isCrypto ? '<p class="text-xs mt-2 text-gray-500">注意：加密貨幣查詢可能因 API 限制暫時無法使用</p>' : ''}
+                    </div>`;
                     return;
                 }
                 
@@ -815,7 +853,7 @@
                 }
 
                 currentChartData = data.chart_data;
-                renderStockResult(data, isCrypto);
+                renderStockResult(data, isCrypto, isTaiwan);
                 
             } catch (e) {
                 console.error('Search error:', e);
@@ -827,7 +865,7 @@
             }
         }
 
-        function renderStockResult(stock, isCrypto) {
+        function renderStockResult(stock, isCrypto, isTaiwan = false) {
             const container = document.getElementById('searchResult');
             const indicators = stock.indicators || {};
             const ma = indicators.ma || {};
@@ -844,6 +882,19 @@
             const rsiStatus = rsi.status === 'overbought' ? '超買 ⚠️' : rsi.status === 'oversold' ? '超賣 🟢' : '中性';
             const macdStatus = macd.status === 'bullish' ? '偏多 🟢' : '偏空 🔴';
             
+            // 判斷市場類型標籤
+            let marketLabel, marketClass;
+            if (isCrypto) {
+                marketLabel = '加密貨幣';
+                marketClass = 'bg-purple-100 text-purple-700';
+            } else if (isTaiwan) {
+                marketLabel = '台股';
+                marketClass = 'bg-orange-100 text-orange-700';
+            } else {
+                marketLabel = '美股';
+                marketClass = 'bg-blue-100 text-blue-700';
+            }
+            
             const html = `
                 <div class="bg-white rounded-xl shadow overflow-hidden">
                     <!-- 價格區塊 -->
@@ -851,10 +902,10 @@
                         <div class="flex items-start justify-between mb-2">
                             <div>
                                 <h3 class="text-xl md:text-2xl font-bold text-gray-800">${stock.symbol}</h3>
-                                <p class="text-gray-500 text-sm">${stock.name || (isCrypto ? '加密貨幣' : '股票')}</p>
+                                <p class="text-gray-500 text-sm">${stock.name || marketLabel}</p>
                             </div>
-                            <span class="px-2 py-1 rounded text-xs ${isCrypto ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">
-                                ${isCrypto ? '加密貨幣' : '美股'}
+                            <span class="px-2 py-1 rounded text-xs ${marketClass}">
+                                ${marketLabel}
                             </span>
                         </div>
                         <div class="mt-3">
@@ -992,15 +1043,66 @@
             }
         }
         
-        function setChartRange(days) {
-            // 更新按鈕樣式
-            document.querySelectorAll('.chart-range-btn').forEach(btn => {
-                btn.classList.remove('bg-blue-50', 'border-blue-500', 'text-blue-600');
-            });
-            event.target.classList.add('bg-blue-50', 'border-blue-500', 'text-blue-600');
+        function setChartRange(days, btn) {
+            console.log('setChartRange called:', days);
             
-            renderFullscreenChart(currentChartData, days);
+            // 更新按鈕樣式
+            document.querySelectorAll('.chart-range-btn').forEach(b => {
+                b.classList.remove('bg-blue-50', 'border-blue-500', 'text-blue-600', 'active');
+                b.classList.add('border-gray-300');
+            });
+            if (btn) {
+                btn.classList.remove('border-gray-300');
+                btn.classList.add('bg-blue-50', 'border-blue-500', 'text-blue-600', 'active');
+            }
+            
+            // 重新渲染圖表
+            if (currentChartData && currentChartData.dates && currentChartData.dates.length > 0) {
+                renderFullscreenChart(currentChartData, days);
+            } else {
+                console.warn('No chart data available');
+            }
         }
+        
+        // 初始化圖表按鈕事件 (使用全局事件代理，確保橫置也能用)
+        function initChartRangeButtons() {
+            // 移除舊的監聽器避免重複
+            document.removeEventListener('click', handleChartButtonClick);
+            document.removeEventListener('touchstart', handleChartButtonTouch);
+            
+            // 添加新的監聽器
+            document.addEventListener('click', handleChartButtonClick);
+            document.addEventListener('touchstart', handleChartButtonTouch, { passive: false });
+        }
+        
+        function handleChartButtonClick(e) {
+            const btn = e.target.closest('.chart-range-btn');
+            if (btn && btn.dataset.days) {
+                e.preventDefault();
+                e.stopPropagation();
+                const days = parseInt(btn.dataset.days, 10);
+                console.log('Chart button clicked:', days);
+                setChartRange(days, btn);
+            }
+        }
+        
+        function handleChartButtonTouch(e) {
+            const btn = e.target.closest('.chart-range-btn');
+            if (btn && btn.dataset.days) {
+                e.preventDefault();
+                const days = parseInt(btn.dataset.days, 10);
+                console.log('Chart button touched:', days);
+                setChartRange(days, btn);
+            }
+        }
+        
+        // 頁面載入時初始化
+        document.addEventListener('DOMContentLoaded', initChartRangeButtons);
+        
+        // 螢幕旋轉時重新初始化
+        window.addEventListener('orientationchange', function() {
+            setTimeout(initChartRangeButtons, 100);
+        });
         
         function renderFullscreenChart(chartData, days) {
             const canvas = document.getElementById('fullscreenChart');

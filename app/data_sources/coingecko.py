@@ -47,9 +47,16 @@ class CoinGeckoClient:
         
         try:
             url = f"{BASE_URL}/{endpoint}"
-            response = self.session.get(url, params=params, timeout=10)
+            logger.info(f"CoinGecko API 請求: {url}")
+            response = self.session.get(url, params=params, timeout=15)
             response.raise_for_status()
             return response.json()
+        except requests.exceptions.Timeout as e:
+            logger.error(f"CoinGecko API 請求超時: {e}")
+            return None
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"CoinGecko API 連線失敗 (可能被網路限制): {e}")
+            return None
         except requests.exceptions.RequestException as e:
             logger.error(f"CoinGecko API 請求失敗: {e}")
             return None

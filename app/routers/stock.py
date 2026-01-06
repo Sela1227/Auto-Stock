@@ -28,9 +28,9 @@ async def get_stock_analysis(
     logger.info(f"開始查詢股票: {symbol}")
     
     try:
-        # 取得股票資料
+        # 取得股票資料 (抓取 2 年以計算 MA250)
         logger.info(f"正在從 Yahoo Finance 取得 {symbol} 資料...")
-        df = yahoo_finance.get_stock_history(symbol, period="1y")
+        df = yahoo_finance.get_stock_history(symbol, period="2y")
         
         if df is None or df.empty:
             logger.warning(f"找不到股票資料: {symbol}")
@@ -166,14 +166,14 @@ async def get_stock_analysis(
                 "sell": sell_score,
                 "rating": rating,
             },
-            # 添加圖表數據 (最近 120 天)
+            # 添加圖表數據 (最近 365 天，支援 1 年範圍)
             "chart_data": {
-                "dates": [str(d) for d in df['date'].tail(120).tolist()],
-                "prices": [float(p) for p in df['close'].tail(120).tolist()],
-                "ma20": [float(v) if not pd.isna(v) else None for v in df['ma20'].tail(120).tolist()] if 'ma20' in df.columns else [],
-                "ma50": [float(v) if not pd.isna(v) else None for v in df['ma50'].tail(120).tolist()] if 'ma50' in df.columns else [],
-                "ma200": [float(v) if not pd.isna(v) else None for v in df['ma200'].tail(120).tolist()] if 'ma200' in df.columns else [],
-                "ma250": [float(v) if not pd.isna(v) else None for v in df['ma250'].tail(120).tolist()] if 'ma250' in df.columns else [],
+                "dates": [str(d) for d in df['date'].tail(365).tolist()],
+                "prices": [float(p) for p in df['close'].tail(365).tolist()],
+                "ma20": [float(v) if not pd.isna(v) else None for v in df['ma20'].tail(365).tolist()] if 'ma20' in df.columns else [],
+                "ma50": [float(v) if not pd.isna(v) else None for v in df['ma50'].tail(365).tolist()] if 'ma50' in df.columns else [],
+                "ma200": [float(v) if not pd.isna(v) else None for v in df['ma200'].tail(365).tolist()] if 'ma200' in df.columns else [],
+                "ma250": [float(v) if not pd.isna(v) else None for v in df['ma250'].tail(365).tolist()] if 'ma250' in df.columns else [],
             },
         }
     except HTTPException:
