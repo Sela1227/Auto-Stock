@@ -71,25 +71,34 @@
             overflow-y: auto;
         }
         
-        /* 主內容區 - 從導航列下方開始，左邊留出側邊欄空間 */
+        /* 主內容區 - 不要用 margin，用 padding 和 position */
         .main-content {
-            margin-top: 56px;
-            margin-left: 256px;
+            position: absolute;
+            top: 56px;
+            left: 256px;
+            right: 0;
             min-height: calc(100vh - 56px);
             padding: 24px;
+            box-sizing: border-box;
         }
         
         /* ===== Fear & Greed 儀表盤樣式 ===== */
         .fear-greed-gauge {
             position: relative;
             width: 100%;
-            max-width: 260px;
+            max-width: 220px;
             margin: 0 auto;
+        }
+        
+        .gauge-svg {
+            width: 100%;
+            height: auto;
         }
         
         .gauge-arc {
             fill: none;
-            stroke-width: 24;
+            stroke-width: 20;
+            stroke-linecap: round;
         }
         
         .gauge-arc-extreme-fear { stroke: #DC2626; }
@@ -98,10 +107,10 @@
         .gauge-arc-greed { stroke: #22C55E; }
         .gauge-arc-extreme-greed { stroke: #059669; }
         
-        .gauge-text-label {
-            font-size: 9px;
-            font-weight: 600;
-            fill: #6B7280;
+        .gauge-tick-text {
+            font-size: 12px;
+            fill: #9CA3AF;
+            font-weight: 500;
         }
         
         .gauge-needle-group {
@@ -117,78 +126,17 @@
             fill: #1F2937;
         }
         
-        .gauge-value-text {
-            font-size: 40px;
-            font-weight: 700;
-            fill: #1F2937;
-            font-family: system-ui, -apple-system, sans-serif;
-        }
-        
-        .gauge-status-text {
-            font-size: 14px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .gauge-tick-text {
-            font-size: 10px;
-            fill: #9CA3AF;
-        }
-        
-        .gauge-updated-text {
-            font-size: 11px;
-            color: #9CA3AF;
-            text-align: center;
-            margin-top: 8px;
-        }
-        
-        /* ===== 舊儀表盤樣式 (保留向後兼容) ===== */
-        .gauge-container {
-            position: relative;
-            width: 200px;
-            height: 120px;
-            margin: 0 auto;
-        }
-        
-        .gauge-bg {
-            fill: none;
-            stroke: #E5E7EB;
-            stroke-width: 20;
-        }
-        
-        .gauge-fill {
-            fill: none;
-            stroke-width: 20;
-            stroke-linecap: round;
-            transition: stroke-dashoffset 0.5s ease, stroke 0.5s ease;
-        }
-        
-        .gauge-labels {
-            font-size: 10px;
-            fill: #9CA3AF;
-        }
-        
-        .gauge-value {
-            font-size: 36px;
-            font-weight: bold;
-            fill: #1F2937;
-        }
-        
-        .gauge-label {
-            font-size: 14px;
-            fill: #6B7280;
-        }
-        
         /* ===== 手機版樣式 ===== */
         @media (max-width: 767px) {
             /* 隱藏電腦版側邊欄 */
             .desktop-sidebar { display: none !important; }
             
-            /* 主內容區 */
+            /* 主內容區 - 手機版 */
             .main-content { 
-                margin-left: 0 !important; 
-                margin-top: 56px;
+                position: relative !important;
+                left: 0 !important;
+                top: 0 !important;
+                margin-top: 56px !important;
                 padding: 16px;
                 padding-bottom: 100px;
             }
@@ -251,7 +199,7 @@
             
             /* 手機版儀表盤縮小 */
             .fear-greed-gauge {
-                max-width: 200px;
+                max-width: 180px;
             }
             
             .gauge-value-text {
@@ -498,10 +446,10 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
                     <!-- 美股情緒 -->
                     <div class="bg-white rounded-xl shadow p-4 md:p-6">
-                        <h3 class="font-semibold text-gray-700 text-sm md:text-base text-center mb-2">美股情緒指數</h3>
-                        <!-- CNN 風格儀表盤 -->
+                        <h3 class="font-semibold text-gray-700 text-sm md:text-base text-center mb-4">美股情緒指數</h3>
+                        <!-- 簡潔儀表盤 -->
                         <div class="fear-greed-gauge" id="stockGauge">
-                            <svg viewBox="0 0 200 130" class="gauge-svg">
+                            <svg viewBox="0 0 200 115" class="gauge-svg">
                                 <!-- 弧形背景區段 -->
                                 <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
                                 <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
@@ -509,42 +457,32 @@
                                 <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
                                 <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
                                 
-                                <!-- 區段標籤 -->
-                                <text x="18" y="78" class="gauge-text-label" transform="rotate(-72, 18, 78)">EXTREME</text>
-                                <text x="18" y="88" class="gauge-text-label" transform="rotate(-72, 18, 88)">FEAR</text>
-                                <text x="48" y="42" class="gauge-text-label" transform="rotate(-36, 48, 42)">FEAR</text>
-                                <text x="100" y="22" class="gauge-text-label" text-anchor="middle">NEUTRAL</text>
-                                <text x="152" y="42" class="gauge-text-label" transform="rotate(36, 152, 42)">GREED</text>
-                                <text x="182" y="78" class="gauge-text-label" transform="rotate(72, 182, 78)">EXTREME</text>
-                                <text x="182" y="88" class="gauge-text-label" transform="rotate(72, 182, 88)">GREED</text>
-                                
                                 <!-- 刻度數字 -->
-                                <text x="12" y="112" class="gauge-tick-text">0</text>
-                                <text x="35" y="52" class="gauge-tick-text">25</text>
-                                <text x="96" y="28" class="gauge-tick-text">50</text>
-                                <text x="158" y="52" class="gauge-tick-text">75</text>
-                                <text x="180" y="112" class="gauge-tick-text">100</text>
+                                <text x="8" y="105" class="gauge-tick-text">0</text>
+                                <text x="96" y="12" class="gauge-tick-text" text-anchor="middle">50</text>
+                                <text x="188" y="105" class="gauge-tick-text">100</text>
                                 
                                 <!-- 指針 -->
                                 <g id="stockNeedleGroup" class="gauge-needle-group">
-                                    <polygon class="gauge-needle" points="100,30 96,100 104,100" />
+                                    <polygon class="gauge-needle" points="100,25 97,100 103,100" />
                                 </g>
-                                <circle class="gauge-center-dot" cx="100" cy="100" r="8" />
-                                
-                                <!-- 數值顯示 -->
-                                <text id="stockGaugeValue" x="100" y="125" text-anchor="middle" class="gauge-value-text">--</text>
+                                <circle class="gauge-center-dot" cx="100" cy="100" r="6" />
                             </svg>
                         </div>
-                        <p id="stockSentimentStatus" class="text-center font-semibold mt-1"></p>
-                        <p id="stockSentimentTime" class="gauge-updated-text"></p>
+                        <!-- 數值和狀態 -->
+                        <div class="text-center mt-2">
+                            <span id="stockGaugeValue" class="text-4xl font-bold text-gray-800">--</span>
+                        </div>
+                        <p id="stockSentimentStatus" class="text-center font-semibold text-lg mt-1"></p>
+                        <p id="stockSentimentTime" class="text-xs text-gray-400 text-center mt-1"></p>
                     </div>
                     
                     <!-- 幣圈情緒 -->
                     <div class="bg-white rounded-xl shadow p-4 md:p-6">
-                        <h3 class="font-semibold text-gray-700 text-sm md:text-base text-center mb-2">幣圈情緒指數</h3>
-                        <!-- CNN 風格儀表盤 -->
+                        <h3 class="font-semibold text-gray-700 text-sm md:text-base text-center mb-4">幣圈情緒指數</h3>
+                        <!-- 簡潔儀表盤 -->
                         <div class="fear-greed-gauge" id="cryptoGauge">
-                            <svg viewBox="0 0 200 130" class="gauge-svg">
+                            <svg viewBox="0 0 200 115" class="gauge-svg">
                                 <!-- 弧形背景區段 -->
                                 <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
                                 <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
@@ -552,34 +490,24 @@
                                 <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
                                 <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
                                 
-                                <!-- 區段標籤 -->
-                                <text x="18" y="78" class="gauge-text-label" transform="rotate(-72, 18, 78)">EXTREME</text>
-                                <text x="18" y="88" class="gauge-text-label" transform="rotate(-72, 18, 88)">FEAR</text>
-                                <text x="48" y="42" class="gauge-text-label" transform="rotate(-36, 48, 42)">FEAR</text>
-                                <text x="100" y="22" class="gauge-text-label" text-anchor="middle">NEUTRAL</text>
-                                <text x="152" y="42" class="gauge-text-label" transform="rotate(36, 152, 42)">GREED</text>
-                                <text x="182" y="78" class="gauge-text-label" transform="rotate(72, 182, 78)">EXTREME</text>
-                                <text x="182" y="88" class="gauge-text-label" transform="rotate(72, 182, 88)">GREED</text>
-                                
                                 <!-- 刻度數字 -->
-                                <text x="12" y="112" class="gauge-tick-text">0</text>
-                                <text x="35" y="52" class="gauge-tick-text">25</text>
-                                <text x="96" y="28" class="gauge-tick-text">50</text>
-                                <text x="158" y="52" class="gauge-tick-text">75</text>
-                                <text x="180" y="112" class="gauge-tick-text">100</text>
+                                <text x="8" y="105" class="gauge-tick-text">0</text>
+                                <text x="96" y="12" class="gauge-tick-text" text-anchor="middle">50</text>
+                                <text x="188" y="105" class="gauge-tick-text">100</text>
                                 
                                 <!-- 指針 -->
                                 <g id="cryptoNeedleGroup" class="gauge-needle-group">
-                                    <polygon class="gauge-needle" points="100,30 96,100 104,100" />
+                                    <polygon class="gauge-needle" points="100,25 97,100 103,100" />
                                 </g>
-                                <circle class="gauge-center-dot" cx="100" cy="100" r="8" />
-                                
-                                <!-- 數值顯示 -->
-                                <text id="cryptoGaugeValue" x="100" y="125" text-anchor="middle" class="gauge-value-text">--</text>
+                                <circle class="gauge-center-dot" cx="100" cy="100" r="6" />
                             </svg>
                         </div>
-                        <p id="cryptoSentimentStatus" class="text-center font-semibold mt-1"></p>
-                        <p id="cryptoSentimentTime" class="gauge-updated-text"></p>
+                        <!-- 數值和狀態 -->
+                        <div class="text-center mt-2">
+                            <span id="cryptoGaugeValue" class="text-4xl font-bold text-gray-800">--</span>
+                        </div>
+                        <p id="cryptoSentimentStatus" class="text-center font-semibold text-lg mt-1"></p>
+                        <p id="cryptoSentimentTime" class="text-xs text-gray-400 text-center mt-1"></p>
                     </div>
                 </div>
 
@@ -914,7 +842,7 @@
                         </div>
                         <div class="flex justify-between py-2">
                             <span class="text-gray-500">系統版本</span>
-                            <span class="font-medium">v0.5.0</span>
+                            <span class="font-medium">v0.5.2</span>
                         </div>
                     </div>
                     <button onclick="logout()" class="mt-4 w-full py-3 border border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-50">
@@ -2167,7 +2095,7 @@
                 console.error('載入情緒資料失敗', e);
             }
             
-            // 生成 CNN 風格儀表盤 SVG HTML
+            // 生成簡潔儀表盤 SVG HTML
             function createGaugeSVG(id, value) {
                 const angle = -90 + (value / 100) * 180;
                 
@@ -2191,7 +2119,7 @@
                 
                 return `
                     <div class="fear-greed-gauge">
-                        <svg viewBox="0 0 200 130" class="gauge-svg">
+                        <svg viewBox="0 0 200 115" class="gauge-svg">
                             <!-- 弧形背景區段 -->
                             <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
                             <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
@@ -2199,33 +2127,22 @@
                             <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
                             <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
                             
-                            <!-- 區段標籤 -->
-                            <text x="18" y="78" class="gauge-text-label" transform="rotate(-72, 18, 78)">EXTREME</text>
-                            <text x="18" y="88" class="gauge-text-label" transform="rotate(-72, 18, 88)">FEAR</text>
-                            <text x="48" y="42" class="gauge-text-label" transform="rotate(-36, 48, 42)">FEAR</text>
-                            <text x="100" y="22" class="gauge-text-label" text-anchor="middle">NEUTRAL</text>
-                            <text x="152" y="42" class="gauge-text-label" transform="rotate(36, 152, 42)">GREED</text>
-                            <text x="182" y="78" class="gauge-text-label" transform="rotate(72, 182, 78)">EXTREME</text>
-                            <text x="182" y="88" class="gauge-text-label" transform="rotate(72, 182, 88)">GREED</text>
-                            
                             <!-- 刻度數字 -->
-                            <text x="12" y="112" class="gauge-tick-text">0</text>
-                            <text x="35" y="52" class="gauge-tick-text">25</text>
-                            <text x="96" y="28" class="gauge-tick-text">50</text>
-                            <text x="158" y="52" class="gauge-tick-text">75</text>
-                            <text x="180" y="112" class="gauge-tick-text">100</text>
+                            <text x="8" y="105" class="gauge-tick-text">0</text>
+                            <text x="96" y="12" class="gauge-tick-text" text-anchor="middle">50</text>
+                            <text x="188" y="105" class="gauge-tick-text">100</text>
                             
                             <!-- 指針 -->
                             <g class="gauge-needle-group" style="transform: rotate(${angle}deg); transform-origin: 100px 100px;">
-                                <polygon class="gauge-needle" points="100,30 96,100 104,100" />
+                                <polygon class="gauge-needle" points="100,25 97,100 103,100" />
                             </g>
-                            <circle class="gauge-center-dot" cx="100" cy="100" r="8" />
-                            
-                            <!-- 數值顯示 -->
-                            <text x="100" y="125" text-anchor="middle" class="gauge-value-text">${value}</text>
+                            <circle class="gauge-center-dot" cx="100" cy="100" r="6" />
                         </svg>
                     </div>
-                    <p class="text-center font-semibold mt-2 ${colorClass}">${label}</p>
+                    <div class="text-center mt-2">
+                        <span class="text-4xl font-bold text-gray-800">${value}</span>
+                    </div>
+                    <p class="text-center font-semibold text-lg mt-1 ${colorClass}">${label}</p>
                 `;
             }
             
