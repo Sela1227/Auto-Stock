@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # 應用程式
     APP_NAME: str = "SELA 自動選股系統"
-    APP_VERSION: str = "0.4.1"  # 升級版本
+    APP_VERSION: str = "0.4.2"  # 升級版本
     APP_ENV: str = "development"
     DEBUG: bool = True
     
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     
     # 管理員設定
     # 初始管理員的 LINE User ID（用逗號分隔多個）
-    ADMIN_LINE_USER_IDS: str = ""
+    ADMIN_LINE_USER_IDS: str = "U0f094e89838337e64ba0ca2f68161f3a"
     
     # 資料更新設定
     STOCK_DATA_CACHE_HOURS: int = 4  # 股價資料快取時間（小時）
