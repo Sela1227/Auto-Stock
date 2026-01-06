@@ -10,13 +10,29 @@ import hashlib
 import hmac
 import time
 import urllib.parse
+import logging
 
 from app.database import get_async_session
 from app.services.auth_service import AuthService
 from app.schemas.schemas import LoginResponse, UserResponse, ErrorResponse
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/auth", tags=["認證"])
+
+# 版本標識
+AUTH_VERSION = "2.0.0-hmac"
+
+
+@router.get("/version", summary="認證模組版本")
+async def auth_version():
+    """回傳認證模組版本，用於確認部署"""
+    return {
+        "auth_version": AUTH_VERSION,
+        "state_method": "HMAC",
+        "jwt_key_set": bool(settings.JWT_SECRET_KEY and settings.JWT_SECRET_KEY != "your-secret-key-change-in-production"),
+    }
 
 
 def create_state_token() -> str:
@@ -33,20 +49,30 @@ def create_state_token() -> str:
         hashlib.sha256
     ).hexdigest()[:16]  # 只取前 16 字元
     
-    return f"{timestamp}.{nonce}.{signature}"
+    state = f"{timestamp}.{nonce}.{signature}"
+    logger.info(f"Created state: {state}")
+    return state
 
 
 def verify_state_token(state: str) -> bool:
     """驗證 state token"""
+    logger.info(f"Verifying state: {state}")
     try:
         parts = state.split(".")
+        logger.info(f"State parts count: {len(parts)}")
+        
         if len(parts) != 3:
+            logger.warning(f"Invalid state format, expected 3 parts, got {len(parts)}")
             return False
         
         timestamp, nonce, signature = parts
+        logger.info(f"timestamp={timestamp}, nonce={nonce}, signature={signature}")
         
         # 檢查是否過期 (10 分鐘)
-        if int(time.time()) - int(timestamp) > 600:
+        time_diff = int(time.time()) - int(timestamp)
+        logger.info(f"Time difference: {time_diff} seconds")
+        if time_diff > 600:
+            logger.warning(f"State expired, time_diff={time_diff}")
             return False
         
         # 驗證簽名
@@ -57,8 +83,13 @@ def verify_state_token(state: str) -> bool:
             hashlib.sha256
         ).hexdigest()[:16]
         
-        return hmac.compare_digest(signature, expected_signature)
-    except Exception:
+        logger.info(f"Expected signature: {expected_signature}")
+        result = hmac.compare_digest(signature, expected_signature)
+        logger.info(f"Signature match: {result}")
+        
+        return result
+    except Exception as e:
+        logger.error(f"State verification error: {e}")
         return False
 
 
@@ -88,6 +119,8 @@ async def line_login():
         f"&state={state}"
         f"&scope=profile%20openid%20email"
     )
+    
+    logger.info(f"Redirecting to LINE with state: {state}")
     
     return RedirectResponse(url=auth_url)
 
