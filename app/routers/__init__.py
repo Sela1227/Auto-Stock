@@ -6,6 +6,7 @@ from app.routers.stock import router as stock_router
 from app.routers.crypto import router as crypto_router
 from app.routers.watchlist import router as watchlist_router
 from app.routers.settings import router as settings_router
+from app.routers.admin import router as admin_router
 
 __all__ = [
     "auth_router",
@@ -13,4 +14,5 @@ __all__ = [
     "crypto_router",
     "watchlist_router",
     "settings_router",
+    "admin_router",
 ]
