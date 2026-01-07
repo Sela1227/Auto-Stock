@@ -407,6 +407,162 @@ class YahooFinanceClient:
             return info is not None and "symbol" in info
         except Exception:
             return False
+    
+    def get_dividends(
+        self,
+        symbol: str,
+        period: str = "10y",
+    ) -> Optional[pd.DataFrame]:
+        """
+        取得股票配息歷史
+        
+        Args:
+            symbol: 股票代號
+            period: 資料期間 (1y, 5y, 10y, max)
+            
+        Returns:
+            包含配息記錄的 DataFrame
+        """
+        try:
+            ticker = yf.Ticker(symbol)
+            dividends = ticker.dividends
+            
+            if dividends.empty:
+                logger.info(f"{symbol} 無配息記錄")
+                return None
+            
+            # 轉換成 DataFrame
+            df = dividends.reset_index()
+            df.columns = ["date", "amount"]
+            df["date"] = pd.to_datetime(df["date"]).dt.date
+            df["symbol"] = symbol.upper()
+            
+            # 根據 period 過濾
+            if period != "max":
+                years = int(period.replace("y", ""))
+                cutoff_date = datetime.now().date() - timedelta(days=years * 365)
+                df = df[df["date"] >= cutoff_date]
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"取得配息資料失敗 {symbol}: {e}")
+            return None
+    
+    def get_index_data(
+        self,
+        symbol: str,
+        period: str = "10y",
+    ) -> Optional[pd.DataFrame]:
+        """
+        取得市場指數歷史資料
+        
+        Args:
+            symbol: 指數代號 (^GSPC, ^DJI, ^IXIC)
+            period: 資料期間
+            
+        Returns:
+            包含 OHLCV 的 DataFrame
+        """
+        try:
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(period=period)
+            
+            if df.empty:
+                logger.warning(f"無指數資料: {symbol}")
+                return None
+            
+            # 重設索引
+            df = df.reset_index()
+            
+            # 標準化欄位名稱
+            column_mapping = {
+                "Date": "date",
+                "Datetime": "date",
+                "Open": "open",
+                "High": "high",
+                "Low": "low",
+                "Close": "close",
+                "Volume": "volume",
+            }
+            existing_columns = {k: v for k, v in column_mapping.items() if k in df.columns}
+            df = df.rename(columns=existing_columns)
+            
+            # 確保日期是 date 類型
+            df["date"] = pd.to_datetime(df["date"]).dt.date
+            
+            # 計算漲跌
+            df["change"] = df["close"].diff()
+            df["change_pct"] = df["close"].pct_change() * 100
+            
+            # 加入代號
+            df["symbol"] = symbol
+            
+            # 只保留需要的欄位
+            keep_columns = ["symbol", "date", "open", "high", "low", "close", "volume", "change", "change_pct"]
+            df = df[[c for c in keep_columns if c in df.columns]]
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"取得指數資料失敗 {symbol}: {e}")
+            return None
+    
+    def get_all_indices(self, period: str = "10y") -> Dict[str, pd.DataFrame]:
+        """
+        取得所有三大指數資料
+        
+        Returns:
+            {symbol: DataFrame}
+        """
+        indices = ["^GSPC", "^DJI", "^IXIC"]
+        result = {}
+        
+        for symbol in indices:
+            df = self.get_index_data(symbol, period)
+            if df is not None:
+                result[symbol] = df
+        
+        return result
+    
+    def get_stock_history_extended(
+        self,
+        symbol: str,
+        years: int = 10,
+    ) -> Optional[pd.DataFrame]:
+        """
+        取得股票延伸歷史資料（支援更長時間）
+        
+        Args:
+            symbol: 股票代號
+            years: 年數 (1, 3, 5, 10)
+            
+        Returns:
+            包含 OHLCV 的 DataFrame
+        """
+        period_map = {
+            1: "1y",
+            2: "2y",
+            3: "3y",  # yfinance 不支援 3y，用 5y 代替
+            5: "5y",
+            10: "10y",
+        }
+        
+        period = period_map.get(years, "10y")
+        if years == 3:
+            period = "5y"  # 然後在程式中過濾
+        
+        df = self.get_stock_history(symbol, period=period)
+        
+        if df is None:
+            return None
+        
+        # 如果是 3 年，需要過濾
+        if years == 3:
+            cutoff_date = datetime.now().date() - timedelta(days=3 * 365)
+            df = df[df["date"] >= cutoff_date]
+        
+        return df
 
 
 # 建立全域客戶端實例

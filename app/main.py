@@ -17,7 +17,8 @@ from app.database import init_db
 from app.models import (
     User, Watchlist, StockPrice, CryptoPrice, 
     MarketSentiment, Notification,
-    UserIndicatorSettings, UserAlertSettings, UserIndicatorParams
+    UserIndicatorSettings, UserAlertSettings, UserIndicatorParams,
+    IndexPrice, DividendHistory,
 )
 from app.models.user import LoginLog, TokenBlacklist, SystemConfig
 
@@ -29,6 +30,7 @@ from app.routers import (
     settings_router,
     admin_router,
 )
+from app.routers.market import router as market_router
 
 # 設定日誌
 logging.basicConfig(
@@ -97,6 +99,7 @@ app.include_router(crypto_router)
 app.include_router(watchlist_router)
 app.include_router(settings_router)
 app.include_router(admin_router)
+app.include_router(market_router)
 
 # 掛載靜態檔案
 static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")

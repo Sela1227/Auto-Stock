@@ -12,6 +12,8 @@ from app.models.user_settings import (
     UserIndicatorParams,
 )
 from app.models.notification import Notification
+from app.models.index_price import IndexPrice, INDEX_SYMBOLS
+from app.models.dividend_history import DividendHistory
 
 __all__ = [
     "StockPrice",
@@ -26,4 +28,7 @@ __all__ = [
     "UserAlertSettings",
     "UserIndicatorParams",
     "Notification",
+    "IndexPrice",
+    "INDEX_SYMBOLS",
+    "DividendHistory",
 ]

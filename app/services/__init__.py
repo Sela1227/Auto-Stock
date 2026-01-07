@@ -7,6 +7,7 @@ from app.services.crypto_service import CryptoService
 from app.services.chart_service import chart_service, ChartService
 from app.services.auth_service import AuthService, AuthServiceSync
 from app.services.watchlist_service import WatchlistService
+from app.services.market_service import MarketService
 
 __all__ = [
     "indicator_service",
@@ -18,4 +19,5 @@ __all__ = [
     "AuthService",
     "AuthServiceSync",
     "WatchlistService",
+    "MarketService",
 ]

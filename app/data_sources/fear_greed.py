@@ -233,6 +233,46 @@ class FearGreedClient:
             return "市場偏樂觀，留意風險"
         else:
             return "市場極度貪婪，可能是獲利了結時機"
+    
+    def get_crypto_fear_greed_history(self, days: int = 365) -> List[Dict[str, Any]]:
+        """
+        取得加密貨幣 Fear & Greed 歷史資料
+        
+        Args:
+            days: 取得天數（最多 365 天）
+            
+        Returns:
+            歷史資料列表
+        """
+        try:
+            url = "https://api.alternative.me/fng/"
+            params = {"limit": min(days, 365)}
+            
+            response = self.session.get(url, params=params, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            
+            if not data.get("data"):
+                return []
+            
+            history = []
+            for item in data["data"]:
+                value = int(item["value"])
+                history.append({
+                    "date": datetime.fromtimestamp(int(item["timestamp"])).strftime("%Y-%m-%d"),
+                    "value": value,
+                    "classification": item.get("value_classification", "").lower().replace(" ", "_"),
+                    "classification_zh": self._get_classification_zh(value),
+                })
+            
+            # 反轉順序，讓最舊的在前面
+            history.reverse()
+            
+            return history
+            
+        except Exception as e:
+            logger.error(f"取得加密貨幣情緒歷史失敗: {e}")
+            return []
 
 
 # 建立全域客戶端實例

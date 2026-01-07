@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # 應用程式
     APP_NAME: str = "SELA 自動選股系統"
-    APP_VERSION: str = "0.5.3"  # UI 優化版本
+    APP_VERSION: str = "0.6.0"  # 資料基礎建設版本
     APP_ENV: str = "development"
     DEBUG: bool = True
     
@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     # 資料更新設定
     STOCK_DATA_CACHE_HOURS: int = 4  # 股價資料快取時間（小時）
     CRYPTO_DATA_CACHE_MINUTES: int = 15  # 幣價資料快取時間（分鐘）
+    HISTORY_DEFAULT_YEARS: int = 10  # 歷史資料預設年數
     
     # 技術指標預設參數
     MA_SHORT: int = 20

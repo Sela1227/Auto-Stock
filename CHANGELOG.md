@@ -8,8 +8,65 @@
 ## [Unreleased]
 
 ### Planned
-- LINE Messaging 推播通知
-- Web 前端介面
+- Phase 2: 前端顯示（儀表板三大指數、走勢圖）
+- Phase 3: 走勢比較功能
+- Phase 4: 年化報酬率計算
+- Phase 5: 錯誤回報系統
+- Phase 6: 會員權限系統
+
+## [0.6.0] - 2025-01-07
+
+### Added
+- **資料基礎建設 (Phase 1)**
+  - 三大指數支援
+    - S&P 500 (^GSPC)
+    - 道瓊工業 (^DJI)
+    - 納斯達克 (^IXIC)
+    - IndexPrice 資料模型
+    - 10 年歷史資料支援
+  - 配息資料
+    - DividendHistory 資料模型
+    - yfinance 配息抓取
+  - 情緒指數歷史
+    - 幣圈情緒 365 天歷史抓取
+    - 美股情緒每日累積
+  - 排程任務服務 (scheduler.py)
+    - 每日自動更新股價
+    - 每日更新三大指數
+    - 每日更新市場情緒
+    - 初始化歷史資料功能
+  - 市場服務 (market_service.py)
+    - 指數資料存取
+    - 情緒資料存取
+    - 配息資料存取
+  - 市場 API 端點 (/api/market)
+    - GET /indices - 取得三大指數
+    - GET /indices/{symbol}/history - 指數歷史
+    - GET /sentiment - 市場情緒
+    - GET /sentiment/{market}/history - 情緒歷史
+    - POST /admin/update - 手動觸發更新
+    - POST /admin/initialize - 初始化歷史資料
+    - POST /admin/update-indices - 更新指數
+    - POST /admin/update-sentiment - 更新情緒
+    - POST /admin/init-crypto-sentiment - 初始化幣圈情緒
+
+### Changed
+- stock_service.py 支援 10 年歷史資料
+- yahoo_finance.py 新增指數和配息抓取方法
+- fear_greed.py 新增歷史資料抓取
+
+## [0.5.3] - 2025-01-06
+
+### Fixed
+- 可折疊指標區塊在桌面版無法運作
+- 追蹤清單缺少即時價格資訊
+- 模板選擇無視覺回饋
+- 設定頁面顯示 LINE ID（隱私問題）
+
+### Changed
+- 追蹤清單卡片增加即時價格和漲跌幅
+- 模板按鈕選中狀態樣式
+- 設定頁面改顯示會員等級
 
 ## [0.3.0] - 2025-01-05
 

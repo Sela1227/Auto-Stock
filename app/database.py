@@ -117,3 +117,13 @@ async def init_db():
 def init_db_sync():
     """同步初始化資料庫"""
     Base.metadata.create_all(bind=sync_engine)
+
+
+# FastAPI 依賴注入用（同步版本，用於某些 API）
+def get_db():
+    """FastAPI 依賴注入用（同步 Session）"""
+    db = SyncSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

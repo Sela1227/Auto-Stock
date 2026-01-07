@@ -425,3 +425,77 @@ class StockService:
                 }]
         
         return []
+    
+    def fetch_extended_history(
+        self,
+        symbol: str,
+        years: int = 10,
+    ) -> bool:
+        """
+        抓取並快取延伸歷史資料（支援多年）
+        
+        Args:
+            symbol: 股票代號
+            years: 年數 (1, 3, 5, 10)
+            
+        Returns:
+            是否成功
+        """
+        period_map = {1: "1y", 2: "2y", 5: "5y", 10: "10y"}
+        period = period_map.get(years, "10y")
+        
+        df = yahoo_finance.get_stock_history(symbol, period=period)
+        if df is None:
+            return False
+        
+        self._save_prices_to_db(df)
+        return True
+    
+    def get_price_history(
+        self,
+        symbol: str,
+        days: int = 365,
+    ) -> Optional[pd.DataFrame]:
+        """
+        取得股票價格歷史（從資料庫）
+        
+        Args:
+            symbol: 股票代號
+            days: 天數
+            
+        Returns:
+            價格 DataFrame
+        """
+        return self._load_prices_from_db(symbol, days)
+    
+    def ensure_historical_data(
+        self,
+        symbol: str,
+        years: int = 10,
+    ) -> bool:
+        """
+        確保有足夠的歷史資料
+        
+        檢查資料庫是否有指定年份的資料，
+        如果不足則從 API 抓取補齊
+        """
+        symbol = symbol.upper()
+        days_needed = years * 365
+        
+        # 檢查資料庫中最早的資料日期
+        stmt = (
+            select(StockPrice)
+            .where(StockPrice.symbol == symbol)
+            .order_by(StockPrice.date)
+            .limit(1)
+        )
+        earliest = self.db.execute(stmt).scalar_one_or_none()
+        
+        if earliest:
+            days_available = (date.today() - earliest.date).days
+            if days_available >= days_needed * 0.9:  # 90% 就算足夠
+                return True
+        
+        # 資料不足，抓取更多
+        logger.info(f"抓取 {symbol} 的 {years} 年歷史資料")
+        return self.fetch_extended_history(symbol, years)
