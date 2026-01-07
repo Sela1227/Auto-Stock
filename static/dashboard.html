@@ -3347,6 +3347,16 @@
                             <span>配息 ${ret.dividend_count} 次</span>
                             <span>年均殖利率: ${ret.annual_yield !== null ? ret.annual_yield.toFixed(2) + '%' : '--'}</span>
                         </div>
+                        ${ret.yearly_detail ? `
+                        <div class="mt-2 pt-2 border-t border-dashed">
+                            <p class="text-xs text-gray-400 mb-1">各年度殖利率：</p>
+                            <div class="flex flex-wrap gap-1">
+                                ${Object.entries(ret.yearly_detail).sort((a,b) => a[0]-b[0]).map(([year, d]) => 
+                                    `<span class="text-xs bg-gray-100 px-2 py-0.5 rounded">${year}: ${d.yield_pct}% (${d.div_count}次)</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
                 `;
             }
