@@ -29,15 +29,15 @@ async def get_stock_analysis(
     logger.info(f"開始查詢股票: {symbol}")
     
     try:
-        # 取得股票資料 (抓取 2 年以計算 MA250)
+        # 取得股票資料 (抓取 10 年以計算長期 CAGR)
         logger.info(f"正在從 Yahoo Finance 取得 {symbol} 資料...")
-        df = yahoo_finance.get_stock_history(symbol, period="2y")
+        df = yahoo_finance.get_stock_history(symbol, period="10y")
         
         # 如果 .TW 找不到，嘗試 .TWO (上櫃股票)
         if (df is None or df.empty) and symbol.endswith('.TW'):
             two_symbol = symbol.replace('.TW', '.TWO')
             logger.info(f"{symbol} 找不到，嘗試上櫃股票: {two_symbol}")
-            df = yahoo_finance.get_stock_history(two_symbol, period="2y")
+            df = yahoo_finance.get_stock_history(two_symbol, period="10y")
             if df is not None and not df.empty:
                 symbol = two_symbol
                 logger.info(f"成功找到上櫃股票: {two_symbol}")
@@ -53,6 +53,10 @@ async def get_stock_analysis(
         
         # 取得股票資訊
         info = yahoo_finance.get_stock_info(symbol)
+        
+        # 計算年化報酬率（CAGR）- 使用完整歷史資料
+        cagr_data = indicator_service.calculate_all_cagr(df)
+        logger.info(f"{symbol} CAGR: {cagr_data}")
         
         # 計算技術指標
         df = indicator_service.calculate_all_indicators(df)
@@ -186,6 +190,8 @@ async def get_stock_analysis(
                 "sell": sell_score,
                 "rating": rating,
             },
+            # 年化報酬率（CAGR）
+            "cagr": cagr_data,
             # 添加圖表數據 (最近 365 天，支援 1 年範圍)
             "chart_data": {
                 "dates": [str(d) for d in df['date'].tail(365).tolist()],
@@ -358,3 +364,176 @@ async def compare_stocks(
             "stocks": result,
         }
     }
+
+
+@router.get("/{symbol}/returns", summary="年化報酬率")
+async def get_stock_returns(
+    symbol: str,
+):
+    """
+    計算股票的歷史年化報酬率（含配息再投入）
+    
+    回傳 1Y, 3Y, 5Y, 10Y 的：
+    - price_return: 純價格報酬率
+    - total_return: 含配息
+    - reinvested_return: 配息再投入
+    - dividend_yield: 年均殖利率
+    """
+    from app.data_sources.yahoo_finance import yahoo_finance
+    from datetime import date, timedelta
+    import math
+    
+    symbol = symbol.upper()
+    logger.info(f"計算年化報酬率: {symbol}")
+    
+    try:
+        # 取得 10 年股價歷史
+        df = yahoo_finance.get_stock_history(symbol, period="10y")
+        
+        if df is None or df.empty:
+            raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
+        
+        # 確保有 date 欄位
+        if 'date' not in df.columns:
+            df = df.reset_index()
+            if 'Date' in df.columns:
+                df = df.rename(columns={'Date': 'date'})
+        
+        df['date'] = pd.to_datetime(df['date']).dt.date
+        df = df.sort_values('date').reset_index(drop=True)
+        
+        # 取得配息歷史
+        dividends_df = yahoo_finance.get_dividends(symbol, period="10y")
+        
+        # 建立配息字典 {date: amount}
+        dividends = {}
+        if dividends_df is not None and not dividends_df.empty:
+            for _, row in dividends_df.iterrows():
+                div_date = row['date']
+                if isinstance(div_date, str):
+                    div_date = datetime.strptime(div_date, '%Y-%m-%d').date()
+                dividends[div_date] = float(row['amount'])
+        
+        logger.info(f"{symbol} 配息記錄: {len(dividends)} 筆")
+        
+        # 取得股票名稱
+        info = yahoo_finance.get_stock_info(symbol)
+        stock_name = info.get("name", symbol) if info else symbol
+        
+        # 現價
+        current_price = float(df.iloc[-1]['close'])
+        current_date = df.iloc[-1]['date']
+        
+        # 計算不同期間的報酬率
+        periods = [
+            ("1Y", 1),
+            ("3Y", 3),
+            ("5Y", 5),
+            ("10Y", 10),
+        ]
+        
+        results = {}
+        
+        for period_name, years in periods:
+            target_date = current_date - timedelta(days=years * 365)
+            
+            # 找到最接近目標日期的股價
+            past_df = df[df['date'] <= target_date]
+            
+            if past_df.empty or len(past_df) < 10:
+                results[period_name] = None
+                continue
+            
+            start_row = past_df.iloc[-1]
+            start_price = float(start_row['close'])
+            start_date = start_row['date']
+            
+            if start_price <= 0:
+                results[period_name] = None
+                continue
+            
+            # 實際年數（更精確）
+            actual_days = (current_date - start_date).days
+            actual_years = actual_days / 365.25
+            
+            if actual_years < 0.5:
+                results[period_name] = None
+                continue
+            
+            # === 1. 純價格報酬率 ===
+            price_return = (current_price / start_price) ** (1 / actual_years) - 1
+            
+            # === 2. 計算期間內的配息 ===
+            period_dividends = {d: amt for d, amt in dividends.items() 
+                              if start_date < d <= current_date}
+            
+            total_dividends_per_share = sum(period_dividends.values())
+            
+            # 年均殖利率（以起始價格計算）
+            annual_div_yield = (total_dividends_per_share / actual_years) / start_price if start_price > 0 else 0
+            
+            # === 3. 含配息報酬率（不再投入）===
+            # 終值 = 現價 + 累積配息
+            total_value = current_price + total_dividends_per_share
+            total_return = (total_value / start_price) ** (1 / actual_years) - 1
+            
+            # === 4. 配息再投入報酬率 ===
+            # 模擬持有 1 股，配息再投入
+            shares = 1.0
+            
+            # 取得期間內的每日股價用於配息再投入
+            period_df = df[(df['date'] > start_date) & (df['date'] <= current_date)]
+            
+            for div_date, div_amount in sorted(period_dividends.items()):
+                # 找到配息日的股價
+                div_day_df = period_df[period_df['date'] <= div_date]
+                if div_day_df.empty:
+                    continue
+                    
+                div_price = float(div_day_df.iloc[-1]['close'])
+                if div_price > 0:
+                    # 配息金額 = 持有股數 × 每股配息
+                    dividend_received = shares * div_amount
+                    # 買入新股數
+                    new_shares = dividend_received / div_price
+                    shares += new_shares
+            
+            # 終值 = 累積股數 × 現價
+            reinvested_value = shares * current_price
+            reinvested_return = (reinvested_value / start_price) ** (1 / actual_years) - 1
+            
+            # 檢查數值有效性
+            def safe_pct(val):
+                if val is None or math.isnan(val) or math.isinf(val):
+                    return None
+                return round(val * 100, 2)
+            
+            results[period_name] = {
+                "years": round(actual_years, 1),
+                "start_date": start_date.isoformat(),
+                "start_price": round(start_price, 2),
+                "end_price": round(current_price, 2),
+                "price_return": safe_pct(price_return),
+                "total_return": safe_pct(total_return),
+                "reinvested_return": safe_pct(reinvested_return),
+                "dividend_count": len(period_dividends),
+                "total_dividends": round(total_dividends_per_share, 4),
+                "annual_yield": safe_pct(annual_div_yield),
+            }
+        
+        return {
+            "success": True,
+            "data": {
+                "symbol": symbol,
+                "name": stock_name,
+                "current_price": round(current_price, 2),
+                "current_date": current_date.isoformat(),
+                "returns": results,
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"計算年化報酬率失敗 {symbol}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

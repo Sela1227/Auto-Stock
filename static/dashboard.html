@@ -1177,6 +1177,27 @@
         </div>
     </div>
 
+    <!-- ===== 年化報酬率 Modal ===== -->
+    <div id="returnsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[3000] p-4">
+        <div class="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white p-4 border-b flex items-center justify-between">
+                <h3 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-percentage text-green-600 mr-2"></i>
+                    <span id="returnsModalTitle">年化報酬率</span>
+                </h3>
+                <button onclick="closeReturnsModal()" class="p-2 text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="returnsModalContent" class="p-4">
+                <div class="text-center py-8">
+                    <i class="fas fa-spinner fa-spin text-2xl text-green-600"></i>
+                    <p class="mt-2 text-gray-500">計算中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== 新增追蹤清單 Modal ===== -->
     <div id="addWatchlistModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[3000] p-4">
         <div class="bg-white rounded-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
@@ -2282,6 +2303,40 @@
                         </div>
                     </div>
                     
+                    <!-- 年化報酬率 (CAGR) -->
+                    ${stock.cagr ? `
+                    <div class="p-4 md:p-6 border-b">
+                        <h4 class="font-semibold text-gray-700 mb-3 text-sm">📈 年化報酬率 (CAGR)</h4>
+                        <div class="grid grid-cols-4 gap-2 text-center">
+                            <div class="p-2 rounded-lg ${stock.cagr.cagr_1y > 0 ? 'bg-green-50' : stock.cagr.cagr_1y < 0 ? 'bg-red-50' : 'bg-gray-50'}">
+                                <p class="text-gray-500 text-xs">1 年</p>
+                                <p class="font-bold ${stock.cagr.cagr_1y > 0 ? 'text-green-600' : stock.cagr.cagr_1y < 0 ? 'text-red-600' : 'text-gray-600'}">
+                                    ${stock.cagr.cagr_1y !== null ? (stock.cagr.cagr_1y > 0 ? '+' : '') + stock.cagr.cagr_1y + '%' : '--'}
+                                </p>
+                            </div>
+                            <div class="p-2 rounded-lg ${stock.cagr.cagr_3y > 0 ? 'bg-green-50' : stock.cagr.cagr_3y < 0 ? 'bg-red-50' : 'bg-gray-50'}">
+                                <p class="text-gray-500 text-xs">3 年</p>
+                                <p class="font-bold ${stock.cagr.cagr_3y > 0 ? 'text-green-600' : stock.cagr.cagr_3y < 0 ? 'text-red-600' : 'text-gray-600'}">
+                                    ${stock.cagr.cagr_3y !== null ? (stock.cagr.cagr_3y > 0 ? '+' : '') + stock.cagr.cagr_3y + '%' : '--'}
+                                </p>
+                            </div>
+                            <div class="p-2 rounded-lg ${stock.cagr.cagr_5y > 0 ? 'bg-green-50' : stock.cagr.cagr_5y < 0 ? 'bg-red-50' : 'bg-gray-50'}">
+                                <p class="text-gray-500 text-xs">5 年</p>
+                                <p class="font-bold ${stock.cagr.cagr_5y > 0 ? 'text-green-600' : stock.cagr.cagr_5y < 0 ? 'text-red-600' : 'text-gray-600'}">
+                                    ${stock.cagr.cagr_5y !== null ? (stock.cagr.cagr_5y > 0 ? '+' : '') + stock.cagr.cagr_5y + '%' : '--'}
+                                </p>
+                            </div>
+                            <div class="p-2 rounded-lg ${stock.cagr.cagr_10y > 0 ? 'bg-green-50' : stock.cagr.cagr_10y < 0 ? 'bg-red-50' : 'bg-gray-50'}">
+                                <p class="text-gray-500 text-xs">10 年</p>
+                                <p class="font-bold ${stock.cagr.cagr_10y > 0 ? 'text-green-600' : stock.cagr.cagr_10y < 0 ? 'text-red-600' : 'text-gray-600'}">
+                                    ${stock.cagr.cagr_10y !== null ? (stock.cagr.cagr_10y > 0 ? '+' : '') + stock.cagr.cagr_10y + '%' : '--'}
+                                </p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2 text-center">年化複合成長率，反映長期投資回報</p>
+                    </div>
+                    ` : ''}
+                    
                     <!-- 詳細指標 (可摺疊) -->
                     <div class="border-b">
                         <button onclick="toggleCollapsible(this)" class="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 touch-target">
@@ -2339,6 +2394,11 @@
                             查看完整圖表
                         </button>
                         ` : ''}
+                        <button onclick="loadReturnsModal('${stock.symbol}')" 
+                            class="w-full py-3 bg-green-600 text-white rounded-lg font-medium flex items-center justify-center touch-target hover:bg-green-700">
+                            <i class="fas fa-percentage mr-2"></i>
+                            年化報酬率
+                        </button>
                         <button onclick="quickAddToWatchlist('${stock.symbol}', '${isCrypto ? 'crypto' : 'stock'}')" 
                             class="w-full py-3 border-2 border-orange-500 text-orange-600 rounded-lg font-medium flex items-center justify-center touch-target hover:bg-orange-50">
                             <i class="fas fa-star mr-2"></i>
@@ -3172,6 +3232,138 @@
                     </div>
                 </div>
             `;
+        }
+
+        // ========== 年化報酬率 Modal ==========
+        async function loadReturnsModal(symbol) {
+            const modal = document.getElementById('returnsModal');
+            const content = document.getElementById('returnsModalContent');
+            const title = document.getElementById('returnsModalTitle');
+            
+            title.textContent = `${symbol} 年化報酬率`;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            content.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-spinner fa-spin text-2xl text-green-600"></i>
+                    <p class="mt-2 text-gray-500">計算中...（含配息再投入）</p>
+                </div>
+            `;
+            
+            try {
+                const res = await apiRequest(`/api/stock/${symbol}/returns`);
+                const data = await res.json();
+                
+                console.log('年化報酬率:', data);
+                
+                if (!data.success) {
+                    throw new Error(data.detail || '計算失敗');
+                }
+                
+                renderReturnsModal(data.data);
+                
+            } catch (e) {
+                console.error('載入年化報酬率失敗:', e);
+                content.innerHTML = `
+                    <div class="text-center py-8 text-red-500">
+                        <i class="fas fa-exclamation-circle text-3xl mb-2"></i>
+                        <p>${e.message || '載入失敗'}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function renderReturnsModal(data) {
+            const content = document.getElementById('returnsModalContent');
+            const periods = ['1Y', '3Y', '5Y', '10Y'];
+            
+            let html = `
+                <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                    <p class="text-gray-600 text-sm">${data.name}</p>
+                    <p class="text-2xl font-bold text-gray-800">$${data.current_price.toLocaleString()}</p>
+                    <p class="text-xs text-gray-400">${data.current_date}</p>
+                </div>
+                
+                <div class="mb-4">
+                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                        <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                        說明
+                    </h4>
+                    <div class="text-xs text-gray-500 space-y-1 bg-blue-50 p-3 rounded-lg">
+                        <p><span class="font-medium">價格報酬</span>：僅計算股價漲跌</p>
+                        <p><span class="font-medium">含配息</span>：股價 + 配息（不再投入）</p>
+                        <p><span class="font-medium text-green-600">配息再投入</span>：配息買入更多股數的複利效果</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-3">
+            `;
+            
+            for (const period of periods) {
+                const ret = data.returns[period];
+                
+                if (!ret) {
+                    html += `
+                        <div class="p-3 bg-gray-100 rounded-lg opacity-50">
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium text-gray-600">${period}</span>
+                                <span class="text-gray-400 text-sm">資料不足</span>
+                            </div>
+                        </div>
+                    `;
+                    continue;
+                }
+                
+                const reinvestedClass = ret.reinvested_return >= 0 ? 'text-green-600' : 'text-red-600';
+                const reinvestedIcon = ret.reinvested_return >= 0 ? '▲' : '▼';
+                const priceClass = ret.price_return >= 0 ? 'text-green-600' : 'text-red-600';
+                
+                html += `
+                    <div class="p-4 bg-white border rounded-lg shadow-sm">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-bold text-lg text-gray-800">${period}</span>
+                            <span class="text-xs text-gray-400">${ret.start_date} ~ 今</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 gap-2 text-center mb-3">
+                            <div class="p-2 bg-gray-50 rounded">
+                                <p class="text-xs text-gray-500">價格報酬</p>
+                                <p class="font-semibold ${priceClass}">${ret.price_return !== null ? ret.price_return.toFixed(2) + '%' : '--'}</p>
+                            </div>
+                            <div class="p-2 bg-gray-50 rounded">
+                                <p class="text-xs text-gray-500">含配息</p>
+                                <p class="font-semibold ${ret.total_return >= 0 ? 'text-green-600' : 'text-red-600'}">${ret.total_return !== null ? ret.total_return.toFixed(2) + '%' : '--'}</p>
+                            </div>
+                            <div class="p-2 bg-green-50 rounded border border-green-200">
+                                <p class="text-xs text-green-600 font-medium">配息再投入</p>
+                                <p class="font-bold ${reinvestedClass}">${reinvestedIcon} ${ret.reinvested_return !== null ? Math.abs(ret.reinvested_return).toFixed(2) + '%' : '--'}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between text-xs text-gray-500 border-t pt-2">
+                            <span>起始價: $${ret.start_price.toLocaleString()}</span>
+                            <span>配息 ${ret.dividend_count} 次</span>
+                            <span>年均殖利率: ${ret.annual_yield !== null ? ret.annual_yield.toFixed(2) + '%' : '--'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += `
+                </div>
+                <p class="text-xs text-gray-400 mt-4 text-center">
+                    * 年化報酬率 (CAGR) 假設期初投入，配息依除息日股價再投入
+                </p>
+            `;
+            
+            content.innerHTML = html;
+        }
+        
+        function closeReturnsModal() {
+            const modal = document.getElementById('returnsModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
 
         // ========== Toast ==========
