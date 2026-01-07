@@ -478,7 +478,7 @@
                 <!-- 三大指數卡片 -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 md:mb-6">
                     <!-- S&P 500 -->
-                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="toggleIndexChart('^GSPC')">
+                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^GSPC', 'S&P 500')">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
                                 <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
@@ -489,29 +489,17 @@
                                     <p class="text-xs text-gray-400">^GSPC</p>
                                 </div>
                             </div>
-                            <i class="fas fa-chevron-down text-gray-400 index-chevron" id="chevron-GSPC"></i>
+                            <i class="fas fa-chart-area text-gray-300"></i>
                         </div>
                         <div class="flex items-baseline justify-between">
                             <span id="index-GSPC-price" class="text-2xl font-bold text-gray-800">--</span>
                             <span id="index-GSPC-change" class="text-sm font-medium">--</span>
                         </div>
                         <p id="index-GSPC-date" class="text-xs text-gray-400 mt-1"></p>
-                        <!-- 展開的走勢圖 -->
-                        <div id="chart-GSPC" class="collapsible-content mt-4">
-                            <div class="border-t pt-4">
-                                <div class="flex justify-end mb-2 space-x-1">
-                                    <button onclick="event.stopPropagation(); loadIndexChart('^GSPC', 30)" class="index-range-btn px-2 py-1 text-xs border rounded">1M</button>
-                                    <button onclick="event.stopPropagation(); loadIndexChart('^GSPC', 90)" class="index-range-btn px-2 py-1 text-xs border rounded">3M</button>
-                                    <button onclick="event.stopPropagation(); loadIndexChart('^GSPC', 365)" class="index-range-btn px-2 py-1 text-xs border rounded active">1Y</button>
-                                    <button onclick="event.stopPropagation(); loadIndexChart('^GSPC', 1825)" class="index-range-btn px-2 py-1 text-xs border rounded">5Y</button>
-                                </div>
-                                <canvas id="canvas-GSPC" height="150"></canvas>
-                            </div>
-                        </div>
                     </div>
                     
                     <!-- 道瓊工業 -->
-                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="toggleIndexChart('^DJI')">
+                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^DJI', '道瓊工業')">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
                                 <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
@@ -522,29 +510,17 @@
                                     <p class="text-xs text-gray-400">^DJI</p>
                                 </div>
                             </div>
-                            <i class="fas fa-chevron-down text-gray-400 index-chevron" id="chevron-DJI"></i>
+                            <i class="fas fa-chart-area text-gray-300"></i>
                         </div>
                         <div class="flex items-baseline justify-between">
                             <span id="index-DJI-price" class="text-2xl font-bold text-gray-800">--</span>
                             <span id="index-DJI-change" class="text-sm font-medium">--</span>
                         </div>
                         <p id="index-DJI-date" class="text-xs text-gray-400 mt-1"></p>
-                        <!-- 展開的走勢圖 -->
-                        <div id="chart-DJI" class="collapsible-content mt-4">
-                            <div class="border-t pt-4">
-                                <div class="flex justify-end mb-2 space-x-1">
-                                    <button onclick="event.stopPropagation(); loadIndexChart('^DJI', 30)" class="index-range-btn px-2 py-1 text-xs border rounded">1M</button>
-                                    <button onclick="event.stopPropagation(); loadIndexChart('^DJI', 90)" class="index-range-btn px-2 py-1 text-xs border rounded">3M</button>
-                                    <button onclick="event.stopPropagation(); loadIndexChart('^DJI', 365)" class="index-range-btn px-2 py-1 text-xs border rounded active">1Y</button>
-                                    <button onclick="event.stopPropagation(); loadIndexChart('^DJI', 1825)" class="index-range-btn px-2 py-1 text-xs border rounded">5Y</button>
-                                </div>
-                                <canvas id="canvas-DJI" height="150"></canvas>
-                            </div>
-                        </div>
                     </div>
                     
                     <!-- 納斯達克 -->
-                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="toggleIndexChart('^IXIC')">
+                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^IXIC', '納斯達克')">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
                                 <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
@@ -555,128 +531,82 @@
                                     <p class="text-xs text-gray-400">^IXIC</p>
                                 </div>
                             </div>
-                            <i class="fas fa-chevron-down text-gray-400 index-chevron" id="chevron-IXIC"></i>
+                            <i class="fas fa-chart-area text-gray-300"></i>
                         </div>
                         <div class="flex items-baseline justify-between">
                             <span id="index-IXIC-price" class="text-2xl font-bold text-gray-800">--</span>
                             <span id="index-IXIC-change" class="text-sm font-medium">--</span>
                         </div>
                         <p id="index-IXIC-date" class="text-xs text-gray-400 mt-1"></p>
-                        <!-- 展開的走勢圖 -->
-                        <div id="chart-IXIC" class="collapsible-content mt-4">
-                            <div class="border-t pt-4">
-                                <div class="flex justify-end mb-2 space-x-1">
-                                    <button onclick="event.stopPropagation(); loadIndexChart('^IXIC', 30)" class="index-range-btn px-2 py-1 text-xs border rounded">1M</button>
-                                    <button onclick="event.stopPropagation(); loadIndexChart('^IXIC', 90)" class="index-range-btn px-2 py-1 text-xs border rounded">3M</button>
-                                    <button onclick="event.stopPropagation(); loadIndexChart('^IXIC', 365)" class="index-range-btn px-2 py-1 text-xs border rounded active">1Y</button>
-                                    <button onclick="event.stopPropagation(); loadIndexChart('^IXIC', 1825)" class="index-range-btn px-2 py-1 text-xs border rounded">5Y</button>
-                                </div>
-                                <canvas id="canvas-IXIC" height="150"></canvas>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 
                 <!-- 恐懼貪婪指數卡片 -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
                     <!-- 美股恐懼貪婪指數 -->
-                    <div class="bg-white rounded-xl shadow p-4 md:p-6">
-                        <div class="flex items-center justify-between mb-4 cursor-pointer" onclick="toggleSentimentChart('stock')">
+                    <div class="bg-white rounded-xl shadow p-4 md:p-6 cursor-pointer hover:shadow-lg transition-shadow" onclick="openSentimentModal('stock', '美股恐懼貪婪指數')">
+                        <div class="flex items-center justify-between mb-4">
                             <h3 class="font-semibold text-gray-700 text-sm md:text-base">
                                 <i class="fas fa-flag-usa mr-2 text-blue-500"></i>美股恐懼貪婪指數
                             </h3>
-                            <i class="fas fa-chevron-down text-gray-400 sentiment-chevron" id="sentiment-chevron-stock"></i>
+                            <i class="fas fa-chart-area text-gray-300"></i>
                         </div>
                         <!-- 簡潔儀表盤 -->
                         <div class="fear-greed-gauge" id="stockGauge">
                             <svg viewBox="0 0 200 115" class="gauge-svg">
-                                <!-- 弧形背景區段 -->
                                 <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
                                 <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
                                 <path class="gauge-arc gauge-arc-neutral" d="M 75 32 A 80 80 0 0 1 125 32" />
                                 <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
                                 <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
-                                
-                                <!-- 刻度數字 -->
                                 <text x="8" y="105" class="gauge-tick-text">0</text>
                                 <text x="96" y="12" class="gauge-tick-text" text-anchor="middle">50</text>
                                 <text x="188" y="105" class="gauge-tick-text">100</text>
-                                
-                                <!-- 指針 -->
                                 <g id="stockNeedleGroup" class="gauge-needle-group">
                                     <polygon class="gauge-needle" points="100,25 97,100 103,100" />
                                 </g>
                                 <circle class="gauge-center-dot" cx="100" cy="100" r="6" />
                             </svg>
                         </div>
-                        <!-- 數值和狀態 -->
                         <div class="text-center mt-2">
                             <span id="stockGaugeValue" class="text-4xl font-bold text-gray-800">--</span>
                         </div>
                         <p id="stockSentimentStatus" class="text-center font-semibold text-lg mt-1"></p>
                         <p id="stockSentimentTime" class="text-xs text-gray-400 text-center mt-1"></p>
-                        <!-- 展開的走勢圖 -->
-                        <div id="sentiment-chart-stock" class="collapsible-content mt-4">
-                            <div class="border-t pt-4">
-                                <div class="flex justify-end mb-2 space-x-1">
-                                    <button onclick="loadSentimentChart('stock', 30)" class="sentiment-range-btn px-2 py-1 text-xs border rounded">1M</button>
-                                    <button onclick="loadSentimentChart('stock', 90)" class="sentiment-range-btn px-2 py-1 text-xs border rounded">3M</button>
-                                    <button onclick="loadSentimentChart('stock', 180)" class="sentiment-range-btn px-2 py-1 text-xs border rounded active">6M</button>
-                                    <button onclick="loadSentimentChart('stock', 365)" class="sentiment-range-btn px-2 py-1 text-xs border rounded">1Y</button>
-                                </div>
-                                <canvas id="canvas-sentiment-stock" height="150"></canvas>
-                            </div>
-                        </div>
+                        <p class="text-xs text-blue-500 text-center mt-2"><i class="fas fa-chart-line mr-1"></i>點擊查看走勢</p>
                     </div>
                     
                     <!-- 幣圈恐懼貪婪指數 -->
-                    <div class="bg-white rounded-xl shadow p-4 md:p-6">
-                        <div class="flex items-center justify-between mb-4 cursor-pointer" onclick="toggleSentimentChart('crypto')">
+                    <div class="bg-white rounded-xl shadow p-4 md:p-6 cursor-pointer hover:shadow-lg transition-shadow" onclick="openSentimentModal('crypto', '幣圈恐懼貪婪指數')">
+                        <div class="flex items-center justify-between mb-4">
                             <h3 class="font-semibold text-gray-700 text-sm md:text-base">
                                 <i class="fab fa-bitcoin mr-2 text-orange-500"></i>幣圈恐懼貪婪指數
                             </h3>
-                            <i class="fas fa-chevron-down text-gray-400 sentiment-chevron" id="sentiment-chevron-crypto"></i>
+                            <i class="fas fa-chart-area text-gray-300"></i>
                         </div>
                         <!-- 簡潔儀表盤 -->
                         <div class="fear-greed-gauge" id="cryptoGauge">
                             <svg viewBox="0 0 200 115" class="gauge-svg">
-                                <!-- 弧形背景區段 -->
                                 <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
                                 <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
                                 <path class="gauge-arc gauge-arc-neutral" d="M 75 32 A 80 80 0 0 1 125 32" />
                                 <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
                                 <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
-                                
-                                <!-- 刻度數字 -->
                                 <text x="8" y="105" class="gauge-tick-text">0</text>
                                 <text x="96" y="12" class="gauge-tick-text" text-anchor="middle">50</text>
                                 <text x="188" y="105" class="gauge-tick-text">100</text>
-                                
-                                <!-- 指針 -->
                                 <g id="cryptoNeedleGroup" class="gauge-needle-group">
                                     <polygon class="gauge-needle" points="100,25 97,100 103,100" />
                                 </g>
                                 <circle class="gauge-center-dot" cx="100" cy="100" r="6" />
                             </svg>
                         </div>
-                        <!-- 數值和狀態 -->
                         <div class="text-center mt-2">
                             <span id="cryptoGaugeValue" class="text-4xl font-bold text-gray-800">--</span>
                         </div>
                         <p id="cryptoSentimentStatus" class="text-center font-semibold text-lg mt-1"></p>
                         <p id="cryptoSentimentTime" class="text-xs text-gray-400 text-center mt-1"></p>
-                        <!-- 展開的走勢圖 -->
-                        <div id="sentiment-chart-crypto" class="collapsible-content mt-4">
-                            <div class="border-t pt-4">
-                                <div class="flex justify-end mb-2 space-x-1">
-                                    <button onclick="loadSentimentChart('crypto', 30)" class="sentiment-range-btn px-2 py-1 text-xs border rounded">1M</button>
-                                    <button onclick="loadSentimentChart('crypto', 90)" class="sentiment-range-btn px-2 py-1 text-xs border rounded">3M</button>
-                                    <button onclick="loadSentimentChart('crypto', 180)" class="sentiment-range-btn px-2 py-1 text-xs border rounded active">6M</button>
-                                    <button onclick="loadSentimentChart('crypto', 365)" class="sentiment-range-btn px-2 py-1 text-xs border rounded">1Y</button>
-                                </div>
-                                <canvas id="canvas-sentiment-crypto" height="150"></canvas>
-                            </div>
-                        </div>
+                        <p class="text-xs text-blue-500 text-center mt-2"><i class="fas fa-chart-line mr-1"></i>點擊查看走勢</p>
                     </div>
                 </div>
 
@@ -1063,14 +993,64 @@
                 <span id="chartFullscreenTitle" class="font-bold text-lg"></span>
                 <div class="w-10"></div>
             </div>
-            <div class="flex-1 p-2 bg-gray-50" style="min-height: 200px;">
+            <div class="flex-1 p-4 bg-gray-50" style="min-height: 200px;">
                 <canvas id="fullscreenChart"></canvas>
             </div>
-            <div class="flex items-center justify-center gap-2 p-2 bg-white border-t" id="chartRangeButtons">
+            <div class="flex items-center justify-center gap-2 p-3 bg-white border-t" id="chartRangeButtons">
                 <button type="button" class="chart-range-btn px-4 py-2 text-sm rounded border touch-target" data-days="30">1M</button>
                 <button type="button" class="chart-range-btn px-4 py-2 text-sm rounded border touch-target active" data-days="90">3M</button>
                 <button type="button" class="chart-range-btn px-4 py-2 text-sm rounded border touch-target" data-days="180">6M</button>
                 <button type="button" class="chart-range-btn px-4 py-2 text-sm rounded border touch-target" data-days="365">1Y</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ===== 指數圖表 Modal ===== -->
+    <div id="indexChartModal" class="chart-fullscreen">
+        <div class="chart-container h-full flex flex-col">
+            <div class="rotate-banner">
+                📱 橫向放置手機可獲得更好的圖表體驗
+            </div>
+            <div class="flex items-center justify-between p-3 border-b bg-white">
+                <button onclick="closeIndexModal()" class="p-2 text-gray-600 touch-target">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+                <span id="indexModalTitle" class="font-bold text-lg"></span>
+                <div class="w-10"></div>
+            </div>
+            <div class="flex-1 p-4 bg-gray-50" style="min-height: 200px;">
+                <canvas id="indexModalChart"></canvas>
+            </div>
+            <div class="flex items-center justify-center gap-2 p-3 bg-white border-t">
+                <button type="button" onclick="loadIndexModalChart(30)" class="index-modal-btn px-4 py-2 text-sm rounded border touch-target">1M</button>
+                <button type="button" onclick="loadIndexModalChart(90)" class="index-modal-btn px-4 py-2 text-sm rounded border touch-target">3M</button>
+                <button type="button" onclick="loadIndexModalChart(365)" class="index-modal-btn px-4 py-2 text-sm rounded border touch-target active">1Y</button>
+                <button type="button" onclick="loadIndexModalChart(1825)" class="index-modal-btn px-4 py-2 text-sm rounded border touch-target">5Y</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ===== 情緒圖表 Modal ===== -->
+    <div id="sentimentChartModal" class="chart-fullscreen">
+        <div class="chart-container h-full flex flex-col">
+            <div class="rotate-banner">
+                📱 橫向放置手機可獲得更好的圖表體驗
+            </div>
+            <div class="flex items-center justify-between p-3 border-b bg-white">
+                <button onclick="closeSentimentModal()" class="p-2 text-gray-600 touch-target">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+                <span id="sentimentModalTitle" class="font-bold text-lg"></span>
+                <div class="w-10"></div>
+            </div>
+            <div class="flex-1 p-4 bg-gray-50" style="min-height: 200px;">
+                <canvas id="sentimentModalChart"></canvas>
+            </div>
+            <div class="flex items-center justify-center gap-2 p-3 bg-white border-t">
+                <button type="button" onclick="loadSentimentModalChart(30)" class="sentiment-modal-btn px-4 py-2 text-sm rounded border touch-target">1M</button>
+                <button type="button" onclick="loadSentimentModalChart(90)" class="sentiment-modal-btn px-4 py-2 text-sm rounded border touch-target">3M</button>
+                <button type="button" onclick="loadSentimentModalChart(180)" class="sentiment-modal-btn px-4 py-2 text-sm rounded border touch-target active">6M</button>
+                <button type="button" onclick="loadSentimentModalChart(365)" class="sentiment-modal-btn px-4 py-2 text-sm rounded border touch-target">1Y</button>
             </div>
         </div>
     </div>
@@ -1442,32 +1422,31 @@
             }
         }
         
-        function toggleIndexChart(symbol) {
-            const cleanSymbol = symbol.replace('^', '');
-            const chartDiv = document.getElementById(`chart-${cleanSymbol}`);
-            const chevron = document.getElementById(`chevron-${cleanSymbol}`);
-            
-            if (chartDiv.classList.contains('open')) {
-                chartDiv.classList.remove('open');
-                chevron.classList.remove('open');
-            } else {
-                chartDiv.classList.add('open');
-                chevron.classList.add('open');
-                // 首次展開時載入圖表
-                if (!indexCharts[cleanSymbol]) {
-                    loadIndexChart(symbol, 365);
-                }
-            }
+        // ========== 指數圖表 Modal ==========
+        let indexModalChart = null;
+        let currentIndexSymbol = '';
+        let currentIndexName = '';
+        
+        function openIndexModal(symbol, name) {
+            currentIndexSymbol = symbol;
+            currentIndexName = name;
+            document.getElementById('indexModalTitle').textContent = name;
+            document.getElementById('indexChartModal').classList.add('open');
+            document.body.style.overflow = 'hidden';
+            loadIndexModalChart(365);  // 預設載入 1 年
         }
         
-        async function loadIndexChart(symbol, days) {
-            const cleanSymbol = symbol.replace('^', '');
-            const canvas = document.getElementById(`canvas-${cleanSymbol}`);
+        function closeIndexModal() {
+            document.getElementById('indexChartModal').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        
+        async function loadIndexModalChart(days) {
+            const canvas = document.getElementById('indexModalChart');
             if (!canvas) return;
             
             // 更新按鈕狀態
-            const buttons = canvas.parentElement.querySelectorAll('.index-range-btn');
-            buttons.forEach(btn => {
+            document.querySelectorAll('.index-modal-btn').forEach(btn => {
                 btn.classList.remove('active');
                 if (btn.textContent === '1M' && days === 30) btn.classList.add('active');
                 if (btn.textContent === '3M' && days === 90) btn.classList.add('active');
@@ -1476,7 +1455,7 @@
             });
             
             try {
-                const res = await fetch(`${API_BASE}/api/market/indices/${symbol}/history?days=${days}`);
+                const res = await fetch(`${API_BASE}/api/market/indices/${currentIndexSymbol}/history?days=${days}`);
                 const data = await res.json();
                 
                 if (data.success && data.data && data.data.history) {
@@ -1485,20 +1464,24 @@
                     const prices = history.map(h => h.close);
                     
                     // 銷毀舊圖表
-                    if (indexCharts[cleanSymbol]) {
-                        indexCharts[cleanSymbol].destroy();
+                    if (indexModalChart) {
+                        indexModalChart.destroy();
                     }
+                    
+                    // 決定顏色
+                    const cleanSymbol = currentIndexSymbol.replace('^', '');
+                    const color = cleanSymbol === 'GSPC' ? '#3B82F6' : cleanSymbol === 'DJI' ? '#10B981' : '#8B5CF6';
                     
                     // 建立新圖表
                     const ctx = canvas.getContext('2d');
-                    indexCharts[cleanSymbol] = new Chart(ctx, {
+                    indexModalChart = new Chart(ctx, {
                         type: 'line',
                         data: {
                             labels: labels,
                             datasets: [{
-                                label: data.data.name_zh || symbol,
+                                label: currentIndexName,
                                 data: prices,
-                                borderColor: cleanSymbol === 'GSPC' ? '#3B82F6' : cleanSymbol === 'DJI' ? '#10B981' : '#8B5CF6',
+                                borderColor: color,
                                 backgroundColor: 'transparent',
                                 borderWidth: 2,
                                 pointRadius: 0,
@@ -1522,15 +1505,15 @@
                                 x: {
                                     display: true,
                                     ticks: {
-                                        maxTicksLimit: 6,
-                                        font: { size: 10 }
+                                        maxTicksLimit: 8,
+                                        font: { size: 11 }
                                     },
                                     grid: { display: false }
                                 },
                                 y: {
                                     display: true,
                                     ticks: {
-                                        font: { size: 10 },
+                                        font: { size: 11 },
                                         callback: function(value) {
                                             return value.toLocaleString();
                                         }
@@ -1626,33 +1609,31 @@
             }
         }
         
-        // ========== 情緒走勢圖 ==========
-        let sentimentCharts = {};  // 存放情緒 Chart.js 實例
+        // ========== 情緒圖表 Modal ==========
+        let sentimentModalChart = null;
+        let currentSentimentMarket = '';
+        let currentSentimentName = '';
         
-        function toggleSentimentChart(market) {
-            const chartDiv = document.getElementById(`sentiment-chart-${market}`);
-            const chevron = document.getElementById(`sentiment-chevron-${market}`);
-            
-            if (chartDiv.classList.contains('open')) {
-                chartDiv.classList.remove('open');
-                chevron.classList.remove('open');
-            } else {
-                chartDiv.classList.add('open');
-                chevron.classList.add('open');
-                // 首次展開時載入圖表
-                if (!sentimentCharts[market]) {
-                    loadSentimentChart(market, 180);
-                }
-            }
+        function openSentimentModal(market, name) {
+            currentSentimentMarket = market;
+            currentSentimentName = name;
+            document.getElementById('sentimentModalTitle').textContent = name;
+            document.getElementById('sentimentChartModal').classList.add('open');
+            document.body.style.overflow = 'hidden';
+            loadSentimentModalChart(180);  // 預設載入 6 個月
         }
         
-        async function loadSentimentChart(market, days) {
-            const canvas = document.getElementById(`canvas-sentiment-${market}`);
+        function closeSentimentModal() {
+            document.getElementById('sentimentChartModal').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        
+        async function loadSentimentModalChart(days) {
+            const canvas = document.getElementById('sentimentModalChart');
             if (!canvas) return;
             
             // 更新按鈕狀態
-            const buttons = canvas.parentElement.querySelectorAll('.sentiment-range-btn');
-            buttons.forEach(btn => {
+            document.querySelectorAll('.sentiment-modal-btn').forEach(btn => {
                 btn.classList.remove('active');
                 if (btn.textContent === '1M' && days === 30) btn.classList.add('active');
                 if (btn.textContent === '3M' && days === 90) btn.classList.add('active');
@@ -1661,7 +1642,7 @@
             });
             
             try {
-                const res = await fetch(`${API_BASE}/api/market/sentiment/${market}/history?days=${days}`);
+                const res = await fetch(`${API_BASE}/api/market/sentiment/${currentSentimentMarket}/history?days=${days}`);
                 const data = await res.json();
                 
                 if (data.success && data.data && data.data.history) {
@@ -1670,27 +1651,29 @@
                     const values = history.map(h => h.value);
                     
                     // 銷毀舊圖表
-                    if (sentimentCharts[market]) {
-                        sentimentCharts[market].destroy();
+                    if (sentimentModalChart) {
+                        sentimentModalChart.destroy();
                     }
                     
                     // 建立新圖表
                     const ctx = canvas.getContext('2d');
                     
                     // 建立漸層背景
-                    const gradient = ctx.createLinearGradient(0, 0, 0, 150);
+                    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
                     gradient.addColorStop(0, 'rgba(34, 197, 94, 0.3)');  // 綠色（貪婪）
                     gradient.addColorStop(0.5, 'rgba(234, 179, 8, 0.2)');  // 黃色（中性）
                     gradient.addColorStop(1, 'rgba(239, 68, 68, 0.3)');  // 紅色（恐懼）
                     
-                    sentimentCharts[market] = new Chart(ctx, {
+                    const color = currentSentimentMarket === 'stock' ? '#3B82F6' : '#F97316';
+                    
+                    sentimentModalChart = new Chart(ctx, {
                         type: 'line',
                         data: {
                             labels: labels,
                             datasets: [{
-                                label: market === 'stock' ? '美股恐懼貪婪指數' : '幣圈恐懼貪婪指數',
+                                label: currentSentimentName,
                                 data: values,
-                                borderColor: market === 'stock' ? '#3B82F6' : '#F97316',
+                                borderColor: color,
                                 backgroundColor: gradient,
                                 fill: true,
                                 borderWidth: 2,
@@ -1722,8 +1705,8 @@
                                 x: {
                                     display: true,
                                     ticks: {
-                                        maxTicksLimit: 6,
-                                        font: { size: 10 }
+                                        maxTicksLimit: 8,
+                                        font: { size: 11 }
                                     },
                                     grid: { display: false }
                                 },
@@ -1732,7 +1715,7 @@
                                     min: 0,
                                     max: 100,
                                     ticks: {
-                                        font: { size: 10 },
+                                        font: { size: 11 },
                                         stepSize: 25,
                                         callback: function(value) {
                                             if (value === 0) return '0 Fear';
