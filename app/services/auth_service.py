@@ -238,27 +238,37 @@ class AuthService:
                 "is_new_user": bool
             }
         """
+        logger.info(f"=== LINE Login 開始 ===")
+        logger.info(f"IP: {ip_address}, UA: {user_agent[:100] if user_agent else 'N/A'}")
+        
         # 1. 換取 access token
         token_data = await self.exchange_code_for_token(code)
         if not token_data:
+            logger.error("LINE token 交換失敗")
             return None
         
         access_token = token_data.get("access_token")
+        logger.info(f"LINE token 交換成功")
         
         # 2. 取得用戶資料
         profile = await self.get_line_profile(access_token)
         if not profile:
+            logger.error("取得 LINE 用戶資料失敗")
             return None
         
         line_user_id = profile.get("userId")
         display_name = profile.get("displayName")
         picture_url = profile.get("pictureUrl")
         
+        logger.info(f"LINE 用戶資料: line_id={line_user_id}, name={display_name}")
+        
         # 3. 檢查用戶是否存在
         user = await self.get_user_by_line_id(line_user_id)
         is_new_user = False
         
         if user:
+            logger.info(f"既有用戶登入: db_id={user.id}, line_id={user.line_user_id}, name={user.display_name}")
+            
             # 檢查是否被封鎖（使用 getattr 避免欄位不存在的錯誤）
             if getattr(user, 'is_blocked', False):
                 logger.warning(f"封鎖用戶嘗試登入: {user.id} ({display_name})")
@@ -266,8 +276,11 @@ class AuthService:
             
             # 更新登入資訊
             await self.update_user_login(user, display_name, picture_url)
+            logger.info(f"用戶登入資訊已更新: db_id={user.id}")
         else:
             # 建立新用戶
+            logger.info(f"建立新用戶: line_id={line_user_id}, name={display_name}")
+            
             # 嘗試從 ID token 取得 email
             email = None
             if token_data.get("id_token"):
@@ -282,12 +295,17 @@ class AuthService:
                 email=email,
             )
             is_new_user = True
+            logger.info(f"新用戶建立成功: db_id={user.id}, line_id={user.line_user_id}")
         
         # 4. 記錄登入日誌
         await self.log_login(user.id, "login", ip_address, user_agent)
+        logger.info(f"登入日誌已記錄: user_id={user.id}")
         
         # 5. 產生 JWT Token
         jwt_token = self.create_jwt_token(user)
+        
+        logger.info(f"=== LINE Login 完成 ===")
+        logger.info(f"用戶: db_id={user.id}, line_id={user.line_user_id}, name={user.display_name}, is_new={is_new_user}")
         
         return {
             "user": user,
@@ -395,10 +413,14 @@ class AuthService:
         """
         payload = self.verify_jwt_token(token)
         if not payload:
+            logger.warning("Token 驗證失敗: payload 為空")
             return None
         
         user_id = payload.get("sub")
+        token_line_user_id = payload.get("line_user_id")
+        
         if not user_id:
+            logger.warning("Token 驗證失敗: 缺少 user_id")
             return None
         
         user_id = int(user_id)
@@ -416,11 +438,21 @@ class AuthService:
         
         user = await self.get_user_by_id(user_id)
         
+        if not user:
+            logger.warning(f"Token 驗證失敗: 用戶不存在 user_id={user_id}")
+            return None
+        
+        # ★★★ 重要：驗證 Token 中的 line_user_id 與資料庫一致 ★★★
+        if token_line_user_id and user.line_user_id != token_line_user_id:
+            logger.error(f"Token 驗證失敗: LINE ID 不一致! token={token_line_user_id}, db={user.line_user_id}")
+            return None
+        
         # 檢查用戶是否被封鎖（使用 getattr 避免欄位不存在的錯誤）
-        if user and getattr(user, 'is_blocked', False):
+        if getattr(user, 'is_blocked', False):
             logger.info(f"封鎖用戶嘗試存取: user_id={user_id}")
             return None
         
+        logger.debug(f"Token 驗證成功: user_id={user_id}, line_id={user.line_user_id}")
         return user
 
 

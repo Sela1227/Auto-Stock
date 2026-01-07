@@ -959,6 +959,48 @@
         let currentChartData = null;
         let fullscreenChartInstance = null;
         
+        // ========== API 請求封裝（帶身份驗證）==========
+        async function apiRequest(endpoint, options = {}) {
+            // 確保有 token
+            if (!token) {
+                console.error('API 請求失敗: 無 token');
+                clearAllUserData();
+                window.location.href = '/static/index.html';
+                throw new Error('未登入');
+            }
+            
+            // 設定 headers
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                ...options.headers
+            };
+            
+            if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+                headers['Content-Type'] = 'application/json';
+                options.body = JSON.stringify(options.body);
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    ...options,
+                    headers
+                });
+                
+                // 如果 401，表示 token 無效
+                if (res.status === 401) {
+                    console.error('Token 無效，重新登入');
+                    clearAllUserData();
+                    window.location.href = '/static/index.html';
+                    throw new Error('Token 無效');
+                }
+                
+                return res;
+            } catch (e) {
+                console.error(`API 請求失敗 ${endpoint}:`, e);
+                throw e;
+            }
+        }
+        
         // ========== 設備檢測 ==========
         const deviceInfo = {
             isMobile: window.innerWidth < 768,
@@ -1015,6 +1057,8 @@
         // ========== 登入驗證 ==========
         async function checkAuth() {
             if (!token) {
+                console.log('無 token，跳轉登入頁');
+                clearAllUserData();
                 window.location.href = '/static/index.html';
                 return;
             }
@@ -1024,9 +1068,43 @@
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
-                if (!res.ok) throw new Error('Unauthorized');
+                if (!res.ok) {
+                    console.error('Token 驗證失敗，狀態碼:', res.status);
+                    throw new Error('Unauthorized');
+                }
                 
-                currentUser = await res.json();
+                const serverUser = await res.json();
+                
+                // ★★★ 重要：驗證本地用戶與伺服器用戶一致 ★★★
+                const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+                if (storedUser.id && storedUser.id !== serverUser.id) {
+                    console.error('用戶 ID 不一致! 本地:', storedUser.id, '伺服器:', serverUser.id);
+                    console.error('可能是資料錯亂，強制重新登入');
+                    clearAllUserData();
+                    window.location.href = '/static/index.html';
+                    return;
+                }
+                
+                if (storedUser.line_user_id && storedUser.line_user_id !== serverUser.line_user_id) {
+                    console.error('LINE ID 不一致! 本地:', storedUser.line_user_id, '伺服器:', serverUser.line_user_id);
+                    console.error('可能是資料錯亂，強制重新登入');
+                    clearAllUserData();
+                    window.location.href = '/static/index.html';
+                    return;
+                }
+                
+                currentUser = serverUser;
+                
+                // 更新本地存儲（確保與伺服器同步）
+                localStorage.setItem('user', JSON.stringify({
+                    id: serverUser.id,
+                    display_name: serverUser.display_name,
+                    picture_url: serverUser.picture_url || '',
+                    line_user_id: serverUser.line_user_id,
+                    is_admin: serverUser.is_admin || false
+                }));
+                
+                console.log('登入驗證成功: 用戶 ID =', serverUser.id, ', LINE ID =', serverUser.line_user_id);
                 
                 // 更新用戶資訊
                 document.getElementById('userName').textContent = currentUser.display_name;
@@ -1035,10 +1113,8 @@
                 document.getElementById('sidebarAvatar').src = currentUser.picture_url || 'https://via.placeholder.com/40';
                 
                 // 檢查是否為管理員，顯示管理入口
-                const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-                if (storedUser.is_admin || currentUser.is_admin) {
+                if (currentUser.is_admin) {
                     document.getElementById('adminLink').classList.remove('hidden');
-                    // 同時顯示側邊欄的管理入口
                     const adminSidebarLink = document.getElementById('adminSidebarLink');
                     if (adminSidebarLink) adminSidebarLink.classList.remove('hidden');
                 }
@@ -1050,14 +1126,25 @@
                 startSessionMonitor();
                 loadDashboard();
             } catch (e) {
-                localStorage.removeItem('token');
+                console.error('驗證失敗:', e);
+                clearAllUserData();
                 window.location.href = '/static/index.html';
             }
+        }
+        
+        // ★★★ 清除所有用戶資料 ★★★
+        function clearAllUserData() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('login_time');
+            sessionStorage.clear();
+            currentUser = null;
+            token = null;
         }
 
         function logout() {
             stopSessionMonitor();
-            localStorage.removeItem('token');
+            clearAllUserData();
             window.location.href = '/static/index.html';
         }
 
@@ -1218,11 +1305,20 @@
         async function loadWatchlistOverview() {
             const container = document.getElementById('dashboardWatchlist');
             
+            // 驗證當前用戶
+            if (!currentUser || !currentUser.id) {
+                console.error('loadWatchlistOverview: 用戶未登入');
+                container.innerHTML = '<p class="text-red-500 text-center py-4">請先登入</p>';
+                return;
+            }
+            
+            console.log(`載入追蹤清單: user_id=${currentUser.id}, line_id=${currentUser.line_user_id}`);
+            
             try {
-                const res = await fetch(`${API_BASE}/api/watchlist`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await apiRequest('/api/watchlist');
                 const data = await res.json();
+                
+                console.log(`追蹤清單回應: 數量=${data.data?.length || 0}`);
                 
                 if (!data.success || !data.data || data.data.length === 0) {
                     container.innerHTML = `
@@ -1700,11 +1796,20 @@
         async function loadWatchlist() {
             const container = document.getElementById('watchlistContent');
             
+            // 驗證當前用戶
+            if (!currentUser || !currentUser.id) {
+                console.error('loadWatchlist: 用戶未登入');
+                container.innerHTML = '<p class="text-red-500 text-center py-4">請先登入</p>';
+                return;
+            }
+            
+            console.log(`載入追蹤清單頁面: user_id=${currentUser.id}, line_id=${currentUser.line_user_id}`);
+            
             try {
-                const res = await fetch(`${API_BASE}/api/watchlist`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await apiRequest('/api/watchlist');
                 const data = await res.json();
+                
+                console.log(`追蹤清單回應: 數量=${data.data?.length || 0}`);
                 
                 if (!data.success || !data.data || data.data.length === 0) {
                     container.innerHTML = `
@@ -1730,9 +1835,9 @@
                     let priceInfo = '';
                     try {
                         const endpoint = item.asset_type === 'crypto' 
-                            ? `${API_BASE}/api/crypto/${item.symbol}`
-                            : `${API_BASE}/api/stock/${item.symbol}`;
-                        const priceRes = await fetch(endpoint);
+                            ? `/api/crypto/${item.symbol}`
+                            : `/api/stock/${item.symbol}`;
+                        const priceRes = await fetch(`${API_BASE}${endpoint}`);
                         if (priceRes.ok) {
                             const priceData = await priceRes.json();
                             if (priceData.success && priceData.data) {
@@ -1809,19 +1914,24 @@
                 return;
             }
             
+            // 驗證當前用戶
+            if (!currentUser || !currentUser.id) {
+                showToast('請先登入');
+                return;
+            }
+            
+            console.log(`新增追蹤: user_id=${currentUser.id}, symbol=${symbol}`);
+            
             try {
-                const res = await fetch(`${API_BASE}/api/watchlist`, {
+                const res = await apiRequest('/api/watchlist', {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ symbol, asset_type: assetType, note })
+                    body: { symbol, asset_type: assetType, note }
                 });
                 
                 const data = await res.json();
                 
                 if (data.success) {
+                    console.log(`追蹤新增成功: user_id=${currentUser.id}, symbol=${symbol}`);
                     showToast('已加入追蹤清單');
                     hideAddWatchlistModal();
                     loadWatchlist();
@@ -1830,30 +1940,37 @@
                     showToast(data.detail || '新增失敗');
                 }
             } catch (e) {
+                console.error('新增追蹤失敗:', e);
                 showToast('新增失敗');
             }
         }
         
         async function quickAddToWatchlist(symbol, assetType) {
+            // 驗證當前用戶
+            if (!currentUser || !currentUser.id) {
+                showToast('請先登入');
+                return;
+            }
+            
+            console.log(`快速新增追蹤: user_id=${currentUser.id}, symbol=${symbol}`);
+            
             try {
-                const res = await fetch(`${API_BASE}/api/watchlist`, {
+                const res = await apiRequest('/api/watchlist', {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ symbol, asset_type: assetType, note: '' })
+                    body: { symbol, asset_type: assetType, note: '' }
                 });
                 
                 const data = await res.json();
                 
                 if (data.success) {
+                    console.log(`追蹤新增成功: user_id=${currentUser.id}, symbol=${symbol}`);
                     showToast(`${symbol} 已加入追蹤清單`);
                     loadWatchlistOverview();
                 } else {
                     showToast(data.detail || '新增失敗');
                 }
             } catch (e) {
+                console.error('快速新增追蹤失敗:', e);
                 showToast('新增失敗');
             }
         }
@@ -1861,15 +1978,23 @@
         async function removeFromWatchlist(symbol) {
             if (!confirm(`確定要移除 ${symbol} 的追蹤？`)) return;
             
+            // 驗證當前用戶
+            if (!currentUser || !currentUser.id) {
+                showToast('請先登入');
+                return;
+            }
+            
+            console.log(`移除追蹤: user_id=${currentUser.id}, symbol=${symbol}`);
+            
             try {
-                const res = await fetch(`${API_BASE}/api/watchlist/${symbol}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const res = await apiRequest(`/api/watchlist/${symbol}`, {
+                    method: 'DELETE'
                 });
                 
                 const data = await res.json();
                 
                 if (data.success) {
+                    console.log(`追蹤移除成功: user_id=${currentUser.id}, symbol=${symbol}`);
                     showToast(`${symbol} 已移除`);
                     loadWatchlist();
                     loadWatchlistOverview();
@@ -1890,25 +2015,29 @@
         };
         
         async function loadSettings() {
+            // 驗證當前用戶
+            if (!currentUser || !currentUser.id) {
+                console.error('loadSettings: 用戶未登入');
+                return;
+            }
+            
+            console.log(`載入設定: user_id=${currentUser.id}`);
+            
             // 載入用戶資訊
-            if (currentUser) {
-                document.getElementById('settingsUserName').textContent = currentUser.display_name || '-';
-                // 會員等級 (之後可從用戶資料取得)
-                const levelEl = document.getElementById('settingsMemberLevel');
-                if (levelEl) {
-                    const level = currentUser.membership_level || 'free';
-                    const levelNames = { 'free': '一般會員', 'premium': '高級會員', 'diamond': '鑽石會員', 'admin': '管理員' };
-                    const levelColors = { 'free': 'text-gray-600', 'premium': 'text-blue-600', 'diamond': 'text-purple-600', 'admin': 'text-orange-600' };
-                    levelEl.textContent = levelNames[level] || '一般會員';
-                    levelEl.className = `font-medium ${levelColors[level] || 'text-gray-600'}`;
-                }
+            document.getElementById('settingsUserName').textContent = currentUser.display_name || '-';
+            // 會員等級 (之後可從用戶資料取得)
+            const levelEl = document.getElementById('settingsMemberLevel');
+            if (levelEl) {
+                const level = currentUser.membership_level || 'free';
+                const levelNames = { 'free': '一般會員', 'premium': '高級會員', 'diamond': '鑽石會員', 'admin': '管理員' };
+                const levelColors = { 'free': 'text-gray-600', 'premium': 'text-blue-600', 'diamond': 'text-purple-600', 'admin': 'text-orange-600' };
+                levelEl.textContent = levelNames[level] || '一般會員';
+                levelEl.className = `font-medium ${levelColors[level] || 'text-gray-600'}`;
             }
             
             // 載入指標設定
             try {
-                const indRes = await fetch(`${API_BASE}/api/settings/indicators`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const indRes = await apiRequest('/api/settings/indicators');
                 const indData = await indRes.json();
                 if (indData.success && indData.data) {
                     currentSettings.indicators = indData.data;
@@ -1920,9 +2049,7 @@
             
             // 載入通知設定
             try {
-                const alertRes = await fetch(`${API_BASE}/api/settings/alerts`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const alertRes = await apiRequest('/api/settings/alerts');
                 const alertData = await alertRes.json();
                 if (alertData.success && alertData.data) {
                     currentSettings.alerts = alertData.data;
@@ -1934,9 +2061,7 @@
             
             // 載入參數設定
             try {
-                const paramRes = await fetch(`${API_BASE}/api/settings/params`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const paramRes = await apiRequest('/api/settings/params');
                 const paramData = await paramRes.json();
                 if (paramData.success && paramData.data) {
                     currentSettings.params = paramData.data;
@@ -1974,6 +2099,11 @@
         }
         
         async function saveIndicatorSettings() {
+            if (!currentUser) {
+                showToast('請先登入');
+                return;
+            }
+            
             const data = {
                 show_ma: document.getElementById('show_ma').checked,
                 show_rsi: document.getElementById('show_rsi').checked,
@@ -1984,14 +2114,12 @@
                 show_volume: document.getElementById('show_volume').checked,
             };
             
+            console.log(`儲存指標設定: user_id=${currentUser.id}`);
+            
             try {
-                const res = await fetch(`${API_BASE}/api/settings/indicators`, {
+                const res = await apiRequest('/api/settings/indicators', {
                     method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
+                    body: data
                 });
                 const result = await res.json();
                 if (result.success) {
@@ -2007,6 +2135,11 @@
         }
         
         async function saveAlertSettings() {
+            if (!currentUser) {
+                showToast('請先登入');
+                return;
+            }
+            
             const data = {
                 alert_ma_cross: document.getElementById('alert_ma_cross').checked,
                 alert_ma_breakout: document.getElementById('alert_ma_breakout').checked,
@@ -2018,14 +2151,12 @@
                 alert_sentiment: document.getElementById('alert_sentiment').checked,
             };
             
+            console.log(`儲存通知設定: user_id=${currentUser.id}`);
+            
             try {
-                const res = await fetch(`${API_BASE}/api/settings/alerts`, {
+                const res = await apiRequest('/api/settings/alerts', {
                     method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
+                    body: data
                 });
                 const result = await res.json();
                 if (result.success) {
@@ -2041,6 +2172,11 @@
         }
         
         async function saveParamSettings() {
+            if (!currentUser) {
+                showToast('請先登入');
+                return;
+            }
+            
             const data = {
                 ma_short: parseInt(document.getElementById('ma_short').value),
                 ma_mid: parseInt(document.getElementById('ma_mid').value),
@@ -2057,14 +2193,12 @@
                 volume_alert_ratio: parseFloat(document.getElementById('volume_alert_ratio').value),
             };
             
+            console.log(`儲存參數設定: user_id=${currentUser.id}`);
+            
             try {
-                const res = await fetch(`${API_BASE}/api/settings/params`, {
+                const res = await apiRequest('/api/settings/params', {
                     method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
+                    body: data
                 });
                 const result = await res.json();
                 if (result.success) {
@@ -2098,10 +2232,16 @@
         }
         
         async function applyTemplate(templateName) {
+            if (!currentUser) {
+                showToast('請先登入');
+                return;
+            }
+            
+            console.log(`套用模板: user_id=${currentUser.id}, template=${templateName}`);
+            
             try {
-                const res = await fetch(`${API_BASE}/api/settings/template/${templateName}`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const res = await apiRequest(`/api/settings/template/${templateName}`, {
+                    method: 'POST'
                 });
                 const result = await res.json();
                 if (result.success) {

@@ -203,6 +203,10 @@ async def line_callback(
     token = result["token"]
     user = result["user"]
     
+    # 記錄登入成功的 log
+    logger.info(f"=== 登入成功，準備跳轉 ===")
+    logger.info(f"用戶 ID: {user.id}, LINE ID: {user.line_user_id}, 名稱: {user.display_name}")
+    
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -261,14 +265,23 @@ async def line_callback(
             <p>歡迎回來，{user.display_name}</p>
         </div>
         <script>
+            // ★★★ 重要：先清除所有舊資料，避免 A 用戶看到 B 用戶的資料 ★★★
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // 設定新的用戶資料
             localStorage.setItem('token', '{token}');
             localStorage.setItem('user', JSON.stringify({{
                 id: {user.id},
                 display_name: "{user.display_name}",
                 picture_url: "{user.picture_url or ''}",
                 line_user_id: "{user.line_user_id}",
-                is_admin: {'true' if user.is_admin else 'false'}
+                is_admin: {'true' if getattr(user, 'is_admin', False) else 'false'}
             }}));
+            localStorage.setItem('login_time', new Date().toISOString());
+            
+            console.log('登入成功: 用戶 ID = {user.id}, LINE ID = {user.line_user_id}');
+            
             setTimeout(function() {{
                 window.location.href = '/static/dashboard.html';
             }}, 1500);

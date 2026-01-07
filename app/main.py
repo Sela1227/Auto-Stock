@@ -12,6 +12,13 @@ import os
 
 from app.config import settings
 from app.database import init_db
+from app.logging_config import setup_logging
+
+# 初始化日誌系統（在其他 import 之前）
+setup_logging(
+    log_level="DEBUG" if settings.DEBUG else "INFO",
+    log_to_file=True
+)
 
 # 確保所有 models 被載入，這樣 Base.metadata 才會包含所有表格
 from app.models import (
@@ -32,11 +39,6 @@ from app.routers import (
 )
 from app.routers.market import router as market_router
 
-# 設定日誌
-logging.basicConfig(
-    level=logging.INFO if settings.DEBUG else logging.WARNING,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
 logger = logging.getLogger(__name__)
 
 

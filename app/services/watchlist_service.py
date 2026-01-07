@@ -50,9 +50,13 @@ class WatchlistService:
         symbol = symbol.upper()
         asset_type = self._get_asset_type(symbol)
         
+        logger.info(f"=== 新增追蹤清單 ===")
+        logger.info(f"用戶 ID: {user_id}, 代號: {symbol}, 類型: {asset_type}")
+        
         # 檢查是否已存在
         existing = await self._get_watchlist_item(user_id, symbol, asset_type)
         if existing:
+            logger.info(f"已存在追蹤: user_id={user_id}, symbol={symbol}")
             return {
                 "success": False,
                 "message": f"{symbol} 已在追蹤清單中",
@@ -62,6 +66,7 @@ class WatchlistService:
         if asset_type == "crypto":
             from app.data_sources.coingecko import coingecko
             if not coingecko.validate_symbol(symbol):
+                logger.warning(f"無效的加密貨幣: {symbol}")
                 return {
                     "success": False,
                     "message": f"不支援的加密貨幣: {symbol}",
@@ -69,6 +74,7 @@ class WatchlistService:
         else:
             from app.data_sources.yahoo_finance import yahoo_finance
             if not yahoo_finance.validate_symbol(symbol):
+                logger.warning(f"無效的股票代號: {symbol}")
                 return {
                     "success": False,
                     "message": f"找不到股票: {symbol}",
@@ -85,7 +91,7 @@ class WatchlistService:
         await self.db.commit()
         await self.db.refresh(watchlist)
         
-        logger.info(f"用戶 {user_id} 新增追蹤: {symbol} ({asset_type})")
+        logger.info(f"★ 追蹤清單寫入成功: id={watchlist.id}, user_id={user_id}, symbol={symbol}")
         
         return {
             "success": True,
@@ -110,11 +116,14 @@ class WatchlistService:
         Returns:
             {"success": bool, "message": str}
         """
+        logger.info(f"=== 移除追蹤清單 ===")
+        logger.info(f"用戶 ID: {user_id}, 代號: {symbol}, watchlist_id: {watchlist_id}")
+        
         if watchlist_id:
             stmt = select(Watchlist).where(
                 and_(
                     Watchlist.id == watchlist_id,
-                    Watchlist.user_id == user_id,
+                    Watchlist.user_id == user_id,  # ★ 確保只能刪除自己的
                 )
             )
         elif symbol:
@@ -122,7 +131,7 @@ class WatchlistService:
             asset_type = self._get_asset_type(symbol)
             stmt = select(Watchlist).where(
                 and_(
-                    Watchlist.user_id == user_id,
+                    Watchlist.user_id == user_id,  # ★ 確保只能刪除自己的
                     Watchlist.symbol == symbol,
                     Watchlist.asset_type == asset_type,
                 )
@@ -137,16 +146,25 @@ class WatchlistService:
         watchlist = result.scalar_one_or_none()
         
         if not watchlist:
+            logger.warning(f"找不到追蹤項目: user_id={user_id}, symbol={symbol}")
             return {
                 "success": False,
                 "message": "找不到追蹤項目",
+            }
+        
+        # ★★★ 額外驗證：確保 watchlist 的 user_id 與請求的 user_id 一致 ★★★
+        if watchlist.user_id != user_id:
+            logger.error(f"權限錯誤！嘗試刪除他人資料: 請求 user_id={user_id}, 資料 user_id={watchlist.user_id}")
+            return {
+                "success": False,
+                "message": "權限不足",
             }
         
         symbol = watchlist.symbol
         await self.db.delete(watchlist)
         await self.db.commit()
         
-        logger.info(f"用戶 {user_id} 移除追蹤: {symbol}")
+        logger.info(f"★ 追蹤清單刪除成功: user_id={user_id}, symbol={symbol}")
         
         return {
             "success": True,
@@ -198,13 +216,21 @@ class WatchlistService:
         Returns:
             追蹤清單列表
         """
+        logger.debug(f"取得追蹤清單: user_id={user_id}")
+        
         stmt = (
             select(Watchlist)
-            .where(Watchlist.user_id == user_id)
+            .where(Watchlist.user_id == user_id)  # ★ 只取得該用戶的資料
             .order_by(Watchlist.added_at.desc())
         )
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        items = list(result.scalars().all())
+        
+        logger.info(f"取得追蹤清單: user_id={user_id}, 數量={len(items)}")
+        for item in items:
+            logger.debug(f"  - id={item.id}, symbol={item.symbol}, user_id={item.user_id}")
+        
+        return items
     
     async def get_watchlist_symbols(self, user_id: int) -> Dict[str, List[str]]:
         """

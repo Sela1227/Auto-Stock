@@ -4,6 +4,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
+import logging
 
 from app.database import get_async_session
 from app.services.auth_service import AuthService
@@ -19,6 +20,8 @@ from app.schemas.schemas import (
 )
 from app.models.user import User
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/watchlist", tags=["追蹤清單"])
 
 
@@ -29,6 +32,7 @@ async def get_current_user(
     """依賴注入：取得當前用戶"""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
+        logger.warning("Watchlist API: 未提供認證 Token")
         raise HTTPException(
             status_code=401,
             detail="未提供認證 Token"
@@ -39,11 +43,13 @@ async def get_current_user(
     user = await auth_service.get_user_from_token(token)
     
     if not user:
+        logger.warning("Watchlist API: Token 驗證失敗")
         raise HTTPException(
             status_code=401,
             detail="無效的 Token"
         )
     
+    logger.debug(f"Watchlist API: 驗證成功 user_id={user.id}, line_id={user.line_user_id}")
     return user
 
 
@@ -55,6 +61,8 @@ async def get_watchlist(
     """
     取得用戶的追蹤清單
     """
+    logger.info(f"API: 取得追蹤清單 - user_id={user.id}, line_id={user.line_user_id}")
+    
     service = WatchlistService(db)
     items = await service.get_watchlist(user.id)
     
@@ -77,6 +85,8 @@ async def add_to_watchlist(
     - **symbol**: 股票代號 (如 AAPL) 或加密貨幣 (如 BTC)
     - **note**: 自訂備註（選填）
     """
+    logger.info(f"API: 新增追蹤 - user_id={user.id}, line_id={user.line_user_id}, symbol={data.symbol}")
+    
     service = WatchlistService(db)
     result = await service.add_to_watchlist(
         user_id=user.id,
@@ -106,6 +116,8 @@ async def remove_from_watchlist(
     """
     從追蹤清單移除標的
     """
+    logger.info(f"API: 移除追蹤 - user_id={user.id}, line_id={user.line_user_id}, symbol={symbol}")
+    
     service = WatchlistService(db)
     result = await service.remove_from_watchlist(
         user_id=user.id,
@@ -134,6 +146,8 @@ async def update_watchlist_note(
     """
     更新追蹤標的的備註
     """
+    logger.info(f"API: 更新備註 - user_id={user.id}, symbol={symbol}")
+    
     service = WatchlistService(db)
     result = await service.update_note(
         user_id=user.id,
@@ -163,6 +177,8 @@ async def get_watchlist_overview(
     
     包含所有追蹤標的的基本資訊
     """
+    logger.info(f"API: 追蹤清單總覽 - user_id={user.id}, line_id={user.line_user_id}")
+    
     service = WatchlistService(db)
     items = await service.get_watchlist(user.id)
     

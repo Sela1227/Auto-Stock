@@ -14,6 +14,39 @@
 - Phase 5: 錯誤回報系統
 - Phase 6: 會員權限系統
 
+## [0.6.1] - 2025-01-07
+
+### Fixed
+- **用戶身份驗證強化**
+  - 登入時清除所有舊的 localStorage/sessionStorage 資料，避免 A 用戶看到 B 用戶資料
+  - JWT Token 驗證增加 LINE ID 一致性檢查
+  - 前端 checkAuth 增加本地與伺服器用戶 ID 比對
+  - 所有 API 請求改用統一的 apiRequest 函數，自動帶入驗證
+
+- **追蹤清單安全性**
+  - 追蹤清單刪除時增加 user_id 二次驗證
+  - 所有追蹤清單操作加入詳細 log 記錄
+  - 前端操作前檢查 currentUser 是否存在
+
+- **日誌系統強化**
+  - 新增 logging_config.py 統一日誌設定
+  - 認證服務 (auth_service) 完整登入流程 log
+  - 追蹤清單服務 (watchlist_service) 操作 log
+  - 日誌檔案按日期分類存放於 logs/ 目錄
+  - 分離 auth、watchlist 專用日誌檔
+
+### Changed
+- auth_service.py: login_with_line() 加入完整 log 記錄
+- auth_service.py: get_user_from_token() 加入 LINE ID 一致性驗證
+- watchlist_service.py: 所有操作加入詳細 log
+- watchlist.py router: 所有端點加入 log 記錄
+- dashboard.html: 新增 apiRequest() 統一 API 請求函數
+- dashboard.html: 新增 clearAllUserData() 清除用戶資料函數
+- main.py: 使用 logging_config.py 初始化日誌系統
+
+### Added
+- app/logging_config.py: 日誌設定模組
+
 ## [0.6.0] - 2025-01-07
 
 ### Added
