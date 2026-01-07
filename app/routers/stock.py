@@ -526,7 +526,6 @@ async def get_stock_returns(
                 "dividend_count": len(period_dividends),
                 "total_dividends": round(total_dividends_per_share, 4),
                 "annual_yield": safe_pct(annual_div_yield),
-                "yearly_detail": yearly_detail,  # debug: 每年度配息殖利率明細
             }
         
         return {
