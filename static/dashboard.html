@@ -1746,15 +1746,24 @@
                 return;
             }
             
-            console.log(`載入追蹤清單: user_id=${currentUser.id}, line_id=${currentUser.line_user_id}`);
+            console.log(`=== 載入追蹤清單 ===`);
+            console.log(`用戶資訊: id=${currentUser.id}, line_id=${currentUser.line_user_id}, name=${currentUser.display_name}`);
             
             try {
                 const res = await apiRequest('/api/watchlist');
+                console.log(`API 回應狀態: ${res.status}`);
+                
                 const data = await res.json();
+                console.log(`追蹤清單原始回應:`, data);
                 
-                console.log(`追蹤清單回應: 數量=${data.data?.length || 0}`);
+                if (!data.success) {
+                    console.error('API 回傳失敗:', data);
+                    container.innerHTML = '<p class="text-red-500 text-center py-4">載入失敗</p>';
+                    return;
+                }
                 
-                if (!data.success || !data.data || data.data.length === 0) {
+                if (!data.data || data.data.length === 0) {
+                    console.log('追蹤清單為空');
                     container.innerHTML = `
                         <div class="text-center py-6">
                             <i class="fas fa-star text-gray-300 text-3xl mb-2"></i>
@@ -1764,6 +1773,11 @@
                     `;
                     return;
                 }
+                
+                console.log(`追蹤清單數量: ${data.data.length}`);
+                data.data.forEach((item, idx) => {
+                    console.log(`  [${idx}] id=${item.id}, symbol=${item.symbol}, user_id=${item.user_id}`);
+                });
                 
                 // 只顯示前 5 筆
                 const items = data.data.slice(0, 5);

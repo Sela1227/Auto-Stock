@@ -448,3 +448,44 @@ async def delete_user(
     logger.warning(f"User {user_id} ({display_name}) deleted by admin {admin.id}")
     
     return {"success": True, "message": f"已刪除用戶 {display_name}"}
+
+
+@router.get("/debug/watchlists", summary="診斷追蹤清單")
+async def debug_watchlists(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    診斷追蹤清單（查看所有用戶的追蹤清單數量）
+    """
+    from app.models.watchlist import Watchlist
+    
+    # 統計每個用戶的追蹤清單數量
+    result = await db.execute(
+        select(
+            Watchlist.user_id,
+            func.count(Watchlist.id).label('count')
+        ).group_by(Watchlist.user_id)
+    )
+    user_counts = result.all()
+    
+    # 取得用戶資訊
+    user_data = []
+    for user_id, count in user_counts:
+        user_result = await db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        user_data.append({
+            "user_id": user_id,
+            "display_name": user.display_name if user else "未知",
+            "line_user_id": user.line_user_id[:10] + "..." if user else "未知",
+            "watchlist_count": count
+        })
+    
+    # 總數
+    total = await db.scalar(select(func.count(Watchlist.id)))
+    
+    return {
+        "success": True,
+        "total_watchlist_items": total,
+        "users": user_data
+    }

@@ -47,6 +47,19 @@ async def lifespan(app: FastAPI):
     """應用程式生命週期管理"""
     # 啟動時
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    
+    # ★★★ 診斷資料庫連線 ★★★
+    from app.database import database_url, is_postgres
+    db_type = "PostgreSQL" if is_postgres(database_url) else "SQLite"
+    logger.info(f"★★★ Database Type: {db_type} ★★★")
+    if is_postgres(database_url):
+        # 隱藏密碼
+        safe_url = database_url.split("@")[-1] if "@" in database_url else database_url
+        logger.info(f"★★★ Database Host: {safe_url} ★★★")
+    else:
+        logger.warning("⚠️ 使用 SQLite！資料會在重新部署後遺失！")
+        logger.warning("⚠️ 請設定 DATABASE_URL 環境變數指向 PostgreSQL")
+    
     await init_db()
     logger.info("Database initialized")
     
