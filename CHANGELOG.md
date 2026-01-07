@@ -22,6 +22,7 @@
   - JWT Token 驗證增加 LINE ID 一致性檢查
   - 前端 checkAuth 增加本地與伺服器用戶 ID 比對
   - 所有 API 請求改用統一的 apiRequest 函數，自動帶入驗證
+  - **UserResponse schema 加入 is_admin 欄位**（修復管理員權限消失問題）
 
 - **追蹤清單安全性**
   - 追蹤清單刪除時增加 user_id 二次驗證
@@ -43,6 +44,7 @@
 - dashboard.html: 新增 apiRequest() 統一 API 請求函數
 - dashboard.html: 新增 clearAllUserData() 清除用戶資料函數
 - main.py: 使用 logging_config.py 初始化日誌系統
+- schemas.py: UserResponse 加入 is_admin 欄位
 
 ### Added
 - app/logging_config.py: 日誌設定模組

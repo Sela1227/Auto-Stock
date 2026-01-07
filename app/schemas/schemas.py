@@ -35,6 +35,7 @@ class UserResponse(UserBase):
     id: int
     line_user_id: str
     is_active: bool
+    is_admin: bool = False  # 管理員權限
     created_at: Optional[datetime] = None
     last_login: Optional[datetime] = None
     
