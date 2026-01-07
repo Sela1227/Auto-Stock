@@ -475,9 +475,8 @@ async def get_stock_returns(
             # 取得期間內的每日股價用於配息再投入
             period_df = df[(df['date'] > start_date) & (df['date'] <= current_date)]
             
-            # 計算每次配息的殖利率（用配息當日股價）
-            yearly_dividends = {}  # {year: total_div}
-            yearly_yields = []  # 每次配息的殖利率
+            # 計算每年度的殖利率
+            yearly_yields = {}  # {year: {'div_total': x, 'avg_price': y}}
             
             for div_date, div_amount in sorted(period_dividends.items()):
                 # 找到配息日的股價
@@ -487,24 +486,29 @@ async def get_stock_returns(
                     
                 div_price = float(div_day_df.iloc[-1]['close'])
                 if div_price > 0:
-                    # 計算該次配息的殖利率
-                    div_yield = div_amount / div_price
-                    yearly_yields.append(div_yield)
-                    
-                    # 按年度彙總配息
+                    # 按年度彙總配息和股價
                     div_year = div_date.year
-                    yearly_dividends[div_year] = yearly_dividends.get(div_year, 0) + div_amount
+                    if div_year not in yearly_yields:
+                        yearly_yields[div_year] = {'div_total': 0, 'prices': []}
+                    yearly_yields[div_year]['div_total'] += div_amount
+                    yearly_yields[div_year]['prices'].append(div_price)
                     
                     # 配息再投入計算
                     dividend_received = shares * div_amount
                     new_shares = dividend_received / div_price
                     shares += new_shares
             
-            # 計算年均殖利率（用每次配息殖利率的年化平均）
-            if yearly_yields and actual_years > 0:
-                # 總殖利率 / 年數 = 年均殖利率
-                total_yield = sum(yearly_yields)
-                annual_div_yield = total_yield / actual_years
+            # 計算每年度殖利率，再取平均
+            year_yield_list = []
+            for year_data in yearly_yields.values():
+                if year_data['prices']:
+                    avg_price = sum(year_data['prices']) / len(year_data['prices'])
+                    year_yield = year_data['div_total'] / avg_price
+                    year_yield_list.append(year_yield)
+            
+            # 年均殖利率 = 各年度殖利率的平均
+            if year_yield_list:
+                annual_div_yield = sum(year_yield_list) / len(year_yield_list)
             else:
                 annual_div_yield = 0
             
