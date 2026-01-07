@@ -1,17 +1,18 @@
 """
 市場指數價格歷史資料模型
-支援 S&P 500, 道瓊, 納斯達克
+支援 S&P 500, 道瓊, 納斯達克, 台股加權
 """
 from sqlalchemy import Column, Integer, String, Date, Numeric, BigInteger, DateTime, Index
 from sqlalchemy.sql import func
 from app.database import Base
 
 
-# 三大指數代號對照
+# 指數代號對照
 INDEX_SYMBOLS = {
     "^GSPC": {"name": "S&P 500", "name_zh": "標普500"},
     "^DJI": {"name": "Dow Jones", "name_zh": "道瓊工業"},
     "^IXIC": {"name": "NASDAQ", "name_zh": "納斯達克"},
+    "^TWII": {"name": "TAIEX", "name_zh": "台股加權"},
 }
 
 

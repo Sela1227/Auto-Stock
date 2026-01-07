@@ -483,8 +483,8 @@
             <section id="section-dashboard" class="section">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">儀表板</h2>
                 
-                <!-- 三大指數卡片 -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 md:mb-6">
+                <!-- 指數卡片 (4個) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 md:mb-6">
                     <!-- S&P 500 -->
                     <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^GSPC', 'S&P 500')">
                         <div class="flex items-center justify-between mb-2">
@@ -500,7 +500,7 @@
                             <i class="fas fa-chart-area text-gray-300"></i>
                         </div>
                         <div class="flex items-baseline justify-between">
-                            <span id="index-GSPC-price" class="text-2xl font-bold text-gray-800">--</span>
+                            <span id="index-GSPC-price" class="text-xl font-bold text-gray-800">--</span>
                             <span id="index-GSPC-change" class="text-sm font-medium">--</span>
                         </div>
                         <p id="index-GSPC-date" class="text-xs text-gray-400 mt-1"></p>
@@ -521,7 +521,7 @@
                             <i class="fas fa-chart-area text-gray-300"></i>
                         </div>
                         <div class="flex items-baseline justify-between">
-                            <span id="index-DJI-price" class="text-2xl font-bold text-gray-800">--</span>
+                            <span id="index-DJI-price" class="text-xl font-bold text-gray-800">--</span>
                             <span id="index-DJI-change" class="text-sm font-medium">--</span>
                         </div>
                         <p id="index-DJI-date" class="text-xs text-gray-400 mt-1"></p>
@@ -542,10 +542,31 @@
                             <i class="fas fa-chart-area text-gray-300"></i>
                         </div>
                         <div class="flex items-baseline justify-between">
-                            <span id="index-IXIC-price" class="text-2xl font-bold text-gray-800">--</span>
+                            <span id="index-IXIC-price" class="text-xl font-bold text-gray-800">--</span>
                             <span id="index-IXIC-change" class="text-sm font-medium">--</span>
                         </div>
                         <p id="index-IXIC-date" class="text-xs text-gray-400 mt-1"></p>
+                    </div>
+                    
+                    <!-- 台股加權 -->
+                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^TWII', '台股加權')">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-landmark text-red-600"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-gray-700 text-sm">台股加權</h3>
+                                    <p class="text-xs text-gray-400">^TWII</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chart-area text-gray-300"></i>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <span id="index-TWII-price" class="text-xl font-bold text-gray-800">--</span>
+                            <span id="index-TWII-change" class="text-sm font-medium">--</span>
+                        </div>
+                        <p id="index-TWII-date" class="text-xs text-gray-400 mt-1"></p>
                     </div>
                 </div>
                 
@@ -689,14 +710,16 @@
                     <!-- 快速選擇 -->
                     <div class="mb-4">
                         <span class="text-sm text-gray-600 mr-2">快速選擇：</span>
-                        <button onclick="addCompareSymbol('^GSPC')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">S&P 500</button>
-                        <button onclick="addCompareSymbol('^DJI')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">道瓊</button>
-                        <button onclick="addCompareSymbol('^IXIC')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">納斯達克</button>
+                        <button onclick="addCompareSymbol('^GSPC')" class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded mr-1 mb-1">S&P 500</button>
+                        <button onclick="addCompareSymbol('^DJI')" class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded mr-1 mb-1">道瓊</button>
+                        <button onclick="addCompareSymbol('^IXIC')" class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded mr-1 mb-1">納斯達克</button>
+                        <button onclick="addCompareSymbol('^TWII')" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded mr-1 mb-1">台股加權</button>
                         <button onclick="addCompareSymbol('AAPL')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">AAPL</button>
                         <button onclick="addCompareSymbol('MSFT')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">MSFT</button>
-                        <button onclick="addCompareSymbol('GOOGL')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">GOOGL</button>
                         <button onclick="addCompareSymbol('NVDA')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">NVDA</button>
                         <button onclick="addCompareSymbol('TSLA')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">TSLA</button>
+                        <button onclick="addCompareSymbol('2330.TW')" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded mr-1 mb-1">台積電</button>
+                        <button onclick="addCompareSymbol('2317.TW')" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded mr-1 mb-1">鴻海</button>
                         <button onclick="addCompareSymbol('BTC-USD')" class="px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 rounded mr-1 mb-1">BTC</button>
                         <button onclick="addCompareSymbol('ETH-USD')" class="px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 rounded mr-1 mb-1">ETH</button>
                     </div>
@@ -1492,6 +1515,13 @@
                         updateIndexCard('IXIC', indices['^IXIC']);
                     } else {
                         console.warn('無納斯達克資料');
+                    }
+                    
+                    // 台股加權
+                    if (indices['^TWII']) {
+                        updateIndexCard('TWII', indices['^TWII']);
+                    } else {
+                        console.warn('無台股加權資料');
                     }
                 } else {
                     console.error('指數 API 回應格式錯誤:', data);
