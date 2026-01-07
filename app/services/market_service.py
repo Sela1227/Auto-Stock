@@ -27,35 +27,43 @@ class MarketService:
     
     # ==================== 三大指數 ====================
     
-    def get_latest_indices(self) -> List[Dict[str, Any]]:
-        """取得三大指數最新資料"""
-        result = []
+    def get_latest_indices(self) -> Dict[str, Any]:
+        """取得三大指數最新資料，回傳字典格式"""
+        result = {}
         
-        for symbol in INDEX_SYMBOLS.keys():
-            stmt = (
-                select(IndexPrice)
-                .where(IndexPrice.symbol == symbol)
-                .order_by(desc(IndexPrice.date))
-                .limit(1)
-            )
-            latest = self.db.execute(stmt).scalar_one_or_none()
+        for symbol, info in INDEX_SYMBOLS.items():
+            try:
+                stmt = (
+                    select(IndexPrice)
+                    .where(IndexPrice.symbol == symbol)
+                    .order_by(desc(IndexPrice.date))
+                    .limit(1)
+                )
+                latest = self.db.execute(stmt).scalar_one_or_none()
+                
+                if latest:
+                    result[symbol] = latest.to_dict()
+                    continue
+            except Exception as e:
+                logger.warning(f"從資料庫取得 {symbol} 失敗: {e}")
             
-            if latest:
-                result.append(latest.to_dict())
-            else:
-                # 如果資料庫沒有，嘗試從 API 取得
+            # Fallback: 從 Yahoo Finance API 取得
+            try:
                 df = yahoo_finance.get_index_data(symbol, period="5d")
                 if df is not None and not df.empty:
                     row = df.iloc[-1]
-                    result.append({
+                    result[symbol] = {
                         "symbol": symbol,
-                        "name": INDEX_SYMBOLS[symbol]["name"],
-                        "name_zh": INDEX_SYMBOLS[symbol]["name_zh"],
+                        "name": info["name"],
+                        "name_zh": info["name_zh"],
                         "date": str(row["date"]),
                         "close": float(row["close"]),
                         "change": float(row["change"]) if pd.notna(row.get("change")) else None,
                         "change_pct": float(row["change_pct"]) if pd.notna(row.get("change_pct")) else None,
-                    })
+                    }
+                    logger.info(f"從 API 取得 {symbol}: {result[symbol]['close']}")
+            except Exception as e:
+                logger.error(f"從 API 取得 {symbol} 失敗: {e}")
         
         return result
     

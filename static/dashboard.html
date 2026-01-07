@@ -1385,26 +1385,37 @@
         
         async function loadIndices() {
             try {
+                console.log('開始載入指數...');
                 const res = await fetch(`${API_BASE}/api/market/indices`);
                 const data = await res.json();
+                console.log('指數 API 回應:', data);
                 
                 if (data.success && data.data && data.data.indices) {
                     const indices = data.data.indices;
+                    console.log('指數資料:', indices);
                     
                     // S&P 500
                     if (indices['^GSPC']) {
                         updateIndexCard('GSPC', indices['^GSPC']);
+                    } else {
+                        console.warn('無 S&P 500 資料');
                     }
                     
                     // 道瓊工業
                     if (indices['^DJI']) {
                         updateIndexCard('DJI', indices['^DJI']);
+                    } else {
+                        console.warn('無道瓊資料');
                     }
                     
                     // 納斯達克
                     if (indices['^IXIC']) {
                         updateIndexCard('IXIC', indices['^IXIC']);
+                    } else {
+                        console.warn('無納斯達克資料');
                     }
+                } else {
+                    console.error('指數 API 回應格式錯誤:', data);
                 }
             } catch (e) {
                 console.error('載入指數失敗', e);
