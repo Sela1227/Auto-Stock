@@ -463,9 +463,6 @@ async def get_stock_returns(
             
             total_dividends_per_share = sum(period_dividends.values())
             
-            # 年均殖利率（以起始價格計算）
-            annual_div_yield = (total_dividends_per_share / actual_years) / start_price if start_price > 0 else 0
-            
             # === 3. 含配息報酬率（不再投入）===
             # 終值 = 現價 + 累積配息
             total_value = current_price + total_dividends_per_share
@@ -478,6 +475,10 @@ async def get_stock_returns(
             # 取得期間內的每日股價用於配息再投入
             period_df = df[(df['date'] > start_date) & (df['date'] <= current_date)]
             
+            # 計算每次配息的殖利率（用配息當日股價）
+            yearly_dividends = {}  # {year: total_div}
+            yearly_yields = []  # 每次配息的殖利率
+            
             for div_date, div_amount in sorted(period_dividends.items()):
                 # 找到配息日的股價
                 div_day_df = period_df[period_df['date'] <= div_date]
@@ -486,11 +487,26 @@ async def get_stock_returns(
                     
                 div_price = float(div_day_df.iloc[-1]['close'])
                 if div_price > 0:
-                    # 配息金額 = 持有股數 × 每股配息
+                    # 計算該次配息的殖利率
+                    div_yield = div_amount / div_price
+                    yearly_yields.append(div_yield)
+                    
+                    # 按年度彙總配息
+                    div_year = div_date.year
+                    yearly_dividends[div_year] = yearly_dividends.get(div_year, 0) + div_amount
+                    
+                    # 配息再投入計算
                     dividend_received = shares * div_amount
-                    # 買入新股數
                     new_shares = dividend_received / div_price
                     shares += new_shares
+            
+            # 計算年均殖利率（用每次配息殖利率的年化平均）
+            if yearly_yields and actual_years > 0:
+                # 總殖利率 / 年數 = 年均殖利率
+                total_yield = sum(yearly_yields)
+                annual_div_yield = total_yield / actual_years
+            else:
+                annual_div_yield = 0
             
             # 終值 = 累積股數 × 現價
             reinvested_value = shares * current_price
