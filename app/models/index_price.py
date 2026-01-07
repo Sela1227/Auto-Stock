@@ -47,18 +47,32 @@ class IndexPrice(Base):
         return info.get("name_zh", self.name or self.symbol)
     
     def to_dict(self):
+        def safe_float(val):
+            """安全轉換 float，處理 NaN 和 Infinity"""
+            if val is None:
+                return None
+            try:
+                f = float(val)
+                # 檢查 NaN 和 Infinity
+                import math
+                if math.isnan(f) or math.isinf(f):
+                    return None
+                return f
+            except (ValueError, TypeError):
+                return None
+        
         return {
             "id": self.id,
             "symbol": self.symbol,
             "name": self.name,
             "name_zh": self.name_zh,
             "date": self.date.isoformat() if self.date else None,
-            "open": float(self.open) if self.open else None,
-            "high": float(self.high) if self.high else None,
-            "low": float(self.low) if self.low else None,
-            "close": float(self.close) if self.close else None,
+            "open": safe_float(self.open),
+            "high": safe_float(self.high),
+            "low": safe_float(self.low),
+            "close": safe_float(self.close),
             "volume": self.volume,
-            "change": float(self.change) if self.change else None,
-            "change_pct": float(self.change_pct) if self.change_pct else None,
+            "change": safe_float(self.change),
+            "change_pct": safe_float(self.change_pct),
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

@@ -96,6 +96,22 @@ class MarketService:
         Returns:
             儲存的筆數
         """
+        import math
+        
+        def clean_value(val):
+            """清理值，將 NaN/Inf 轉為 None"""
+            if val is None:
+                return None
+            if pd.isna(val):
+                return None
+            try:
+                f = float(val)
+                if math.isnan(f) or math.isinf(f):
+                    return None
+                return f
+            except (ValueError, TypeError):
+                return None
+        
         if df is None or df.empty:
             return 0
         
@@ -114,26 +130,26 @@ class MarketService:
             
             if existing:
                 # 更新現有資料
-                existing.open = row.get("open")
-                existing.high = row.get("high")
-                existing.low = row.get("low")
-                existing.close = row.get("close")
+                existing.open = clean_value(row.get("open"))
+                existing.high = clean_value(row.get("high"))
+                existing.low = clean_value(row.get("low"))
+                existing.close = clean_value(row.get("close"))
                 existing.volume = row.get("volume")
-                existing.change = row.get("change")
-                existing.change_pct = row.get("change_pct")
+                existing.change = clean_value(row.get("change"))
+                existing.change_pct = clean_value(row.get("change_pct"))
             else:
                 # 新增資料
                 price = IndexPrice(
                     symbol=symbol,
                     name=index_info.get("name", symbol),
                     date=row["date"],
-                    open=row.get("open"),
-                    high=row.get("high"),
-                    low=row.get("low"),
-                    close=row.get("close"),
+                    open=clean_value(row.get("open")),
+                    high=clean_value(row.get("high")),
+                    low=clean_value(row.get("low")),
+                    close=clean_value(row.get("close")),
                     volume=row.get("volume"),
-                    change=row.get("change"),
-                    change_pct=row.get("change_pct"),
+                    change=clean_value(row.get("change")),
+                    change_pct=clean_value(row.get("change_pct")),
                 )
                 self.db.add(price)
                 count += 1
