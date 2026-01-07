@@ -502,6 +502,7 @@ async def get_stock_returns(
             if yearly_yields:
                 total_yearly_yield = sum(yearly_yields.values())
                 annual_div_yield = total_yearly_yield / len(yearly_yields)
+                logger.info(f"{symbol} {period_name} 殖利率計算: 年度數={len(yearly_yields)}, 各年={yearly_yields}, 平均={annual_div_yield*100:.2f}%")
             else:
                 annual_div_yield = 0
             
