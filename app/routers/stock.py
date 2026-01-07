@@ -245,3 +245,116 @@ async def get_stock_chart(
         media_type="image/png",
         filename=f"{symbol}_chart.png",
     )
+
+
+@router.get("/compare/history", summary="走勢比較")
+async def compare_stocks(
+    symbols: str = Query(..., description="股票代號，逗號分隔，最多 5 個"),
+    days: int = Query(90, ge=7, le=365, description="比較天數"),
+):
+    """
+    取得多支股票的正規化走勢資料（用於比較圖表）
+    
+    - 價格會正規化為起始日 = 100%
+    - 回傳各股票的日期、正規化價格
+    """
+    from app.data_sources.yahoo_finance import yahoo_finance
+    import math
+    
+    # 解析 symbols
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    
+    if len(symbol_list) < 1:
+        raise HTTPException(status_code=400, detail="請至少輸入一個代號")
+    
+    if len(symbol_list) > 5:
+        raise HTTPException(status_code=400, detail="最多比較 5 個標的")
+    
+    logger.info(f"走勢比較: {symbol_list}, {days} 天")
+    
+    result = {}
+    common_dates = None
+    
+    for symbol in symbol_list:
+        try:
+            # 判斷是指數還是股票
+            if symbol.startswith("^"):
+                df = yahoo_finance.get_index_data(symbol, period="2y")
+            else:
+                df = yahoo_finance.get_stock_history(symbol, period="2y")
+            
+            if df is None or df.empty:
+                logger.warning(f"找不到資料: {symbol}")
+                continue
+            
+            # 取最近 N 天
+            df = df.tail(days).copy()
+            
+            if len(df) < 5:
+                logger.warning(f"{symbol} 資料不足")
+                continue
+            
+            # 正規化：起始價格 = 100
+            start_price = df.iloc[0]["close"]
+            if start_price == 0 or pd.isna(start_price):
+                continue
+            
+            df["normalized"] = (df["close"] / start_price) * 100
+            
+            # 清理 NaN
+            df = df.dropna(subset=["normalized"])
+            
+            # 取得名稱
+            if symbol.startswith("^"):
+                from app.models.index_price import INDEX_SYMBOLS
+                info = INDEX_SYMBOLS.get(symbol, {})
+                name = info.get("name_zh", symbol)
+            else:
+                info = yahoo_finance.get_stock_info(symbol)
+                name = info.get("name", symbol) if info else symbol
+            
+            # 轉為列表
+            history = []
+            for _, row in df.iterrows():
+                val = row["normalized"]
+                # 檢查 NaN/Inf
+                if math.isnan(val) or math.isinf(val):
+                    continue
+                history.append({
+                    "date": row["date"].isoformat() if hasattr(row["date"], "isoformat") else str(row["date"]),
+                    "value": round(val, 2),
+                    "price": round(float(row["close"]), 2),
+                })
+            
+            if history:
+                result[symbol] = {
+                    "symbol": symbol,
+                    "name": name,
+                    "start_price": round(float(start_price), 2),
+                    "end_price": round(float(df.iloc[-1]["close"]), 2),
+                    "change_pct": round((df.iloc[-1]["close"] / start_price - 1) * 100, 2),
+                    "data": history,
+                }
+                
+                # 記錄日期用於對齊
+                dates = set(h["date"] for h in history)
+                if common_dates is None:
+                    common_dates = dates
+                else:
+                    common_dates = common_dates.intersection(dates)
+        
+        except Exception as e:
+            logger.error(f"處理 {symbol} 失敗: {e}")
+            continue
+    
+    if not result:
+        raise HTTPException(status_code=404, detail="找不到任何有效資料")
+    
+    return {
+        "success": True,
+        "data": {
+            "symbols": list(result.keys()),
+            "days": days,
+            "stocks": result,
+        }
+    }

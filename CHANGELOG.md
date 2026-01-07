@@ -8,10 +8,26 @@
 ## [Unreleased]
 
 ### Planned
-- Phase 3: 走勢比較功能
 - Phase 4: 年化報酬率計算
 - Phase 5: 錯誤回報系統
 - Phase 6: 會員權限系統
+
+## [0.8.0] - 2025-01-07
+
+### Added
+- **Phase 3: 走勢比較功能**
+  - 新增「走勢比較」頁面
+  - 支援最多 5 支股票/指數同時比較
+  - 價格正規化為起始日 = 100%
+  - 快速選擇按鈕（三大指數、熱門股、加密貨幣）
+  - 時間範圍選擇：1M / 3M / 6M / 1Y
+  - 比較結果表格顯示起始價、最新價、漲跌幅
+  - API: GET /api/stock/compare/history
+
+### Fixed
+- 修復指數歷史 API 的 NaN 值 JSON 序列化錯誤
+- IndexPrice model to_dict() 加入 NaN/Infinity 檢查
+- market_service save_index_data() 儲存前清理無效數值
 
 ## [0.7.0] - 2025-01-07
 

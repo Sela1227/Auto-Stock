@@ -384,6 +384,10 @@
                     <i class="fas fa-heart-pulse mr-3 w-5"></i>
                     <span>恐懼貪婪</span>
                 </a>
+                <a href="#" onclick="mobileNavTo('compare')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="compare">
+                    <i class="fas fa-chart-line mr-3 w-5"></i>
+                    <span>走勢比較</span>
+                </a>
                 <a href="#" onclick="mobileNavTo('settings')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="settings">
                     <i class="fas fa-cog mr-3 w-5"></i>
                     <span>設定</span>
@@ -455,6 +459,10 @@
                 <a href="#" onclick="showSection('sentiment', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="sentiment">
                     <i class="fas fa-heart-pulse mr-3"></i>
                     <span>恐懼貪婪</span>
+                </a>
+                <a href="#" onclick="showSection('compare', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="compare">
+                    <i class="fas fa-chart-line mr-3"></i>
+                    <span>走勢比較</span>
                 </a>
                 <a href="#" onclick="showSection('settings', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="settings">
                     <i class="fas fa-cog mr-3"></i>
@@ -663,6 +671,97 @@
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">恐懼貪婪指數</h2>
                 <div id="sentimentContent">
                     <p class="text-gray-500 text-center py-4">載入中...</p>
+                </div>
+            </section>
+
+            <!-- ===== 走勢比較區塊 ===== -->
+            <section id="section-compare" class="section hidden">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">走勢比較</h2>
+                
+                <!-- 輸入區 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-plus-circle mr-2 text-blue-500"></i>
+                        選擇比較標的
+                    </h3>
+                    <p class="text-gray-500 text-sm mb-4">輸入股票代號或指數（最多 5 個），以逗號分隔</p>
+                    
+                    <!-- 快速選擇 -->
+                    <div class="mb-4">
+                        <span class="text-sm text-gray-600 mr-2">快速選擇：</span>
+                        <button onclick="addCompareSymbol('^GSPC')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">S&P 500</button>
+                        <button onclick="addCompareSymbol('^DJI')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">道瓊</button>
+                        <button onclick="addCompareSymbol('^IXIC')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">納斯達克</button>
+                        <button onclick="addCompareSymbol('AAPL')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">AAPL</button>
+                        <button onclick="addCompareSymbol('MSFT')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">MSFT</button>
+                        <button onclick="addCompareSymbol('GOOGL')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">GOOGL</button>
+                        <button onclick="addCompareSymbol('NVDA')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">NVDA</button>
+                        <button onclick="addCompareSymbol('TSLA')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">TSLA</button>
+                        <button onclick="addCompareSymbol('BTC-USD')" class="px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 rounded mr-1 mb-1">BTC</button>
+                        <button onclick="addCompareSymbol('ETH-USD')" class="px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 rounded mr-1 mb-1">ETH</button>
+                    </div>
+                    
+                    <div class="flex flex-col md:flex-row gap-3">
+                        <input type="text" id="compareSymbols" placeholder="例: AAPL, MSFT, ^GSPC" 
+                               class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <select id="compareDays" class="px-4 py-2 border rounded-lg bg-white">
+                            <option value="30">1 個月</option>
+                            <option value="90" selected>3 個月</option>
+                            <option value="180">6 個月</option>
+                            <option value="365">1 年</option>
+                        </select>
+                        <button onclick="loadCompareChart()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                            <i class="fas fa-chart-line mr-2"></i>比較
+                        </button>
+                    </div>
+                    
+                    <!-- 已選標的 -->
+                    <div id="selectedSymbols" class="flex flex-wrap gap-2 mt-3"></div>
+                </div>
+                
+                <!-- 圖表區 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <div id="compareChartContainer" class="hidden">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-700">
+                                <i class="fas fa-chart-line mr-2 text-green-500"></i>
+                                走勢比較圖
+                            </h3>
+                            <span class="text-sm text-gray-500">起始日 = 100%</span>
+                        </div>
+                        <div class="relative" style="height: 400px;">
+                            <canvas id="compareChart"></canvas>
+                        </div>
+                    </div>
+                    <div id="compareChartPlaceholder" class="text-center py-12">
+                        <i class="fas fa-chart-line text-gray-300 text-5xl mb-4"></i>
+                        <p class="text-gray-500">選擇標的後顯示比較圖表</p>
+                    </div>
+                    <div id="compareChartLoading" class="hidden text-center py-12">
+                        <i class="fas fa-spinner fa-spin text-blue-500 text-3xl mb-4"></i>
+                        <p class="text-gray-500">載入中...</p>
+                    </div>
+                </div>
+                
+                <!-- 比較結果表格 -->
+                <div id="compareResultTable" class="bg-white rounded-xl shadow p-4 md:p-6 hidden">
+                    <h3 class="font-semibold text-gray-700 mb-4">
+                        <i class="fas fa-table mr-2 text-purple-500"></i>
+                        比較結果
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-2 px-3">標的</th>
+                                    <th class="text-right py-2 px-3">起始價</th>
+                                    <th class="text-right py-2 px-3">最新價</th>
+                                    <th class="text-right py-2 px-3">漲跌幅</th>
+                                </tr>
+                            </thead>
+                            <tbody id="compareTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
@@ -1732,6 +1831,201 @@
                 }
             } catch (e) {
                 console.error('載入情緒走勢失敗', e);
+            }
+        }
+
+        // ========== 走勢比較 ==========
+        let compareChart = null;
+        const compareColors = [
+            '#3B82F6', // 藍
+            '#EF4444', // 紅
+            '#10B981', // 綠
+            '#F59E0B', // 橙
+            '#8B5CF6', // 紫
+        ];
+        
+        function addCompareSymbol(symbol) {
+            const input = document.getElementById('compareSymbols');
+            const current = input.value.trim();
+            const symbols = current ? current.split(',').map(s => s.trim().toUpperCase()) : [];
+            
+            if (!symbols.includes(symbol.toUpperCase())) {
+                if (symbols.length >= 5) {
+                    showToast('最多只能比較 5 個標的');
+                    return;
+                }
+                symbols.push(symbol.toUpperCase());
+                input.value = symbols.join(', ');
+                updateSelectedSymbols();
+            }
+        }
+        
+        function removeCompareSymbol(symbol) {
+            const input = document.getElementById('compareSymbols');
+            const current = input.value.trim();
+            const symbols = current ? current.split(',').map(s => s.trim().toUpperCase()) : [];
+            const filtered = symbols.filter(s => s !== symbol.toUpperCase());
+            input.value = filtered.join(', ');
+            updateSelectedSymbols();
+        }
+        
+        function updateSelectedSymbols() {
+            const input = document.getElementById('compareSymbols');
+            const container = document.getElementById('selectedSymbols');
+            const current = input.value.trim();
+            const symbols = current ? current.split(',').map(s => s.trim().toUpperCase()).filter(s => s) : [];
+            
+            if (symbols.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            container.innerHTML = symbols.map((s, i) => `
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm" 
+                      style="background-color: ${compareColors[i % compareColors.length]}20; color: ${compareColors[i % compareColors.length]}; border: 1px solid ${compareColors[i % compareColors.length]}">
+                    ${s}
+                    <button onclick="removeCompareSymbol('${s}')" class="ml-2 hover:opacity-70">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                </span>
+            `).join('');
+        }
+        
+        // 監聽輸入變化
+        document.getElementById('compareSymbols')?.addEventListener('input', updateSelectedSymbols);
+        
+        async function loadCompareChart() {
+            const input = document.getElementById('compareSymbols');
+            const days = document.getElementById('compareDays').value;
+            const symbols = input.value.trim();
+            
+            if (!symbols) {
+                showToast('請輸入至少一個股票代號');
+                return;
+            }
+            
+            // 顯示載入中
+            document.getElementById('compareChartPlaceholder').classList.add('hidden');
+            document.getElementById('compareChartContainer').classList.add('hidden');
+            document.getElementById('compareChartLoading').classList.remove('hidden');
+            document.getElementById('compareResultTable').classList.add('hidden');
+            
+            try {
+                const res = await apiRequest(`/api/stock/compare/history?symbols=${encodeURIComponent(symbols)}&days=${days}`);
+                const data = await res.json();
+                
+                console.log('比較結果:', data);
+                
+                if (!data.success) {
+                    throw new Error(data.detail || '取得資料失敗');
+                }
+                
+                const stocks = data.data.stocks;
+                const symbolList = Object.keys(stocks);
+                
+                if (symbolList.length === 0) {
+                    throw new Error('找不到任何有效資料');
+                }
+                
+                // 準備圖表資料
+                const datasets = [];
+                let tableHtml = '';
+                
+                symbolList.forEach((sym, idx) => {
+                    const stock = stocks[sym];
+                    const color = compareColors[idx % compareColors.length];
+                    
+                    datasets.push({
+                        label: `${stock.name} (${sym})`,
+                        data: stock.data.map(d => ({ x: d.date, y: d.value })),
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        tension: 0.1,
+                        fill: false,
+                    });
+                    
+                    // 表格資料
+                    const changeClass = stock.change_pct >= 0 ? 'text-green-600' : 'text-red-600';
+                    const changeIcon = stock.change_pct >= 0 ? '▲' : '▼';
+                    tableHtml += `
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="py-2 px-3">
+                                <span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color: ${color}"></span>
+                                <span class="font-medium">${stock.name}</span>
+                                <span class="text-gray-400 text-xs ml-1">${sym}</span>
+                            </td>
+                            <td class="text-right py-2 px-3">${stock.start_price.toLocaleString()}</td>
+                            <td class="text-right py-2 px-3">${stock.end_price.toLocaleString()}</td>
+                            <td class="text-right py-2 px-3 ${changeClass} font-medium">
+                                ${changeIcon} ${Math.abs(stock.change_pct).toFixed(2)}%
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                // 繪製圖表
+                const ctx = document.getElementById('compareChart').getContext('2d');
+                
+                if (compareChart) {
+                    compareChart.destroy();
+                }
+                
+                compareChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { usePointStyle: true, boxWidth: 8 }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}%`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: { unit: 'day', displayFormats: { day: 'MM/dd' } },
+                                grid: { display: false },
+                                ticks: { maxTicksLimit: 8 }
+                            },
+                            y: {
+                                grid: { color: '#F3F4F6' },
+                                ticks: {
+                                    callback: function(value) {
+                                        return value.toFixed(0) + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // 更新 UI
+                document.getElementById('compareChartLoading').classList.add('hidden');
+                document.getElementById('compareChartContainer').classList.remove('hidden');
+                document.getElementById('compareTableBody').innerHTML = tableHtml;
+                document.getElementById('compareResultTable').classList.remove('hidden');
+                
+            } catch (e) {
+                console.error('走勢比較失敗:', e);
+                document.getElementById('compareChartLoading').classList.add('hidden');
+                document.getElementById('compareChartPlaceholder').classList.remove('hidden');
+                showToast(e.message || '載入失敗');
             }
         }
 
