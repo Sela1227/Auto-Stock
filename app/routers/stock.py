@@ -54,10 +54,6 @@ async def get_stock_analysis(
         # 取得股票資訊
         info = yahoo_finance.get_stock_info(symbol)
         
-        # 計算年化報酬率（CAGR）- 使用完整歷史資料
-        cagr_data = indicator_service.calculate_all_cagr(df)
-        logger.info(f"{symbol} CAGR: {cagr_data}")
-        
         # 計算技術指標
         df = indicator_service.calculate_all_indicators(df)
         
@@ -190,8 +186,6 @@ async def get_stock_analysis(
                 "sell": sell_score,
                 "rating": rating,
             },
-            # 年化報酬率（CAGR）
-            "cagr": cagr_data,
             # 添加圖表數據 (最近 365 天，支援 1 年範圍)
             "chart_data": {
                 "dates": [str(d) for d in df['date'].tail(365).tolist()],
