@@ -38,10 +38,22 @@
   - 儀表板指數卡片從 3 個增加到 4 個
   - 走勢比較快速選擇新增台積電、鴻海
 
+- **管理後台登入統計**
+  - 統計卡片新增「總登入次數」
+  - 用戶列表新增「登入次數」欄位
+  - API: /api/admin/stats 新增 total_logins
+  - API: /api/admin/users 新增 login_count
+
 ### Fixed
+- **重要：修復歷史股價使用調整後價格的問題**
+  - yfinance 預設回傳 auto_adjust=True（配息調整後價格）
+  - 改為 auto_adjust=False 取得原始收盤價
+  - 影響：年化報酬率、殖利率計算現在使用正確的歷史價格
 - 修復指數歷史 API 的 NaN 值 JSON 序列化錯誤
 - IndexPrice model to_dict() 加入 NaN/Infinity 檢查
 - market_service save_index_data() 儲存前清理無效數值
+- 修復走勢比較圖表需要 chartjs-adapter-date-fns
+- 修復年化報酬率 yearly_detail 變數未定義錯誤
 
 ## [0.7.0] - 2025-01-07
 

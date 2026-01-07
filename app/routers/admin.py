@@ -62,6 +62,12 @@ async def get_stats(
     blocked_users = await db.scalar(select(func.count(User.id)).where(User.is_blocked == True))
     admin_users = await db.scalar(select(func.count(User.id)).where(User.is_admin == True))
     
+    # 總登入次數
+    total_logins = await db.scalar(
+        select(func.count(LoginLog.id))
+        .where(LoginLog.action == "login")
+    )
+    
     # 今日登入
     today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     today_logins = await db.scalar(
@@ -84,6 +90,7 @@ async def get_stats(
             "active_users": active_users or 0,
             "blocked_users": blocked_users or 0,
             "admin_users": admin_users or 0,
+            "total_logins": total_logins or 0,
             "today_logins": today_logins or 0,
             "weekly_active_users": weekly_active or 0,
         }
@@ -99,7 +106,7 @@ async def list_users(
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """取得用戶列表"""
+    """取得用戶列表（含登入次數）"""
     query = select(User).order_by(User.last_login.desc())
     
     # 搜尋
@@ -123,9 +130,29 @@ async def list_users(
     result = await db.execute(query)
     users = result.scalars().all()
     
+    # 取得每個用戶的登入次數
+    user_ids = [u.id for u in users]
+    login_counts = {}
+    if user_ids:
+        login_count_result = await db.execute(
+            select(LoginLog.user_id, func.count(LoginLog.id).label('count'))
+            .where(LoginLog.user_id.in_(user_ids))
+            .where(LoginLog.action == "login")
+            .group_by(LoginLog.user_id)
+        )
+        for row in login_count_result:
+            login_counts[row.user_id] = row.count
+    
+    # 組合結果
+    users_data = []
+    for u in users:
+        user_dict = u.to_dict()
+        user_dict["login_count"] = login_counts.get(u.id, 0)
+        users_data.append(user_dict)
+    
     return {
         "success": True,
-        "users": [u.to_dict() for u in users],
+        "users": users_data,
         "pagination": {
             "page": page,
             "page_size": page_size,

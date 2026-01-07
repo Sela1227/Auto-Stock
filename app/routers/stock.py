@@ -365,13 +365,12 @@ async def get_stock_returns(
     symbol: str,
 ):
     """
-    計算股票的歷史年化報酬率（含配息再投入）
+    計算股票的歷史年化報酬率 (CAGR)
     
-    回傳 1Y, 3Y, 5Y, 10Y 的：
-    - price_return: 純價格報酬率
-    - total_return: 含配息
-    - reinvested_return: 配息再投入
-    - dividend_yield: 年均殖利率
+    注意：Yahoo Finance 返回的是除權息調整後價格，
+    因此計算出的 CAGR 已經等同於「配息再投入報酬率」
+    
+    回傳 1Y, 3Y, 5Y, 10Y 的 CAGR
     """
     from app.data_sources.yahoo_finance import yahoo_finance
     from datetime import date, timedelta
@@ -396,7 +395,7 @@ async def get_stock_returns(
         df['date'] = pd.to_datetime(df['date']).dt.date
         df = df.sort_values('date').reset_index(drop=True)
         
-        # 取得配息歷史
+        # 取得配息歷史（用於計算配息次數和殖利率參考）
         dividends_df = yahoo_finance.get_dividends(symbol, period="10y")
         
         # 建立配息字典 {date: amount}
@@ -454,61 +453,16 @@ async def get_stock_returns(
                 results[period_name] = None
                 continue
             
-            # === 1. 純價格報酬率 ===
-            price_return = (current_price / start_price) ** (1 / actual_years) - 1
+            # CAGR 計算（Yahoo Finance 調整後價格已包含配息再投入效果）
+            cagr = (current_price / start_price) ** (1 / actual_years) - 1
             
-            # === 2. 計算期間內的配息 ===
+            # 計算期間內的配息統計（參考用）
             period_dividends = {d: amt for d, amt in dividends.items() 
                               if start_date < d <= current_date}
             
             total_dividends_per_share = sum(period_dividends.values())
             
-            # === 3. 含配息報酬率（不再投入）===
-            # 終值 = 現價 + 累積配息
-            total_value = current_price + total_dividends_per_share
-            total_return = (total_value / start_price) ** (1 / actual_years) - 1
-            
-            # === 4. 配息再投入報酬率 ===
-            # 模擬持有 1 股，配息再投入
-            shares = 1.0
-            
-            # 取得期間內的每日股價用於配息再投入
-            period_df = df[(df['date'] > start_date) & (df['date'] <= current_date)]
-            
-            # 按年度計算殖利率
-            yearly_yields = {}  # {year: 該年度殖利率總和}
-            
-            for div_date, div_amount in sorted(period_dividends.items()):
-                # 找到配息日的股價
-                div_day_df = period_df[period_df['date'] <= div_date]
-                if div_day_df.empty:
-                    continue
-                    
-                div_price = float(div_day_df.iloc[-1]['close'])
-                if div_price > 0:
-                    # 計算該次配息的殖利率 = 配息金額 / 該日股價
-                    div_yield = div_amount / div_price
-                    
-                    # 按年度累加殖利率
-                    div_year = div_date.year
-                    yearly_yields[div_year] = yearly_yields.get(div_year, 0) + div_yield
-                    
-                    # 配息再投入計算
-                    dividend_received = shares * div_amount
-                    new_shares = dividend_received / div_price
-                    shares += new_shares
-            
-            # 年均殖利率 = 各年度殖利率加總 / 年數
-            if yearly_yields:
-                total_yearly_yield = sum(yearly_yields.values())
-                annual_div_yield = total_yearly_yield / len(yearly_yields)
-                logger.info(f"{symbol} {period_name} 殖利率計算: 年度數={len(yearly_yields)}, 各年={yearly_yields}, 平均={annual_div_yield*100:.2f}%")
-            else:
-                annual_div_yield = 0
-            
-            # 終值 = 累積股數 × 現價
-            reinvested_value = shares * current_price
-            reinvested_return = (reinvested_value / start_price) ** (1 / actual_years) - 1
+            logger.info(f"{symbol} {period_name}: 起始日={start_date}, 起始價(調整後)={start_price:.2f}, 現價={current_price:.2f}, CAGR={cagr*100:.2f}%")
             
             # 檢查數值有效性
             def safe_pct(val):
@@ -521,12 +475,9 @@ async def get_stock_returns(
                 "start_date": start_date.isoformat(),
                 "start_price": round(start_price, 2),
                 "end_price": round(current_price, 2),
-                "price_return": safe_pct(price_return),
-                "total_return": safe_pct(total_return),
-                "reinvested_return": safe_pct(reinvested_return),
+                "cagr": safe_pct(cagr),
                 "dividend_count": len(period_dividends),
                 "total_dividends": round(total_dividends_per_share, 4),
-                "annual_yield": safe_pct(annual_div_yield),
             }
         
         return {
@@ -537,6 +488,7 @@ async def get_stock_returns(
                 "current_price": round(current_price, 2),
                 "current_date": current_date.isoformat(),
                 "returns": results,
+                "note": "CAGR 基於 Yahoo Finance 調整後價格計算，已包含配息再投入效果"
             }
         }
         
@@ -544,4 +496,95 @@ async def get_stock_returns(
         raise
     except Exception as e:
         logger.error(f"計算年化報酬率失敗 {symbol}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{symbol}/debug-prices", summary="Debug: 查看原始價格")
+async def debug_prices(
+    symbol: str,
+    years: int = Query(5, description="查詢年數"),
+):
+    """
+    Debug 用：查看 Yahoo Finance 返回的原始價格
+    用於驗證是否有除權息調整
+    """
+    from app.data_sources.yahoo_finance import yahoo_finance
+    from datetime import date, timedelta
+    
+    symbol = symbol.upper()
+    
+    try:
+        df = yahoo_finance.get_stock_history(symbol, period=f"{years}y")
+        
+        if df is None or df.empty:
+            raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
+        
+        # 確保有 date 欄位
+        if 'date' not in df.columns:
+            df = df.reset_index()
+            if 'Date' in df.columns:
+                df = df.rename(columns={'Date': 'date'})
+        
+        df['date'] = pd.to_datetime(df['date']).dt.date
+        df = df.sort_values('date').reset_index(drop=True)
+        
+        # 取得配息記錄
+        dividends_df = yahoo_finance.get_dividends(symbol, period=f"{years}y")
+        dividends = []
+        if dividends_df is not None and not dividends_df.empty:
+            for _, row in dividends_df.iterrows():
+                dividends.append({
+                    "date": str(row['date']),
+                    "amount": round(float(row['amount']), 4)
+                })
+        
+        # 取樣幾個關鍵日期的價格
+        sample_dates = []
+        
+        # 第一筆
+        first = df.iloc[0]
+        sample_dates.append({
+            "date": str(first['date']),
+            "close": round(float(first['close']), 2),
+            "note": "最早"
+        })
+        
+        # 每年初的價格
+        for y in range(years, 0, -1):
+            target = date.today() - timedelta(days=y*365)
+            closest = df[df['date'] <= target]
+            if not closest.empty:
+                row = closest.iloc[-1]
+                sample_dates.append({
+                    "date": str(row['date']),
+                    "close": round(float(row['close']), 2),
+                    "note": f"約 {y} 年前"
+                })
+        
+        # 最後一筆
+        last = df.iloc[-1]
+        sample_dates.append({
+            "date": str(last['date']),
+            "close": round(float(last['close']), 2),
+            "note": "最新"
+        })
+        
+        return {
+            "success": True,
+            "symbol": symbol,
+            "total_records": len(df),
+            "date_range": {
+                "start": str(df.iloc[0]['date']),
+                "end": str(df.iloc[-1]['date'])
+            },
+            "sample_prices": sample_dates,
+            "dividends": dividends,
+            "dividend_count": len(dividends),
+            "total_dividends": round(sum(d['amount'] for d in dividends), 4)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Debug prices 失敗 {symbol}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

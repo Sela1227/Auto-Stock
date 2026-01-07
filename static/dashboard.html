@@ -3286,18 +3286,6 @@
                     <p class="text-xs text-gray-400">${data.current_date}</p>
                 </div>
                 
-                <div class="mb-4">
-                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
-                        <i class="fas fa-info-circle text-blue-500 mr-2"></i>
-                        說明
-                    </h4>
-                    <div class="text-xs text-gray-500 space-y-1 bg-blue-50 p-3 rounded-lg">
-                        <p><span class="font-medium">價格報酬</span>：僅計算股價漲跌</p>
-                        <p><span class="font-medium">含配息</span>：股價 + 配息（不再投入）</p>
-                        <p><span class="font-medium text-green-600">配息再投入</span>：配息買入更多股數的複利效果</p>
-                    </div>
-                </div>
-                
                 <div class="space-y-3">
             `;
             
@@ -3316,9 +3304,10 @@
                     continue;
                 }
                 
-                const reinvestedClass = ret.reinvested_return >= 0 ? 'text-green-600' : 'text-red-600';
-                const reinvestedIcon = ret.reinvested_return >= 0 ? '▲' : '▼';
-                const priceClass = ret.price_return >= 0 ? 'text-green-600' : 'text-red-600';
+                const cagr = ret.cagr;
+                const cagrClass = cagr >= 0 ? 'text-green-600' : 'text-red-600';
+                const cagrIcon = cagr >= 0 ? '▲' : '▼';
+                const cagrBg = cagr >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
                 
                 html += `
                     <div class="p-4 bg-white border rounded-lg shadow-sm">
@@ -3327,45 +3316,29 @@
                             <span class="text-xs text-gray-400">${ret.start_date} ~ 今</span>
                         </div>
                         
-                        <div class="grid grid-cols-3 gap-2 text-center mb-3">
-                            <div class="p-2 bg-gray-50 rounded">
-                                <p class="text-xs text-gray-500">價格報酬</p>
-                                <p class="font-semibold ${priceClass}">${ret.price_return !== null ? ret.price_return.toFixed(2) + '%' : '--'}</p>
-                            </div>
-                            <div class="p-2 bg-gray-50 rounded">
-                                <p class="text-xs text-gray-500">含配息</p>
-                                <p class="font-semibold ${ret.total_return >= 0 ? 'text-green-600' : 'text-red-600'}">${ret.total_return !== null ? ret.total_return.toFixed(2) + '%' : '--'}</p>
-                            </div>
-                            <div class="p-2 bg-green-50 rounded border border-green-200">
-                                <p class="text-xs text-green-600 font-medium">配息再投入</p>
-                                <p class="font-bold ${reinvestedClass}">${reinvestedIcon} ${ret.reinvested_return !== null ? Math.abs(ret.reinvested_return).toFixed(2) + '%' : '--'}</p>
-                            </div>
+                        <div class="p-4 ${cagrBg} rounded-lg border text-center mb-3">
+                            <p class="text-xs text-gray-500 mb-1">年化報酬率 (CAGR)</p>
+                            <p class="text-3xl font-bold ${cagrClass}">${cagrIcon} ${cagr !== null ? Math.abs(cagr).toFixed(2) + '%' : '--'}</p>
                         </div>
                         
                         <div class="flex justify-between text-xs text-gray-500 border-t pt-2">
                             <span>起始價: $${ret.start_price.toLocaleString()}</span>
                             <span>配息 ${ret.dividend_count} 次</span>
-                            <span>年均殖利率: ${ret.annual_yield !== null ? ret.annual_yield.toFixed(2) + '%' : '--'}</span>
+                            <span>總配息: $${ret.total_dividends.toFixed(2)}</span>
                         </div>
-                        ${ret.yearly_detail ? `
-                        <div class="mt-2 pt-2 border-t border-dashed">
-                            <p class="text-xs text-gray-400 mb-1">各年度殖利率：</p>
-                            <div class="flex flex-wrap gap-1">
-                                ${Object.entries(ret.yearly_detail).sort((a,b) => a[0]-b[0]).map(([year, d]) => 
-                                    `<span class="text-xs bg-gray-100 px-2 py-0.5 rounded">${year}: ${d.yield_pct}% (${d.div_count}次)</span>`
-                                ).join('')}
-                            </div>
-                        </div>
-                        ` : ''}
                     </div>
                 `;
             }
             
             html += `
                 </div>
-                <p class="text-xs text-gray-400 mt-4 text-center">
-                    * 年化報酬率 (CAGR) 假設期初投入，配息依除息日股價再投入
-                </p>
+                <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <p class="text-xs text-blue-600">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        CAGR 基於 Yahoo Finance 除權息調整後價格計算，<br>
+                        已包含配息再投入的複利效果
+                    </p>
+                </div>
             `;
             
             content.innerHTML = html;
