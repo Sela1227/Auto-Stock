@@ -282,63 +282,39 @@ class YahooFinanceClient:
             end: 結束日期
             
         Returns:
-            包含 OHLCV 的 DataFrame
+            包含 OHLCV 的 DataFrame，其中：
+            - close: 原始收盤價（用於顯示）
+            - adj_close: 分割調整後價格（用於圖表，不含配息）
         """
         try:
             ticker = yf.Ticker(symbol)
             
-            # auto_adjust=False 取得原始價格（不含配息調整）
+            # 取得原始價格
             if start and end:
-                df = ticker.history(start=start, end=end, auto_adjust=False)
+                df_raw = ticker.history(start=start, end=end, auto_adjust=False)
             else:
-                df = ticker.history(period=period, auto_adjust=False)
+                df_raw = ticker.history(period=period, auto_adjust=False)
             
-            if df.empty:
+            if df_raw.empty:
                 logger.warning(f"無歷史資料: {symbol}")
                 return None
             
-            # 重設索引，將日期變成欄位
-            df = df.reset_index()
+            df_raw = df_raw.reset_index()
             
-            # 標準化欄位名稱
-            column_mapping = {
-                "Date": "date",
-                "Datetime": "date",
-                "Open": "open",
-                "High": "high",
-                "Low": "low",
-                "Close": "close",
-                "Adj Close": "adj_close",
-                "Volume": "volume",
-            }
+            # 標準化日期欄位
+            date_col = "Date" if "Date" in df_raw.columns else "Datetime"
             
-            # 只重命名存在的欄位
-            existing_columns = {k: v for k, v in column_mapping.items() if k in df.columns}
-            df = df.rename(columns=existing_columns)
+            # 建立結果 DataFrame
+            df = pd.DataFrame()
+            df["date"] = pd.to_datetime(df_raw[date_col]).dt.date
+            df["open"] = df_raw["Open"].values
+            df["high"] = df_raw["High"].values
+            df["low"] = df_raw["Low"].values
+            df["close"] = df_raw["Close"].values
+            df["volume"] = df_raw["Volume"].values if "Volume" in df_raw.columns else 0
             
-            # 確保必要欄位存在
-            required_columns = ["date", "open", "high", "low", "close"]
-            for col in required_columns:
-                if col not in df.columns:
-                    logger.error(f"缺少必要欄位: {col}")
-                    return None
-            
-            # volume 可選，如果沒有就填 0
-            if "volume" not in df.columns:
-                df["volume"] = 0
-                logger.warning(f"{symbol} 沒有 volume 資料，已填入 0")
-            
-            # 只保留需要的欄位（包含 adj_close 用於報酬率計算）
-            keep_columns = [c for c in ["date", "open", "high", "low", "close", "adj_close", "volume"] if c in df.columns]
-            df = df[keep_columns]
-            
-            # 如果有 adj_close，用它來計算報酬率更準確（已考慮分割和配息）
-            # 如果沒有 adj_close，則複製 close
-            if "adj_close" not in df.columns:
-                df["adj_close"] = df["close"]
-            
-            # 確保日期是 date 類型
-            df["date"] = pd.to_datetime(df["date"]).dt.date
+            # 偵測並調整分割（不含配息）
+            df = self._detect_and_adjust_splits(df, symbol)
             
             # 加入股票代號
             df["symbol"] = symbol.upper()
@@ -348,6 +324,66 @@ class YahooFinanceClient:
         except Exception as e:
             logger.error(f"取得歷史資料失敗 {symbol}: {e}")
             return None
+    
+    def _detect_and_adjust_splits(self, df: pd.DataFrame, symbol: str) -> pd.DataFrame:
+        """
+        偵測價格斷崖並調整歷史價格（只處理分割，不含配息）
+        
+        當偵測到價格突然下跌超過 40%（可能是分割），
+        會自動調整分割前的價格，使整個序列連續。
+        """
+        if len(df) < 2:
+            df['adj_close'] = df['close'].copy()
+            return df
+        
+        df = df.copy()
+        df = df.sort_values('date').reset_index(drop=True)
+        
+        # 計算每日漲跌幅
+        df['pct_change'] = df['close'].pct_change()
+        
+        # 偵測分割點（價格下跌超過 40%）
+        split_indices = []
+        for i in range(1, len(df)):
+            pct = df.loc[i, 'pct_change']
+            if pd.notna(pct) and pct < -0.40:
+                prev_close = float(df.loc[i-1, 'close'])
+                curr_close = float(df.loc[i, 'close'])
+                if curr_close > 0:
+                    ratio = prev_close / curr_close
+                    rounded_ratio = round(ratio)
+                    # 只有比率接近整數時才認為是分割（2, 3, 4, 5, 10 等）
+                    if rounded_ratio >= 2 and abs(ratio - rounded_ratio) < 0.3:
+                        split_indices.append({
+                            'index': i,
+                            'date': df.loc[i, 'date'],
+                            'ratio': rounded_ratio,
+                            'prev_close': prev_close,
+                            'curr_close': curr_close
+                        })
+                        logger.info(f"{symbol} 偵測到分割: {df.loc[i, 'date']}, 比率 1:{rounded_ratio}, 前收 {prev_close:.2f} -> 現收 {curr_close:.2f}")
+        
+        # 初始化調整後價格
+        df['adj_close'] = df['close'].astype(float)
+        
+        # 從最近的分割開始往前調整（使用累積因子）
+        if split_indices:
+            cumulative_factor = 1.0
+            
+            for split in reversed(split_indices):
+                idx = split['index']
+                ratio = split['ratio']
+                cumulative_factor *= ratio
+                
+                # 調整分割點之前的所有價格（用原始 close 除以累積因子）
+                df.loc[:idx-1, 'adj_close'] = df.loc[:idx-1, 'close'].astype(float) / cumulative_factor
+            
+            logger.info(f"{symbol} 已調整 {len(split_indices)} 次分割，總調整因子: {cumulative_factor}")
+        
+        # 移除臨時欄位
+        df = df.drop(columns=['pct_change'], errors='ignore')
+        
+        return df
     
     def get_current_price(self, symbol: str) -> Optional[Dict[str, Any]]:
         """

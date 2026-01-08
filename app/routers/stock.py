@@ -54,24 +54,35 @@ async def get_stock_analysis(
         # 取得股票資訊
         info = yahoo_finance.get_stock_info(symbol)
         
-        # 計算技術指標
+        # 保存原始收盤價（用於顯示）
+        df['close_raw'] = df['close'].copy()
+        
+        # 使用調整後價格計算技術指標（處理分割和配息）
+        # 這樣 MA 線和圖表才不會有斷崖
+        if 'adj_close' in df.columns:
+            df['close'] = df['adj_close']
+            logger.info(f"{symbol} 使用調整後價格計算指標")
+        
+        # 計算技術指標（基於調整後價格）
         df = indicator_service.calculate_all_indicators(df)
         
         # 取得最新資料
         latest = df.iloc[-1]
-        current_price = float(latest['close'])
+        # 顯示用原始價格（用戶習慣看的價格）
+        current_price = float(latest['close_raw'])
         
         logger.info(f"{symbol} 現價: {current_price}")
         
-        # 價格資訊
-        high_52w = float(df['high'].tail(252).max()) if len(df) >= 252 else float(df['high'].max())
-        low_52w = float(df['low'].tail(252).min()) if len(df) >= 252 else float(df['low'].min())
+        # 價格資訊（用原始價格顯示 52 週高低）
+        high_52w = float(df['close_raw'].tail(252).max()) if len(df) >= 252 else float(df['close_raw'].max())
+        low_52w = float(df['close_raw'].tail(252).min()) if len(df) >= 252 else float(df['close_raw'].min())
         
-        # 漲跌幅計算
+        # 漲跌幅計算（用調整後價格計算，反映真實報酬）
+        current_price_adj = float(latest['close'])  # 調整後現價
         def calc_change(days):
             if len(df) > days:
-                old_price = float(df.iloc[-days-1]['close'])
-                return round((current_price - old_price) / old_price * 100, 2)
+                old_price_adj = float(df.iloc[-days-1]['close'])  # 調整後歷史價格
+                return round((current_price_adj - old_price_adj) / old_price_adj * 100, 2)
             return None
         
         # 均線資訊 (indicator_service 用小寫: ma20, ma50, ma200)
@@ -79,12 +90,12 @@ async def get_stock_analysis(
         ma50 = float(latest.get('ma50', 0)) if 'ma50' in latest else None
         ma200 = float(latest.get('ma200', 0)) if 'ma200' in latest else None
         
-        # 判斷均線排列
+        # 判斷均線排列（用調整後價格比較）
         alignment = "neutral"
         if ma20 and ma50 and ma200:
-            if current_price > ma20 > ma50 > ma200:
+            if current_price_adj > ma20 > ma50 > ma200:
                 alignment = "bullish"
-            elif current_price < ma20 < ma50 < ma200:
+            elif current_price_adj < ma20 < ma50 < ma200:
                 alignment = "bearish"
         
         # RSI (小寫: rsi)
@@ -370,8 +381,9 @@ async def get_stock_returns(
     """
     計算股票的歷史年化報酬率 (CAGR)
     
-    注意：Yahoo Finance 返回的是除權息調整後價格，
-    因此計算出的 CAGR 已經等同於「配息再投入報酬率」
+    計算方式：含配息再投入的總報酬率
+    - 分割調整：已處理
+    - 配息還原：在計算時將配息加回
     
     回傳 1Y, 3Y, 5Y, 10Y 的 CAGR
     """
@@ -398,7 +410,7 @@ async def get_stock_returns(
         df['date'] = pd.to_datetime(df['date']).dt.date
         df = df.sort_values('date').reset_index(drop=True)
         
-        # 取得配息歷史（用於計算配息次數和殖利率參考）
+        # 取得配息歷史
         dividends_df = yahoo_finance.get_dividends(symbol, period="10y")
         
         # 建立配息字典 {date: amount}
@@ -418,9 +430,35 @@ async def get_stock_returns(
         
         # 現價（顯示用，用原始收盤價）
         current_price_display = float(df.iloc[-1]['close'])
-        # 調整後現價（計算報酬率用）
-        current_price_adj = float(df.iloc[-1]['adj_close'])
         current_date = df.iloc[-1]['date']
+        
+        # ===== 計算含息調整價格（用於報酬率計算） =====
+        # 從最新日期往前，每遇到一次配息就調整之前的價格
+        df['adj_close_with_div'] = df['adj_close'].astype(float)
+        date_to_idx = {row['date']: idx for idx, row in df.iterrows()}
+        
+        # 找出在資料範圍內的配息
+        min_date = df['date'].min()
+        max_date = df['date'].max()
+        relevant_divs = [(d, amt) for d, amt in dividends.items() 
+                        if min_date < d <= max_date]
+        
+        if relevant_divs:
+            # 從最新到最舊處理配息
+            for div_date, div_amount in sorted(relevant_divs, reverse=True):
+                if div_date in date_to_idx:
+                    ex_idx = date_to_idx[div_date]
+                    if ex_idx > 0:
+                        # 除息前一天的價格
+                        prev_price = df.loc[ex_idx - 1, 'adj_close_with_div']
+                        if prev_price > div_amount and div_amount > 0:
+                            # 還原因子
+                            adjustment_factor = prev_price / (prev_price - div_amount)
+                            # 調整除息日之前的所有價格
+                            df.loc[:ex_idx-1, 'adj_close_with_div'] = df.loc[:ex_idx-1, 'adj_close_with_div'] / adjustment_factor
+        
+        # 含息調整後現價
+        current_price_adj = float(df.iloc[-1]['adj_close_with_div'])
         
         # 計算不同期間的報酬率
         periods = [
@@ -443,8 +481,8 @@ async def get_stock_returns(
                 continue
             
             start_row = past_df.iloc[-1]
-            # 使用調整後價格計算報酬率（已包含分割和配息調整）
-            start_price_adj = float(start_row['adj_close'])
+            # 使用含息調整後價格計算報酬率
+            start_price_adj = float(start_row['adj_close_with_div'])
             start_date = start_row['date']
             
             if start_price_adj <= 0:
@@ -459,7 +497,7 @@ async def get_stock_returns(
                 results[period_name] = None
                 continue
             
-            # CAGR 計算（使用調整後價格，已包含分割和配息再投入效果）
+            # CAGR 計算（含息調整後價格）
             cagr = (current_price_adj / start_price_adj) ** (1 / actual_years) - 1
             
             # 計算期間內的配息統計（參考用）
@@ -468,7 +506,7 @@ async def get_stock_returns(
             
             total_dividends_per_share = sum(period_dividends.values())
             
-            logger.info(f"{symbol} {period_name}: 起始日={start_date}, 起始價(調整後)={start_price_adj:.2f}, 現價(調整後)={current_price_adj:.2f}, CAGR={cagr*100:.2f}%")
+            logger.info(f"{symbol} {period_name}: 起始日={start_date}, 起始價(含息調整)={start_price_adj:.2f}, 現價(含息調整)={current_price_adj:.2f}, CAGR={cagr*100:.2f}%")
             
             # 檢查數值有效性
             def safe_pct(val):
@@ -479,8 +517,8 @@ async def get_stock_returns(
             results[period_name] = {
                 "years": round(actual_years, 1),
                 "start_date": start_date.isoformat(),
-                "start_price": round(start_price_adj, 2),
-                "end_price": round(current_price_adj, 2),
+                "start_price": round(float(start_row['close']), 2),  # 顯示原始起始價
+                "end_price": round(current_price_display, 2),  # 顯示原始現價
                 "cagr": safe_pct(cagr),
                 "dividend_count": len(period_dividends),
                 "total_dividends": round(total_dividends_per_share, 4),
@@ -494,7 +532,7 @@ async def get_stock_returns(
                 "current_price": round(current_price_display, 2),
                 "current_date": current_date.isoformat(),
                 "returns": results,
-                "note": "CAGR 基於 Yahoo Finance 調整後價格計算，已包含分割調整及配息再投入效果"
+                "note": "CAGR 已包含分割調整及配息再投入效果"
             }
         }
         
@@ -505,75 +543,79 @@ async def get_stock_returns(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{symbol}/debug-prices", summary="Debug: 查看原始價格")
+@router.get("/{symbol}/debug-prices", summary="Debug: 查看價格調整資訊")
 async def debug_prices(
     symbol: str,
     years: int = Query(5, description="查詢年數"),
 ):
     """
-    Debug 用：查看 Yahoo Finance 返回的原始價格
-    用於驗證是否有除權息調整
+    Debug 用：查看原始價格、分割調整、配息資訊
     """
     from app.data_sources.yahoo_finance import yahoo_finance
     from datetime import date, timedelta
+    import yfinance as yf
     
     symbol = symbol.upper()
     
     try:
+        # 用我們的函數取得數據（含分割調整）
         df = yahoo_finance.get_stock_history(symbol, period=f"{years}y")
         
         if df is None or df.empty:
             raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
         
-        # 確保有 date 欄位
-        if 'date' not in df.columns:
-            df = df.reset_index()
-            if 'Date' in df.columns:
-                df = df.rename(columns={'Date': 'date'})
-        
-        df['date'] = pd.to_datetime(df['date']).dt.date
-        df = df.sort_values('date').reset_index(drop=True)
-        
         # 取得配息記錄
-        dividends_df = yahoo_finance.get_dividends(symbol, period=f"{years}y")
-        dividends = []
-        if dividends_df is not None and not dividends_df.empty:
-            for _, row in dividends_df.iterrows():
-                dividends.append({
-                    "date": str(row['date']),
-                    "amount": round(float(row['amount']), 4)
+        ticker = yf.Ticker(symbol)
+        dividends = ticker.dividends
+        div_records = []
+        total_div = 0
+        if dividends is not None and len(dividends) > 0:
+            for date_idx, amount in dividends.items():
+                div_date = date_idx.date() if hasattr(date_idx, 'date') else pd.to_datetime(date_idx).date()
+                div_records.append({
+                    "date": str(div_date),
+                    "amount": round(float(amount), 4)
+                })
+                total_div += float(amount)
+        
+        # 取得分割記錄
+        splits = ticker.splits
+        split_records = []
+        if splits is not None and len(splits) > 0:
+            for date_idx, ratio in splits.items():
+                split_records.append({
+                    "date": str(date_idx.date()),
+                    "ratio": float(ratio)
                 })
         
-        # 取樣幾個關鍵日期的價格
-        sample_dates = []
-        
-        # 第一筆
-        first = df.iloc[0]
-        sample_dates.append({
-            "date": str(first['date']),
-            "close": round(float(first['close']), 2),
-            "note": "最早"
-        })
-        
-        # 每年初的價格
+        # 取樣價格比較
+        sample_prices = []
+        indices = [0]
         for y in range(years, 0, -1):
-            target = date.today() - timedelta(days=y*365)
-            closest = df[df['date'] <= target]
+            target_date = date.today() - timedelta(days=y*365)
+            closest = df[df['date'] <= target_date]
             if not closest.empty:
-                row = closest.iloc[-1]
-                sample_dates.append({
+                indices.append(closest.index[-1])
+        indices.append(len(df) - 1)
+        indices = sorted(set(indices))
+        
+        for idx in indices:
+            if idx < len(df):
+                row = df.iloc[idx]
+                sample_prices.append({
                     "date": str(row['date']),
-                    "close": round(float(row['close']), 2),
-                    "note": f"約 {y} 年前"
+                    "close_raw": round(float(row['close']), 2),
+                    "close_split_adj": round(float(row['adj_close']), 2),
                 })
         
-        # 最後一筆
-        last = df.iloc[-1]
-        sample_dates.append({
-            "date": str(last['date']),
-            "close": round(float(last['close']), 2),
-            "note": "最新"
-        })
+        # 計算報酬率比較
+        first_raw = float(df.iloc[0]['close'])
+        first_adj = float(df.iloc[0]['adj_close'])
+        last_raw = float(df.iloc[-1]['close'])
+        last_adj = float(df.iloc[-1]['adj_close'])
+        
+        raw_return = (last_raw / first_raw - 1) * 100 if first_raw > 0 else 0
+        split_adj_return = (last_adj / first_adj - 1) * 100 if first_adj > 0 else 0
         
         return {
             "success": True,
@@ -583,10 +625,16 @@ async def debug_prices(
                 "start": str(df.iloc[0]['date']),
                 "end": str(df.iloc[-1]['date'])
             },
-            "sample_prices": sample_dates,
-            "dividends": dividends,
-            "dividend_count": len(dividends),
-            "total_dividends": round(sum(d['amount'] for d in dividends), 4)
+            "splits": split_records,
+            "dividends": div_records[-10:] if len(div_records) > 10 else div_records,  # 最近 10 筆
+            "dividend_count": len(div_records),
+            "total_dividends": round(total_div, 4),
+            "sample_prices": sample_prices,
+            "returns": {
+                "raw_return_pct": round(raw_return, 2),
+                "split_adj_return_pct": round(split_adj_return, 2),
+            },
+            "note": "close_raw=原始價格, close_split_adj=分割調整後(圖表用), 年化報酬另含配息還原"
         }
         
     except HTTPException:
