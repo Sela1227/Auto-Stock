@@ -9,7 +9,7 @@ from app.services.auth_service import AuthService, AuthServiceSync
 from app.services.watchlist_service import WatchlistService
 from app.services.market_service import MarketService
 from app.services.signal_service import signal_service, SignalService, SignalType
-from app.services.line_messaging_service import line_messaging_service, LineMessagingService
+from app.services.line_notify_service import line_notify_service, LineNotifyService
 
 __all__ = [
     "indicator_service",
@@ -25,6 +25,6 @@ __all__ = [
     "signal_service",
     "SignalService",
     "SignalType",
-    "line_messaging_service",
-    "LineMessagingService",
+    "line_notify_service",
+    "LineNotifyService",
 ]
