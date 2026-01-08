@@ -282,66 +282,73 @@ class YahooFinanceClient:
             end: 結束日期
             
         Returns:
-            包含 OHLCV 的 DataFrame
+            包含 OHLCV 的 DataFrame，其中：
+            - close: 原始收盤價（用於顯示）
+            - adj_close: 調整後收盤價（用於計算報酬率，已包含分割和配息調整）
         """
         try:
             ticker = yf.Ticker(symbol)
             
-            # auto_adjust=False 取得原始價格（不含配息調整）
+            # 第一次獲取：auto_adjust=True 取得調整後價格（已處理分割和配息）
             if start and end:
-                df = ticker.history(start=start, end=end, auto_adjust=False)
+                df_adj = ticker.history(start=start, end=end, auto_adjust=True)
             else:
-                df = ticker.history(period=period, auto_adjust=False)
+                df_adj = ticker.history(period=period, auto_adjust=True)
             
-            if df.empty:
+            if df_adj.empty:
                 logger.warning(f"無歷史資料: {symbol}")
                 return None
             
-            # 重設索引，將日期變成欄位
-            df = df.reset_index()
+            # 第二次獲取：auto_adjust=False 取得原始價格（用於顯示）
+            if start and end:
+                df_raw = ticker.history(start=start, end=end, auto_adjust=False)
+            else:
+                df_raw = ticker.history(period=period, auto_adjust=False)
             
-            # 標準化欄位名稱
-            column_mapping = {
-                "Date": "date",
-                "Datetime": "date",
-                "Open": "open",
-                "High": "high",
-                "Low": "low",
-                "Close": "close",
-                "Adj Close": "adj_close",
-                "Volume": "volume",
-            }
+            # 重設索引
+            df_adj = df_adj.reset_index()
+            df_raw = df_raw.reset_index()
             
-            # 只重命名存在的欄位
-            existing_columns = {k: v for k, v in column_mapping.items() if k in df.columns}
-            df = df.rename(columns=existing_columns)
+            # 確保兩個 DataFrame 長度一致
+            if len(df_adj) != len(df_raw):
+                logger.warning(f"{symbol} 調整後與原始數據長度不一致: {len(df_adj)} vs {len(df_raw)}")
+                # 使用較短的長度，並從尾部對齊（最新數據優先）
+                min_len = min(len(df_adj), len(df_raw))
+                df_adj = df_adj.tail(min_len).reset_index(drop=True)
+                df_raw = df_raw.tail(min_len).reset_index(drop=True)
             
-            # 確保必要欄位存在
-            required_columns = ["date", "open", "high", "low", "close"]
-            for col in required_columns:
-                if col not in df.columns:
-                    logger.error(f"缺少必要欄位: {col}")
-                    return None
+            # 建立結果 DataFrame
+            df = pd.DataFrame()
             
-            # volume 可選，如果沒有就填 0
-            if "volume" not in df.columns:
-                df["volume"] = 0
-                logger.warning(f"{symbol} 沒有 volume 資料，已填入 0")
+            # 日期（從調整後數據取得，通常更可靠）
+            date_col = "Date" if "Date" in df_adj.columns else "Datetime"
+            df["date"] = df_adj[date_col]
             
-            # 只保留需要的欄位（包含 adj_close 用於報酬率計算）
-            keep_columns = [c for c in ["date", "open", "high", "low", "close", "adj_close", "volume"] if c in df.columns]
-            df = df[keep_columns]
+            # 原始價格（用於顯示）- 從 df_raw 取得
+            df["open"] = df_raw["Open"].values if "Open" in df_raw.columns else df_adj["Open"].values
+            df["high"] = df_raw["High"].values if "High" in df_raw.columns else df_adj["High"].values
+            df["low"] = df_raw["Low"].values if "Low" in df_raw.columns else df_adj["Low"].values
+            df["close"] = df_raw["Close"].values if "Close" in df_raw.columns else df_adj["Close"].values
             
-            # 如果有 adj_close，用它來計算報酬率更準確（已考慮分割和配息）
-            # 如果沒有 adj_close，則複製 close
-            if "adj_close" not in df.columns:
-                df["adj_close"] = df["close"]
+            # 調整後價格（用於計算報酬率）- 從 df_adj 取得
+            # auto_adjust=True 時，Close 就是調整後價格
+            df["adj_close"] = df_adj["Close"].values
+            
+            # 成交量
+            df["volume"] = df_adj["Volume"].values if "Volume" in df_adj.columns else 0
             
             # 確保日期是 date 類型
             df["date"] = pd.to_datetime(df["date"]).dt.date
             
             # 加入股票代號
             df["symbol"] = symbol.upper()
+            
+            # 檢查是否有分割（adj_close 和 close 的比率變化）
+            if len(df) > 1:
+                ratio_start = df.iloc[0]["adj_close"] / df.iloc[0]["close"] if df.iloc[0]["close"] != 0 else 1
+                ratio_end = df.iloc[-1]["adj_close"] / df.iloc[-1]["close"] if df.iloc[-1]["close"] != 0 else 1
+                if abs(ratio_start - ratio_end) > 0.01:
+                    logger.info(f"{symbol} 偵測到分割調整: 起始比率={ratio_start:.4f}, 結束比率={ratio_end:.4f}")
             
             return df
             

@@ -54,24 +54,35 @@ async def get_stock_analysis(
         # 取得股票資訊
         info = yahoo_finance.get_stock_info(symbol)
         
-        # 計算技術指標
+        # 保存原始收盤價（用於顯示）
+        df['close_raw'] = df['close'].copy()
+        
+        # 使用調整後價格計算技術指標（處理分割和配息）
+        # 這樣 MA 線和圖表才不會有斷崖
+        if 'adj_close' in df.columns:
+            df['close'] = df['adj_close']
+            logger.info(f"{symbol} 使用調整後價格計算指標")
+        
+        # 計算技術指標（基於調整後價格）
         df = indicator_service.calculate_all_indicators(df)
         
         # 取得最新資料
         latest = df.iloc[-1]
-        current_price = float(latest['close'])
+        # 顯示用原始價格（用戶習慣看的價格）
+        current_price = float(latest['close_raw'])
         
         logger.info(f"{symbol} 現價: {current_price}")
         
-        # 價格資訊
-        high_52w = float(df['high'].tail(252).max()) if len(df) >= 252 else float(df['high'].max())
-        low_52w = float(df['low'].tail(252).min()) if len(df) >= 252 else float(df['low'].min())
+        # 價格資訊（用原始價格顯示 52 週高低）
+        high_52w = float(df['close_raw'].tail(252).max()) if len(df) >= 252 else float(df['close_raw'].max())
+        low_52w = float(df['close_raw'].tail(252).min()) if len(df) >= 252 else float(df['close_raw'].min())
         
-        # 漲跌幅計算
+        # 漲跌幅計算（用調整後價格計算，反映真實報酬）
+        current_price_adj = float(latest['close'])  # 調整後現價
         def calc_change(days):
             if len(df) > days:
-                old_price = float(df.iloc[-days-1]['close'])
-                return round((current_price - old_price) / old_price * 100, 2)
+                old_price_adj = float(df.iloc[-days-1]['close'])  # 調整後歷史價格
+                return round((current_price_adj - old_price_adj) / old_price_adj * 100, 2)
             return None
         
         # 均線資訊 (indicator_service 用小寫: ma20, ma50, ma200)
@@ -79,12 +90,12 @@ async def get_stock_analysis(
         ma50 = float(latest.get('ma50', 0)) if 'ma50' in latest else None
         ma200 = float(latest.get('ma200', 0)) if 'ma200' in latest else None
         
-        # 判斷均線排列
+        # 判斷均線排列（用調整後價格比較）
         alignment = "neutral"
         if ma20 and ma50 and ma200:
-            if current_price > ma20 > ma50 > ma200:
+            if current_price_adj > ma20 > ma50 > ma200:
                 alignment = "bullish"
-            elif current_price < ma20 < ma50 < ma200:
+            elif current_price_adj < ma20 < ma50 < ma200:
                 alignment = "bearish"
         
         # RSI (小寫: rsi)
