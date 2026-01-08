@@ -287,10 +287,11 @@ class YahooFinanceClient:
         try:
             ticker = yf.Ticker(symbol)
             
+            # auto_adjust=False 取得原始價格（不含配息調整）
             if start and end:
-                df = ticker.history(start=start, end=end)
+                df = ticker.history(start=start, end=end, auto_adjust=False)
             else:
-                df = ticker.history(period=period)
+                df = ticker.history(period=period, auto_adjust=False)
             
             if df.empty:
                 logger.warning(f"無歷史資料: {symbol}")
@@ -365,8 +366,8 @@ class YahooFinanceClient:
             previous_close = info.get("previousClose") or info.get("regularMarketPreviousClose")
             
             if not current_price:
-                # 從歷史資料取得最新收盤價
-                hist = ticker.history(period="5d")
+                # 從歷史資料取得最新收盤價（使用原始價格）
+                hist = ticker.history(period="5d", auto_adjust=False)
                 if not hist.empty:
                     current_price = hist["Close"].iloc[-1]
                     if len(hist) >= 2:
@@ -466,7 +467,7 @@ class YahooFinanceClient:
         """
         try:
             ticker = yf.Ticker(symbol)
-            df = ticker.history(period=period)
+            df = ticker.history(period=period, auto_adjust=False)
             
             if df.empty:
                 logger.warning(f"無指數資料: {symbol}")

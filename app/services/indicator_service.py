@@ -729,6 +729,101 @@ class IndicatorService:
             "rating": rating,
             "details": details,
         }
+    
+    # ==================== 年化報酬率（CAGR）計算 ====================
+    
+    def calculate_cagr(
+        self,
+        df: pd.DataFrame,
+        years: float,
+    ) -> Optional[float]:
+        """
+        計算年化複合成長率（CAGR）
+        
+        公式: CAGR = (終值/初值)^(1/年數) - 1
+        
+        Args:
+            df: 股價 DataFrame（需有 'close' 欄位）
+            years: 計算的年數
+            
+        Returns:
+            年化報酬率（百分比），例如 15.5 表示 15.5%
+            如果資料不足則返回 None
+        """
+        if df is None or df.empty:
+            return None
+        
+        # 計算需要的天數（假設一年約 252 個交易日）
+        trading_days = int(years * 252)
+        
+        if len(df) < trading_days:
+            return None
+        
+        try:
+            # 取得終值（最新價格）
+            end_price = float(df['close'].iloc[-1])
+            
+            # 取得初值（N年前價格）
+            start_price = float(df['close'].iloc[-trading_days])
+            
+            if start_price <= 0 or end_price <= 0:
+                return None
+            
+            # 計算 CAGR
+            cagr = (end_price / start_price) ** (1 / years) - 1
+            
+            # 轉換為百分比
+            return round(cagr * 100, 2)
+        except Exception:
+            return None
+    
+    def calculate_all_cagr(
+        self,
+        df: pd.DataFrame,
+    ) -> Dict[str, Optional[float]]:
+        """
+        計算所有時間範圍的年化報酬率
+        
+        Returns:
+            {
+                "cagr_1y": 15.5,   # 1 年年化
+                "cagr_3y": 12.3,   # 3 年年化
+                "cagr_5y": 18.7,   # 5 年年化
+                "cagr_10y": 14.2,  # 10 年年化
+            }
+        """
+        return {
+            "cagr_1y": self.calculate_cagr(df, 1),
+            "cagr_3y": self.calculate_cagr(df, 3),
+            "cagr_5y": self.calculate_cagr(df, 5),
+            "cagr_10y": self.calculate_cagr(df, 10),
+        }
+    
+    def calculate_cagr_from_prices(
+        self,
+        start_price: float,
+        end_price: float,
+        years: float,
+    ) -> Optional[float]:
+        """
+        從起始和結束價格計算 CAGR
+        
+        Args:
+            start_price: 起始價格
+            end_price: 結束價格
+            years: 年數
+            
+        Returns:
+            年化報酬率（百分比）
+        """
+        if start_price <= 0 or end_price <= 0 or years <= 0:
+            return None
+        
+        try:
+            cagr = (end_price / start_price) ** (1 / years) - 1
+            return round(cagr * 100, 2)
+        except Exception:
+            return None
 
 
 # 建立預設實例

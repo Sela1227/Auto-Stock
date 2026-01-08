@@ -11,7 +11,53 @@
 - Phase 5: 錯誤回報系統
 - Phase 6: 會員權限系統
 
-## [0.8.1] - 2025-01-07
+## [0.8.2] - 2025-01-08
+
+### Added
+- **訊號偵測引擎 (signal_service.py)**
+  - 均線訊號：黃金交叉、死亡交叉、接近突破/跌破
+  - RSI 訊號：超買 (>70)、超賣 (<30)
+  - MACD 訊號：黃金交叉、死亡交叉
+  - KD 訊號：黃金交叉、死亡交叉
+  - 布林通道訊號：突破上軌、跌破下軌
+  - 成交量訊號：量比暴增 (>2 倍)
+  - 市場情緒訊號：極度恐懼 (<20)、極度貪婪 (>80)
+
+- **LINE 推播通知服務 (line_notify_service.py)**
+  - LINE Messaging API 整合
+  - 單一用戶推播 (push_text_message)
+  - 多用戶推播 (multicast_text_message，最多 500 人)
+  - Flex Message 支援（卡片式訊號通知）
+  - 每日訊號彙整報告格式
+
+- **排程任務整合 (scheduler.py)**
+  - 訊號偵測整合到每日更新任務
+  - 根據用戶追蹤清單偵測訊號
+  - 根據用戶通知設定過濾訊號
+  - 24 小時內不重複通知同一訊號
+  - 通知記錄儲存至 notifications 表
+
+- **管理後台訊號功能**
+  - POST /api/admin/signal/detect - 手動偵測訊號（測試）
+  - POST /api/admin/signal/notify - 手動發送通知
+  - POST /api/admin/signal/test-push - 測試 LINE 推播
+  - GET /api/admin/signal/status - 通知系統狀態
+  - GET /api/admin/notifications - 通知記錄查詢
+
+- **管理後台登入統計**
+  - 顯示總登入次數
+  - 顯示每個用戶的登入次數
+
+### Changed
+- **年化報酬率簡化**
+  - Yahoo Finance 歷史價格為除權息調整後價格
+  - 移除重複的「含配息」「配息再投入」計算
+  - 只顯示單一「CAGR (年化報酬率)」
+  - 前端 UI 簡化為大字顯示 CAGR
+  - API 回傳欄位從 price_return/total_return/reinvested_return 改為 cagr
+
+### Fixed
+- 修正年化報酬率因使用調整後價格導致的重複計算問題
 
 ### Added
 - **Phase 3: 走勢比較功能**

@@ -516,3 +516,409 @@ async def debug_watchlists(
         "total_watchlist_items": total,
         "users": user_data
     }
+
+
+# ============== 訊號檢查與推播 ==============
+
+@router.post("/signals/check", summary="執行訊號檢查")
+async def run_signal_check(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    手動執行訊號檢查
+    
+    檢查所有用戶追蹤的股票，偵測技術指標訊號並發送 LINE 通知
+    """
+    from app.services.notification_service import notification_service
+    
+    try:
+        result = await notification_service.run_signal_check(db)
+        
+        return {
+            "success": True,
+            "message": "訊號檢查完成",
+            "result": result
+        }
+    except Exception as e:
+        logger.error(f"訊號檢查失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/signals/test/{symbol}", summary="測試單一股票訊號")
+async def test_signal_detection(
+    symbol: str,
+    admin: User = Depends(get_admin_user),
+):
+    """
+    測試單一股票的訊號偵測（不發送通知）
+    """
+    from app.services.signal_service import signal_service
+    from app.services.indicator_service import indicator_service
+    from app.data_sources.yahoo_finance import yahoo_finance
+    
+    symbol = symbol.upper()
+    
+    try:
+        # 取得股價資料
+        df = yahoo_finance.get_stock_history(symbol, period="6mo")
+        
+        if df is None or df.empty:
+            raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
+        
+        # 計算技術指標
+        indicators = indicator_service.calculate_all_indicators(df)
+        
+        if not indicators:
+            raise HTTPException(status_code=500, detail="無法計算技術指標")
+        
+        # 偵測訊號
+        signals = signal_service.detect_signals(symbol, indicators, "stock")
+        
+        # 格式化輸出
+        signals_data = []
+        for s in signals:
+            signals_data.append({
+                "type": s.signal_type.value,
+                "indicator": s.indicator,
+                "message": s.message,
+                "price": s.price,
+                "details": s.details,
+            })
+        
+        return {
+            "success": True,
+            "symbol": symbol,
+            "current_price": indicators.get("current_price"),
+            "signals_count": len(signals),
+            "signals": signals_data,
+            "indicators_summary": {
+                "ma20": indicators.get("ma", {}).get("ma20"),
+                "ma50": indicators.get("ma", {}).get("ma50"),
+                "rsi": indicators.get("rsi", {}).get("value"),
+                "macd_status": indicators.get("macd", {}).get("status"),
+                "kd_k": indicators.get("kd", {}).get("k"),
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"測試訊號偵測失敗 {symbol}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/notify/test", summary="測試 LINE 推播")
+async def test_line_push(
+    message: str = Query("這是測試訊息", description="測試訊息內容"),
+    admin: User = Depends(get_admin_user),
+):
+    """
+    測試 LINE 推播功能（發送給管理員自己）
+    """
+    from app.services.line_notify_service import line_notify_service
+    
+    if not line_notify_service.enabled:
+        raise HTTPException(
+            status_code=400, 
+            detail="LINE Messaging API 未設定，請設定 LINE_MESSAGING_CHANNEL_ACCESS_TOKEN 環境變數"
+        )
+    
+    try:
+        test_message = f"🔔 SELA 系統測試\n\n{message}\n\n⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        success = await line_notify_service.push_text_message(
+            admin.line_user_id,
+            test_message
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "message": "測試訊息已發送，請檢查 LINE"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="LINE 推播失敗")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"測試 LINE 推播失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/notifications", summary="通知記錄")
+async def list_notifications(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    user_id: Optional[int] = None,
+    symbol: Optional[str] = None,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """取得通知記錄"""
+    from app.models.notification import Notification
+    
+    query = select(Notification).order_by(Notification.triggered_at.desc())
+    
+    if user_id:
+        query = query.where(Notification.user_id == user_id)
+    
+    if symbol:
+        query = query.where(Notification.symbol == symbol.upper())
+    
+    # 計算總數
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+    
+    # 分頁
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(query)
+    notifications = result.scalars().all()
+    
+    # 取得用戶名稱
+    user_ids = list(set(n.user_id for n in notifications))
+    if user_ids:
+        users_result = await db.execute(
+            select(User).where(User.id.in_(user_ids))
+        )
+        users_map = {u.id: u.display_name for u in users_result.scalars().all()}
+    else:
+        users_map = {}
+    
+    notifications_data = []
+    for n in notifications:
+        n_dict = n.to_dict()
+        n_dict["user_name"] = users_map.get(n.user_id, "Unknown")
+        notifications_data.append(n_dict)
+    
+    return {
+        "success": True,
+        "notifications": notifications_data,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total": total or 0,
+            "total_pages": ((total or 0) + page_size - 1) // page_size,
+        }
+    }
+
+
+@router.post("/signal/detect", summary="偵測訊號（測試）")
+async def detect_signals(
+    admin: User = Depends(get_admin_user),
+):
+    """
+    手動執行訊號偵測（不發送通知）
+    用於測試訊號偵測功能
+    """
+    from app.tasks.scheduler import scheduler_service
+    
+    try:
+        result = scheduler_service.run_signal_detection_only()
+        
+        return {
+            "success": True,
+            "signals_count": len(result.get("signals", [])),
+            "by_symbol": result.get("by_symbol", {}),
+            "message": f"偵測到 {len(result.get('signals', []))} 個交叉訊號"
+        }
+    except Exception as e:
+        logger.error(f"訊號偵測失敗: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/signal/notify", summary="發送訊號通知")
+async def send_signal_notifications(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    手動執行訊號偵測並發送通知
+    會偵測所有追蹤股票的交叉訊號，並發送 LINE 推播給相關用戶
+    """
+    from app.tasks.scheduler import scheduler_service
+    
+    try:
+        # 使用同步 session
+        sync_db = scheduler_service._get_db()
+        result = scheduler_service._detect_and_notify(sync_db)
+        sync_db.close()
+        
+        return {
+            "success": True,
+            "signals_detected": result.get("signals_count", 0),
+            "notifications_sent": result.get("notifications_sent", 0),
+            "errors": result.get("errors", []),
+            "message": f"偵測到 {result.get('signals_count', 0)} 個訊號，發送 {result.get('notifications_sent', 0)} 則通知"
+        }
+    except Exception as e:
+        logger.error(f"訊號通知失敗: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/signal/test-push", summary="測試 LINE 推播")
+async def test_line_push(
+    message: str = Query("這是測試訊息", description="測試訊息內容"),
+    admin: User = Depends(get_admin_user),
+):
+    """
+    測試 LINE 推播功能
+    發送測試訊息給管理員自己
+    """
+    from app.services.line_notify_service import line_notify_service
+    
+    if not line_notify_service.enabled:
+        return {
+            "success": False,
+            "message": "LINE Messaging API 未啟用，請設定 LINE_MESSAGING_CHANNEL_ACCESS_TOKEN"
+        }
+    
+    try:
+        test_message = f"📊 SELA 系統測試\n\n{message}\n\n⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        success = await line_notify_service.push_text_message(admin.line_user_id, test_message)
+        
+        return {
+            "success": success,
+            "message": "測試訊息已發送" if success else "發送失敗",
+            "line_user_id": admin.line_user_id[:10] + "..."
+        }
+    except Exception as e:
+        logger.error(f"測試推播失敗: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/signal/status", summary="通知系統狀態")
+async def get_signal_status(
+    admin: User = Depends(get_admin_user),
+):
+    """
+    取得訊號通知系統狀態
+    """
+    from app.services.line_notify_service import line_notify_service
+    from app.tasks.scheduler import scheduler_service
+    from app.config import settings
+    
+    return {
+        "success": True,
+        "status": {
+            "line_messaging_enabled": line_notify_service.enabled,
+            "line_messaging_token_set": bool(settings.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN),
+            "scheduler_last_run": scheduler_service.last_run.isoformat() if scheduler_service.last_run else None,
+            "scheduler_last_result": scheduler_service.last_result,
+        }
+    }
+
+
+@router.post("/signal/detect", summary="手動偵測訊號")
+async def detect_signals_manual(
+    admin: User = Depends(get_admin_user),
+):
+    """
+    手動執行訊號偵測（不發送通知）
+    用於測試訊號偵測邏輯
+    """
+    from app.tasks.scheduler import scheduler_service
+    
+    try:
+        result = scheduler_service.run_signal_detection_only()
+        
+        return {
+            "success": True,
+            "message": f"偵測完成，共 {len(result.get('signals', []))} 個訊號",
+            "signals_by_symbol": result.get("by_symbol", {}),
+            "total_signals": len(result.get("signals", [])),
+        }
+    except Exception as e:
+        logger.error(f"訊號偵測失敗: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/signal/notify", summary="手動發送通知")
+async def send_notifications_manual(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    手動執行訊號偵測並發送通知
+    等同於每日排程任務
+    """
+    from app.tasks.scheduler import scheduler_service
+    
+    try:
+        result = scheduler_service.run_daily_update()
+        
+        return {
+            "success": result.get("success", False),
+            "message": "每日更新任務已執行",
+            "result": {
+                "stocks_updated": result.get("stocks_updated", 0),
+                "signals_detected": result.get("signals_detected", 0),
+                "notifications_sent": result.get("notifications_sent", 0),
+                "errors": result.get("errors", []),
+            }
+        }
+    except Exception as e:
+        logger.error(f"通知任務失敗: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/notifications", summary="通知記錄")
+async def list_notifications(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    user_id: Optional[int] = None,
+    symbol: Optional[str] = None,
+    sent_only: bool = False,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    取得通知記錄
+    """
+    from app.models.notification import Notification
+    
+    query = select(Notification).order_by(Notification.triggered_at.desc())
+    
+    if user_id:
+        query = query.where(Notification.user_id == user_id)
+    
+    if symbol:
+        query = query.where(Notification.symbol == symbol.upper())
+    
+    if sent_only:
+        query = query.where(Notification.sent == True)
+    
+    # 計算總數
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+    
+    # 分頁
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(query)
+    notifications = result.scalars().all()
+    
+    # 取得用戶名稱
+    user_ids = list(set(n.user_id for n in notifications))
+    users_map = {}
+    if user_ids:
+        users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+        users_map = {u.id: u.display_name for u in users_result.scalars().all()}
+    
+    notifications_data = []
+    for n in notifications:
+        n_dict = n.to_dict()
+        n_dict["user_name"] = users_map.get(n.user_id, "Unknown")
+        notifications_data.append(n_dict)
+    
+    return {
+        "success": True,
+        "notifications": notifications_data,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total": total or 0,
+            "total_pages": ((total or 0) + page_size - 1) // page_size,
+        }
+    }
