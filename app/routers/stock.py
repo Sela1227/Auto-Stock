@@ -516,88 +516,100 @@ async def get_stock_returns(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{symbol}/debug-prices", summary="Debug: 查看原始價格")
+@router.get("/{symbol}/debug-prices", summary="Debug: 查看原始價格與分割偵測")
 async def debug_prices(
     symbol: str,
     years: int = Query(5, description="查詢年數"),
 ):
     """
-    Debug 用：查看 Yahoo Finance 返回的原始價格
-    用於驗證是否有除權息調整
+    Debug 用：查看 Yahoo Finance 返回的原始價格，並偵測分割點
     """
     from app.data_sources.yahoo_finance import yahoo_finance
     from datetime import date, timedelta
+    import yfinance as yf
     
     symbol = symbol.upper()
     
     try:
-        df = yahoo_finance.get_stock_history(symbol, period=f"{years}y")
+        # 直接用 yfinance 取得原始數據
+        ticker = yf.Ticker(symbol)
         
-        if df is None or df.empty:
+        # 取得調整後價格
+        df_adj = ticker.history(period=f"{years}y", auto_adjust=True).reset_index()
+        # 取得原始價格
+        df_raw = ticker.history(period=f"{years}y", auto_adjust=False).reset_index()
+        
+        if df_adj.empty:
             raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
         
-        # 確保有 date 欄位
-        if 'date' not in df.columns:
-            df = df.reset_index()
-            if 'Date' in df.columns:
-                df = df.rename(columns={'Date': 'date'})
-        
-        df['date'] = pd.to_datetime(df['date']).dt.date
-        df = df.sort_values('date').reset_index(drop=True)
-        
-        # 取得配息記錄
-        dividends_df = yahoo_finance.get_dividends(symbol, period=f"{years}y")
-        dividends = []
-        if dividends_df is not None and not dividends_df.empty:
-            for _, row in dividends_df.iterrows():
-                dividends.append({
-                    "date": str(row['date']),
-                    "amount": round(float(row['amount']), 4)
+        # 取得分割記錄
+        splits = ticker.splits
+        split_records = []
+        if splits is not None and len(splits) > 0:
+            for date_idx, ratio in splits.items():
+                split_records.append({
+                    "date": str(date_idx.date()),
+                    "ratio": float(ratio)
                 })
         
-        # 取樣幾個關鍵日期的價格
-        sample_dates = []
+        # 偵測價格斷崖（可能的分割點）
+        detected_splits = []
+        df_raw['date'] = pd.to_datetime(df_raw['Date']).dt.date
+        df_raw['pct_change'] = df_raw['Close'].pct_change()
         
-        # 第一筆
-        first = df.iloc[0]
-        sample_dates.append({
-            "date": str(first['date']),
-            "close": round(float(first['close']), 2),
-            "note": "最早"
-        })
+        for i, row in df_raw.iterrows():
+            if i == 0:
+                continue
+            pct = row['pct_change']
+            # 價格下跌超過 40% 或上漲超過 66%（對應 1:2 到 1:10 的分割）
+            if pct < -0.40 or pct > 0.66:
+                detected_splits.append({
+                    "date": str(row['date']),
+                    "prev_close": round(float(df_raw.iloc[i-1]['Close']), 2),
+                    "close": round(float(row['Close']), 2),
+                    "change_pct": round(pct * 100, 2),
+                    "estimated_ratio": round(df_raw.iloc[i-1]['Close'] / row['Close'], 1) if row['Close'] > 0 else None
+                })
         
-        # 每年初的價格
+        # 取樣價格比較
+        sample_prices = []
+        min_len = min(len(df_adj), len(df_raw))
+        
+        # 取樣點：第一筆、每年初、最後一筆
+        indices = [0]
         for y in range(years, 0, -1):
-            target = date.today() - timedelta(days=y*365)
-            closest = df[df['date'] <= target]
+            target_date = date.today() - timedelta(days=y*365)
+            df_raw['date'] = pd.to_datetime(df_raw['Date']).dt.date
+            closest = df_raw[df_raw['date'] <= target_date]
             if not closest.empty:
-                row = closest.iloc[-1]
-                sample_dates.append({
-                    "date": str(row['date']),
-                    "close": round(float(row['close']), 2),
-                    "note": f"約 {y} 年前"
-                })
+                indices.append(closest.index[-1])
+        indices.append(min_len - 1)
+        indices = sorted(set(indices))
         
-        # 最後一筆
-        last = df.iloc[-1]
-        sample_dates.append({
-            "date": str(last['date']),
-            "close": round(float(last['close']), 2),
-            "note": "最新"
-        })
+        for idx in indices:
+            if idx < min_len:
+                raw_row = df_raw.iloc[idx]
+                adj_row = df_adj.iloc[idx]
+                d = str(raw_row['date']) if 'date' in raw_row else str(pd.to_datetime(raw_row['Date']).date())
+                sample_prices.append({
+                    "date": d,
+                    "close_raw": round(float(raw_row['Close']), 2),
+                    "close_adj": round(float(adj_row['Close']), 2),
+                    "adj_ratio": round(float(adj_row['Close']) / float(raw_row['Close']), 4) if raw_row['Close'] > 0 else None
+                })
         
         return {
             "success": True,
             "symbol": symbol,
-            "total_records": len(df),
+            "total_records": len(df_raw),
             "date_range": {
-                "start": str(df.iloc[0]['date']),
-                "end": str(df.iloc[-1]['date'])
+                "start": str(df_raw.iloc[0]['Date'].date() if hasattr(df_raw.iloc[0]['Date'], 'date') else df_raw.iloc[0]['Date']),
+                "end": str(df_raw.iloc[-1]['Date'].date() if hasattr(df_raw.iloc[-1]['Date'], 'date') else df_raw.iloc[-1]['Date'])
             },
-            "sample_prices": sample_dates,
-            "dividends": dividends,
-            "dividend_count": len(dividends),
-            "total_dividends": round(sum(d['amount'] for d in dividends), 4)
+            "yahoo_splits": split_records,
+            "detected_splits": detected_splits,
+            "sample_prices": sample_prices,
+            "note": "close_raw=原始價格, close_adj=Yahoo調整後價格, adj_ratio=調整比率"
         }
         
     except HTTPException:

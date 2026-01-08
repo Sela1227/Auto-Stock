@@ -289,72 +289,106 @@ class YahooFinanceClient:
         try:
             ticker = yf.Ticker(symbol)
             
-            # 第一次獲取：auto_adjust=True 取得調整後價格（已處理分割和配息）
-            if start and end:
-                df_adj = ticker.history(start=start, end=end, auto_adjust=True)
-            else:
-                df_adj = ticker.history(period=period, auto_adjust=True)
-            
-            if df_adj.empty:
-                logger.warning(f"無歷史資料: {symbol}")
-                return None
-            
-            # 第二次獲取：auto_adjust=False 取得原始價格（用於顯示）
+            # 取得原始價格
             if start and end:
                 df_raw = ticker.history(start=start, end=end, auto_adjust=False)
             else:
                 df_raw = ticker.history(period=period, auto_adjust=False)
             
-            # 重設索引
-            df_adj = df_adj.reset_index()
+            if df_raw.empty:
+                logger.warning(f"無歷史資料: {symbol}")
+                return None
+            
             df_raw = df_raw.reset_index()
             
-            # 確保兩個 DataFrame 長度一致
-            if len(df_adj) != len(df_raw):
-                logger.warning(f"{symbol} 調整後與原始數據長度不一致: {len(df_adj)} vs {len(df_raw)}")
-                # 使用較短的長度，並從尾部對齊（最新數據優先）
-                min_len = min(len(df_adj), len(df_raw))
-                df_adj = df_adj.tail(min_len).reset_index(drop=True)
-                df_raw = df_raw.tail(min_len).reset_index(drop=True)
+            # 標準化日期欄位
+            date_col = "Date" if "Date" in df_raw.columns else "Datetime"
             
             # 建立結果 DataFrame
             df = pd.DataFrame()
+            df["date"] = pd.to_datetime(df_raw[date_col]).dt.date
+            df["open"] = df_raw["Open"].values
+            df["high"] = df_raw["High"].values
+            df["low"] = df_raw["Low"].values
+            df["close"] = df_raw["Close"].values
+            df["volume"] = df_raw["Volume"].values if "Volume" in df_raw.columns else 0
             
-            # 日期（從調整後數據取得，通常更可靠）
-            date_col = "Date" if "Date" in df_adj.columns else "Datetime"
-            df["date"] = df_adj[date_col]
-            
-            # 原始價格（用於顯示）- 從 df_raw 取得
-            df["open"] = df_raw["Open"].values if "Open" in df_raw.columns else df_adj["Open"].values
-            df["high"] = df_raw["High"].values if "High" in df_raw.columns else df_adj["High"].values
-            df["low"] = df_raw["Low"].values if "Low" in df_raw.columns else df_adj["Low"].values
-            df["close"] = df_raw["Close"].values if "Close" in df_raw.columns else df_adj["Close"].values
-            
-            # 調整後價格（用於計算報酬率）- 從 df_adj 取得
-            # auto_adjust=True 時，Close 就是調整後價格
-            df["adj_close"] = df_adj["Close"].values
-            
-            # 成交量
-            df["volume"] = df_adj["Volume"].values if "Volume" in df_adj.columns else 0
-            
-            # 確保日期是 date 類型
-            df["date"] = pd.to_datetime(df["date"]).dt.date
+            # 偵測並調整分割
+            df = self._detect_and_adjust_splits(df, symbol)
             
             # 加入股票代號
             df["symbol"] = symbol.upper()
-            
-            # 檢查是否有分割（adj_close 和 close 的比率變化）
-            if len(df) > 1:
-                ratio_start = df.iloc[0]["adj_close"] / df.iloc[0]["close"] if df.iloc[0]["close"] != 0 else 1
-                ratio_end = df.iloc[-1]["adj_close"] / df.iloc[-1]["close"] if df.iloc[-1]["close"] != 0 else 1
-                if abs(ratio_start - ratio_end) > 0.01:
-                    logger.info(f"{symbol} 偵測到分割調整: 起始比率={ratio_start:.4f}, 結束比率={ratio_end:.4f}")
             
             return df
             
         except Exception as e:
             logger.error(f"取得歷史資料失敗 {symbol}: {e}")
             return None
+    
+    def _detect_and_adjust_splits(self, df: pd.DataFrame, symbol: str) -> pd.DataFrame:
+        """
+        偵測價格斷崖並調整歷史價格
+        
+        當偵測到價格突然下跌超過 40%（可能是分割），
+        會自動調整分割前的價格，使整個序列連續。
+        """
+        if len(df) < 2:
+            return df
+        
+        df = df.copy()
+        df = df.sort_values('date').reset_index(drop=True)
+        
+        # 計算每日漲跌幅
+        df['pct_change'] = df['close'].pct_change()
+        
+        # 偵測分割點（價格下跌超過 40%）
+        split_indices = []
+        for i in range(1, len(df)):
+            pct = df.loc[i, 'pct_change']
+            if pd.notna(pct) and pct < -0.40:
+                # 計算分割比率
+                prev_close = df.loc[i-1, 'close']
+                curr_close = df.loc[i, 'close']
+                if curr_close > 0:
+                    ratio = prev_close / curr_close
+                    # 只有比率接近整數時才認為是分割（2, 3, 4, 5, 10 等）
+                    rounded_ratio = round(ratio)
+                    if rounded_ratio >= 2 and abs(ratio - rounded_ratio) < 0.3:
+                        split_indices.append({
+                            'index': i,
+                            'date': df.loc[i, 'date'],
+                            'ratio': rounded_ratio,
+                            'prev_close': prev_close,
+                            'curr_close': curr_close
+                        })
+                        logger.info(f"{symbol} 偵測到分割: {df.loc[i, 'date']}, 比率 1:{rounded_ratio}, 前收 {prev_close:.2f} -> 現收 {curr_close:.2f}")
+        
+        # 從最近的分割開始往前調整
+        if split_indices:
+            # 建立調整後價格欄位
+            df['adj_close'] = df['close'].copy()
+            
+            # 累積調整因子
+            cumulative_factor = 1.0
+            
+            # 從最新的分割點開始，往前調整
+            for split in reversed(split_indices):
+                idx = split['index']
+                ratio = split['ratio']
+                cumulative_factor *= ratio
+                
+                # 調整分割點之前的所有價格
+                df.loc[:idx-1, 'adj_close'] = df.loc[:idx-1, 'close'] / cumulative_factor
+            
+            logger.info(f"{symbol} 已調整 {len(split_indices)} 次分割，總調整因子: {cumulative_factor}")
+        else:
+            # 沒有分割，adj_close = close
+            df['adj_close'] = df['close'].copy()
+        
+        # 移除臨時欄位
+        df = df.drop(columns=['pct_change'])
+        
+        return df
     
     def get_current_price(self, symbol: str) -> Optional[Dict[str, Any]]:
         """
