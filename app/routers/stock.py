@@ -294,12 +294,14 @@ async def compare_stocks(
                 logger.warning(f"{symbol} 資料不足")
                 continue
             
-            # 正規化：起始價格 = 100
-            start_price = df.iloc[0]["close"]
+            # 正規化：起始價格 = 100（使用調整後價格以處理分割）
+            # 如果沒有 adj_close，用 close
+            price_col = "adj_close" if "adj_close" in df.columns else "close"
+            start_price = df.iloc[0][price_col]
             if start_price == 0 or pd.isna(start_price):
                 continue
             
-            df["normalized"] = (df["close"] / start_price) * 100
+            df["normalized"] = (df[price_col] / start_price) * 100
             
             # 清理 NaN
             df = df.dropna(subset=["normalized"])
@@ -323,16 +325,17 @@ async def compare_stocks(
                 history.append({
                     "date": row["date"].isoformat() if hasattr(row["date"], "isoformat") else str(row["date"]),
                     "value": round(val, 2),
-                    "price": round(float(row["close"]), 2),
+                    "price": round(float(row["close"]), 2),  # 顯示用原始價格
                 })
             
             if history:
+                end_price_adj = float(df.iloc[-1][price_col])
                 result[symbol] = {
                     "symbol": symbol,
                     "name": name,
-                    "start_price": round(float(start_price), 2),
-                    "end_price": round(float(df.iloc[-1]["close"]), 2),
-                    "change_pct": round((df.iloc[-1]["close"] / start_price - 1) * 100, 2),
+                    "start_price": round(float(df.iloc[0]["close"]), 2),  # 顯示用原始價格
+                    "end_price": round(float(df.iloc[-1]["close"]), 2),   # 顯示用原始價格
+                    "change_pct": round((end_price_adj / start_price - 1) * 100, 2),  # 計算用調整後價格
                     "data": history,
                 }
                 
@@ -413,8 +416,10 @@ async def get_stock_returns(
         info = yahoo_finance.get_stock_info(symbol)
         stock_name = info.get("name", symbol) if info else symbol
         
-        # 現價
-        current_price = float(df.iloc[-1]['close'])
+        # 現價（顯示用，用原始收盤價）
+        current_price_display = float(df.iloc[-1]['close'])
+        # 調整後現價（計算報酬率用）
+        current_price_adj = float(df.iloc[-1]['adj_close'])
         current_date = df.iloc[-1]['date']
         
         # 計算不同期間的報酬率
@@ -438,10 +443,11 @@ async def get_stock_returns(
                 continue
             
             start_row = past_df.iloc[-1]
-            start_price = float(start_row['close'])
+            # 使用調整後價格計算報酬率（已包含分割和配息調整）
+            start_price_adj = float(start_row['adj_close'])
             start_date = start_row['date']
             
-            if start_price <= 0:
+            if start_price_adj <= 0:
                 results[period_name] = None
                 continue
             
@@ -453,8 +459,8 @@ async def get_stock_returns(
                 results[period_name] = None
                 continue
             
-            # CAGR 計算（Yahoo Finance 調整後價格已包含配息再投入效果）
-            cagr = (current_price / start_price) ** (1 / actual_years) - 1
+            # CAGR 計算（使用調整後價格，已包含分割和配息再投入效果）
+            cagr = (current_price_adj / start_price_adj) ** (1 / actual_years) - 1
             
             # 計算期間內的配息統計（參考用）
             period_dividends = {d: amt for d, amt in dividends.items() 
@@ -462,7 +468,7 @@ async def get_stock_returns(
             
             total_dividends_per_share = sum(period_dividends.values())
             
-            logger.info(f"{symbol} {period_name}: 起始日={start_date}, 起始價(調整後)={start_price:.2f}, 現價={current_price:.2f}, CAGR={cagr*100:.2f}%")
+            logger.info(f"{symbol} {period_name}: 起始日={start_date}, 起始價(調整後)={start_price_adj:.2f}, 現價(調整後)={current_price_adj:.2f}, CAGR={cagr*100:.2f}%")
             
             # 檢查數值有效性
             def safe_pct(val):
@@ -473,8 +479,8 @@ async def get_stock_returns(
             results[period_name] = {
                 "years": round(actual_years, 1),
                 "start_date": start_date.isoformat(),
-                "start_price": round(start_price, 2),
-                "end_price": round(current_price, 2),
+                "start_price": round(start_price_adj, 2),
+                "end_price": round(current_price_adj, 2),
                 "cagr": safe_pct(cagr),
                 "dividend_count": len(period_dividends),
                 "total_dividends": round(total_dividends_per_share, 4),
@@ -485,10 +491,10 @@ async def get_stock_returns(
             "data": {
                 "symbol": symbol,
                 "name": stock_name,
-                "current_price": round(current_price, 2),
+                "current_price": round(current_price_display, 2),
                 "current_date": current_date.isoformat(),
                 "returns": results,
-                "note": "CAGR 基於 Yahoo Finance 調整後價格計算，已包含配息再投入效果"
+                "note": "CAGR 基於 Yahoo Finance 調整後價格計算，已包含分割調整及配息再投入效果"
             }
         }
         

@@ -328,9 +328,14 @@ class YahooFinanceClient:
                 df["volume"] = 0
                 logger.warning(f"{symbol} 沒有 volume 資料，已填入 0")
             
-            # 只保留需要的欄位
-            keep_columns = [c for c in ["date", "open", "high", "low", "close", "volume"] if c in df.columns]
+            # 只保留需要的欄位（包含 adj_close 用於報酬率計算）
+            keep_columns = [c for c in ["date", "open", "high", "low", "close", "adj_close", "volume"] if c in df.columns]
             df = df[keep_columns]
+            
+            # 如果有 adj_close，用它來計算報酬率更準確（已考慮分割和配息）
+            # 如果沒有 adj_close，則複製 close
+            if "adj_close" not in df.columns:
+                df["adj_close"] = df["close"]
             
             # 確保日期是 date 類型
             df["date"] = pd.to_datetime(df["date"]).dt.date
