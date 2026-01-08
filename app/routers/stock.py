@@ -54,35 +54,24 @@ async def get_stock_analysis(
         # 取得股票資訊
         info = yahoo_finance.get_stock_info(symbol)
         
-        # 保存原始收盤價（用於顯示）
-        df['close_raw'] = df['close'].copy()
-        
-        # 使用調整後價格計算技術指標（處理分割和配息）
-        # 這樣 MA 線和圖表才不會有斷崖
-        if 'adj_close' in df.columns:
-            df['close'] = df['adj_close']
-            logger.info(f"{symbol} 使用調整後價格計算指標")
-        
-        # 計算技術指標（基於調整後價格）
+        # 計算技術指標
         df = indicator_service.calculate_all_indicators(df)
         
         # 取得最新資料
         latest = df.iloc[-1]
-        # 顯示用原始價格（用戶習慣看的價格）
-        current_price = float(latest['close_raw'])
+        current_price = float(latest['close'])
         
         logger.info(f"{symbol} 現價: {current_price}")
         
-        # 價格資訊（用原始價格顯示 52 週高低）
-        high_52w = float(df['close_raw'].tail(252).max()) if len(df) >= 252 else float(df['close_raw'].max())
-        low_52w = float(df['close_raw'].tail(252).min()) if len(df) >= 252 else float(df['close_raw'].min())
+        # 價格資訊
+        high_52w = float(df['high'].tail(252).max()) if len(df) >= 252 else float(df['high'].max())
+        low_52w = float(df['low'].tail(252).min()) if len(df) >= 252 else float(df['low'].min())
         
-        # 漲跌幅計算（用調整後價格計算，反映真實報酬）
-        current_price_adj = float(latest['close'])  # 調整後現價
+        # 漲跌幅計算
         def calc_change(days):
             if len(df) > days:
-                old_price_adj = float(df.iloc[-days-1]['close'])  # 調整後歷史價格
-                return round((current_price_adj - old_price_adj) / old_price_adj * 100, 2)
+                old_price = float(df.iloc[-days-1]['close'])
+                return round((current_price - old_price) / old_price * 100, 2)
             return None
         
         # 均線資訊 (indicator_service 用小寫: ma20, ma50, ma200)
@@ -90,12 +79,12 @@ async def get_stock_analysis(
         ma50 = float(latest.get('ma50', 0)) if 'ma50' in latest else None
         ma200 = float(latest.get('ma200', 0)) if 'ma200' in latest else None
         
-        # 判斷均線排列（用調整後價格比較）
+        # 判斷均線排列
         alignment = "neutral"
         if ma20 and ma50 and ma200:
-            if current_price_adj > ma20 > ma50 > ma200:
+            if current_price > ma20 > ma50 > ma200:
                 alignment = "bullish"
-            elif current_price_adj < ma20 < ma50 < ma200:
+            elif current_price < ma20 < ma50 < ma200:
                 alignment = "bearish"
         
         # RSI (小寫: rsi)
@@ -516,100 +505,88 @@ async def get_stock_returns(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{symbol}/debug-prices", summary="Debug: 查看原始價格與分割偵測")
+@router.get("/{symbol}/debug-prices", summary="Debug: 查看原始價格")
 async def debug_prices(
     symbol: str,
     years: int = Query(5, description="查詢年數"),
 ):
     """
-    Debug 用：查看 Yahoo Finance 返回的原始價格，並偵測分割點
+    Debug 用：查看 Yahoo Finance 返回的原始價格
+    用於驗證是否有除權息調整
     """
     from app.data_sources.yahoo_finance import yahoo_finance
     from datetime import date, timedelta
-    import yfinance as yf
     
     symbol = symbol.upper()
     
     try:
-        # 直接用 yfinance 取得原始數據
-        ticker = yf.Ticker(symbol)
+        df = yahoo_finance.get_stock_history(symbol, period=f"{years}y")
         
-        # 取得調整後價格
-        df_adj = ticker.history(period=f"{years}y", auto_adjust=True).reset_index()
-        # 取得原始價格
-        df_raw = ticker.history(period=f"{years}y", auto_adjust=False).reset_index()
-        
-        if df_adj.empty:
+        if df is None or df.empty:
             raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
         
-        # 取得分割記錄
-        splits = ticker.splits
-        split_records = []
-        if splits is not None and len(splits) > 0:
-            for date_idx, ratio in splits.items():
-                split_records.append({
-                    "date": str(date_idx.date()),
-                    "ratio": float(ratio)
-                })
+        # 確保有 date 欄位
+        if 'date' not in df.columns:
+            df = df.reset_index()
+            if 'Date' in df.columns:
+                df = df.rename(columns={'Date': 'date'})
         
-        # 偵測價格斷崖（可能的分割點）
-        detected_splits = []
-        df_raw['date'] = pd.to_datetime(df_raw['Date']).dt.date
-        df_raw['pct_change'] = df_raw['Close'].pct_change()
+        df['date'] = pd.to_datetime(df['date']).dt.date
+        df = df.sort_values('date').reset_index(drop=True)
         
-        for i, row in df_raw.iterrows():
-            if i == 0:
-                continue
-            pct = row['pct_change']
-            # 價格下跌超過 40% 或上漲超過 66%（對應 1:2 到 1:10 的分割）
-            if pct < -0.40 or pct > 0.66:
-                detected_splits.append({
+        # 取得配息記錄
+        dividends_df = yahoo_finance.get_dividends(symbol, period=f"{years}y")
+        dividends = []
+        if dividends_df is not None and not dividends_df.empty:
+            for _, row in dividends_df.iterrows():
+                dividends.append({
                     "date": str(row['date']),
-                    "prev_close": round(float(df_raw.iloc[i-1]['Close']), 2),
-                    "close": round(float(row['Close']), 2),
-                    "change_pct": round(pct * 100, 2),
-                    "estimated_ratio": round(df_raw.iloc[i-1]['Close'] / row['Close'], 1) if row['Close'] > 0 else None
+                    "amount": round(float(row['amount']), 4)
                 })
         
-        # 取樣價格比較
-        sample_prices = []
-        min_len = min(len(df_adj), len(df_raw))
+        # 取樣幾個關鍵日期的價格
+        sample_dates = []
         
-        # 取樣點：第一筆、每年初、最後一筆
-        indices = [0]
+        # 第一筆
+        first = df.iloc[0]
+        sample_dates.append({
+            "date": str(first['date']),
+            "close": round(float(first['close']), 2),
+            "note": "最早"
+        })
+        
+        # 每年初的價格
         for y in range(years, 0, -1):
-            target_date = date.today() - timedelta(days=y*365)
-            df_raw['date'] = pd.to_datetime(df_raw['Date']).dt.date
-            closest = df_raw[df_raw['date'] <= target_date]
+            target = date.today() - timedelta(days=y*365)
+            closest = df[df['date'] <= target]
             if not closest.empty:
-                indices.append(closest.index[-1])
-        indices.append(min_len - 1)
-        indices = sorted(set(indices))
-        
-        for idx in indices:
-            if idx < min_len:
-                raw_row = df_raw.iloc[idx]
-                adj_row = df_adj.iloc[idx]
-                d = str(raw_row['date']) if 'date' in raw_row else str(pd.to_datetime(raw_row['Date']).date())
-                sample_prices.append({
-                    "date": d,
-                    "close_raw": round(float(raw_row['Close']), 2),
-                    "close_adj": round(float(adj_row['Close']), 2),
-                    "adj_ratio": round(float(adj_row['Close']) / float(raw_row['Close']), 4) if raw_row['Close'] > 0 else None
+                row = closest.iloc[-1]
+                sample_dates.append({
+                    "date": str(row['date']),
+                    "close": round(float(row['close']), 2),
+                    "note": f"約 {y} 年前"
                 })
+        
+        # 最後一筆
+        last = df.iloc[-1]
+        sample_dates.append({
+            "date": str(last['date']),
+            "close": round(float(last['close']), 2),
+            "note": "最新"
+        })
         
         return {
             "success": True,
             "symbol": symbol,
-            "total_records": len(df_raw),
+            "total_records": len(df),
             "date_range": {
-                "start": str(df_raw.iloc[0]['Date'].date() if hasattr(df_raw.iloc[0]['Date'], 'date') else df_raw.iloc[0]['Date']),
-                "end": str(df_raw.iloc[-1]['Date'].date() if hasattr(df_raw.iloc[-1]['Date'], 'date') else df_raw.iloc[-1]['Date'])
+                "start": str(df.iloc[0]['date']),
+                "end": str(df.iloc[-1]['date'])
             },
-            "yahoo_splits": split_records,
-            "detected_splits": detected_splits,
-            "sample_prices": sample_prices,
-            "note": "close_raw=原始價格, close_adj=Yahoo調整後價格, adj_ratio=調整比率"
+            "sample_prices": sample_dates,
+            "dividends": dividends,
+            "dividend_count": len(dividends),
+            "total_dividends": round(sum(d['amount'] for d in dividends), 4)
         }
         
     except HTTPException:
