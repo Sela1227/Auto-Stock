@@ -186,14 +186,14 @@ async def get_stock_analysis(
                 "sell": sell_score,
                 "rating": rating,
             },
-            # 添加圖表數據 (最近 365 天，支援 1 年範圍)
+            # 添加圖表數據 (最近 1500 天，支援 5 年範圍)
             "chart_data": {
-                "dates": [str(d) for d in df['date'].tail(365).tolist()],
-                "prices": [float(p) for p in df['close'].tail(365).tolist()],
-                "ma20": [float(v) if not pd.isna(v) else None for v in df['ma20'].tail(365).tolist()] if 'ma20' in df.columns else [],
-                "ma50": [float(v) if not pd.isna(v) else None for v in df['ma50'].tail(365).tolist()] if 'ma50' in df.columns else [],
-                "ma200": [float(v) if not pd.isna(v) else None for v in df['ma200'].tail(365).tolist()] if 'ma200' in df.columns else [],
-                "ma250": [float(v) if not pd.isna(v) else None for v in df['ma250'].tail(365).tolist()] if 'ma250' in df.columns else [],
+                "dates": [str(d) for d in df['date'].tail(1500).tolist()],
+                "prices": [float(p) for p in df['close'].tail(1500).tolist()],
+                "ma20": [float(v) if not pd.isna(v) else None for v in df['ma20'].tail(1500).tolist()] if 'ma20' in df.columns else [],
+                "ma50": [float(v) if not pd.isna(v) else None for v in df['ma50'].tail(1500).tolist()] if 'ma50' in df.columns else [],
+                "ma200": [float(v) if not pd.isna(v) else None for v in df['ma200'].tail(1500).tolist()] if 'ma200' in df.columns else [],
+                "ma250": [float(v) if not pd.isna(v) else None for v in df['ma250'].tail(1500).tolist()] if 'ma250' in df.columns else [],
             },
         }
     except HTTPException:
