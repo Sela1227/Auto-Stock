@@ -1,8 +1,10 @@
 """
 追蹤清單 API 路由
+包含價格快取功能
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import List
 import logging
 
@@ -19,6 +21,8 @@ from app.schemas.schemas import (
     ResponseBase,
 )
 from app.models.user import User
+from app.models.watchlist import Watchlist
+from app.models.price_cache import StockPriceCache
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +56,117 @@ async def get_current_user(
     logger.debug(f"Watchlist API: 驗證成功 user_id={user.id}, line_id={user.line_user_id}")
     return user
 
+
+# ============================================================
+# ★ 新增：從快取取得追蹤清單（含價格）
+# ============================================================
+
+@router.get("/with-prices", summary="追蹤清單（含即時價格）")
+async def get_watchlist_with_prices(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    取得用戶追蹤清單，包含即時價格（從快取讀取）
+    
+    - 價格來自 stock_price_cache 表
+    - 每 10 分鐘由排程更新
+    - 回應時間：毫秒級
+    """
+    logger.info(f"API: 追蹤清單(含價格) - user_id={user.id}")
+    
+    try:
+        # 1. 取得用戶的追蹤清單
+        stmt = (
+            select(Watchlist)
+            .where(Watchlist.user_id == user.id)
+            .order_by(Watchlist.added_at.desc())
+        )
+        result = await db.execute(stmt)
+        watchlist_items = list(result.scalars().all())
+        
+        if not watchlist_items:
+            return {
+                "success": True,
+                "data": [],
+                "total": 0,
+            }
+        
+        # 2. 取得所有 symbol
+        symbols = [item.symbol for item in watchlist_items]
+        
+        # 3. 從快取批次取得價格
+        cache_stmt = select(StockPriceCache).where(
+            StockPriceCache.symbol.in_(symbols)
+        )
+        cache_result = await db.execute(cache_stmt)
+        cached_prices = {r.symbol: r for r in cache_result.scalars().all()}
+        
+        # 4. 組合資料
+        data = []
+        for item in watchlist_items:
+            cache = cached_prices.get(item.symbol)
+            
+            data.append({
+                "id": item.id,
+                "symbol": item.symbol,
+                "asset_type": item.asset_type,
+                "note": item.note,
+                "added_at": item.added_at.isoformat() if item.added_at else None,
+                # 價格資訊（從快取）
+                "name": cache.name if cache else None,
+                "price": float(cache.price) if cache and cache.price else None,
+                "change": float(cache.change) if cache and cache.change else None,
+                "change_pct": float(cache.change_pct) if cache and cache.change_pct else None,
+                "price_updated_at": cache.updated_at.isoformat() if cache and cache.updated_at else None,
+            })
+        
+        return {
+            "success": True,
+            "data": data,
+            "total": len(data),
+        }
+        
+    except Exception as e:
+        logger.error(f"取得追蹤清單(含價格)失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/cache-status", summary="快取狀態")
+async def get_cache_status(
+    db: AsyncSession = Depends(get_async_session),
+):
+    """查看價格快取狀態"""
+    try:
+        stmt = select(StockPriceCache)
+        result = await db.execute(stmt)
+        all_cache = list(result.scalars().all())
+        
+        if not all_cache:
+            return {
+                "success": True,
+                "total_cached": 0,
+                "message": "快取為空，請等待排程更新或手動觸發",
+            }
+        
+        updates = [c.updated_at for c in all_cache if c.updated_at]
+        
+        return {
+            "success": True,
+            "total_cached": len(all_cache),
+            "oldest_update": min(updates).isoformat() if updates else None,
+            "newest_update": max(updates).isoformat() if updates else None,
+            "symbols": [c.symbol for c in all_cache],
+        }
+        
+    except Exception as e:
+        logger.error(f"查詢快取狀態失敗: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# 原有的端點
+# ============================================================
 
 @router.get("", summary="取得追蹤清單", response_model=WatchlistListResponse)
 async def get_watchlist(
