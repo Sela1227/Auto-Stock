@@ -1,4 +1,4 @@
-# 🚀 價格快取功能 - 簡單整合指南
+# 🚀 價格快取功能 - 完整整合包
 
 ## 效果
 
@@ -8,68 +8,43 @@
 
 ---
 
-## 整合步驟（3 步）
+## 整合方式：直接覆蓋檔案
 
-### 步驟 1️⃣：新增/覆蓋後端檔案
+**不需要手動修改任何程式碼，直接覆蓋即可！**
 
-複製以下檔案到你的專案：
-
-```
-app/models/price_cache.py           → 新增
-app/services/price_cache_service.py → 新增
-app/routers/watchlist.py            → 覆蓋（已包含新端點）
-```
-
-**重要**：在 `app/models/__init__.py` 加入：
-```python
-from app.models.price_cache import StockPriceCache
-```
-
-> 資料表會在應用啟動時自動建立（透過 `Base.metadata.create_all`），不需要手動執行 SQL！
+| 檔案 | 動作 |
+|------|------|
+| `app/main.py` | 覆蓋 |
+| `app/models/__init__.py` | 覆蓋 |
+| `app/models/price_cache.py` | 新增 |
+| `app/services/price_cache_service.py` | 新增 |
+| `app/routers/watchlist.py` | 覆蓋 |
+| `static/dashboard.html` | 覆蓋 |
 
 ---
 
-### 步驟 2️⃣：修改 main.py 加入排程
+## 確認 requirements.txt
 
-參考 `2_add_to_main.py`，加入：
+確保有以下套件：
 
-1. **Import APScheduler**
-```python
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-```
-
-2. **建立排程器和任務**（複製 `2_add_to_main.py` 中的程式碼）
-
-3. **在 startup 事件啟動排程**
-```python
-@app.on_event("startup")
-async def startup_event():
-    # 你原有的程式碼...
-    scheduler.start()
-    update_price_cache_force()  # 啟動時更新一次
-```
-
-4. **確認 requirements.txt 有 APScheduler**
 ```
 apscheduler>=3.10.0
 ```
 
 ---
 
-### 步驟 3️⃣：修改前端 dashboard.html
+## 部署後
 
-參考 `3_frontend_changes.js`，替換：
-- `loadWatchlist()` 函數
-- `loadWatchlistOverview()` 函數
-
-主要改動：API 從 `/api/watchlist` 改成 `/api/watchlist/with-prices`
+1. 重新部署
+2. 資料表 `stock_price_cache` 會自動建立
+3. 排程會自動啟動，每 10 分鐘更新價格
+4. 追蹤清單會從快取讀取價格，秒速載入
 
 ---
 
 ## 驗證
 
-部署後，打開瀏覽器訪問：
+部署後訪問：
 
 ```
 https://你的網域/api/watchlist/cache-status
@@ -80,33 +55,20 @@ https://你的網域/api/watchlist/cache-status
 {
   "success": true,
   "total_cached": 5,
-  "symbols": ["0050.TW", "AAPL", ...]
+  "tw_stocks": 3,
+  "us_stocks": 2,
+  "crypto": 0,
+  "market_status": {
+    "tw_open": true,
+    "us_open": false,
+    "crypto_open": true
+  }
 }
 ```
 
-如果 `total_cached: 0`，等 10 分鐘讓排程執行，或重啟應用。
-
 ---
 
-## 檔案清單
-
-```
-simple_integration/
-├── 2_add_to_main.py                # 加到 main.py 的程式碼
-├── 3_frontend_changes.js           # 前端修改
-├── app/
-│   ├── models/
-│   │   └── price_cache.py          # 新 Model（自動建表）
-│   ├── services/
-│   │   └── price_cache_service.py  # 快取服務
-│   └── routers/
-│       └── watchlist.py            # 完整版（含新端點）
-└── README.md
-```
-
----
-
-## 排程時間
+## 排程時間（台灣時間）
 
 | 排程 | 執行時間 | 說明 |
 |------|----------|------|
@@ -116,13 +78,8 @@ simple_integration/
 
 ---
 
-## 常見問題
+## 新增功能
 
-**Q: 為什麼價格顯示「價格更新中...」？**
-A: 快取還沒有資料，等 10 分鐘讓排程執行，或重啟應用。
-
-**Q: 新追蹤的股票沒有價格？**
-A: 需要等下次排程執行（最多 10 分鐘）。
-
-**Q: 如何手動觸發更新？**
-A: 重啟應用會自動執行一次更新。
+1. ✅ **追蹤清單秒速載入** - 從快取讀取價格
+2. ✅ **儀表板快覽顯示價格** - 首頁追蹤清單顯示價格和漲跌
+3. ✅ **報酬率比較連結** - 側邊欄已加入

@@ -389,6 +389,10 @@
                     <i class="fas fa-chart-line mr-3 w-5"></i>
                     <span>走勢比較</span>
                 </a>
+                <a href="/static/compare.html" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target">
+                    <i class="fas fa-trophy mr-3 w-5"></i>
+                    <span>報酬率比較</span>
+                </a>
                 <a href="#" onclick="mobileNavTo('settings')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="settings">
                     <i class="fas fa-cog mr-3 w-5"></i>
                     <span>設定</span>
@@ -464,6 +468,10 @@
                 <a href="#" onclick="showSection('compare', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="compare">
                     <i class="fas fa-chart-line mr-3"></i>
                     <span>走勢比較</span>
+                </a>
+                <a href="/static/compare.html" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+                    <i class="fas fa-trophy mr-3"></i>
+                    <span>報酬率比較</span>
                 </a>
                 <a href="#" onclick="showSection('settings', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="settings">
                     <i class="fas fa-cog mr-3"></i>
@@ -2095,15 +2103,12 @@
                 return;
             }
             
-            console.log(`=== 載入追蹤清單 ===`);
-            console.log(`用戶資訊: id=${currentUser.id}, line_id=${currentUser.line_user_id}, name=${currentUser.display_name}`);
+            console.log(`=== 載入追蹤清單快覽 ===`);
             
             try {
-                const res = await apiRequest('/api/watchlist');
-                console.log(`API 回應狀態: ${res.status}`);
-                
+                // ★ 使用快取 API
+                const res = await apiRequest('/api/watchlist/with-prices');
                 const data = await res.json();
-                console.log(`追蹤清單原始回應:`, data);
                 
                 if (!data.success) {
                     console.error('API 回傳失敗:', data);
@@ -2112,7 +2117,6 @@
                 }
                 
                 if (!data.data || data.data.length === 0) {
-                    console.log('追蹤清單為空');
                     container.innerHTML = `
                         <div class="text-center py-6">
                             <i class="fas fa-star text-gray-300 text-3xl mb-2"></i>
@@ -2123,30 +2127,52 @@
                     return;
                 }
                 
-                console.log(`追蹤清單數量: ${data.data.length}`);
-                data.data.forEach((item, idx) => {
-                    console.log(`  [${idx}] id=${item.id}, symbol=${item.symbol}, user_id=${item.user_id}`);
-                });
-                
                 // 只顯示前 5 筆
                 const items = data.data.slice(0, 5);
                 let html = '<div class="space-y-2">';
                 
                 for (const item of items) {
+                    const change = item.change_pct || 0;
+                    const changeClass = change >= 0 ? 'text-green-600' : 'text-red-600';
+                    
+                    const priceText = item.price !== null && item.price !== undefined
+                        ? `$${item.price.toLocaleString()}`
+                        : '--';
+                    
+                    const changeText = item.price !== null && item.price !== undefined
+                        ? `<span class="${changeClass} text-sm ml-1">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</span>`
+                        : '';
+                    
                     html += `
-                        <div class="flex items-center justify-between py-2 border-b last:border-0 cursor-pointer hover:bg-gray-50 -mx-2 px-2 rounded" onclick="searchSymbol('${item.symbol}')">
+                        <div class="flex items-center justify-between py-2 border-b last:border-0 cursor-pointer hover:bg-gray-50 -mx-2 px-2 rounded"
+                             onclick="searchSymbol('${item.symbol}')">
                             <div class="flex items-center">
-                                <span class="font-medium text-gray-800">${item.symbol}</span>
-                                <span class="ml-2 text-xs px-2 py-0.5 rounded ${item.asset_type === 'crypto' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">
+                                <span class="font-medium text-gray-800 w-20">${item.symbol}</span>
+                                <span class="text-xs px-2 py-0.5 rounded ${item.asset_type === 'crypto' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">
                                     ${item.asset_type === 'crypto' ? '幣' : '股'}
                                 </span>
                             </div>
-                            <i class="fas fa-chevron-right text-gray-400 text-sm"></i>
+                            <div class="text-right">
+                                <span class="text-gray-700 font-medium">${priceText}</span>
+                                ${changeText}
+                            </div>
                         </div>
                     `;
                 }
                 
                 html += '</div>';
+                
+                // 如果超過 5 筆，顯示「查看全部」
+                if (data.data.length > 5) {
+                    html += `
+                        <div class="text-center mt-3">
+                            <button onclick="showSection('watchlist')" class="text-blue-600 text-sm hover:underline">
+                                查看全部 (${data.data.length})
+                            </button>
+                        </div>
+                    `;
+                }
+                
                 container.innerHTML = html;
                 
             } catch (e) {
@@ -2642,11 +2668,20 @@
             
             console.log(`載入追蹤清單頁面: user_id=${currentUser.id}`);
             
+            // 顯示載入中
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
+                    <p class="mt-2 text-gray-500">載入中...</p>
+                </div>
+            `;
+            
             try {
-                const res = await apiRequest('/api/watchlist');
+                // ★ 使用快取 API：一次取得清單 + 價格
+                const res = await apiRequest('/api/watchlist/with-prices');
                 const data = await res.json();
                 
-                console.log(`追蹤清單回應: 數量=${data.data?.length || 0}`);
+                console.log(`追蹤清單(含價格)回應: 數量=${data.data?.length || 0}`);
                 
                 if (!data.success || !data.data || data.data.length === 0) {
                     container.innerHTML = `
@@ -2661,24 +2696,44 @@
                     return;
                 }
                 
-                // ★ 優化：先顯示基本清單（價格顯示載入中），立即渲染
                 let html = '<div class="space-y-3">';
                 
                 for (const item of data.data) {
                     const typeClass = item.asset_type === 'crypto' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700';
                     const typeText = item.asset_type === 'crypto' ? '幣' : '股';
                     
+                    // 價格顯示（直接從快取取得）
+                    let priceInfo = '';
+                    if (item.price !== null && item.price !== undefined) {
+                        const change = item.change_pct || 0;
+                        const changeClass = change >= 0 ? 'text-green-600' : 'text-red-600';
+                        const changeIcon = change >= 0 ? '▲' : '▼';
+                        priceInfo = `
+                            <div class="flex items-baseline gap-2 mt-2">
+                                <span class="text-xl font-bold text-gray-800">$${item.price.toLocaleString()}</span>
+                                <span class="${changeClass} text-sm font-medium">${changeIcon} ${Math.abs(change).toFixed(2)}%</span>
+                            </div>
+                        `;
+                    } else {
+                        priceInfo = `
+                            <div class="flex items-baseline gap-2 mt-2">
+                                <span class="text-gray-400 text-sm">價格更新中...</span>
+                            </div>
+                        `;
+                    }
+                    
+                    const nameDisplay = item.name ? `<span class="text-gray-500 text-sm ml-2">${item.name}</span>` : '';
+                    
                     html += `
-                        <div id="card-${item.symbol.replace('.', '-')}" class="stock-card bg-white rounded-xl shadow-sm p-4 border-l-4 ${item.asset_type === 'crypto' ? 'border-purple-500' : 'border-blue-500'}">
+                        <div class="stock-card bg-white rounded-xl shadow-sm p-4 border-l-4 ${item.asset_type === 'crypto' ? 'border-purple-500' : 'border-blue-500'}">
                             <div class="flex items-start justify-between">
                                 <div class="flex-1">
-                                    <div class="flex items-center">
+                                    <div class="flex items-center flex-wrap">
                                         <span class="font-bold text-lg text-gray-800">${item.symbol}</span>
                                         <span class="ml-2 px-2 py-0.5 rounded text-xs ${typeClass}">${typeText}</span>
+                                        ${nameDisplay}
                                     </div>
-                                    <div id="price-${item.symbol.replace('.', '-')}" class="flex items-baseline gap-2 mt-2">
-                                        <span class="text-gray-400 text-sm"><i class="fas fa-spinner fa-spin mr-1"></i>載入價格中...</span>
-                                    </div>
+                                    ${priceInfo}
                                     ${item.note ? `<p class="text-gray-500 text-sm mt-2 italic"><i class="fas fa-sticky-note mr-1"></i>${item.note}</p>` : ''}
                                 </div>
                                 <button onclick="removeFromWatchlist('${item.symbol}')" class="p-2 text-gray-400 hover:text-red-500 touch-target">
@@ -2698,19 +2753,13 @@
                 html += '</div>';
                 container.innerHTML = html;
                 
-                // ★ 優化：並行載入所有價格（Promise.allSettled 不會因單一失敗而中斷）
-                console.log('開始並行載入價格...');
-                const pricePromises = data.data.map(item => loadItemPrice(item));
-                await Promise.allSettled(pricePromises);
-                console.log('所有價格載入完成');
-                
             } catch (e) {
                 console.error('載入追蹤清單失敗', e);
                 container.innerHTML = '<p class="text-red-500 text-center py-4">載入失敗</p>';
             }
         }
         
-        // ★ 新增：單獨載入價格並更新 DOM（不阻塞其他請求）
+        // 保留舊函數以備不時之需（快取 API 失敗時可用）
         async function loadItemPrice(item) {
             const priceContainer = document.getElementById(`price-${item.symbol.replace('.', '-')}`);
             if (!priceContainer) return;

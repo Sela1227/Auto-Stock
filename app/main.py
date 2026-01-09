@@ -26,7 +26,8 @@ from app.models import (
     MarketSentiment, Notification,
     UserIndicatorSettings, UserAlertSettings, UserIndicatorParams,
     IndexPrice, DividendHistory,
-    Comparison,  # 🆕 新增：報酬率比較組合
+    Comparison,
+    StockPriceCache,  # 🆕 價格快取
 )
 from app.models.user import LoginLog, TokenBlacklist, SystemConfig
 
@@ -37,11 +38,53 @@ from app.routers import (
     watchlist_router,
     settings_router,
     admin_router,
-    compare_router,  # 🆕 新增：報酬率比較
+    compare_router,
 )
 from app.routers.market import router as market_router
 
+# 🆕 排程器
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+
 logger = logging.getLogger(__name__)
+
+# 🆕 建立排程器
+scheduler = AsyncIOScheduler()
+
+
+# 🆕 價格快取更新函數
+def update_price_cache():
+    """排程任務：更新價格快取（每 10 分鐘）"""
+    from app.database import SyncSessionLocal
+    from app.services.price_cache_service import PriceCacheService
+    
+    logger.info("[排程] 開始更新價格快取...")
+    db = SyncSessionLocal()
+    try:
+        service = PriceCacheService(db)
+        result = service.update_all(force=False)
+        logger.info(f"[排程] 價格快取更新完成: {result['total_updated']} 筆")
+    except Exception as e:
+        logger.error(f"[排程] 價格快取更新失敗: {e}")
+    finally:
+        db.close()
+
+
+def update_price_cache_force():
+    """強制更新所有價格（啟動時 / 收盤後）"""
+    from app.database import SyncSessionLocal
+    from app.services.price_cache_service import PriceCacheService
+    
+    logger.info("[排程] 強制更新所有價格快取...")
+    db = SyncSessionLocal()
+    try:
+        service = PriceCacheService(db)
+        result = service.update_all(force=True)
+        logger.info(f"[排程] 價格快取強制更新完成: {result['total_updated']} 筆")
+    except Exception as e:
+        logger.error(f"[排程] 價格快取強制更新失敗: {e}")
+    finally:
+        db.close()
 
 
 @asynccontextmanager
@@ -65,9 +108,46 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized")
     
+    # 🆕 設定價格快取排程
+    # 每 10 分鐘執行（自動判斷開盤時間）
+    scheduler.add_job(
+        update_price_cache,
+        'interval',
+        minutes=10,
+        id='price_cache_update',
+        name='價格快取更新(每10分鐘)',
+    )
+    
+    # 台股收盤後（週一到週五 13:35）
+    scheduler.add_job(
+        update_price_cache_force,
+        CronTrigger(day_of_week='mon-fri', hour=13, minute=35),
+        id='tw_close_update',
+        name='台股收盤更新',
+    )
+    
+    # 美股收盤後（週二到週六 05:05）
+    scheduler.add_job(
+        update_price_cache_force,
+        CronTrigger(day_of_week='tue-sat', hour=5, minute=5),
+        id='us_close_update',
+        name='美股收盤更新',
+    )
+    
+    # 啟動排程器
+    scheduler.start()
+    logger.info("價格快取排程器已啟動")
+    
+    # 啟動時執行一次強制更新
+    try:
+        update_price_cache_force()
+    except Exception as e:
+        logger.error(f"啟動時更新價格快取失敗: {e}")
+    
     yield
     
     # 關閉時
+    scheduler.shutdown()
     logger.info("Shutting down...")
 
 
@@ -118,7 +198,7 @@ app.include_router(watchlist_router)
 app.include_router(settings_router)
 app.include_router(admin_router)
 app.include_router(market_router)
-app.include_router(compare_router)  # 🆕 新增：報酬率比較
+app.include_router(compare_router)
 
 # 掛載靜態檔案
 static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")

@@ -14,7 +14,8 @@ from app.models.user_settings import (
 from app.models.notification import Notification
 from app.models.index_price import IndexPrice, INDEX_SYMBOLS
 from app.models.dividend_history import DividendHistory
-from app.models.comparison import Comparison  # 🆕 新增：報酬率比較組合
+from app.models.comparison import Comparison
+from app.models.price_cache import StockPriceCache  # 🆕 價格快取
 
 __all__ = [
     "StockPrice",
@@ -32,5 +33,6 @@ __all__ = [
     "IndexPrice",
     "INDEX_SYMBOLS",
     "DividendHistory",
-    "Comparison",  # 🆕 新增
+    "Comparison",
+    "StockPriceCache",  # 🆕 價格快取
 ]

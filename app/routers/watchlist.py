@@ -58,7 +58,7 @@ async def get_current_user(
 
 
 # ============================================================
-# ★ 新增：從快取取得追蹤清單（含價格）
+# 🆕 價格快取 API
 # ============================================================
 
 @router.get("/with-prices", summary="追蹤清單（含即時價格）")
@@ -138,6 +138,8 @@ async def get_cache_status(
 ):
     """查看價格快取狀態"""
     try:
+        from app.services.price_cache_service import get_market_status
+        
         stmt = select(StockPriceCache)
         result = await db.execute(stmt)
         all_cache = list(result.scalars().all())
@@ -146,17 +148,24 @@ async def get_cache_status(
             return {
                 "success": True,
                 "total_cached": 0,
-                "message": "快取為空，請等待排程更新或手動觸發",
+                "message": "快取為空，請等待排程更新",
+                "market_status": get_market_status(),
             }
         
         updates = [c.updated_at for c in all_cache if c.updated_at]
+        tw_stocks = [c for c in all_cache if c.symbol.endswith(('.TW', '.TWO'))]
+        us_stocks = [c for c in all_cache if c.asset_type == 'stock' and not c.symbol.endswith(('.TW', '.TWO'))]
+        crypto = [c for c in all_cache if c.asset_type == 'crypto']
         
         return {
             "success": True,
             "total_cached": len(all_cache),
+            "tw_stocks": len(tw_stocks),
+            "us_stocks": len(us_stocks),
+            "crypto": len(crypto),
             "oldest_update": min(updates).isoformat() if updates else None,
             "newest_update": max(updates).isoformat() if updates else None,
-            "symbols": [c.symbol for c in all_cache],
+            "market_status": get_market_status(),
         }
         
     except Exception as e:
