@@ -1,66 +1,55 @@
-# 🔧 Bug 修復包 - 台股代號 & CAGR 計算
+# 🚀 追蹤清單載入速度優化
 
-## 修復的問題
+## 問題原因
 
-### Bug 1: 台股代號需要手動加 .TW
-**問題**: 輸入 `0050`、`2330` 等純數字台股代號時無法查詢
-**原因**: Yahoo Finance 需要 `0050.TW` 格式
-**修復**: 自動偵測並轉換台股代號
+原本的 `loadWatchlist()` 函數對每支股票**逐一查詢**（串行）：
 
-| 輸入 | 轉換後 |
-|------|--------|
-| `0050` | `0050.TW` |
-| `2330` | `2330.TW` |
-| `00878` | `00878.TW` |
-| `AAPL` | `AAPL` (不變) |
-| `^GSPC` | `^GSPC` (不變) |
-
-### Bug 2: 比較功能的 CAGR 計算不含配息
-**問題**: 比較頁面的 CAGR 只用分割調整價格，沒有計入配息
-**原因**: 原本使用 `indicator_service.calculate_cagr()`，只用 close 價格
-**修復**: 使用和「年化報酬率」頁面一樣的計算公式，包含：
-- 分割調整 (adj_close)
-- 配息還原 (dividend reinvestment)
-
-## 修改的檔案
-
-```
-app/
-├── routers/
-│   └── stock.py          ← 加入台股代號自動轉換
-└── services/
-    └── compare_service.py ← 使用含配息的 CAGR 計算
+```javascript
+for (const item of data.data) {
+    const priceRes = await fetch(...);  // 等這個完成才查下一個
+}
 ```
 
-## 部署步驟
+追蹤 5 支股票，每支 10-30 秒 = **50-150 秒** 才能載入完成！
 
-1. 備份原檔案
-2. 將 `app/routers/stock.py` 覆蓋到專案
-3. 將 `app/services/compare_service.py` 覆蓋到專案
-4. 重新部署
+## 解決方案
 
-## 修改重點
+1. **先顯示清單**：立即顯示股票代號，價格顯示「載入中...」
+2. **並行載入價格**：使用 `Promise.allSettled()` 同時查詢所有股票
+3. **漸進式更新**：每支股票價格載入完成就立即更新顯示
 
-### stock.py
-新增 `normalize_tw_symbol()` 函數，在以下位置使用：
-- `get_stock_analysis()` - 查詢股票
-- `get_stock_chart()` - 股票圖表
-- `compare_stocks()` - 走勢比較
-- `get_stock_returns()` - 年化報酬率
-- `debug_prices()` - Debug 工具
+優化後：**3-10 秒** 內顯示所有價格！
 
-### compare_service.py
-- 新增 `_normalize_symbol()` 方法
-- 新增 `_calculate_cagr_with_dividends()` 方法
-- 取得配息資料並還原調整
-- 新增台股 ETF 和科技股預設組合
+## 修改方式
 
-## 測試建議
+### 步驟 1：找到原本的 loadWatchlist 函數
 
-1. 測試台股查詢：
-   - 輸入 `0050` → 應顯示元大台灣50
-   - 輸入 `2330` → 應顯示台積電
+在 `dashboard.html` 中搜尋：
+```javascript
+// ========== 追蹤清單 (卡片式) ==========
+async function loadWatchlist() {
+```
 
-2. 測試比較功能：
-   - 比較 `0050` 和 `0056` → 應有數據
-   - CAGR 數值應和「年化報酬率」頁面一致
+### 步驟 2：替換整個函數
+
+將從 `async function loadWatchlist()` 開始，到函數結束的 `}`，整段替換成 `loadWatchlist_optimized.js` 的內容。
+
+### 步驟 3：確認新增了 loadItemPrice 函數
+
+確保 `loadItemPrice()` 函數也加入到 JavaScript 中。
+
+## 優化效果
+
+| 追蹤數量 | 優化前 | 優化後 |
+|---------|--------|--------|
+| 1 支 | 10-30 秒 | 10-30 秒 |
+| 3 支 | 30-90 秒 | 10-30 秒 |
+| 5 支 | 50-150 秒 | 10-30 秒 |
+| 10 支 | 100-300 秒 | 10-30 秒 |
+
+## 用戶體驗改善
+
+1. ✅ **立即顯示清單**：不用等待價格
+2. ✅ **並行載入**：所有價格同時查詢
+3. ✅ **漸進式更新**：先完成的先顯示
+4. ✅ **30 秒超時**：避免無限等待

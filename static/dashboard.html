@@ -389,10 +389,6 @@
                     <i class="fas fa-chart-line mr-3 w-5"></i>
                     <span>走勢比較</span>
                 </a>
-                <a href="/static/compare.html" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target">
-                    <i class="fas fa-trophy mr-3 w-5"></i>
-                    <span>報酬率比較</span>
-                </a>
                 <a href="#" onclick="mobileNavTo('settings')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="settings">
                     <i class="fas fa-cog mr-3 w-5"></i>
                     <span>設定</span>
@@ -468,10 +464,6 @@
                 <a href="#" onclick="showSection('compare', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="compare">
                     <i class="fas fa-chart-line mr-3"></i>
                     <span>走勢比較</span>
-                </a>
-                <a href="/static/compare.html" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
-                    <i class="fas fa-trophy mr-3"></i>
-                    <span>報酬率比較</span>
                 </a>
                 <a href="#" onclick="showSection('settings', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="settings">
                     <i class="fas fa-cog mr-3"></i>
@@ -2637,7 +2629,7 @@
             });
         }
 
-        // ========== 追蹤清單 (卡片式) ==========
+        // ========== 追蹤清單 (卡片式) - 優化版：並行載入 ==========
         async function loadWatchlist() {
             const container = document.getElementById('watchlistContent');
             
@@ -2648,7 +2640,7 @@
                 return;
             }
             
-            console.log(`載入追蹤清單頁面: user_id=${currentUser.id}, line_id=${currentUser.line_user_id}`);
+            console.log(`載入追蹤清單頁面: user_id=${currentUser.id}`);
             
             try {
                 const res = await apiRequest('/api/watchlist');
@@ -2669,49 +2661,24 @@
                     return;
                 }
                 
+                // ★ 優化：先顯示基本清單（價格顯示載入中），立即渲染
                 let html = '<div class="space-y-3">';
                 
-                // 為每個追蹤項目加載價格資訊
                 for (const item of data.data) {
                     const typeClass = item.asset_type === 'crypto' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700';
                     const typeText = item.asset_type === 'crypto' ? '幣' : '股';
                     
-                    // 嘗試取得即時價格
-                    let priceInfo = '';
-                    try {
-                        const endpoint = item.asset_type === 'crypto' 
-                            ? `/api/crypto/${item.symbol}`
-                            : `/api/stock/${item.symbol}`;
-                        const priceRes = await fetch(`${API_BASE}${endpoint}`);
-                        if (priceRes.ok) {
-                            const priceData = await priceRes.json();
-                            if (priceData.success && priceData.data) {
-                                const stock = priceData.data.stock || priceData.data;
-                                const price = stock.price?.current || stock.price;
-                                const change = stock.change?.day || stock.change_24h || 0;
-                                const changeClass = change >= 0 ? 'text-green-600' : 'text-red-600';
-                                const changeIcon = change >= 0 ? '▲' : '▼';
-                                priceInfo = `
-                                    <div class="flex items-baseline gap-2 mt-2">
-                                        <span class="text-xl font-bold text-gray-800">$${price?.toLocaleString() || '--'}</span>
-                                        <span class="${changeClass} text-sm font-medium">${changeIcon} ${Math.abs(change).toFixed(2)}%</span>
-                                    </div>
-                                `;
-                            }
-                        }
-                    } catch (e) {
-                        console.log('無法載入價格:', item.symbol);
-                    }
-                    
                     html += `
-                        <div class="stock-card bg-white rounded-xl shadow-sm p-4 border-l-4 ${item.asset_type === 'crypto' ? 'border-purple-500' : 'border-blue-500'}">
+                        <div id="card-${item.symbol.replace('.', '-')}" class="stock-card bg-white rounded-xl shadow-sm p-4 border-l-4 ${item.asset_type === 'crypto' ? 'border-purple-500' : 'border-blue-500'}">
                             <div class="flex items-start justify-between">
                                 <div class="flex-1">
                                     <div class="flex items-center">
                                         <span class="font-bold text-lg text-gray-800">${item.symbol}</span>
                                         <span class="ml-2 px-2 py-0.5 rounded text-xs ${typeClass}">${typeText}</span>
                                     </div>
-                                    ${priceInfo}
+                                    <div id="price-${item.symbol.replace('.', '-')}" class="flex items-baseline gap-2 mt-2">
+                                        <span class="text-gray-400 text-sm"><i class="fas fa-spinner fa-spin mr-1"></i>載入價格中...</span>
+                                    </div>
                                     ${item.note ? `<p class="text-gray-500 text-sm mt-2 italic"><i class="fas fa-sticky-note mr-1"></i>${item.note}</p>` : ''}
                                 </div>
                                 <button onclick="removeFromWatchlist('${item.symbol}')" class="p-2 text-gray-400 hover:text-red-500 touch-target">
@@ -2731,9 +2698,63 @@
                 html += '</div>';
                 container.innerHTML = html;
                 
+                // ★ 優化：並行載入所有價格（Promise.allSettled 不會因單一失敗而中斷）
+                console.log('開始並行載入價格...');
+                const pricePromises = data.data.map(item => loadItemPrice(item));
+                await Promise.allSettled(pricePromises);
+                console.log('所有價格載入完成');
+                
             } catch (e) {
                 console.error('載入追蹤清單失敗', e);
                 container.innerHTML = '<p class="text-red-500 text-center py-4">載入失敗</p>';
+            }
+        }
+        
+        // ★ 新增：單獨載入價格並更新 DOM（不阻塞其他請求）
+        async function loadItemPrice(item) {
+            const priceContainer = document.getElementById(`price-${item.symbol.replace('.', '-')}`);
+            if (!priceContainer) return;
+            
+            try {
+                const endpoint = item.asset_type === 'crypto' 
+                    ? `/api/crypto/${item.symbol}`
+                    : `/api/stock/${item.symbol}`;
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超時
+                
+                const priceRes = await fetch(`${API_BASE}${endpoint}`, { 
+                    signal: controller.signal 
+                });
+                clearTimeout(timeoutId);
+                
+                if (priceRes.ok) {
+                    const priceData = await priceRes.json();
+                    if (priceData.success) {
+                        // API 回傳格式：資料直接在頂層
+                        const price = priceData.price?.current;
+                        const change = priceData.change?.day || priceData.change_24h || 0;
+                        const changeClass = change >= 0 ? 'text-green-600' : 'text-red-600';
+                        const changeIcon = change >= 0 ? '▲' : '▼';
+                        
+                        priceContainer.innerHTML = `
+                            <span class="text-xl font-bold text-gray-800">$${price?.toLocaleString() || '--'}</span>
+                            <span class="${changeClass} text-sm font-medium">${changeIcon} ${Math.abs(change).toFixed(2)}%</span>
+                        `;
+                        console.log(`${item.symbol} 價格載入完成: $${price}`);
+                        return;
+                    }
+                }
+                
+                priceContainer.innerHTML = `<span class="text-gray-400 text-sm">--</span>`;
+                
+            } catch (e) {
+                if (e.name === 'AbortError') {
+                    priceContainer.innerHTML = `<span class="text-gray-400 text-sm">超時</span>`;
+                } else {
+                    priceContainer.innerHTML = `<span class="text-gray-400 text-sm">--</span>`;
+                }
+                console.log(`${item.symbol} 價格載入失敗:`, e.message);
             }
         }
         
