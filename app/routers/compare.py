@@ -4,16 +4,63 @@
 from typing import List, Optional
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+import logging
 
 from app.database import get_async_session
 from app.services.compare_service import compare_service, ComparisonCRUD
-from app.services.auth_service import get_current_user, get_optional_user
+from app.services.auth_service import AuthService
 from app.models.user import User
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/compare", tags=["Compare"])
+
+
+# ==================== 認證依賴 ====================
+
+async def get_current_user(
+    request: Request,
+    db: AsyncSession = Depends(get_async_session),
+) -> User:
+    """依賴注入：取得當前用戶"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        logger.warning("Compare API: 未提供認證 Token")
+        raise HTTPException(
+            status_code=401,
+            detail="未提供認證 Token"
+        )
+    
+    token = auth_header.split(" ")[1]
+    auth_service = AuthService(db)
+    user = await auth_service.get_user_from_token(token)
+    
+    if not user:
+        logger.warning("Compare API: Token 驗證失敗")
+        raise HTTPException(
+            status_code=401,
+            detail="無效的 Token"
+        )
+    
+    return user
+
+
+async def get_optional_user(
+    request: Request,
+    db: AsyncSession = Depends(get_async_session),
+) -> Optional[User]:
+    """依賴注入：取得當前用戶（可選，未登入返回 None）"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+    
+    token = auth_header.split(" ")[1]
+    auth_service = AuthService(db)
+    user = await auth_service.get_user_from_token(token)
+    return user
 
 
 # ==================== Schemas ====================
