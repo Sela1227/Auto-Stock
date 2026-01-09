@@ -1,6 +1,6 @@
 """
-Yahoo Finance 資料來源
-使用 yfinance 套件抓取美股資料
+Yahoo Finance è³‡æ–™ä¾†æº
+ä½¿ç”¨ yfinance å¥—ä»¶æŠ“å–ç¾Žè‚¡è³‡æ–™
 """
 import yfinance as yf
 import pandas as pd
@@ -10,229 +10,229 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# 常用台股中文名稱對照表
+# å¸¸ç”¨å°è‚¡ä¸­æ–‡åç¨±å°ç…§è¡¨
 TAIWAN_STOCK_NAMES = {
-    # 權值股
-    "2330": "台積電",
-    "2317": "鴻海",
-    "2454": "聯發科",
-    "2308": "台達電",
-    "2412": "中華電",
-    "2303": "聯電",
-    "2002": "中鋼",
-    "1301": "台塑",
-    "1303": "南亞",
-    "1326": "台化",
-    "6505": "台塑化",
-    "1101": "台泥",
-    "1102": "亞泥",
-    # 金融股
-    "2881": "富邦金",
-    "2882": "國泰金",
-    "2884": "玉山金",
-    "2886": "兆豐金",
-    "2891": "中信金",
-    "2892": "第一金",
-    "2880": "華南金",
-    "2883": "開發金",
-    "2885": "元大金",
-    "2887": "台新金",
-    "2888": "新光金",
-    "2890": "永豐金",
-    "5880": "合庫金",
-    # 電子股
-    "2912": "統一超",
-    "2357": "華碩",
-    "2382": "廣達",
-    "2395": "研華",
-    "3008": "大立光",
-    "3711": "日月光投控",
-    "2345": "智邦",
-    "2379": "瑞昱",
-    "2327": "國巨",
-    "3034": "聯詠",
-    "2301": "光寶科",
-    "2408": "南亞科",
-    "2474": "可成",
-    "2049": "上銀",
-    "3045": "台灣大",
-    "4904": "遠傳",
-    "3231": "緯創",
-    "2356": "英業達",
-    "2324": "仁寶",
-    "2353": "宏碁",
-    "2377": "微星",
-    "2376": "技嘉",
-    "2388": "威盛",
-    "2409": "友達",
-    "3481": "群創",
-    "2404": "漢唐",
-    # 傳產股
-    "5871": "中租-KY",
-    "1216": "統一",
-    "2207": "和泰車",
-    "2105": "正新",
-    "9910": "豐泰",
-    "2603": "長榮",
-    "2609": "陽明",
-    "2615": "萬海",
-    "2618": "長榮航",
-    "2610": "華航",
-    "1402": "遠東新",
-    "1590": "亞德客-KY",
-    "4938": "和碩",
-    "2014": "中鴻",
-    "2006": "東和鋼鐵",
-    "2015": "豐興",
-    # AI 概念股
-    "3443": "創意",
-    "5274": "信驊",
-    "6669": "緯穎",
-    "3661": "世芯-KY",
-    "6415": "矽力-KY",
-    "3533": "嘉澤",
-    "2368": "金像電",
-    "6176": "瑞儀",
-    "3037": "欣興",
-    "5347": "世界",
-    "8046": "南電",
-    "6239": "力成",
-    # 其他熱門股
-    "2498": "宏達電",
-    "3706": "神達",
-    "2354": "鴻準",
-    "2360": "致茂",
-    "2393": "億光",
-    "2383": "台光電",
-    "3036": "文曄",
-    "6446": "藥華藥",
-    "4743": "合一",
-    "6547": "高端疫苗",
-    "2344": "華邦電",
-    "2449": "京元電子",
-    "6531": "愛普",
-    "3017": "奇鋐",
-    "2059": "川湖",
-    "2385": "群光",
-    "6770": "力積電",
-    "8299": "群聯",
-    "6285": "啟碁",
-    "2347": "聯強",
-    "2458": "義隆",
-    "3023": "信邦",
-    "2492": "華新科",
-    "3044": "健鼎",
-    "5483": "中美晶",
-    "6488": "環球晶",
-    "3529": "力旺",
-    "2542": "興富發",
-    "2545": "皇翔",
-    "2504": "國產",
-    "2520": "冠德",
-    "2534": "宏盛",
-    "9921": "巨大",
-    "9914": "美利達",
-    "1227": "佳格",
-    "1229": "聯華",
-    "1234": "黑松",
-    "2912": "統一超",
-    "2915": "潤泰全",
-    "9904": "寶成",
-    "9945": "潤泰新",
-    # 上櫃股票 (.TWO)
-    "8069": "元太",
-    "6547": "高端疫苗",
-    "4743": "合一",
-    "6446": "藥華藥",
-    "5765": "永信醫藥",
-    "8086": "宏捷科",
-    "3105": "穩懋",
-    "5269": "祥碩",
-    "6409": "旭隼",
-    "6510": "精測",
-    "3293": "鑫喬",
-    "6533": "晶心科",
-    "6477": "安集",
-    "6568": "宏觀",
-    "3163": "波若威",
-    "6197": "佳必琪",
-    "5388": "中磊",
+    # æ¬Šå€¼è‚¡
+    "2330": "å°ç©é›»",
+    "2317": "é´»æµ·",
+    "2454": "è¯ç™¼ç§‘",
+    "2308": "å°é”é›»",
+    "2412": "ä¸­è¯é›»",
+    "2303": "è¯é›»",
+    "2002": "ä¸­é‹¼",
+    "1301": "å°å¡‘",
+    "1303": "å—äºž",
+    "1326": "å°åŒ–",
+    "6505": "å°å¡‘åŒ–",
+    "1101": "å°æ³¥",
+    "1102": "äºžæ³¥",
+    # é‡‘èžè‚¡
+    "2881": "å¯Œé‚¦é‡‘",
+    "2882": "åœ‹æ³°é‡‘",
+    "2884": "çŽ‰å±±é‡‘",
+    "2886": "å…†è±é‡‘",
+    "2891": "ä¸­ä¿¡é‡‘",
+    "2892": "ç¬¬ä¸€é‡‘",
+    "2880": "è¯å—é‡‘",
+    "2883": "é–‹ç™¼é‡‘",
+    "2885": "å…ƒå¤§é‡‘",
+    "2887": "å°æ–°é‡‘",
+    "2888": "æ–°å…‰é‡‘",
+    "2890": "æ°¸è±é‡‘",
+    "5880": "åˆåº«é‡‘",
+    # é›»å­è‚¡
+    "2912": "çµ±ä¸€è¶…",
+    "2357": "è¯ç¢©",
+    "2382": "å»£é”",
+    "2395": "ç ”è¯",
+    "3008": "å¤§ç«‹å…‰",
+    "3711": "æ—¥æœˆå…‰æŠ•æŽ§",
+    "2345": "æ™ºé‚¦",
+    "2379": "ç‘žæ˜±",
+    "2327": "åœ‹å·¨",
+    "3034": "è¯è© ",
+    "2301": "å…‰å¯¶ç§‘",
+    "2408": "å—äºžç§‘",
+    "2474": "å¯æˆ",
+    "2049": "ä¸ŠéŠ€",
+    "3045": "å°ç£å¤§",
+    "4904": "é å‚³",
+    "3231": "ç·¯å‰µ",
+    "2356": "è‹±æ¥­é”",
+    "2324": "ä»å¯¶",
+    "2353": "å®ç¢",
+    "2377": "å¾®æ˜Ÿ",
+    "2376": "æŠ€å˜‰",
+    "2388": "å¨ç››",
+    "2409": "å‹é”",
+    "3481": "ç¾¤å‰µ",
+    "2404": "æ¼¢å”",
+    # å‚³ç”¢è‚¡
+    "5871": "ä¸­ç§Ÿ-KY",
+    "1216": "çµ±ä¸€",
+    "2207": "å’Œæ³°è»Š",
+    "2105": "æ­£æ–°",
+    "9910": "è±æ³°",
+    "2603": "é•·æ¦®",
+    "2609": "é™½æ˜Ž",
+    "2615": "è¬æµ·",
+    "2618": "é•·æ¦®èˆª",
+    "2610": "è¯èˆª",
+    "1402": "é æ±æ–°",
+    "1590": "äºžå¾·å®¢-KY",
+    "4938": "å’Œç¢©",
+    "2014": "ä¸­é´»",
+    "2006": "æ±å’Œé‹¼éµ",
+    "2015": "è±èˆˆ",
+    # AI æ¦‚å¿µè‚¡
+    "3443": "å‰µæ„",
+    "5274": "ä¿¡é©Š",
+    "6669": "ç·¯ç©Ž",
+    "3661": "ä¸–èŠ¯-KY",
+    "6415": "çŸ½åŠ›-KY",
+    "3533": "å˜‰æ¾¤",
+    "2368": "é‡‘åƒé›»",
+    "6176": "ç‘žå„€",
+    "3037": "æ¬£èˆˆ",
+    "5347": "ä¸–ç•Œ",
+    "8046": "å—é›»",
+    "6239": "åŠ›æˆ",
+    # å…¶ä»–ç†±é–€è‚¡
+    "2498": "å®é”é›»",
+    "3706": "ç¥žé”",
+    "2354": "é´»æº–",
+    "2360": "è‡´èŒ‚",
+    "2393": "å„„å…‰",
+    "2383": "å°å…‰é›»",
+    "3036": "æ–‡æ›„",
+    "6446": "è—¥è¯è—¥",
+    "4743": "åˆä¸€",
+    "6547": "é«˜ç«¯ç–«è‹—",
+    "2344": "è¯é‚¦é›»",
+    "2449": "äº¬å…ƒé›»å­",
+    "6531": "æ„›æ™®",
+    "3017": "å¥‡é‹",
+    "2059": "å·æ¹–",
+    "2385": "ç¾¤å…‰",
+    "6770": "åŠ›ç©é›»",
+    "8299": "ç¾¤è¯",
+    "6285": "å•Ÿç¢",
+    "2347": "è¯å¼·",
+    "2458": "ç¾©éš†",
+    "3023": "ä¿¡é‚¦",
+    "2492": "è¯æ–°ç§‘",
+    "3044": "å¥é¼Ž",
+    "5483": "ä¸­ç¾Žæ™¶",
+    "6488": "ç’°çƒæ™¶",
+    "3529": "åŠ›æ—º",
+    "2542": "èˆˆå¯Œç™¼",
+    "2545": "çš‡ç¿”",
+    "2504": "åœ‹ç”¢",
+    "2520": "å† å¾·",
+    "2534": "å®ç››",
+    "9921": "å·¨å¤§",
+    "9914": "ç¾Žåˆ©é”",
+    "1227": "ä½³æ ¼",
+    "1229": "è¯è¯",
+    "1234": "é»‘æ¾",
+    "2912": "çµ±ä¸€è¶…",
+    "2915": "æ½¤æ³°å…¨",
+    "9904": "å¯¶æˆ",
+    "9945": "æ½¤æ³°æ–°",
+    # ä¸Šæ«ƒè‚¡ç¥¨ (.TWO)
+    "8069": "å…ƒå¤ª",
+    "6547": "é«˜ç«¯ç–«è‹—",
+    "4743": "åˆä¸€",
+    "6446": "è—¥è¯è—¥",
+    "5765": "æ°¸ä¿¡é†«è—¥",
+    "8086": "å®æ·ç§‘",
+    "3105": "ç©©æ‡‹",
+    "5269": "ç¥¥ç¢©",
+    "6409": "æ—­éš¼",
+    "6510": "ç²¾æ¸¬",
+    "3293": "é‘«å–¬",
+    "6533": "æ™¶å¿ƒç§‘",
+    "6477": "å®‰é›†",
+    "6568": "å®è§€",
+    "3163": "æ³¢è‹¥å¨",
+    "6197": "ä½³å¿…çª",
+    "5388": "ä¸­ç£Š",
     "6781": "AES-KY",
-    "3152": "璟德",
-    "5289": "宜鼎",
-    "6223": "旺矽",
-    "8150": "南茂",
-    "5484": "慧友",
-    "6442": "光聖",
-    "6472": "保瑞",
-    "4966": "譜瑞-KY",
-    "6789": "采鈺",
-    "6640": "均華",
-    "3260": "威剛",
-    "4763": "材料-KY",
-    "5299": "杰力",
-    "8016": "矽創",
-    "6719": "力智",
+    "3152": "ç’Ÿå¾·",
+    "5289": "å®œé¼Ž",
+    "6223": "æ—ºçŸ½",
+    "8150": "å—èŒ‚",
+    "5484": "æ…§å‹",
+    "6442": "å…‰è–",
+    "6472": "ä¿ç‘ž",
+    "4966": "è­œç‘ž-KY",
+    "6789": "é‡‡éˆº",
+    "6640": "å‡è¯",
+    "3260": "å¨å‰›",
+    "4763": "ææ–™-KY",
+    "5299": "æ°åŠ›",
+    "8016": "çŸ½å‰µ",
+    "6719": "åŠ›æ™º",
     "6456": "GIS-KY",
-    "6451": "訊芯-KY",
-    "3707": "漢磊",
-    "4968": "立積",
-    "6679": "鈺太",
-    "6592": "和潤企業",
-    "6591": "動力-KY",
-    "5425": "台半",
-    "6803": "崇越電",
-    "3527": "聚積",
-    "6449": "鈺邦",
+    "6451": "è¨ŠèŠ¯-KY",
+    "3707": "æ¼¢ç£Š",
+    "4968": "ç«‹ç©",
+    "6679": "éˆºå¤ª",
+    "6592": "å’Œæ½¤ä¼æ¥­",
+    "6591": "å‹•åŠ›-KY",
+    "5425": "å°åŠ",
+    "6803": "å´‡è¶Šé›»",
+    "3527": "èšç©",
+    "6449": "éˆºé‚¦",
     # ETF
-    "0050": "元大台灣50",
-    "0056": "元大高股息",
-    "00878": "國泰永續高股息",
-    "00919": "群益台灣精選高息",
-    "00929": "復華台灣科技優息",
-    "006208": "富邦台50",
-    "00713": "元大台灣高息低波",
-    "00692": "富邦公司治理",
+    "0050": "å…ƒå¤§å°ç£50",
+    "0056": "å…ƒå¤§é«˜è‚¡æ¯",
+    "00878": "åœ‹æ³°æ°¸çºŒé«˜è‚¡æ¯",
+    "00919": "ç¾¤ç›Šå°ç£ç²¾é¸é«˜æ¯",
+    "00929": "å¾©è¯å°ç£ç§‘æŠ€å„ªæ¯",
+    "006208": "å¯Œé‚¦å°50",
+    "00713": "å…ƒå¤§å°ç£é«˜æ¯ä½Žæ³¢",
+    "00692": "å¯Œé‚¦å…¬å¸æ²»ç†",
 }
 
 
 class YahooFinanceClient:
-    """Yahoo Finance 資料擷取客戶端"""
+    """Yahoo Finance è³‡æ–™æ“·å–å®¢æˆ¶ç«¯"""
     
     def __init__(self):
         pass
     
     def get_stock_info(self, symbol: str) -> Optional[Dict[str, Any]]:
         """
-        取得股票基本資訊
+        å–å¾—è‚¡ç¥¨åŸºæœ¬è³‡è¨Š
         
         Args:
-            symbol: 股票代號 (如 AAPL, TSLA, 2330.TW)
+            symbol: è‚¡ç¥¨ä»£è™Ÿ (å¦‚ AAPL, TSLA, 2330.TW)
             
         Returns:
-            股票資訊字典，包含名稱、市值等
+            è‚¡ç¥¨è³‡è¨Šå­—å…¸ï¼ŒåŒ…å«åç¨±ã€å¸‚å€¼ç­‰
         """
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info or {}
             
-            # 取得名稱：優先使用 longName，然後 shortName
+            # å–å¾—åç¨±ï¼šå„ªå…ˆä½¿ç”¨ longNameï¼Œç„¶å¾Œ shortName
             name = info.get("longName") or info.get("shortName") or symbol
             
-            # 對於台股，優先使用本地映射表的中文名稱
+            # å°æ–¼å°è‚¡ï¼Œå„ªå…ˆä½¿ç”¨æœ¬åœ°æ˜ å°„è¡¨çš„ä¸­æ–‡åç¨±
             if symbol.endswith(".TW") or symbol.endswith(".TWO"):
-                # 提取股票代號 (去掉 .TW 或 .TWO)
+                # æå–è‚¡ç¥¨ä»£è™Ÿ (åŽ»æŽ‰ .TW æˆ– .TWO)
                 stock_code = symbol.replace(".TW", "").replace(".TWO", "")
-                # 優先使用本地映射表
+                # å„ªå…ˆä½¿ç”¨æœ¬åœ°æ˜ å°„è¡¨
                 if stock_code in TAIWAN_STOCK_NAMES:
                     name = TAIWAN_STOCK_NAMES[stock_code]
                 else:
-                    # 嘗試從 Yahoo Finance 取得中文名
+                    # å˜—è©¦å¾ž Yahoo Finance å–å¾—ä¸­æ–‡å
                     display_name = info.get("displayName")
                     if display_name:
                         name = display_name
             
-            # 即使 info 不完整，也返回基本資訊
+            # å³ä½¿ info ä¸å®Œæ•´ï¼Œä¹Ÿè¿”å›žåŸºæœ¬è³‡è¨Š
             return {
                 "symbol": info.get("symbol", symbol),
                 "name": name,
@@ -246,8 +246,8 @@ class YahooFinanceClient:
                 "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
             }
         except Exception as e:
-            logger.error(f"取得股票資訊失敗 {symbol}: {e}")
-            # 即使出錯，對於台股也嘗試返回本地名稱
+            logger.error(f"å–å¾—è‚¡ç¥¨è³‡è¨Šå¤±æ•— {symbol}: {e}")
+            # å³ä½¿å‡ºéŒ¯ï¼Œå°æ–¼å°è‚¡ä¹Ÿå˜—è©¦è¿”å›žæœ¬åœ°åç¨±
             if symbol.endswith(".TW") or symbol.endswith(".TWO"):
                 stock_code = symbol.replace(".TW", "").replace(".TWO", "")
                 name = TAIWAN_STOCK_NAMES.get(stock_code, symbol)
@@ -273,38 +273,38 @@ class YahooFinanceClient:
         end: Optional[datetime] = None,
     ) -> Optional[pd.DataFrame]:
         """
-        取得股票歷史價格資料
+        å–å¾—è‚¡ç¥¨æ­·å²åƒ¹æ ¼è³‡æ–™
         
         Args:
-            symbol: 股票代號
-            period: 資料期間 (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)
-            start: 開始日期（與 end 搭配使用時，period 會被忽略）
-            end: 結束日期
+            symbol: è‚¡ç¥¨ä»£è™Ÿ
+            period: è³‡æ–™æœŸé–“ (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)
+            start: é–‹å§‹æ—¥æœŸï¼ˆèˆ‡ end æ­é…ä½¿ç”¨æ™‚ï¼Œperiod æœƒè¢«å¿½ç•¥ï¼‰
+            end: çµæŸæ—¥æœŸ
             
         Returns:
-            包含 OHLCV 的 DataFrame，其中：
-            - close: 原始收盤價（用於顯示）
-            - adj_close: 分割調整後價格（用於圖表，不含配息）
+            åŒ…å« OHLCV çš„ DataFrameï¼Œå…¶ä¸­ï¼š
+            - close: åŽŸå§‹æ”¶ç›¤åƒ¹ï¼ˆç”¨æ–¼é¡¯ç¤ºï¼‰
+            - adj_close: åˆ†å‰²èª¿æ•´å¾Œåƒ¹æ ¼ï¼ˆç”¨æ–¼åœ–è¡¨ï¼Œä¸å«é…æ¯ï¼‰
         """
         try:
             ticker = yf.Ticker(symbol)
             
-            # 取得原始價格
+            # å–å¾—åŽŸå§‹åƒ¹æ ¼
             if start and end:
                 df_raw = ticker.history(start=start, end=end, auto_adjust=False)
             else:
                 df_raw = ticker.history(period=period, auto_adjust=False)
             
             if df_raw.empty:
-                logger.warning(f"無歷史資料: {symbol}")
+                logger.warning(f"ç„¡æ­·å²è³‡æ–™: {symbol}")
                 return None
             
             df_raw = df_raw.reset_index()
             
-            # 標準化日期欄位
+            # æ¨™æº–åŒ–æ—¥æœŸæ¬„ä½
             date_col = "Date" if "Date" in df_raw.columns else "Datetime"
             
-            # 建立結果 DataFrame
+            # å»ºç«‹çµæžœ DataFrame
             df = pd.DataFrame()
             df["date"] = pd.to_datetime(df_raw[date_col]).dt.date
             df["open"] = df_raw["Open"].values
@@ -313,24 +313,24 @@ class YahooFinanceClient:
             df["close"] = df_raw["Close"].values
             df["volume"] = df_raw["Volume"].values if "Volume" in df_raw.columns else 0
             
-            # 偵測並調整分割（不含配息）
+            # åµæ¸¬ä¸¦èª¿æ•´åˆ†å‰²ï¼ˆä¸å«é…æ¯ï¼‰
             df = self._detect_and_adjust_splits(df, symbol)
             
-            # 加入股票代號
+            # åŠ å…¥è‚¡ç¥¨ä»£è™Ÿ
             df["symbol"] = symbol.upper()
             
             return df
             
         except Exception as e:
-            logger.error(f"取得歷史資料失敗 {symbol}: {e}")
+            logger.error(f"å–å¾—æ­·å²è³‡æ–™å¤±æ•— {symbol}: {e}")
             return None
     
     def _detect_and_adjust_splits(self, df: pd.DataFrame, symbol: str) -> pd.DataFrame:
         """
-        偵測價格斷崖並調整歷史價格（只處理分割，不含配息）
+        åµæ¸¬åƒ¹æ ¼æ–·å´–ä¸¦èª¿æ•´æ­·å²åƒ¹æ ¼ï¼ˆåªè™•ç†åˆ†å‰²ï¼Œä¸å«é…æ¯ï¼‰
         
-        當偵測到價格突然下跌超過 40%（可能是分割），
-        會自動調整分割前的價格，使整個序列連續。
+        ç•¶åµæ¸¬åˆ°åƒ¹æ ¼çªç„¶ä¸‹è·Œè¶…éŽ 40%ï¼ˆå¯èƒ½æ˜¯åˆ†å‰²ï¼‰ï¼Œ
+        æœƒè‡ªå‹•èª¿æ•´åˆ†å‰²å‰çš„åƒ¹æ ¼ï¼Œä½¿æ•´å€‹åºåˆ—é€£çºŒã€‚
         """
         if len(df) < 2:
             df['adj_close'] = df['close'].copy()
@@ -339,10 +339,10 @@ class YahooFinanceClient:
         df = df.copy()
         df = df.sort_values('date').reset_index(drop=True)
         
-        # 計算每日漲跌幅
+        # è¨ˆç®—æ¯æ—¥æ¼²è·Œå¹…
         df['pct_change'] = df['close'].pct_change()
         
-        # 偵測分割點（價格下跌超過 40%）
+        # åµæ¸¬åˆ†å‰²é»žï¼ˆåƒ¹æ ¼ä¸‹è·Œè¶…éŽ 40%ï¼‰
         split_indices = []
         for i in range(1, len(df)):
             pct = df.loc[i, 'pct_change']
@@ -352,7 +352,7 @@ class YahooFinanceClient:
                 if curr_close > 0:
                     ratio = prev_close / curr_close
                     rounded_ratio = round(ratio)
-                    # 只有比率接近整數時才認為是分割（2, 3, 4, 5, 10 等）
+                    # åªæœ‰æ¯”çŽ‡æŽ¥è¿‘æ•´æ•¸æ™‚æ‰èªç‚ºæ˜¯åˆ†å‰²ï¼ˆ2, 3, 4, 5, 10 ç­‰ï¼‰
                     if rounded_ratio >= 2 and abs(ratio - rounded_ratio) < 0.3:
                         split_indices.append({
                             'index': i,
@@ -361,12 +361,12 @@ class YahooFinanceClient:
                             'prev_close': prev_close,
                             'curr_close': curr_close
                         })
-                        logger.info(f"{symbol} 偵測到分割: {df.loc[i, 'date']}, 比率 1:{rounded_ratio}, 前收 {prev_close:.2f} -> 現收 {curr_close:.2f}")
+                        logger.info(f"{symbol} åµæ¸¬åˆ°åˆ†å‰²: {df.loc[i, 'date']}, æ¯”çŽ‡ 1:{rounded_ratio}, å‰æ”¶ {prev_close:.2f} -> ç¾æ”¶ {curr_close:.2f}")
         
-        # 初始化調整後價格
+        # åˆå§‹åŒ–èª¿æ•´å¾Œåƒ¹æ ¼
         df['adj_close'] = df['close'].astype(float)
         
-        # 從最近的分割開始往前調整（使用累積因子）
+        # å¾žæœ€è¿‘çš„åˆ†å‰²é–‹å§‹å¾€å‰èª¿æ•´ï¼ˆä½¿ç”¨ç´¯ç©å› å­ï¼‰
         if split_indices:
             cumulative_factor = 1.0
             
@@ -375,25 +375,25 @@ class YahooFinanceClient:
                 ratio = split['ratio']
                 cumulative_factor *= ratio
                 
-                # 調整分割點之前的所有價格（用原始 close 除以累積因子）
+                # èª¿æ•´åˆ†å‰²é»žä¹‹å‰çš„æ‰€æœ‰åƒ¹æ ¼ï¼ˆç”¨åŽŸå§‹ close é™¤ä»¥ç´¯ç©å› å­ï¼‰
                 df.loc[:idx-1, 'adj_close'] = df.loc[:idx-1, 'close'].astype(float) / cumulative_factor
             
-            logger.info(f"{symbol} 已調整 {len(split_indices)} 次分割，總調整因子: {cumulative_factor}")
+            logger.info(f"{symbol} å·²èª¿æ•´ {len(split_indices)} æ¬¡åˆ†å‰²ï¼Œç¸½èª¿æ•´å› å­: {cumulative_factor}")
         
-        # 移除臨時欄位
+        # ç§»é™¤è‡¨æ™‚æ¬„ä½
         df = df.drop(columns=['pct_change'], errors='ignore')
         
         return df
     
     def get_current_price(self, symbol: str) -> Optional[Dict[str, Any]]:
         """
-        取得股票即時（延遲）報價
+        å–å¾—è‚¡ç¥¨å³æ™‚ï¼ˆå»¶é²ï¼‰å ±åƒ¹
         
         Args:
-            symbol: 股票代號
+            symbol: è‚¡ç¥¨ä»£è™Ÿ
             
         Returns:
-            包含當前價格和漲跌資訊的字典
+            åŒ…å«ç•¶å‰åƒ¹æ ¼å’Œæ¼²è·Œè³‡è¨Šçš„å­—å…¸
         """
         try:
             ticker = yf.Ticker(symbol)
@@ -402,12 +402,12 @@ class YahooFinanceClient:
             if not info:
                 return None
             
-            # 嘗試取得即時價格
+            # å˜—è©¦å–å¾—å³æ™‚åƒ¹æ ¼
             current_price = info.get("currentPrice") or info.get("regularMarketPrice")
             previous_close = info.get("previousClose") or info.get("regularMarketPreviousClose")
             
             if not current_price:
-                # 從歷史資料取得最新收盤價（使用原始價格）
+                # å¾žæ­·å²è³‡æ–™å–å¾—æœ€æ–°æ”¶ç›¤åƒ¹ï¼ˆä½¿ç”¨åŽŸå§‹åƒ¹æ ¼ï¼‰
                 hist = ticker.history(period="5d", auto_adjust=False)
                 if not hist.empty:
                     current_price = hist["Close"].iloc[-1]
@@ -430,12 +430,14 @@ class YahooFinanceClient:
             }
             
         except Exception as e:
-            logger.error(f"取得即時報價失敗 {symbol}: {e}")
+            logger.error(f"å–å¾—å³æ™‚å ±åƒ¹å¤±æ•— {symbol}: {e}")
             return None
     
     def validate_symbol(self, symbol: str) -> bool:
         """
-        驗證股票代號是否有效
+        快速驗證股票代號是否有效
+        
+        使用 history API 而非 info，速度快 5-10 倍
         
         Args:
             symbol: 股票代號
@@ -445,8 +447,9 @@ class YahooFinanceClient:
         """
         try:
             ticker = yf.Ticker(symbol)
-            info = ticker.info
-            return info is not None and "symbol" in info
+            # 只抓 1 天資料，比 info 快很多
+            hist = ticker.history(period="1d")
+            return not hist.empty
         except Exception:
             return False
     
@@ -456,30 +459,30 @@ class YahooFinanceClient:
         period: str = "10y",
     ) -> Optional[pd.DataFrame]:
         """
-        取得股票配息歷史
+        å–å¾—è‚¡ç¥¨é…æ¯æ­·å²
         
         Args:
-            symbol: 股票代號
-            period: 資料期間 (1y, 5y, 10y, max)
+            symbol: è‚¡ç¥¨ä»£è™Ÿ
+            period: è³‡æ–™æœŸé–“ (1y, 5y, 10y, max)
             
         Returns:
-            包含配息記錄的 DataFrame
+            åŒ…å«é…æ¯è¨˜éŒ„çš„ DataFrame
         """
         try:
             ticker = yf.Ticker(symbol)
             dividends = ticker.dividends
             
             if dividends.empty:
-                logger.info(f"{symbol} 無配息記錄")
+                logger.info(f"{symbol} ç„¡é…æ¯è¨˜éŒ„")
                 return None
             
-            # 轉換成 DataFrame
+            # è½‰æ›æˆ DataFrame
             df = dividends.reset_index()
             df.columns = ["date", "amount"]
             df["date"] = pd.to_datetime(df["date"]).dt.date
             df["symbol"] = symbol.upper()
             
-            # 根據 period 過濾
+            # æ ¹æ“š period éŽæ¿¾
             if period != "max":
                 years = int(period.replace("y", ""))
                 cutoff_date = datetime.now().date() - timedelta(days=years * 365)
@@ -488,7 +491,7 @@ class YahooFinanceClient:
             return df
             
         except Exception as e:
-            logger.error(f"取得配息資料失敗 {symbol}: {e}")
+            logger.error(f"å–å¾—é…æ¯è³‡æ–™å¤±æ•— {symbol}: {e}")
             return None
     
     def get_index_data(
@@ -497,27 +500,27 @@ class YahooFinanceClient:
         period: str = "10y",
     ) -> Optional[pd.DataFrame]:
         """
-        取得市場指數歷史資料
+        å–å¾—å¸‚å ´æŒ‡æ•¸æ­·å²è³‡æ–™
         
         Args:
-            symbol: 指數代號 (^GSPC, ^DJI, ^IXIC)
-            period: 資料期間
+            symbol: æŒ‡æ•¸ä»£è™Ÿ (^GSPC, ^DJI, ^IXIC)
+            period: è³‡æ–™æœŸé–“
             
         Returns:
-            包含 OHLCV 的 DataFrame
+            åŒ…å« OHLCV çš„ DataFrame
         """
         try:
             ticker = yf.Ticker(symbol)
             df = ticker.history(period=period, auto_adjust=False)
             
             if df.empty:
-                logger.warning(f"無指數資料: {symbol}")
+                logger.warning(f"ç„¡æŒ‡æ•¸è³‡æ–™: {symbol}")
                 return None
             
-            # 重設索引
+            # é‡è¨­ç´¢å¼•
             df = df.reset_index()
             
-            # 標準化欄位名稱
+            # æ¨™æº–åŒ–æ¬„ä½åç¨±
             column_mapping = {
                 "Date": "date",
                 "Datetime": "date",
@@ -530,29 +533,29 @@ class YahooFinanceClient:
             existing_columns = {k: v for k, v in column_mapping.items() if k in df.columns}
             df = df.rename(columns=existing_columns)
             
-            # 確保日期是 date 類型
+            # ç¢ºä¿æ—¥æœŸæ˜¯ date é¡žåž‹
             df["date"] = pd.to_datetime(df["date"]).dt.date
             
-            # 計算漲跌
+            # è¨ˆç®—æ¼²è·Œ
             df["change"] = df["close"].diff()
             df["change_pct"] = df["close"].pct_change() * 100
             
-            # 加入代號
+            # åŠ å…¥ä»£è™Ÿ
             df["symbol"] = symbol
             
-            # 只保留需要的欄位
+            # åªä¿ç•™éœ€è¦çš„æ¬„ä½
             keep_columns = ["symbol", "date", "open", "high", "low", "close", "volume", "change", "change_pct"]
             df = df[[c for c in keep_columns if c in df.columns]]
             
             return df
             
         except Exception as e:
-            logger.error(f"取得指數資料失敗 {symbol}: {e}")
+            logger.error(f"å–å¾—æŒ‡æ•¸è³‡æ–™å¤±æ•— {symbol}: {e}")
             return None
     
     def get_all_indices(self, period: str = "10y") -> Dict[str, pd.DataFrame]:
         """
-        取得所有三大指數資料
+        å–å¾—æ‰€æœ‰ä¸‰å¤§æŒ‡æ•¸è³‡æ–™
         
         Returns:
             {symbol: DataFrame}
@@ -573,33 +576,33 @@ class YahooFinanceClient:
         years: int = 10,
     ) -> Optional[pd.DataFrame]:
         """
-        取得股票延伸歷史資料（支援更長時間）
+        å–å¾—è‚¡ç¥¨å»¶ä¼¸æ­·å²è³‡æ–™ï¼ˆæ”¯æ´æ›´é•·æ™‚é–“ï¼‰
         
         Args:
-            symbol: 股票代號
-            years: 年數 (1, 3, 5, 10)
+            symbol: è‚¡ç¥¨ä»£è™Ÿ
+            years: å¹´æ•¸ (1, 3, 5, 10)
             
         Returns:
-            包含 OHLCV 的 DataFrame
+            åŒ…å« OHLCV çš„ DataFrame
         """
         period_map = {
             1: "1y",
             2: "2y",
-            3: "3y",  # yfinance 不支援 3y，用 5y 代替
+            3: "3y",  # yfinance ä¸æ”¯æ´ 3yï¼Œç”¨ 5y ä»£æ›¿
             5: "5y",
             10: "10y",
         }
         
         period = period_map.get(years, "10y")
         if years == 3:
-            period = "5y"  # 然後在程式中過濾
+            period = "5y"  # ç„¶å¾Œåœ¨ç¨‹å¼ä¸­éŽæ¿¾
         
         df = self.get_stock_history(symbol, period=period)
         
         if df is None:
             return None
         
-        # 如果是 3 年，需要過濾
+        # å¦‚æžœæ˜¯ 3 å¹´ï¼Œéœ€è¦éŽæ¿¾
         if years == 3:
             cutoff_date = datetime.now().date() - timedelta(days=3 * 365)
             df = df[df["date"] >= cutoff_date]
@@ -607,5 +610,5 @@ class YahooFinanceClient:
         return df
 
 
-# 建立全域客戶端實例
+# å»ºç«‹å…¨åŸŸå®¢æˆ¶ç«¯å¯¦ä¾‹
 yahoo_finance = YahooFinanceClient()
