@@ -1,16 +1,38 @@
 """
 股票查詢 API 路由
+
+修復: 台股代號自動轉換 (0050 → 0050.TW)
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 import logging
 import pandas as pd
+from datetime import datetime
 
 from app.schemas.schemas import StockAnalysisResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/stock", tags=["股票"])
+
+
+def normalize_tw_symbol(symbol: str) -> str:
+    """
+    標準化台股代號
+    - 純數字 4-6 位 → 自動加 .TW
+    - 已有後綴 → 保持不變
+    """
+    symbol = symbol.strip().upper()
+    
+    # 如果已經有後綴，不處理
+    if '.' in symbol or symbol.startswith('^'):
+        return symbol
+    
+    # 台股代號：4-6 位純數字
+    if symbol.isdigit() and 4 <= len(symbol) <= 6:
+        return f"{symbol}.TW"
+    
+    return symbol
 
 
 @router.get("/{symbol}", summary="查詢股票")
@@ -24,7 +46,8 @@ async def get_stock_analysis(
     from app.data_sources.yahoo_finance import yahoo_finance
     from app.services.indicator_service import indicator_service
     
-    symbol = symbol.upper()
+    # 台股代號自動轉換
+    symbol = normalize_tw_symbol(symbol)
     original_symbol = symbol
     logger.info(f"開始查詢股票: {symbol}")
     
@@ -228,9 +251,17 @@ async def get_stock_chart(
     from app.data_sources.yahoo_finance import yahoo_finance
     from app.services.chart_service import chart_service
     
-    symbol = symbol.upper()
+    # 台股代號自動轉換
+    symbol = normalize_tw_symbol(symbol)
     
     df = yahoo_finance.get_stock_history(symbol, period="1y")
+    
+    # 如果 .TW 找不到，嘗試 .TWO
+    if (df is None or df.empty) and symbol.endswith('.TW'):
+        two_symbol = symbol.replace('.TW', '.TWO')
+        df = yahoo_finance.get_stock_history(two_symbol, period="1y")
+        if df is not None and not df.empty:
+            symbol = two_symbol
     
     if df is None or df.empty:
         raise HTTPException(
@@ -272,8 +303,8 @@ async def compare_stocks(
     from app.data_sources.yahoo_finance import yahoo_finance
     import math
     
-    # 解析 symbols
-    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    # 解析 symbols，並自動轉換台股代號
+    symbol_list = [normalize_tw_symbol(s.strip()) for s in symbols.split(",") if s.strip()]
     
     if len(symbol_list) < 1:
         raise HTTPException(status_code=400, detail="請至少輸入一個代號")
@@ -293,6 +324,13 @@ async def compare_stocks(
                 df = yahoo_finance.get_index_data(symbol, period="2y")
             else:
                 df = yahoo_finance.get_stock_history(symbol, period="2y")
+                
+                # 如果 .TW 找不到，嘗試 .TWO
+                if (df is None or df.empty) and symbol.endswith('.TW'):
+                    two_symbol = symbol.replace('.TW', '.TWO')
+                    df = yahoo_finance.get_stock_history(two_symbol, period="2y")
+                    if df is not None and not df.empty:
+                        symbol = two_symbol
             
             if df is None or df.empty:
                 logger.warning(f"找不到資料: {symbol}")
@@ -391,15 +429,24 @@ async def get_stock_returns(
     from datetime import date, timedelta
     import math
     
-    symbol = symbol.upper()
+    # 台股代號自動轉換
+    symbol = normalize_tw_symbol(symbol)
+    original_symbol = symbol
     logger.info(f"計算年化報酬率: {symbol}")
     
     try:
         # 取得 10 年股價歷史
         df = yahoo_finance.get_stock_history(symbol, period="10y")
         
+        # 如果 .TW 找不到，嘗試 .TWO
+        if (df is None or df.empty) and symbol.endswith('.TW'):
+            two_symbol = symbol.replace('.TW', '.TWO')
+            df = yahoo_finance.get_stock_history(two_symbol, period="10y")
+            if df is not None and not df.empty:
+                symbol = two_symbol
+        
         if df is None or df.empty:
-            raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
+            raise HTTPException(status_code=404, detail=f"找不到股票: {original_symbol}")
         
         # 確保有 date 欄位
         if 'date' not in df.columns:
@@ -555,12 +602,18 @@ async def debug_prices(
     from datetime import date, timedelta
     import yfinance as yf
     
-    symbol = symbol.upper()
+    # 台股代號自動轉換
+    symbol = normalize_tw_symbol(symbol)
+    
+    # 如果 .TW 找不到，嘗試 .TWO
+    df = yahoo_finance.get_stock_history(symbol, period=f"{years}y")
+    if (df is None or df.empty) and symbol.endswith('.TW'):
+        two_symbol = symbol.replace('.TW', '.TWO')
+        df = yahoo_finance.get_stock_history(two_symbol, period=f"{years}y")
+        if df is not None and not df.empty:
+            symbol = two_symbol
     
     try:
-        # 用我們的函數取得數據（含分割調整）
-        df = yahoo_finance.get_stock_history(symbol, period=f"{years}y")
-        
         if df is None or df.empty:
             raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
         
