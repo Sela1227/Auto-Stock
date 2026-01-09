@@ -66,6 +66,28 @@ class CompareService:
     def __init__(self):
         self.max_symbols = 5  # 最多比較 5 個
     
+    def _normalize_symbol(self, symbol: str) -> str:
+        """
+        標準化股票代號
+        - 台股代號（純數字 4-6 位）自動加 .TW
+        - 其他保持原樣
+        """
+        symbol = symbol.strip().upper()
+        
+        # 如果已經有後綴，不處理
+        if '.' in symbol or symbol.startswith('^'):
+            return symbol
+        
+        # 檢查是否為加密貨幣
+        if symbol in SUPPORTED_CRYPTO:
+            return symbol
+        
+        # 台股代號：4-6 位純數字
+        if symbol.isdigit() and 4 <= len(symbol) <= 6:
+            return f"{symbol}.TW"
+        
+        return symbol
+    
     def _get_asset_type(self, symbol: str) -> str:
         """判斷資產類型"""
         symbol_upper = symbol.upper()
@@ -227,8 +249,9 @@ class CompareService:
         if periods is None:
             periods = ["1y", "3y", "5y", "10y"]
         
-        # 正規化代號
-        symbols = [s.upper().strip() for s in symbols]
+        # 正規化代號（處理台股等）
+        symbols = [self._normalize_symbol(s) for s in symbols]
+        logger.info(f"標準化後的代號: {symbols}")
         
         # 計算需要的天數
         max_days = 3650  # 10 年
