@@ -87,5 +87,8 @@ Thumbs.db
 .env.production
 secrets/
 
-# 更新檔
-更新檔/
+# 我自己需要的
+stock_analysis.db
+選股系統_bundle.txt
+__pycache__/
+*.pyc
