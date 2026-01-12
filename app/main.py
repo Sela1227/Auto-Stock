@@ -28,7 +28,7 @@ from app.models import (
     IndexPrice, DividendHistory,
     Comparison,
     StockPriceCache,
-    PortfolioTransaction, PortfolioHolding,  # 🆕 投資組合
+    PortfolioTransaction, PortfolioHolding, ExchangeRate,  # 🆕 個人投資記錄
 )
 from app.models.user import LoginLog, TokenBlacklist, SystemConfig
 
@@ -40,21 +40,24 @@ from app.routers import (
     settings_router,
     admin_router,
     compare_router,
-    portfolio_router,  # 🆕 投資組合
+    portfolio_router,  # 🆕 個人投資記錄
 )
 from app.routers.market import router as market_router
 
-# 🆕 排程器
+# 排程器
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 logger = logging.getLogger(__name__)
 
-# 🆕 建立排程器
+# 建立排程器
 scheduler = AsyncIOScheduler()
 
 
-# 🆕 價格快取更新函數
+# ============================================================
+# 價格快取更新函數
+# ============================================================
+
 def update_price_cache():
     """排程任務：更新價格快取（每 10 分鐘）"""
     from app.database import SyncSessionLocal
@@ -89,6 +92,26 @@ def update_price_cache_force():
         db.close()
 
 
+# ============================================================
+# 🆕 匯率更新函數
+# ============================================================
+
+def update_exchange_rate():
+    """排程任務：更新 USD/TWD 匯率"""
+    from app.database import SyncSessionLocal
+    from app.services.exchange_rate_service import update_exchange_rate_sync
+    
+    logger.info("[排程] 開始更新匯率...")
+    db = SyncSessionLocal()
+    try:
+        rate = update_exchange_rate_sync(db)
+        logger.info(f"[排程] 匯率更新完成: USD/TWD = {rate:.4f}")
+    except Exception as e:
+        logger.error(f"[排程] 匯率更新失敗: {e}")
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """應用程式生命週期管理"""
@@ -110,7 +133,10 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized")
     
-    # 🆕 設定價格快取排程
+    # ============================================================
+    # 價格快取排程
+    # ============================================================
+    
     # 每 10 分鐘執行（自動判斷開盤時間）
     scheduler.add_job(
         update_price_cache,
@@ -136,15 +162,41 @@ async def lifespan(app: FastAPI):
         name='美股收盤更新',
     )
     
+    # ============================================================
+    # 🆕 匯率排程（每天 3 次：09:00、12:00、17:00）
+    # ============================================================
+    
+    scheduler.add_job(
+        update_exchange_rate,
+        CronTrigger(hour=9, minute=0),
+        id='exchange_rate_morning',
+        name='匯率更新(早)',
+    )
+    
+    scheduler.add_job(
+        update_exchange_rate,
+        CronTrigger(hour=12, minute=0),
+        id='exchange_rate_noon',
+        name='匯率更新(中)',
+    )
+    
+    scheduler.add_job(
+        update_exchange_rate,
+        CronTrigger(hour=17, minute=0),
+        id='exchange_rate_evening',
+        name='匯率更新(晚)',
+    )
+    
     # 啟動排程器
     scheduler.start()
-    logger.info("價格快取排程器已啟動")
+    logger.info("排程器已啟動（價格快取 + 匯率）")
     
-    # 啟動時執行一次強制更新
+    # 啟動時執行一次
     try:
         update_price_cache_force()
+        update_exchange_rate()
     except Exception as e:
-        logger.error(f"啟動時更新價格快取失敗: {e}")
+        logger.error(f"啟動時更新失敗: {e}")
     
     yield
     
@@ -170,7 +222,7 @@ app = FastAPI(
 - **市場情緒**: CNN Fear & Greed / Alternative.me
 - **圖表生成**: 完整技術分析圖表
 - **報酬率比較**: 多標的年化報酬率 (CAGR) 比較
-- **投資組合**: 個人交易紀錄與持股管理 🆕
+- **個人投資記錄**: 交易紀錄、持股管理、損益追蹤 🆕
 
 ### 認證方式
 
@@ -202,7 +254,7 @@ app.include_router(settings_router)
 app.include_router(admin_router)
 app.include_router(market_router)
 app.include_router(compare_router)
-app.include_router(portfolio_router)  # 🆕 投資組合
+app.include_router(portfolio_router)  # 🆕 個人投資記錄
 
 # 掛載靜態檔案
 static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
