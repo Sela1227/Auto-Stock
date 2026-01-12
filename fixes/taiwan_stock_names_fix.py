@@ -1,48 +1,14 @@
-# 🔧 台股名稱編碼修復
+# ============================================================
+# 修復: TAIWAN_STOCK_NAMES 亂碼問題
+# 位置: app/data_sources/yahoo_finance.py
+# 
+# 問題: Bundle 文件中的中文名稱已經是亂碼
+# 解決: 用以下正確的字典替換
+# ============================================================
 
-> 文件編號: 20260112-002  
-> 更新日期: 2026-01-12  
-> 類型: Bug 修復  
-> 優先級: **緊急**
+# 找到 yahoo_finance.py 中的 TAIWAN_STOCK_NAMES = { ... }
+# 整個替換為以下內容:
 
----
-
-## 🔴 問題根源（重要！）
-
-**Bundle 文件中的 `TAIWAN_STOCK_NAMES` 字典已經是亂碼！**
-
-這不是 compare_service.py 的問題，而是原始檔案中的中文被破壞了：
-
-```python
-# yahoo_finance.py 中現在的狀態（已損壞）:
-"2330": "Ã¥ÂÂ°Ã§Â©ÂÃ©â€ºÂ»",  # 應該是「台積電」
-
-# price_cache_service.py 中現在的狀態（已損壞）:
-"0050": "å…ƒå¤§å°ç£50",  # 應該是「元大台灣50」
-```
-
-**原因：** 在某次檔案處理時，UTF-8 編碼被破壞了。
-
----
-
-## 📁 需要修復的檔案
-
-| 檔案 | 位置 | 說明 |
-|------|------|------|
-| `yahoo_finance.py` | `app/data_sources/` | 主要資料來源，**必須修復** |
-| `price_cache_service.py` | `app/services/` | 快取服務，也需要修復 |
-
----
-
-## 🚀 修復步驟
-
-### 步驟 1: 修復 yahoo_finance.py
-
-找到 `app/data_sources/yahoo_finance.py` 中的 `TAIWAN_STOCK_NAMES = {...}`
-
-**整個替換為：**
-
-```python
 TAIWAN_STOCK_NAMES = {
     # 權值股
     "2330": "台積電",
@@ -156,28 +122,10 @@ TAIWAN_STOCK_NAMES = {
     "00939": "統一台灣高息優選",
     "00940": "元大台灣價值高息",
 }
-```
 
-### 步驟 2: 同樣修復 price_cache_service.py
 
-找到 `app/services/price_cache_service.py` 中的 `TAIWAN_STOCK_NAMES = {...}`，用相同的字典替換。
-
-### 步驟 3: 確保檔案使用 UTF-8 編碼儲存
-
-儲存時確認編輯器使用 **UTF-8 without BOM** 編碼。
-
----
-
-## ✅ 驗證
-
-1. 開啟比較頁面
-2. 選擇台股（如 2330.TW）
-3. 確認名稱顯示為「台積電」而非亂碼
-
----
-
-## ⚠️ 預防措施
-
-1. 使用 Git 時設定：`git config --global core.quotepath false`
-2. 編輯器設定為 UTF-8
-3. 避免用 Windows 記事本編輯 Python 檔案
+# ============================================================
+# 同樣需要修復 price_cache_service.py 中的 TAIWAN_STOCK_NAMES
+# 位置: app/services/price_cache_service.py
+# 用相同的字典替換
+# ============================================================
