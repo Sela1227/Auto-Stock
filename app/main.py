@@ -27,7 +27,8 @@ from app.models import (
     UserIndicatorSettings, UserAlertSettings, UserIndicatorParams,
     IndexPrice, DividendHistory,
     Comparison,
-    StockPriceCache,  # 🆕 價格快取
+    StockPriceCache,
+    PortfolioTransaction, PortfolioHolding,  # 🆕 投資組合
 )
 from app.models.user import LoginLog, TokenBlacklist, SystemConfig
 
@@ -39,6 +40,7 @@ from app.routers import (
     settings_router,
     admin_router,
     compare_router,
+    portfolio_router,  # 🆕 投資組合
 )
 from app.routers.market import router as market_router
 
@@ -167,7 +169,8 @@ app = FastAPI(
 - **綜合評分**: 多指標共振分析
 - **市場情緒**: CNN Fear & Greed / Alternative.me
 - **圖表生成**: 完整技術分析圖表
-- **報酬率比較**: 多標的年化報酬率 (CAGR) 比較 🆕
+- **報酬率比較**: 多標的年化報酬率 (CAGR) 比較
+- **投資組合**: 個人交易紀錄與持股管理 🆕
 
 ### 認證方式
 
@@ -199,6 +202,7 @@ app.include_router(settings_router)
 app.include_router(admin_router)
 app.include_router(market_router)
 app.include_router(compare_router)
+app.include_router(portfolio_router)  # 🆕 投資組合
 
 # 掛載靜態檔案
 static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")

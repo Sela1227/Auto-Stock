@@ -15,7 +15,8 @@ from app.models.notification import Notification
 from app.models.index_price import IndexPrice, INDEX_SYMBOLS
 from app.models.dividend_history import DividendHistory
 from app.models.comparison import Comparison
-from app.models.price_cache import StockPriceCache  # 🆕 價格快取
+from app.models.price_cache import StockPriceCache
+from app.models.portfolio import PortfolioTransaction, PortfolioHolding  # 🆕 投資組合
 
 __all__ = [
     "StockPrice",
@@ -34,5 +35,7 @@ __all__ = [
     "INDEX_SYMBOLS",
     "DividendHistory",
     "Comparison",
-    "StockPriceCache",  # 🆕 價格快取
+    "StockPriceCache",
+    "PortfolioTransaction",  # 🆕 投資組合
+    "PortfolioHolding",      # 🆕 投資組合
 ]
