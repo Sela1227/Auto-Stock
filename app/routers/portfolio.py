@@ -1,6 +1,5 @@
 """
-投資組合 API 路由
-個人買賣股票管理
+個人投資記錄 API 路由
 """
 from datetime import date
 from typing import Optional, List
@@ -13,11 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_async_session
 from app.services.auth_service import AuthService
 from app.services.portfolio_service import PortfolioService
+from app.services.exchange_rate_service import get_exchange_rate, set_exchange_rate
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/portfolio", tags=["投資組合"])
+router = APIRouter(prefix="/api/portfolio", tags=["個人投資記錄"])
 
 
 # ============================================================
@@ -30,7 +30,7 @@ class TransactionCreate(BaseModel):
     name: Optional[str] = Field(None, max_length=100, description="股票名稱")
     market: str = Field(..., pattern="^(tw|us)$", description="市場 (tw/us)")
     transaction_type: str = Field(..., pattern="^(buy|sell)$", description="交易類型 (buy/sell)")
-    quantity: int = Field(..., gt=0, description="股數")
+    quantity: int = Field(..., gt=0, description="股數（台股：張×1000 + 零股）")
     price: float = Field(..., gt=0, description="成交價")
     fee: Optional[float] = Field(0, ge=0, description="手續費")
     tax: Optional[float] = Field(0, ge=0, description="交易稅")
@@ -50,6 +50,11 @@ class TransactionUpdate(BaseModel):
     tax: Optional[float] = Field(None, ge=0)
     transaction_date: Optional[date] = None
     note: Optional[str] = Field(None, max_length=500)
+
+
+class ExchangeRateUpdate(BaseModel):
+    """更新匯率請求"""
+    rate: float = Field(..., gt=0, description="USD/TWD 匯率")
 
 
 # ============================================================
@@ -76,6 +81,37 @@ async def get_current_user(
 
 
 # ============================================================
+# 匯率 API
+# ============================================================
+
+@router.get("/exchange-rate", summary="取得匯率")
+async def get_rate(
+    db: AsyncSession = Depends(get_async_session),
+):
+    """取得目前的 USD/TWD 匯率"""
+    rate_info = await get_exchange_rate(db)
+    return {
+        "success": True,
+        "data": rate_info,
+    }
+
+
+@router.put("/exchange-rate", summary="設定匯率")
+async def update_rate(
+    data: ExchangeRateUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """手動設定 USD/TWD 匯率"""
+    rate_info = await set_exchange_rate(db, data.rate)
+    return {
+        "success": True,
+        "message": "匯率已更新",
+        "data": rate_info,
+    }
+
+
+# ============================================================
 # 交易紀錄 API
 # ============================================================
 
@@ -91,7 +127,7 @@ async def create_transaction(
     - **symbol**: 股票代碼（如 AAPL、2330）
     - **market**: 市場類型（tw=台股, us=美股）
     - **transaction_type**: buy=買入, sell=賣出
-    - **quantity**: 股數
+    - **quantity**: 總股數（台股：張×1000 + 零股）
     - **price**: 成交價
     - **fee**: 手續費（可選）
     - **tax**: 交易稅（可選，賣出時）
@@ -285,10 +321,10 @@ async def get_summary(
     取得投資組合摘要統計
     
     包含：
-    - 總投入金額
-    - 現值
-    - 已實現/未實現損益
-    - 報酬率
+    - 匯率資訊
+    - 台股統計
+    - 美股統計
+    - 總計（換算 TWD）
     """
     try:
         service = PortfolioService(db)

@@ -10,8 +10,9 @@ import logging
 from sqlalchemy import select, update, delete, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.portfolio import PortfolioTransaction, PortfolioHolding
+from app.models.portfolio import PortfolioTransaction, PortfolioHolding, ExchangeRate
 from app.models.price_cache import StockPriceCache
+from app.services.exchange_rate_service import DEFAULT_USD_TWD_RATE
 
 logger = logging.getLogger(__name__)
 
@@ -336,34 +337,110 @@ class PortfolioService:
         
         return result
     
+    async def _get_exchange_rate(self) -> float:
+        """取得 USD/TWD 匯率"""
+        stmt = select(ExchangeRate).where(
+            ExchangeRate.from_currency == "USD",
+            ExchangeRate.to_currency == "TWD"
+        )
+        result = await self.db.execute(stmt)
+        rate_record = result.scalar_one_or_none()
+        
+        return rate_record.rate if rate_record else DEFAULT_USD_TWD_RATE
+    
     async def get_summary(self, user_id: int) -> Dict[str, Any]:
-        """取得投資摘要"""
-        holdings = await self.get_holdings_with_prices(user_id)
+        """取得投資摘要（分台股/美股 + 加總）"""
         
-        # 分類統計
-        tw_holdings = [h for h in holdings if h['market'] == 'tw']
-        us_holdings = [h for h in holdings if h['market'] == 'us']
+        # 取得匯率
+        exchange_rate = await self._get_exchange_rate()
         
-        # 計算總值
-        total_invested = sum(float(h['total_invested'] or 0) for h in holdings)
-        total_current_value = sum(h['current_value'] or 0 for h in holdings if h['current_value'])
-        total_realized = sum(float(h['realized_profit'] or 0) for h in holdings)
-        total_unrealized = sum(h['unrealized_profit'] or 0 for h in holdings if h['unrealized_profit'])
+        # 取得匯率更新時間
+        stmt = select(ExchangeRate).where(
+            ExchangeRate.from_currency == "USD",
+            ExchangeRate.to_currency == "TWD"
+        )
+        result = await self.db.execute(stmt)
+        rate_record = result.scalar_one_or_none()
+        rate_updated_at = rate_record.updated_at.isoformat() if rate_record and rate_record.updated_at else None
         
-        # 報酬率
-        return_rate = None
-        if total_invested > 0:
-            total_profit = total_realized + total_unrealized
-            return_rate = (total_profit / total_invested) * 100
+        # 取得台股持股
+        tw_holdings = await self.get_holdings_with_prices(user_id, "tw")
+        # 取得美股持股
+        us_holdings = await self.get_holdings_with_prices(user_id, "us")
+        
+        # 台股統計
+        tw_invested = sum(float(h['total_invested'] or 0) for h in tw_holdings)
+        tw_current_value = sum(h['current_value'] or 0 for h in tw_holdings if h['current_value'])
+        tw_realized = sum(float(h['realized_profit'] or 0) for h in tw_holdings)
+        tw_unrealized = sum(h['unrealized_profit'] or 0 for h in tw_holdings if h['unrealized_profit'])
+        tw_positions = len([h for h in tw_holdings if h['total_shares'] > 0])
+        
+        # 美股統計
+        us_invested = sum(float(h['total_invested'] or 0) for h in us_holdings)
+        us_current_value = sum(h['current_value'] or 0 for h in us_holdings if h['current_value'])
+        us_realized = sum(float(h['realized_profit'] or 0) for h in us_holdings)
+        us_unrealized = sum(h['unrealized_profit'] or 0 for h in us_holdings if h['unrealized_profit'])
+        us_positions = len([h for h in us_holdings if h['total_shares'] > 0])
+        
+        # 換算成 TWD 加總
+        total_invested_twd = tw_invested + (us_invested * exchange_rate)
+        total_current_value_twd = tw_current_value + (us_current_value * exchange_rate)
+        total_realized_twd = tw_realized + (us_realized * exchange_rate)
+        total_unrealized_twd = tw_unrealized + (us_unrealized * exchange_rate)
+        total_profit_twd = total_realized_twd + total_unrealized_twd
+        
+        # 總報酬率
+        total_return_rate = None
+        if total_invested_twd > 0:
+            total_return_rate = (total_profit_twd / total_invested_twd) * 100
+        
+        # 台股報酬率
+        tw_return_rate = None
+        if tw_invested > 0:
+            tw_profit = tw_realized + tw_unrealized
+            tw_return_rate = (tw_profit / tw_invested) * 100
+        
+        # 美股報酬率
+        us_return_rate = None
+        if us_invested > 0:
+            us_profit = us_realized + us_unrealized
+            us_return_rate = (us_profit / us_invested) * 100
         
         return {
-            "total_invested": total_invested,
-            "current_value": total_current_value,
-            "realized_profit": total_realized,
-            "unrealized_profit": total_unrealized,
-            "total_profit": total_realized + total_unrealized,
-            "return_rate": return_rate,
-            "tw_count": len([h for h in tw_holdings if h['total_shares'] > 0]),
-            "us_count": len([h for h in us_holdings if h['total_shares'] > 0]),
-            "total_positions": len([h for h in holdings if h['total_shares'] > 0]),
+            # 匯率
+            "exchange_rate": exchange_rate,
+            "exchange_rate_updated_at": rate_updated_at,
+            
+            # 台股
+            "tw": {
+                "invested": tw_invested,
+                "current_value": tw_current_value,
+                "realized_profit": tw_realized,
+                "unrealized_profit": tw_unrealized,
+                "total_profit": tw_realized + tw_unrealized,
+                "return_rate": tw_return_rate,
+                "positions": tw_positions,
+            },
+            
+            # 美股
+            "us": {
+                "invested": us_invested,
+                "current_value": us_current_value,
+                "realized_profit": us_realized,
+                "unrealized_profit": us_unrealized,
+                "total_profit": us_realized + us_unrealized,
+                "return_rate": us_return_rate,
+                "positions": us_positions,
+            },
+            
+            # 加總（TWD）
+            "total": {
+                "invested_twd": total_invested_twd,
+                "current_value_twd": total_current_value_twd,
+                "realized_profit_twd": total_realized_twd,
+                "unrealized_profit_twd": total_unrealized_twd,
+                "total_profit_twd": total_profit_twd,
+                "return_rate": total_return_rate,
+                "positions": tw_positions + us_positions,
+            },
         }
