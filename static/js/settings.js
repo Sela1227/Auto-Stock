@@ -1,13 +1,13 @@
 /**
  * SELA 設定頁面 JavaScript
  * 版本: 1.0.0
+ * 日期: 2026-01-12
  * 
  * 依賴: 需要 dashboard.html 中的 apiRequest() 函數
  */
 
 // ========== 常數定義 ==========
 
-// 指標名稱對照表
 const INDICATOR_LABELS = {
     show_ma: { name: '均線', icon: 'fas fa-wave-square', color: 'text-blue-500' },
     show_rsi: { name: 'RSI', icon: 'fas fa-tachometer-alt', color: 'text-green-500' },
@@ -18,7 +18,6 @@ const INDICATOR_LABELS = {
     show_volume: { name: '成交量', icon: 'fas fa-chart-bar', color: 'text-orange-500' },
 };
 
-// 通知名稱對照表
 const ALERT_LABELS = {
     alert_ma_cross: { name: '均線交叉', icon: 'fas fa-times', color: 'text-blue-500' },
     alert_ma_breakout: { name: '均線突破', icon: 'fas fa-arrow-up', color: 'text-green-500' },
@@ -30,7 +29,6 @@ const ALERT_LABELS = {
     alert_sentiment: { name: '情緒極端', icon: 'fas fa-smile', color: 'text-orange-500' },
 };
 
-// 模板名稱對照
 const TEMPLATE_NAMES = {
     minimal: '極簡',
     standard: '標準',
@@ -38,7 +36,6 @@ const TEMPLATE_NAMES = {
     short_term: '短線'
 };
 
-// 參數設定範圍
 const PARAM_RANGES = {
     ma_short: { min: 5, max: 50, step: 1 },
     ma_mid: { min: 20, max: 100, step: 1 },
@@ -69,25 +66,19 @@ let settingsState = {
 
 // ========== 初始化 ==========
 
-/**
- * 初始化設定頁面
- */
 async function initSettingsPage() {
     console.log('[Settings] 初始化設定頁面');
+    updateSettingsUserInfo();
     await loadAllSettings();
 }
 
 // ========== API 調用 ==========
 
-/**
- * 載入所有設定
- */
 async function loadAllSettings() {
     settingsState.isLoading = true;
     showSettingsLoading(true);
     
     try {
-        // 並行載入三種設定
         const [indRes, alertRes, paramRes] = await Promise.all([
             apiRequest('/api/settings/indicators'),
             apiRequest('/api/settings/alerts'),
@@ -99,7 +90,6 @@ async function loadAllSettings() {
         settingsState.params = paramRes.data || {};
         settingsState.hasUnsavedChanges = false;
         
-        // 渲染 UI
         renderIndicatorToggles();
         renderAlertToggles();
         renderParamInputs();
@@ -117,9 +107,6 @@ async function loadAllSettings() {
     }
 }
 
-/**
- * 儲存所有設定
- */
 async function saveAllSettings() {
     const btn = document.getElementById('settings-save-btn');
     if (!btn || settingsState.isLoading) return;
@@ -128,10 +115,8 @@ async function saveAllSettings() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 儲存中...';
     
     try {
-        // 收集參數值
         const params = collectParamValues();
         
-        // 並行儲存三種設定
         await Promise.all([
             apiRequest('/api/settings/indicators', {
                 method: 'PUT',
@@ -156,9 +141,7 @@ async function saveAllSettings() {
         showSettingsMessage('設定已成功儲存！', 'success');
         btn.innerHTML = '<i class="fas fa-check"></i> 已儲存';
         
-        setTimeout(() => {
-            updateSaveButton();
-        }, 2000);
+        setTimeout(() => updateSaveButton(), 2000);
         
     } catch (error) {
         console.error('[Settings] 儲存失敗:', error);
@@ -168,9 +151,6 @@ async function saveAllSettings() {
     }
 }
 
-/**
- * 套用模板
- */
 async function applyTemplate(templateName) {
     if (settingsState.isLoading) return;
     
@@ -183,8 +163,6 @@ async function applyTemplate(templateName) {
             showSettingsMessage(`已套用「${TEMPLATE_NAMES[templateName]}」模板`, 'success');
             settingsState.currentTemplate = templateName;
             updateTemplateButtons();
-            
-            // 重新載入設定
             await loadAllSettings();
         }
     } catch (error) {
@@ -195,9 +173,6 @@ async function applyTemplate(templateName) {
 
 // ========== 渲染函數 ==========
 
-/**
- * 渲染指標開關
- */
 function renderIndicatorToggles() {
     const grid = document.getElementById('indicators-grid');
     if (!grid) return;
@@ -221,9 +196,6 @@ function renderIndicatorToggles() {
     }
 }
 
-/**
- * 渲染通知開關
- */
 function renderAlertToggles() {
     const grid = document.getElementById('alerts-grid');
     if (!grid) return;
@@ -247,9 +219,6 @@ function renderAlertToggles() {
     }
 }
 
-/**
- * 渲染參數輸入
- */
 function renderParamInputs() {
     const params = settingsState.params;
     
@@ -257,8 +226,6 @@ function renderParamInputs() {
         const input = document.getElementById(`param-${key}`);
         if (input) {
             input.value = value;
-            
-            // 設定範圍限制
             const range = PARAM_RANGES[key];
             if (range) {
                 input.min = range.min;
@@ -271,9 +238,6 @@ function renderParamInputs() {
 
 // ========== 互動處理 ==========
 
-/**
- * 切換指標
- */
 function toggleIndicator(key) {
     settingsState.indicators[key] = !settingsState.indicators[key];
     markUnsaved();
@@ -281,9 +245,6 @@ function toggleIndicator(key) {
     detectCurrentTemplate();
 }
 
-/**
- * 切換通知
- */
 function toggleAlert(key) {
     settingsState.alerts[key] = !settingsState.alerts[key];
     markUnsaved();
@@ -291,9 +252,6 @@ function toggleAlert(key) {
     detectCurrentTemplate();
 }
 
-/**
- * 切換參數面板
- */
 function toggleParamsPanel() {
     const content = document.getElementById('params-collapse-content');
     const arrow = document.getElementById('params-collapse-arrow');
@@ -304,9 +262,6 @@ function toggleParamsPanel() {
     }
 }
 
-/**
- * 收集參數值
- */
 function collectParamValues() {
     const params = {};
     
@@ -323,26 +278,17 @@ function collectParamValues() {
     return params;
 }
 
-/**
- * 參數變更處理
- */
 function onParamChange() {
     markUnsaved();
 }
 
 // ========== 狀態更新 ==========
 
-/**
- * 標記有未儲存的變更
- */
 function markUnsaved() {
     settingsState.hasUnsavedChanges = true;
     updateSaveButton();
 }
 
-/**
- * 更新儲存按鈕狀態
- */
 function updateSaveButton() {
     const btn = document.getElementById('settings-save-btn');
     if (!btn) return;
@@ -360,9 +306,6 @@ function updateSaveButton() {
     }
 }
 
-/**
- * 更新模板按鈕狀態
- */
 function updateTemplateButtons() {
     document.querySelectorAll('.template-btn').forEach(btn => {
         const template = btn.getAttribute('data-template');
@@ -370,26 +313,16 @@ function updateTemplateButtons() {
     });
 }
 
-/**
- * 偵測當前模板
- */
 function detectCurrentTemplate() {
-    // 簡單的模板偵測邏輯
     const ind = settingsState.indicators;
-    const alerts = settingsState.alerts;
     
-    // 極簡模式
     if (ind.show_ma && ind.show_volume && 
         !ind.show_rsi && !ind.show_macd && !ind.show_kd && !ind.show_bollinger && !ind.show_obv) {
         settingsState.currentTemplate = 'minimal';
-    }
-    // 完整模式
-    else if (ind.show_ma && ind.show_rsi && ind.show_macd && ind.show_kd && 
+    } else if (ind.show_ma && ind.show_rsi && ind.show_macd && ind.show_kd && 
              ind.show_bollinger && ind.show_obv && ind.show_volume) {
         settingsState.currentTemplate = 'full';
-    }
-    // 其他情況清除模板選擇
-    else {
+    } else {
         settingsState.currentTemplate = null;
     }
     
@@ -398,9 +331,6 @@ function detectCurrentTemplate() {
 
 // ========== UI 輔助 ==========
 
-/**
- * 顯示/隱藏載入狀態
- */
 function showSettingsLoading(show) {
     const loading = document.getElementById('settings-loading');
     const content = document.getElementById('settings-content');
@@ -409,9 +339,6 @@ function showSettingsLoading(show) {
     if (content) content.classList.toggle('hidden', show);
 }
 
-/**
- * 顯示訊息
- */
 function showSettingsMessage(text, type) {
     const msg = document.getElementById('settings-message');
     if (!msg) return;
@@ -420,16 +347,25 @@ function showSettingsMessage(text, type) {
     msg.textContent = text;
     msg.classList.remove('hidden');
     
-    setTimeout(() => {
-        msg.classList.add('hidden');
-    }, 3000);
+    setTimeout(() => msg.classList.add('hidden'), 3000);
 }
 
-// ========== 頁面離開警告 ==========
+function updateSettingsUserInfo() {
+    try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        const avatar = document.getElementById('settings-user-avatar');
+        const name = document.getElementById('settings-user-name');
+        const level = document.getElementById('settings-user-level');
+        
+        if (avatar && user.avatar_url) avatar.src = user.avatar_url;
+        if (name) name.textContent = user.display_name || '用戶';
+        if (level) level.textContent = user.is_admin ? '管理員' : '免費會員';
+    } catch (e) {
+        console.error('更新用戶資訊失敗:', e);
+    }
+}
 
-/**
- * 離開前檢查未儲存變更
- */
 function checkUnsavedChanges() {
     if (settingsState.hasUnsavedChanges) {
         return confirm('您有未儲存的變更，確定要離開嗎？');
@@ -437,9 +373,7 @@ function checkUnsavedChanges() {
     return true;
 }
 
-// ========== 導出函數（供外部調用）==========
-
-// 確保這些函數可以在全域範圍使用
+// ========== 導出函數 ==========
 window.initSettingsPage = initSettingsPage;
 window.loadAllSettings = loadAllSettings;
 window.saveAllSettings = saveAllSettings;
