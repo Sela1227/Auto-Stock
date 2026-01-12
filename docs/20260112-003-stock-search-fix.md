@@ -65,61 +65,6 @@ for period in ["10y", "5y", "2y", "1y", "6mo"]:
 
 ---
 
-## 📝 完整修改後的函數
-
-```python
-@router.get("/{symbol:path}", summary="查詢股票")
-async def get_stock_analysis(
-    symbol: str,
-    refresh: bool = Query(False, description="是否強制更新資料"),
-):
-    """
-    查詢單一股票的技術分析報告
-    """
-    from app.data_sources.yahoo_finance import yahoo_finance
-    from app.services.indicator_service import indicator_service
-    
-    # 台股代號自動轉換
-    symbol = normalize_tw_symbol(symbol)
-    original_symbol = symbol
-    logger.info(f"開始查詢股票: {symbol}")
-    
-    try:
-        # 動態嘗試不同期間（解決新股歷史數據不足問題）
-        df = None
-        used_period = None
-        for period in ["10y", "5y", "2y", "1y", "6mo"]:
-            logger.info(f"嘗試抓取 {symbol} {period} 數據...")
-            df = yahoo_finance.get_stock_history(symbol, period=period)
-            if df is not None and len(df) >= 20:
-                used_period = period
-                logger.info(f"{symbol} 使用 {period} 期間，共 {len(df)} 筆數據")
-                break
-        
-        # 如果 .TW 找不到，嘗試 .TWO (上櫃股票)
-        if (df is None or df.empty) and symbol.endswith('.TW'):
-            two_symbol = symbol.replace('.TW', '.TWO')
-            logger.info(f"{symbol} 找不到，嘗試上櫃股票: {two_symbol}")
-            for period in ["10y", "5y", "2y", "1y", "6mo"]:
-                df = yahoo_finance.get_stock_history(two_symbol, period=period)
-                if df is not None and len(df) >= 20:
-                    symbol = two_symbol
-                    used_period = period
-                    logger.info(f"成功找到上櫃股票: {two_symbol}")
-                    break
-        
-        if df is None or df.empty:
-            logger.warning(f"找不到股票資料: {original_symbol}")
-            raise HTTPException(
-                status_code=404,
-                detail=f"找不到股票: {original_symbol}（已嘗試上市 .TW 和上櫃 .TWO）"
-            )
-        
-        # ... 後續代碼保持不變 ...
-```
-
----
-
 ## ✅ 驗證
 
 修復後測試以下股票：
@@ -134,14 +79,6 @@ async def get_stock_analysis(
 
 ---
 
-## ⚠️ 注意事項
-
-1. 使用 `:path` 轉換器後，URL 中的 `/` 也會被捕獲，需確保沒有其他路由衝突
-2. 新股可能只有較短期間的數據，CAGR 計算結果可能不完整
-3. 某些股票可能同時有 `BRK.B` 和 `BRK-B` 兩種寫法，建議前端統一處理
-
----
-
 ## 📌 常見特殊股票代碼
 
 | 公司 | 代碼 | 說明 |
@@ -150,6 +87,3 @@ async def get_stock_analysis(
 | Berkshire Hathaway B | BRK.B 或 BRK-B | 一般投資人 |
 | Alphabet A | GOOGL | 有投票權 |
 | Alphabet C | GOOG | 無投票權 |
-| Meta Platforms | META | 原 FB |
-
-Yahoo Finance API 通常接受 `.` 或 `-` 作為分隔符，建議後端統一處理。

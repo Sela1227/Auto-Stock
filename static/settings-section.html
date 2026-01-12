@@ -1,24 +1,16 @@
-<!--
-SELA 設定頁面 HTML 片段
-版本: 1.0.0
-日期: 2026-01-12
-
-插入位置: 在其他 section 元素之後，</main> 標籤之前
--->
+<!-- SELA 設定頁面 HTML 片段 - 插入到 dashboard.html 的其他 section 之後 -->
 
 <section id="section-settings" class="section hidden">
     <div class="max-w-2xl mx-auto p-4">
         
-        <!-- 載入中狀態 -->
         <div id="settings-loading" class="settings-loading hidden">
             <i class="fas fa-spinner fa-spin"></i>
             <span>載入設定中...</span>
         </div>
         
-        <!-- 設定內容 -->
         <div id="settings-content">
             
-            <!-- 用戶資訊卡片 -->
+            <!-- 用戶資訊 -->
             <div class="user-info-card">
                 <div class="flex items-center gap-4">
                     <img id="settings-user-avatar" src="" alt="頭像" class="user-avatar"
@@ -41,35 +33,28 @@ SELA 設定頁面 HTML 片段
                 </div>
                 <div class="grid grid-cols-4 gap-2">
                     <button onclick="applyTemplate('minimal')" class="template-btn" data-template="minimal">
-                        <i class="fas fa-feather-alt"></i>
-                        <span>極簡</span>
+                        <i class="fas fa-feather-alt"></i><span>極簡</span>
                     </button>
                     <button onclick="applyTemplate('standard')" class="template-btn" data-template="standard">
-                        <i class="fas fa-balance-scale"></i>
-                        <span>標準</span>
+                        <i class="fas fa-balance-scale"></i><span>標準</span>
                     </button>
                     <button onclick="applyTemplate('full')" class="template-btn" data-template="full">
-                        <i class="fas fa-layer-group"></i>
-                        <span>完整</span>
+                        <i class="fas fa-layer-group"></i><span>完整</span>
                     </button>
                     <button onclick="applyTemplate('short_term')" class="template-btn" data-template="short_term">
-                        <i class="fas fa-bolt"></i>
-                        <span>短線</span>
+                        <i class="fas fa-bolt"></i><span>短線</span>
                     </button>
                 </div>
-                <p class="text-xs text-gray-500 mt-3 text-center">
-                    選擇預設組合，快速套用指標和通知設定
-                </p>
+                <p class="text-xs text-gray-500 mt-3 text-center">選擇預設組合，快速套用指標和通知設定</p>
             </div>
             
-            <!-- 指標顯示設定 -->
+            <!-- 指標顯示 -->
             <div class="settings-card">
                 <div class="settings-card-header">
                     <i class="fas fa-chart-line text-blue-500"></i>
                     <h3>指標顯示</h3>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3" id="indicators-grid">
-                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3" id="indicators-grid"></div>
             </div>
             
             <!-- 通知設定 -->
@@ -78,15 +63,11 @@ SELA 設定頁面 HTML 片段
                     <i class="fas fa-bell text-yellow-500"></i>
                     <h3>通知設定</h3>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3" id="alerts-grid">
-                </div>
-                <p class="text-xs text-gray-500 mt-3">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    開啟的通知將透過 LINE 推播
-                </p>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3" id="alerts-grid"></div>
+                <p class="text-xs text-gray-500 mt-3"><i class="fas fa-info-circle mr-1"></i>開啟的通知將透過 LINE 推播</p>
             </div>
             
-            <!-- 進階參數（可折疊） -->
+            <!-- 進階參數 -->
             <div class="settings-card" style="padding: 0; overflow: hidden;">
                 <button onclick="toggleParamsPanel()" class="collapse-header">
                     <div class="flex items-center gap-2">
@@ -101,114 +82,56 @@ SELA 設定頁面 HTML 片段
                         
                         <!-- 均線參數 -->
                         <div class="mb-5">
-                            <div class="param-section-title">
-                                <i class="fas fa-wave-square text-blue-500"></i>
-                                均線週期
-                            </div>
+                            <div class="param-section-title"><i class="fas fa-wave-square text-blue-500"></i>均線週期</div>
                             <div class="grid grid-cols-3 gap-3">
-                                <div>
-                                    <label class="param-label">短期</label>
-                                    <input type="number" id="param-ma_short" class="param-input" min="5" max="50" onchange="onParamChange()">
-                                </div>
-                                <div>
-                                    <label class="param-label">中期</label>
-                                    <input type="number" id="param-ma_mid" class="param-input" min="20" max="100" onchange="onParamChange()">
-                                </div>
-                                <div>
-                                    <label class="param-label">長期</label>
-                                    <input type="number" id="param-ma_long" class="param-input" min="100" max="300" onchange="onParamChange()">
-                                </div>
+                                <div><label class="param-label">短期</label><input type="number" id="param-ma_short" class="param-input" onchange="onParamChange()"></div>
+                                <div><label class="param-label">中期</label><input type="number" id="param-ma_mid" class="param-input" onchange="onParamChange()"></div>
+                                <div><label class="param-label">長期</label><input type="number" id="param-ma_long" class="param-input" onchange="onParamChange()"></div>
                             </div>
                         </div>
                         
                         <!-- RSI 參數 -->
                         <div class="mb-5">
-                            <div class="param-section-title">
-                                <i class="fas fa-tachometer-alt text-green-500"></i>
-                                RSI 參數
-                            </div>
+                            <div class="param-section-title"><i class="fas fa-tachometer-alt text-green-500"></i>RSI 參數</div>
                             <div class="grid grid-cols-3 gap-3">
-                                <div>
-                                    <label class="param-label">週期</label>
-                                    <input type="number" id="param-rsi_period" class="param-input" min="5" max="30" onchange="onParamChange()">
-                                </div>
-                                <div>
-                                    <label class="param-label">超買門檻</label>
-                                    <input type="number" id="param-rsi_overbought" class="param-input" min="60" max="90" onchange="onParamChange()">
-                                </div>
-                                <div>
-                                    <label class="param-label">超賣門檻</label>
-                                    <input type="number" id="param-rsi_oversold" class="param-input" min="10" max="40" onchange="onParamChange()">
-                                </div>
+                                <div><label class="param-label">週期</label><input type="number" id="param-rsi_period" class="param-input" onchange="onParamChange()"></div>
+                                <div><label class="param-label">超買</label><input type="number" id="param-rsi_overbought" class="param-input" onchange="onParamChange()"></div>
+                                <div><label class="param-label">超賣</label><input type="number" id="param-rsi_oversold" class="param-input" onchange="onParamChange()"></div>
                             </div>
                         </div>
                         
                         <!-- MACD 參數 -->
                         <div class="mb-5">
-                            <div class="param-section-title">
-                                <i class="fas fa-signal text-purple-500"></i>
-                                MACD 參數
-                            </div>
+                            <div class="param-section-title"><i class="fas fa-signal text-purple-500"></i>MACD 參數</div>
                             <div class="grid grid-cols-3 gap-3">
-                                <div>
-                                    <label class="param-label">快線</label>
-                                    <input type="number" id="param-macd_fast" class="param-input" min="5" max="20" onchange="onParamChange()">
-                                </div>
-                                <div>
-                                    <label class="param-label">慢線</label>
-                                    <input type="number" id="param-macd_slow" class="param-input" min="15" max="40" onchange="onParamChange()">
-                                </div>
-                                <div>
-                                    <label class="param-label">訊號線</label>
-                                    <input type="number" id="param-macd_signal" class="param-input" min="5" max="15" onchange="onParamChange()">
-                                </div>
+                                <div><label class="param-label">快線</label><input type="number" id="param-macd_fast" class="param-input" onchange="onParamChange()"></div>
+                                <div><label class="param-label">慢線</label><input type="number" id="param-macd_slow" class="param-input" onchange="onParamChange()"></div>
+                                <div><label class="param-label">訊號</label><input type="number" id="param-macd_signal" class="param-input" onchange="onParamChange()"></div>
                             </div>
                         </div>
                         
                         <!-- 其他參數 -->
                         <div>
-                            <div class="param-section-title">
-                                <i class="fas fa-cog text-gray-500"></i>
-                                其他參數
-                            </div>
+                            <div class="param-section-title"><i class="fas fa-cog text-gray-500"></i>其他參數</div>
                             <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="param-label">KD 週期</label>
-                                    <input type="number" id="param-kd_period" class="param-input" min="5" max="20" onchange="onParamChange()">
-                                </div>
-                                <div>
-                                    <label class="param-label">布林週期</label>
-                                    <input type="number" id="param-bollinger_period" class="param-input" min="10" max="30" onchange="onParamChange()">
-                                </div>
-                                <div>
-                                    <label class="param-label">突破門檻 (%)</label>
-                                    <input type="number" id="param-breakout_threshold" class="param-input" min="0.5" max="5" step="0.1" onchange="onParamChange()">
-                                </div>
-                                <div>
-                                    <label class="param-label">量比警戒倍數</label>
-                                    <input type="number" id="param-volume_alert_ratio" class="param-input" min="1" max="5" step="0.1" onchange="onParamChange()">
-                                </div>
+                                <div><label class="param-label">KD 週期</label><input type="number" id="param-kd_period" class="param-input" onchange="onParamChange()"></div>
+                                <div><label class="param-label">布林週期</label><input type="number" id="param-bollinger_period" class="param-input" onchange="onParamChange()"></div>
+                                <div><label class="param-label">突破門檻(%)</label><input type="number" id="param-breakout_threshold" class="param-input" step="0.1" onchange="onParamChange()"></div>
+                                <div><label class="param-label">量比倍數</label><input type="number" id="param-volume_alert_ratio" class="param-input" step="0.1" onchange="onParamChange()"></div>
                             </div>
                         </div>
-                        
                     </div>
                 </div>
             </div>
             
             <!-- 儲存按鈕 -->
             <button onclick="saveAllSettings()" id="settings-save-btn" class="save-btn">
-                <i class="fas fa-save"></i>
-                儲存設定
+                <i class="fas fa-save"></i>儲存設定
             </button>
             
-            <!-- 訊息提示 -->
             <div id="settings-message" class="settings-message hidden"></div>
             
-            <!-- 版本資訊 -->
-            <div class="text-center text-xs text-gray-400 mt-6">
-                SELA 自動選股系統 v0.9.0
-            </div>
-            
+            <div class="text-center text-xs text-gray-400 mt-6">SELA 自動選股系統 v0.9.1</div>
         </div>
     </div>
 </section>
