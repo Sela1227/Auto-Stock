@@ -1,0 +1,405 @@
+#!/usr/bin/env python3
+"""
+專案整合工具 v2 - 智能分層整理
+用途：上傳到 Claude 專案作為 context，結構化便於閱讀
+"""
+
+import os
+import re
+from pathlib import Path
+from datetime import datetime
+from collections import defaultdict
+
+# ===== 設定 =====
+IGNORE_DIRS = {'.git', '__pycache__', '.venv', 'venv', 'node_modules', '.idea', '.vscode', 'dist', 'build', '__MACOSX', '.pytest_cache', 'htmlcov'}
+IGNORE_FILES = {'.DS_Store', 'Thumbs.db', '*.pyc', '*.pyo', '*.so', '*.egg-info'}
+CODE_EXTENSIONS = {'.py', '.js', '.ts', '.jsx', '.tsx', '.html', '.css', '.json', '.yaml', '.yml', '.md', '.txt', '.sql', '.sh', '.env.example', '.toml'}
+MAX_FILE_SIZE = 100 * 1024  # 100KB
+
+# ===== 分層定義 =====
+# 優先順序：數字越小越前面
+LAYER_RULES = {
+    # 第 1 層：專案概述
+    'overview': {
+        'order': 1,
+        'title': '📋 專案概述',
+        'patterns': ['README*', 'CHANGELOG*', 'LICENSE*', 'docs/*', 'doc/*'],
+        'files': {
+            # 基本
+            'readme.md', 'readme.txt', 'changelog.md', 'license', 'license.md',
+            # 開發文檔
+            'troubleshooting.md', 'trouble_shooting.md', 'faq.md',
+            'architecture.md', 'design.md', 'structure.md',
+            'setup.md', 'install.md', 'installation.md',
+            'development.md', 'dev.md', 'dev_notes.md', 'notes.md',
+            'deployment.md', 'deploy.md',
+            'contributing.md', 'contribute.md',
+            'api.md', 'api_docs.md', 'endpoints.md',
+            'todo.md', 'roadmap.md', 'plan.md',
+            'guide.md', 'usage.md', 'manual.md',
+            # 中文常見
+            '說明.md', '開發筆記.md', '問題排解.md', '架構.md',
+        },
+    },
+    # 第 2 層：設定檔
+    'config': {
+        'order': 2,
+        'title': '⚙️ 設定檔',
+        'patterns': ['*.toml', '*.yaml', '*.yml', '.env*', 'config/*', 'settings/*'],
+        'files': {'pyproject.toml', 'package.json', 'requirements.txt', 'dockerfile', 'docker-compose.yml', 'makefile', 'procfile', '.env.example', 'config.py', 'settings.py'},
+    },
+    # 第 3 層：進入點
+    'entry': {
+        'order': 3,
+        'title': '🚀 程式進入點',
+        'patterns': [],
+        'files': {'main.py', 'app.py', 'index.py', 'server.py', 'run.py', 'index.js', 'index.ts', 'app.js', 'server.js'},
+    },
+    # 第 4 層：路由/API
+    'api': {
+        'order': 4,
+        'title': '🌐 API / 路由',
+        'patterns': ['routes/*', 'routers/*', 'api/*', 'endpoints/*', 'views/*'],
+        'files': {'routes.py', 'router.py', 'api.py', 'urls.py'},
+    },
+    # 第 5 層：資料模型
+    'models': {
+        'order': 5,
+        'title': '📦 資料模型',
+        'patterns': ['models/*', 'schemas/*', 'entities/*', 'types/*'],
+        'files': {'models.py', 'schemas.py', 'database.py', 'db.py'},
+    },
+    # 第 6 層：核心邏輯
+    'core': {
+        'order': 6,
+        'title': '🧠 核心邏輯',
+        'patterns': ['core/*', 'services/*', 'handlers/*', 'controllers/*', 'lib/*'],
+        'files': {'service.py', 'services.py', 'handler.py', 'controller.py'},
+    },
+    # 第 7 層：工具/輔助
+    'utils': {
+        'order': 7,
+        'title': '🔧 工具 / 輔助',
+        'patterns': ['utils/*', 'helpers/*', 'common/*', 'shared/*'],
+        'files': {'utils.py', 'helpers.py', 'common.py', 'tools.py'},
+    },
+    # 第 8 層：前端/靜態
+    'frontend': {
+        'order': 8,
+        'title': '🎨 前端 / 靜態資源',
+        'patterns': ['static/*', 'public/*', 'templates/*', 'assets/*', 'frontend/*', 'src/*'],
+        'files': set(),
+        'extensions': {'.html', '.css', '.js', '.jsx', '.tsx', '.vue', '.svelte'},
+    },
+    # 第 9 層：測試
+    'tests': {
+        'order': 9,
+        'title': '🧪 測試',
+        'patterns': ['tests/*', 'test/*', '__tests__/*', 'spec/*'],
+        'files': set(),
+    },
+    # 第 10 層：其他
+    'other': {
+        'order': 99,
+        'title': '📁 其他檔案',
+        'patterns': [],
+        'files': set(),
+    },
+}
+
+
+def should_ignore(path: Path) -> bool:
+    """判斷是否要忽略此路徑"""
+    name = path.name
+    if name in IGNORE_DIRS or name in IGNORE_FILES:
+        return True
+    if name.startswith('.') and name not in {'.env.example', '.gitignore'}:
+        return True
+    for pattern in IGNORE_FILES:
+        if '*' in pattern and name.endswith(pattern.replace('*', '')):
+            return True
+    return False
+
+
+def match_pattern(rel_path: str, patterns: list) -> bool:
+    """檢查路徑是否符合 pattern"""
+    rel_lower = rel_path.lower()
+    for pattern in patterns:
+        pattern_lower = pattern.lower()
+        if pattern_lower.endswith('/*'):
+            # 資料夾 pattern
+            folder = pattern_lower[:-2]
+            if rel_lower.startswith(folder + '/') or ('/' + folder + '/') in rel_lower:
+                return True
+        elif '*' in pattern_lower:
+            # 萬用字元
+            regex = pattern_lower.replace('*', '.*')
+            if re.match(regex, rel_lower):
+                return True
+        else:
+            if rel_lower == pattern_lower:
+                return True
+    return False
+
+
+def classify_file(filepath: Path, root: Path) -> str:
+    """分類檔案到對應層級"""
+    rel_path = str(filepath.relative_to(root))
+    filename = filepath.name.lower()
+    ext = filepath.suffix.lower()
+    
+    for layer_id, layer in LAYER_RULES.items():
+        # 1. 檢查檔名
+        if filename in layer['files']:
+            return layer_id
+        
+        # 2. 檢查路徑 pattern
+        if match_pattern(rel_path, layer['patterns']):
+            return layer_id
+        
+        # 3. 檢查副檔名（僅 frontend 層）
+        if layer_id == 'frontend' and ext in layer.get('extensions', set()):
+            # 但要排除已經被其他規則匹配的
+            if '/static/' in rel_path.lower() or '/templates/' in rel_path.lower() or '/public/' in rel_path.lower():
+                return layer_id
+    
+    # 特殊判斷：test 檔案
+    if 'test' in filename or filename.startswith('test_') or filename.endswith('_test.py'):
+        return 'tests'
+    
+    return 'other'
+
+
+def generate_tree(root: Path, prefix: str = "") -> list[str]:
+    """產生目錄樹狀圖"""
+    lines = []
+    try:
+        items = sorted(root.iterdir(), key=lambda x: (x.is_file(), x.name.lower()))
+    except PermissionError:
+        return lines
+    
+    items = [x for x in items if not should_ignore(x)]
+    
+    for i, item in enumerate(items):
+        is_last = i == len(items) - 1
+        connector = "└── " if is_last else "├── "
+        
+        if item.is_dir():
+            lines.append(f"{prefix}{connector}{item.name}/")
+            extension = "    " if is_last else "│   "
+            lines.extend(generate_tree(item, prefix + extension))
+        else:
+            lines.append(f"{prefix}{connector}{item.name}")
+    
+    return lines
+
+
+def collect_files(root: Path) -> list[Path]:
+    """收集所有程式碼檔案"""
+    files = []
+    for path in root.rglob('*'):
+        if path.is_file() and not should_ignore(path):
+            if any(p.name in IGNORE_DIRS for p in path.parents):
+                continue
+            if path.suffix.lower() in CODE_EXTENSIONS or path.name.lower() in {'dockerfile', 'makefile', 'requirements.txt', 'procfile', 'license'}:
+                files.append(path)
+    return files
+
+
+def estimate_importance(filepath: Path, layer: str) -> str:
+    """估算檔案重要度"""
+    filename = filepath.name.lower()
+    
+    # 高重要度
+    if layer in ('entry', 'overview'):
+        return '⭐⭐⭐'
+    if layer == 'config' and filename in {'pyproject.toml', 'package.json', 'requirements.txt'}:
+        return '⭐⭐⭐'
+    if layer == 'api':
+        return '⭐⭐⭐'
+    if layer == 'models':
+        return '⭐⭐'
+    if layer == 'core':
+        return '⭐⭐⭐'
+    
+    # 中重要度
+    if layer in ('config', 'models'):
+        return '⭐⭐'
+    
+    # 低重要度
+    if layer in ('utils', 'tests', 'other'):
+        return '⭐'
+    if layer == 'frontend':
+        return '⭐'
+    
+    return '⭐'
+
+
+def get_file_description(filepath: Path) -> str:
+    """嘗試從檔案取得描述（docstring 或第一行註解）"""
+    try:
+        content = filepath.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        
+        # Python docstring
+        if filepath.suffix == '.py':
+            for i, line in enumerate(lines[:10]):
+                if '"""' in line or "'''" in line:
+                    # 單行 docstring
+                    match = re.search(r'["\'\s]{3}(.+?)["\'\s]{3}', line)
+                    if match:
+                        return match.group(1).strip()[:60]
+                    # 多行 docstring
+                    for j in range(i+1, min(i+5, len(lines))):
+                        if lines[j].strip() and not lines[j].strip().startswith(('"""', "'''")):
+                            return lines[j].strip()[:60]
+                    break
+        
+        # 第一行註解
+        for line in lines[:5]:
+            line = line.strip()
+            if line.startswith('#') and len(line) > 2:
+                return line[1:].strip()[:60]
+            if line.startswith('//') and len(line) > 3:
+                return line[2:].strip()[:60]
+            if line.startswith('/*'):
+                return line[2:].replace('*/', '').strip()[:60]
+    except:
+        pass
+    return ''
+
+
+def bundle_project(target_dir: str, output_file: str = None, split_output: bool = False):
+    """主程式：整合專案"""
+    root = Path(target_dir).resolve()
+    
+    if not root.exists():
+        print(f"❌ 找不到資料夾: {root}")
+        return
+    
+    if output_file is None:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M')
+        output_file = f"{root.name}_bundle_{timestamp}.txt"
+    
+    output_path = Path(output_file).resolve()
+    
+    # 收集並分類檔案
+    all_files = collect_files(root)
+    layers = defaultdict(list)
+    
+    for f in all_files:
+        layer = classify_file(f, root)
+        layers[layer].append(f)
+    
+    # 排序每層內的檔案
+    for layer in layers:
+        layers[layer].sort(key=lambda x: str(x).lower())
+    
+    # 開始輸出
+    with open(output_path, 'w', encoding='utf-8') as out:
+        # ===== 標題 =====
+        out.write(f"{'='*70}\n")
+        out.write(f"# 專案：{root.name}\n")
+        out.write(f"# 整合時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        out.write(f"# 檔案數量：{len(all_files)}\n")
+        out.write(f"{'='*70}\n\n")
+        
+        # ===== 目錄結構 =====
+        out.write("## 📂 目錄結構\n\n")
+        out.write("```\n")
+        out.write(f"{root.name}/\n")
+        for line in generate_tree(root):
+            out.write(f"{line}\n")
+        out.write("```\n\n")
+        
+        # ===== 檔案索引 =====
+        out.write(f"{'='*70}\n")
+        out.write("## 📑 檔案索引\n\n")
+        out.write("| 層級 | 檔案 | 說明 | 重要度 |\n")
+        out.write("|------|------|------|--------|\n")
+        
+        sorted_layers = sorted(LAYER_RULES.items(), key=lambda x: x[1]['order'])
+        for layer_id, layer_info in sorted_layers:
+            if layer_id not in layers:
+                continue
+            for f in layers[layer_id]:
+                rel = f.relative_to(root)
+                desc = get_file_description(f)
+                importance = estimate_importance(f, layer_id)
+                layer_emoji = layer_info['title'].split()[0]
+                out.write(f"| {layer_emoji} | `{rel}` | {desc} | {importance} |\n")
+        out.write("\n")
+        
+        # ===== 分層內容 =====
+        for layer_id, layer_info in sorted_layers:
+            if layer_id not in layers:
+                continue
+            
+            out.write(f"\n{'='*70}\n")
+            out.write(f"## {layer_info['title']}\n")
+            out.write(f"{'='*70}\n")
+            
+            for filepath in layers[layer_id]:
+                rel_path = filepath.relative_to(root)
+                importance = estimate_importance(filepath, layer_id)
+                desc = get_file_description(filepath)
+                
+                out.write(f"\n{'─'*70}\n")
+                out.write(f"### 📄 {rel_path}  {importance}\n")
+                if desc:
+                    out.write(f"> {desc}\n")
+                out.write(f"{'─'*70}\n\n")
+                
+                # 檢查檔案大小
+                if filepath.stat().st_size > MAX_FILE_SIZE:
+                    out.write(f"⚠️ 檔案過大，略過內容（{filepath.stat().st_size / 1024:.1f} KB）\n")
+                    continue
+                
+                try:
+                    content = filepath.read_text(encoding='utf-8')
+                    lang = filepath.suffix.lstrip('.') or 'text'
+                    lang_map = {'txt': 'text', 'yml': 'yaml'}
+                    lang = lang_map.get(lang, lang)
+                    
+                    out.write(f"```{lang}\n")
+                    out.write(content)
+                    if not content.endswith('\n'):
+                        out.write('\n')
+                    out.write("```\n")
+                except UnicodeDecodeError:
+                    out.write("⚠️ 二進位檔案，略過\n")
+                except Exception as e:
+                    out.write(f"⚠️ 讀取錯誤：{e}\n")
+        
+        # ===== 統計 =====
+        out.write(f"\n{'='*70}\n")
+        out.write("## 📊 統計\n\n")
+        for layer_id, layer_info in sorted_layers:
+            if layer_id in layers:
+                out.write(f"- {layer_info['title']}：{len(layers[layer_id])} 個檔案\n")
+        out.write(f"\n**總計：{len(all_files)} 個檔案**\n")
+        out.write(f"{'='*70}\n")
+    
+    print(f"✅ 完成！輸出檔案: {output_path}")
+    print(f"   共整合 {len(all_files)} 個檔案")
+    print(f"\n📊 分層統計:")
+    for layer_id, layer_info in sorted_layers:
+        if layer_id in layers:
+            print(f"   {layer_info['title']}：{len(layers[layer_id])} 個")
+
+
+if __name__ == "__main__":
+    import sys
+    
+    print("=" * 50)
+    print("📦 專案整合工具 v2")
+    print("=" * 50)
+    
+    if len(sys.argv) < 2:
+        target = "."
+        print(f"使用目前目錄: {Path(target).resolve()}")
+    else:
+        target = sys.argv[1]
+    
+    output = sys.argv[2] if len(sys.argv) > 2 else None
+    bundle_project(target, output)

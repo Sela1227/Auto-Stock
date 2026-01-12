@@ -1,0 +1,197 @@
+<!--
+================================================================================
+SELA dashboard.html 補丁範例
+版本: 1.0.0
+
+此檔案展示需要在 dashboard.html 中進行的所有修改
+請依照標記位置將相應代碼加入到您的 dashboard.html 中
+================================================================================
+-->
+
+<!-- ========================================================================
+     位置 1: <head> 區塊內，在其他 CSS 之後加入
+     ======================================================================== -->
+
+<!-- 在現有 <link> 標籤之後加入 -->
+<link rel="stylesheet" href="/static/css/settings.css">
+
+
+<!-- ========================================================================
+     位置 2: 桌面版導航列，在現有導航連結之後加入
+     通常在 <nav> 內的連結區域
+     ======================================================================== -->
+
+<!-- 設定頁面導航連結 -->
+<a onclick="showSection('settings', event)" 
+   class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-gray-700 rounded-lg transition-colors cursor-pointer">
+    <i class="fas fa-cog mr-2"></i>
+    設定
+</a>
+
+
+<!-- ========================================================================
+     位置 3: 手機版底部導航列
+     通常在固定在底部的導航區域
+     ======================================================================== -->
+
+<!-- 設定頁面底部導航按鈕 -->
+<button onclick="showSection('settings', event)" 
+        class="nav-tab flex flex-col items-center py-2 px-3 text-gray-500 hover:text-orange-500 transition-colors">
+    <i class="fas fa-cog text-lg"></i>
+    <span class="text-xs mt-1">設定</span>
+</button>
+
+
+<!-- ========================================================================
+     位置 4: 在其他 <section> 之後、</main> 之前加入設定頁面
+     請將 settings-section.html 的完整內容貼在此處
+     ======================================================================== -->
+
+<section id="section-settings" class="section hidden">
+    <!-- 從 settings-section.html 複製完整內容到這裡 -->
+</section>
+
+
+<!-- ========================================================================
+     位置 5: 在 </body> 之前，其他 <script> 之後加入
+     ======================================================================== -->
+
+<!-- 設定頁面腳本 -->
+<script src="/static/js/settings.js"></script>
+
+
+<!-- ========================================================================
+     位置 6: JavaScript 修改 - 更新 showSection 函數
+     在現有的 showSection 函數中加入以下邏輯
+     ======================================================================== -->
+
+<script>
+// 修改現有的 showSection 函數，加入設定頁面支援
+
+function showSection(name, evt) {
+    // 隱藏所有 section
+    document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+    
+    // 顯示目標 section
+    const section = document.getElementById(`section-${name}`);
+    if (section) {
+        section.classList.remove('hidden');
+    }
+    
+    // 更新導航列高亮
+    document.querySelectorAll('.nav-link').forEach(l => {
+        l.classList.remove('bg-blue-50', 'text-gray-700');
+        l.classList.add('text-gray-600');
+    });
+    
+    // 只有點擊導航時才更新高亮
+    if (evt && evt.target) {
+        const navLink = evt.target.closest('.nav-link');
+        if (navLink) {
+            navLink.classList.add('bg-blue-50', 'text-gray-700');
+            navLink.classList.remove('text-gray-600');
+        }
+    }
+    
+    // 更新手機版底部導航高亮
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('text-orange-500');
+        tab.classList.add('text-gray-500');
+    });
+    if (evt && evt.target) {
+        const navTab = evt.target.closest('.nav-tab');
+        if (navTab) {
+            navTab.classList.remove('text-gray-500');
+            navTab.classList.add('text-orange-500');
+        }
+    }
+    
+    // ==================== 新增：設定頁面初始化 ====================
+    if (name === 'settings') {
+        // 更新用戶資訊
+        updateSettingsUserInfo();
+        // 載入設定
+        if (typeof initSettingsPage === 'function') {
+            initSettingsPage();
+        }
+    }
+    // ============================================================
+    
+    // 其他頁面特定邏輯...
+    if (name === 'dashboard') {
+        // 載入儀表板數據
+    } else if (name === 'watchlist') {
+        // 載入追蹤清單
+    }
+}
+
+// 新增：更新設定頁面的用戶資訊
+function updateSettingsUserInfo() {
+    try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        const avatar = document.getElementById('settings-user-avatar');
+        const name = document.getElementById('settings-user-name');
+        const level = document.getElementById('settings-user-level');
+        
+        if (avatar && user.avatar_url) {
+            avatar.src = user.avatar_url;
+        }
+        if (name) {
+            name.textContent = user.display_name || '用戶';
+        }
+        if (level) {
+            level.textContent = user.is_admin ? '管理員' : '免費會員';
+        }
+    } catch (e) {
+        console.error('更新用戶資訊失敗:', e);
+    }
+}
+</script>
+
+
+<!-- ========================================================================
+     完整的導航列範例（供參考）
+     ======================================================================== -->
+
+<!-- 桌面版導航列範例 -->
+<nav class="hidden md:flex flex-col space-y-1 p-4">
+    <a onclick="showSection('dashboard', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-gray-700 rounded-lg transition-colors cursor-pointer bg-blue-50 text-gray-700">
+        <i class="fas fa-home mr-2"></i>
+        首頁
+    </a>
+    <a onclick="showSection('watchlist', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-gray-700 rounded-lg transition-colors cursor-pointer">
+        <i class="fas fa-star mr-2"></i>
+        追蹤清單
+    </a>
+    <a onclick="showSection('compare', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-gray-700 rounded-lg transition-colors cursor-pointer">
+        <i class="fas fa-chart-bar mr-2"></i>
+        報酬比較
+    </a>
+    <!-- 新增的設定連結 -->
+    <a onclick="showSection('settings', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-gray-700 rounded-lg transition-colors cursor-pointer">
+        <i class="fas fa-cog mr-2"></i>
+        設定
+    </a>
+</nav>
+
+<!-- 手機版底部導航列範例 -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-2 z-50">
+    <button onclick="showSection('dashboard', event)" class="nav-tab flex flex-col items-center py-2 px-3 text-orange-500">
+        <i class="fas fa-home text-lg"></i>
+        <span class="text-xs mt-1">首頁</span>
+    </button>
+    <button onclick="showSection('watchlist', event)" class="nav-tab flex flex-col items-center py-2 px-3 text-gray-500 hover:text-orange-500 transition-colors">
+        <i class="fas fa-star text-lg"></i>
+        <span class="text-xs mt-1">追蹤</span>
+    </button>
+    <button onclick="showSection('compare', event)" class="nav-tab flex flex-col items-center py-2 px-3 text-gray-500 hover:text-orange-500 transition-colors">
+        <i class="fas fa-chart-bar text-lg"></i>
+        <span class="text-xs mt-1">比較</span>
+    </button>
+    <!-- 新增的設定按鈕 -->
+    <button onclick="showSection('settings', event)" class="nav-tab flex flex-col items-center py-2 px-3 text-gray-500 hover:text-orange-500 transition-colors">
+        <i class="fas fa-cog text-lg"></i>
+        <span class="text-xs mt-1">設定</span>
+    </button>
+</nav>
