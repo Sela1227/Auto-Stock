@@ -7,7 +7,8 @@ from app.routers.crypto import router as crypto_router
 from app.routers.watchlist import router as watchlist_router
 from app.routers.settings import router as settings_router
 from app.routers.admin import router as admin_router
-from app.routers.compare import router as compare_router  # 🆕 新增：報酬率比較
+from app.routers.compare import router as compare_router
+from app.routers.portfolio import router as portfolio_router  # 🆕 投資組合
 
 __all__ = [
     "auth_router",
@@ -16,5 +17,6 @@ __all__ = [
     "watchlist_router",
     "settings_router",
     "admin_router",
-    "compare_router",  # 🆕 新增
+    "compare_router",
+    "portfolio_router",  # 🆕 投資組合
 ]
