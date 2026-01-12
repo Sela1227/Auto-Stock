@@ -6,6 +6,7 @@
 
 import os
 import re
+import shutil
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
@@ -14,7 +15,37 @@ from collections import defaultdict
 IGNORE_DIRS = {'.git', '__pycache__', '.venv', 'venv', 'node_modules', '.idea', '.vscode', 'dist', 'build', '__MACOSX', '.pytest_cache', 'htmlcov'}
 IGNORE_FILES = {'.DS_Store', 'Thumbs.db', '*.pyc', '*.pyo', '*.so', '*.egg-info'}
 CODE_EXTENSIONS = {'.py', '.js', '.ts', '.jsx', '.tsx', '.html', '.css', '.json', '.yaml', '.yml', '.md', '.txt', '.sql', '.sh', '.env.example', '.toml'}
-MAX_FILE_SIZE = 100 * 1024  # 100KB
+
+# ===== 檔案大小與截斷規則 =====
+FILE_RULES = {
+    # 完整保留（不限大小）
+    'full': {
+        'extensions': {'.md', '.txt', '.toml', '.yaml', '.yml', '.env.example'},
+        'files': {'requirements.txt', 'dockerfile', 'makefile', 'procfile'},
+    },
+    # 程式碼（上限 200KB）
+    'code': {
+        'extensions': {'.py', '.js', '.ts', '.jsx', '.tsx', '.html', '.sql', '.sh'},
+        'max_size': 200 * 1024,
+    },
+    # 樣式（只取前 150 行）
+    'style': {
+        'extensions': {'.css', '.scss', '.less'},
+        'max_lines': 150,
+    },
+    # 資料檔（只取前 50 行 + 結構說明）
+    'data': {
+        'extensions': {'.json', '.csv', '.tsv'},
+        'max_lines': 50,
+    },
+}
+
+# 重要檔案（被跳過時要複製出來）
+IMPORTANT_PATTERNS = {
+    'extensions': {'.py', '.js', '.ts', '.md', '.html'},
+    'files': {'main.py', 'app.py', 'index.py', 'config.py', 'settings.py'},
+    'layers': {'entry', 'api', 'core', 'overview'},
+}
 
 # ===== 分層定義 =====
 # 優先順序：數字越小越前面
@@ -269,6 +300,89 @@ def get_file_description(filepath: Path) -> str:
     return ''
 
 
+def get_file_handling(filepath: Path) -> dict:
+    """決定檔案的處理方式"""
+    ext = filepath.suffix.lower()
+    filename = filepath.name.lower()
+    
+    # 完整保留
+    if ext in FILE_RULES['full']['extensions'] or filename in FILE_RULES['full']['files']:
+        return {'type': 'full'}
+    
+    # 樣式檔
+    if ext in FILE_RULES['style']['extensions']:
+        return {'type': 'truncate_lines', 'max_lines': FILE_RULES['style']['max_lines']}
+    
+    # 資料檔
+    if ext in FILE_RULES['data']['extensions']:
+        return {'type': 'truncate_lines', 'max_lines': FILE_RULES['data']['max_lines'], 'show_structure': True}
+    
+    # 程式碼
+    if ext in FILE_RULES['code']['extensions']:
+        return {'type': 'size_limit', 'max_size': FILE_RULES['code']['max_size']}
+    
+    # 預設
+    return {'type': 'size_limit', 'max_size': 100 * 1024}
+
+
+def is_important_file(filepath: Path, layer: str) -> bool:
+    """判斷是否為重要檔案"""
+    ext = filepath.suffix.lower()
+    filename = filepath.name.lower()
+    
+    if ext in IMPORTANT_PATTERNS['extensions']:
+        return True
+    if filename in IMPORTANT_PATTERNS['files']:
+        return True
+    if layer in IMPORTANT_PATTERNS['layers']:
+        return True
+    return False
+
+
+def read_file_content(filepath: Path, handling: dict) -> tuple[str, bool, str]:
+    """
+    讀取檔案內容
+    回傳: (內容, 是否被截斷, 截斷原因)
+    """
+    try:
+        file_size = filepath.stat().st_size
+        
+        if handling['type'] == 'full':
+            content = filepath.read_text(encoding='utf-8')
+            return content, False, ''
+        
+        elif handling['type'] == 'size_limit':
+            max_size = handling['max_size']
+            if file_size > max_size:
+                return '', True, f'檔案過大（{file_size/1024:.1f} KB > {max_size/1024:.0f} KB）'
+            content = filepath.read_text(encoding='utf-8')
+            return content, False, ''
+        
+        elif handling['type'] == 'truncate_lines':
+            max_lines = handling['max_lines']
+            content = filepath.read_text(encoding='utf-8')
+            lines = content.split('\n')
+            
+            if len(lines) <= max_lines:
+                return content, False, ''
+            
+            truncated = '\n'.join(lines[:max_lines])
+            note = f'\n\n# ... 已截斷（顯示前 {max_lines} 行，共 {len(lines)} 行）...\n'
+            
+            # JSON 顯示結構
+            if handling.get('show_structure') and filepath.suffix.lower() == '.json':
+                note += '# 這是資料檔，僅顯示開頭結構供參考\n'
+            
+            return truncated + note, True, f'僅顯示前 {max_lines} 行'
+        
+        return '', True, '未知處理類型'
+        
+    except UnicodeDecodeError:
+        return '', True, '二進位檔案'
+    except Exception as e:
+        return '', True, f'讀取錯誤: {e}'
+
+
 def bundle_project(target_dir: str, output_file: str = None, split_output: bool = False):
     """主程式：整合專案"""
     root = Path(target_dir).resolve()
@@ -277,11 +391,17 @@ def bundle_project(target_dir: str, output_file: str = None, split_output: bool 
         print(f"❌ 找不到資料夾: {root}")
         return
     
-    if output_file is None:
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M')
-        output_file = f"{root.name}_bundle_{timestamp}.txt"
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M')
     
-    output_path = Path(output_file).resolve()
+    # 建立輸出資料夾（扁平結構）
+    output_dir = root / f"for_Claude_{timestamp}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # bundle 檔案放在輸出資料夾內
+    bundle_filename = f"{root.name}_bundle_{timestamp}.txt"
+    output_path = output_dir / bundle_filename
+    
+    skipped_files = []  # [(原始相對路徑, 新檔名), ...]
     
     # 收集並分類檔案
     all_files = collect_files(root)
@@ -343,6 +463,7 @@ def bundle_project(target_dir: str, output_file: str = None, split_output: bool 
                 rel_path = filepath.relative_to(root)
                 importance = estimate_importance(filepath, layer_id)
                 desc = get_file_description(filepath)
+                handling = get_file_handling(filepath)
                 
                 out.write(f"\n{'─'*70}\n")
                 out.write(f"### 📄 {rel_path}  {importance}\n")
@@ -350,13 +471,21 @@ def bundle_project(target_dir: str, output_file: str = None, split_output: bool 
                     out.write(f"> {desc}\n")
                 out.write(f"{'─'*70}\n\n")
                 
-                # 檢查檔案大小
-                if filepath.stat().st_size > MAX_FILE_SIZE:
-                    out.write(f"⚠️ 檔案過大，略過內容（{filepath.stat().st_size / 1024:.1f} KB）\n")
-                    continue
+                # 讀取內容
+                content, was_skipped, skip_reason = read_file_content(filepath, handling)
                 
-                try:
-                    content = filepath.read_text(encoding='utf-8')
+                if was_skipped:
+                    out.write(f"⚠️ {skip_reason}\n")
+                    
+                    # 重要檔案複製到輸出資料夾（扁平化，用 -- 取代 /）
+                    if is_important_file(filepath, layer_id):
+                        # 把路徑轉成檔名：api/routes/auth.py → api--routes--auth.py
+                        flat_name = str(rel_path).replace('/', '--').replace('\\', '--')
+                        dest = output_dir / flat_name
+                        shutil.copy2(filepath, dest)
+                        skipped_files.append((rel_path, flat_name))
+                        out.write(f"📁 已複製: {flat_name}\n")
+                else:
                     lang = filepath.suffix.lstrip('.') or 'text'
                     lang_map = {'txt': 'text', 'yml': 'yaml'}
                     lang = lang_map.get(lang, lang)
@@ -366,10 +495,6 @@ def bundle_project(target_dir: str, output_file: str = None, split_output: bool 
                     if not content.endswith('\n'):
                         out.write('\n')
                     out.write("```\n")
-                except UnicodeDecodeError:
-                    out.write("⚠️ 二進位檔案，略過\n")
-                except Exception as e:
-                    out.write(f"⚠️ 讀取錯誤：{e}\n")
         
         # ===== 統計 =====
         out.write(f"\n{'='*70}\n")
@@ -378,10 +503,31 @@ def bundle_project(target_dir: str, output_file: str = None, split_output: bool 
             if layer_id in layers:
                 out.write(f"- {layer_info['title']}：{len(layers[layer_id])} 個檔案\n")
         out.write(f"\n**總計：{len(all_files)} 個檔案**\n")
+        
+        if skipped_files:
+            out.write(f"\n### ⚠️ 被跳過的重要檔案（已複製到此資料夾）\n\n")
+            out.write("| 原始路徑 | 檔名 |\n")
+            out.write("|----------|------|\n")
+            for orig, flat in skipped_files:
+                out.write(f"| `{orig}` | `{flat}` |\n")
+        
         out.write(f"{'='*70}\n")
     
-    print(f"✅ 完成！輸出檔案: {output_path}")
-    print(f"   共整合 {len(all_files)} 個檔案")
+    # 列出資料夾內容
+    all_output_files = list(output_dir.iterdir())
+    
+    print(f"\n{'='*50}")
+    print(f"✅ 完成！")
+    print(f"{'='*50}")
+    print(f"\n📁 輸出資料夾: {output_dir}")
+    print(f"\n   請全選以下 {len(all_output_files)} 個檔案上傳到 Claude:")
+    for f in sorted(all_output_files, key=lambda x: (not x.name.endswith('.txt'), x.name)):
+        print(f"   • {f.name}")
+    
+    if skipped_files:
+        print(f"\n   💡 檔名中的 '--' 代表原本的資料夾層級")
+        print(f"      例如: api--routes--auth.py = api/routes/auth.py")
+    
     print(f"\n📊 分層統計:")
     for layer_id, layer_info in sorted_layers:
         if layer_id in layers:

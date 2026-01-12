@@ -648,6 +648,40 @@
                     </div>
                 </div>
 
+                <!-- ===== 比特幣價格卡片 ===== -->
+                <div class="mb-4 md:mb-6">
+                    <div id="btc-price-card" class="bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl p-4 md:p-5 text-white shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 relative overflow-hidden" onclick="showSection('search', event); setTimeout(() => { document.getElementById('searchSymbol').value='BTC'; searchStock(); }, 100);">
+                        <div class="flex items-center justify-between">
+                            <!-- 左側：標題與價格 -->
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-2 mb-1">
+                                    <i class="fab fa-bitcoin text-xl"></i>
+                                    <span class="text-sm font-medium opacity-90">Bitcoin</span>
+                                    <span id="btc-update-indicator" class="w-2 h-2 rounded-full bg-white/50 animate-pulse hidden"></span>
+                                </div>
+                                <div class="text-2xl md:text-3xl font-bold truncate" id="btc-price">$--,---</div>
+                            </div>
+                            
+                            <!-- 右側：漲跌幅 -->
+                            <div class="text-right flex-shrink-0 ml-3">
+                                <div class="text-lg md:text-xl font-semibold" id="btc-change">--%</div>
+                                <div class="text-xs opacity-75">24h</div>
+                            </div>
+                            
+                            <!-- 裝飾圖示 -->
+                            <div class="ml-3 md:ml-4 flex-shrink-0 opacity-20">
+                                <i class="fab fa-bitcoin text-5xl md:text-6xl"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- 週漲跌資訊 -->
+                        <div id="btc-extra-info" class="mt-3 pt-2 border-t border-white/20 flex justify-between text-xs opacity-80 hidden">
+                            <span id="btc-week-change"></span>
+                            <span id="btc-month-change"></span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 追蹤清單快覽 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6">
                     <div class="flex items-center justify-between mb-4">
@@ -1512,7 +1546,92 @@
         async function loadDashboard() {
             await loadIndices();
             await loadSentiment();
+            await loadBtcPrice();  // 🆕 載入 BTC 價格
             await loadWatchlistOverview();
+        }
+        
+        // ========== 比特幣價格 ==========
+        let btcRefreshInterval = null;
+        
+        async function loadBtcPrice() {
+            const priceEl = document.getElementById('btc-price');
+            const changeEl = document.getElementById('btc-change');
+            const cardEl = document.getElementById('btc-price-card');
+            const indicatorEl = document.getElementById('btc-update-indicator');
+            const extraInfoEl = document.getElementById('btc-extra-info');
+            const weekChangeEl = document.getElementById('btc-week-change');
+            const monthChangeEl = document.getElementById('btc-month-change');
+
+            if (!priceEl || !changeEl) return;
+
+            try {
+                // 顯示更新指示器
+                if (indicatorEl) indicatorEl.classList.remove('hidden');
+
+                const res = await fetch(`${API_BASE}/api/crypto/BTC`);
+                const data = await res.json();
+
+                if (data.success) {
+                    const price = data.price?.current || 0;
+                    const dayChange = data.change?.day || 0;
+                    const weekChange = data.change?.week || null;
+                    const monthChange = data.change?.month || null;
+
+                    // 更新價格
+                    priceEl.textContent = '$' + price.toLocaleString('en-US', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                    });
+
+                    // 更新日漲跌幅
+                    const prefix = dayChange >= 0 ? '+' : '';
+                    changeEl.textContent = `${prefix}${dayChange.toFixed(2)}%`;
+                    
+                    // 漲跌顏色
+                    changeEl.classList.remove('text-green-200', 'text-red-200');
+                    changeEl.classList.add(dayChange >= 0 ? 'text-green-200' : 'text-red-200');
+
+                    // 卡片背景色
+                    if (cardEl) {
+                        cardEl.classList.remove(
+                            'from-orange-500', 'to-yellow-500',
+                            'from-green-500', 'to-emerald-500',
+                            'from-red-500', 'to-rose-500'
+                        );
+                        if (dayChange >= 3) {
+                            cardEl.classList.add('from-green-500', 'to-emerald-500');
+                        } else if (dayChange <= -3) {
+                            cardEl.classList.add('from-red-500', 'to-rose-500');
+                        } else {
+                            cardEl.classList.add('from-orange-500', 'to-yellow-500');
+                        }
+                    }
+
+                    // 週/月漲跌（如果有）
+                    if (weekChange !== null && monthChange !== null && extraInfoEl) {
+                        const wPrefix = weekChange >= 0 ? '+' : '';
+                        const mPrefix = monthChange >= 0 ? '+' : '';
+                        weekChangeEl.textContent = `週 ${wPrefix}${weekChange.toFixed(1)}%`;
+                        monthChangeEl.textContent = `月 ${mPrefix}${monthChange.toFixed(1)}%`;
+                        extraInfoEl.classList.remove('hidden');
+                    }
+
+                    console.log(`[BTC] $${price.toLocaleString()}, ${prefix}${dayChange.toFixed(2)}%`);
+                }
+            } catch (e) {
+                console.error('[BTC] 載入失敗:', e);
+                priceEl.textContent = '$--,---';
+                changeEl.textContent = '錯誤';
+            } finally {
+                if (indicatorEl) {
+                    setTimeout(() => indicatorEl.classList.add('hidden'), 500);
+                }
+            }
+            
+            // 設定自動更新（60秒）
+            if (!btcRefreshInterval) {
+                btcRefreshInterval = setInterval(loadBtcPrice, 60000);
+            }
         }
         
         // ========== 三大指數 ==========
