@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import logging
 import os
+from datetime import datetime
 
 from app.config import settings
 from app.database import init_db
@@ -56,14 +57,74 @@ scheduler = AsyncIOScheduler()
 
 
 # ============================================================
-# 價格快取更新函數
+# 🆕 交易時間判斷（優化版）
+# ============================================================
+
+def is_tw_market_hours() -> bool:
+    """判斷是否在台股交易時間（週一到週五 09:00-13:30 台北時間）"""
+    from datetime import timezone, timedelta
+    tw_tz = timezone(timedelta(hours=8))
+    now = datetime.now(tw_tz)
+    
+    # 週末不開盤
+    if now.weekday() >= 5:
+        return False
+    
+    # 09:00 - 13:30
+    market_open = now.replace(hour=9, minute=0, second=0, microsecond=0)
+    market_close = now.replace(hour=13, minute=30, second=0, microsecond=0)
+    
+    return market_open <= now <= market_close
+
+
+def is_us_market_hours() -> bool:
+    """判斷是否在美股交易時間（週一到週五 21:30-05:00 台北時間）"""
+    from datetime import timezone, timedelta
+    tw_tz = timezone(timedelta(hours=8))
+    now = datetime.now(tw_tz)
+    
+    # 週末不開盤（週六 05:00 後、週日全天）
+    if now.weekday() == 6:  # 週日
+        return False
+    if now.weekday() == 5 and now.hour >= 5:  # 週六 05:00 後
+        return False
+    
+    # 21:30 - 05:00 (跨日)
+    hour = now.hour
+    minute = now.minute
+    
+    if hour >= 21 and minute >= 30:
+        return True
+    if hour >= 22:
+        return True
+    if hour < 5:
+        return True
+    
+    return False
+
+
+def is_any_market_open() -> bool:
+    """判斷是否有任何市場開盤"""
+    return is_tw_market_hours() or is_us_market_hours()
+
+
+# ============================================================
+# 價格快取更新函數（優化版）
 # ============================================================
 
 def update_price_cache():
-    """排程任務：更新價格快取（每 10 分鐘）"""
+    """
+    排程任務：更新價格快取
+    🆕 優化：只在交易時間執行
+    """
+    # 檢查是否有市場開盤
+    if not is_any_market_open():
+        logger.debug("[排程] 非交易時間，跳過價格更新")
+        return
+    
     from app.database import SyncSessionLocal
     from app.services.price_cache_service import PriceCacheService
-    
+
     logger.info("[排程] 開始更新價格快取...")
     db = SyncSessionLocal()
     try:
@@ -77,10 +138,10 @@ def update_price_cache():
 
 
 def update_price_cache_force():
-    """強制更新所有價格（啟動時 / 收盤後）"""
+    """強制更新所有價格（收盤後）"""
     from app.database import SyncSessionLocal
     from app.services.price_cache_service import PriceCacheService
-    
+
     logger.info("[排程] 強制更新所有價格快取...")
     db = SyncSessionLocal()
     try:
@@ -101,7 +162,7 @@ def update_exchange_rate():
     """排程任務：更新 USD/TWD 匯率"""
     from app.database import SyncSessionLocal
     from app.services.exchange_rate_service import update_exchange_rate_sync
-    
+
     logger.info("[排程] 開始更新匯率...")
     db = SyncSessionLocal()
     try:
@@ -118,10 +179,10 @@ def update_exchange_rate():
 # ============================================================
 
 def fetch_subscription_sources():
-    """排程任務：抓取訂閱源更新（每小時）"""
+    """排程任務：抓取訂閱源更新"""
     from app.database import SyncSessionLocal
     from app.services.subscription_service import SubscriptionService
-    
+
     logger.info("[排程] 開始抓取訂閱源...")
     db = SyncSessionLocal()
     try:
@@ -139,7 +200,7 @@ async def lifespan(app: FastAPI):
     """應用程式生命週期管理"""
     # 啟動時
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    
+
     # ★★★ 診斷資料庫連線 ★★★
     from app.database import database_url, is_postgres
     db_type = "PostgreSQL" if is_postgres(database_url) else "SQLite"
@@ -151,23 +212,24 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ 使用 SQLite！資料會在重新部署後遺失！")
         logger.warning("⚠️ 請設定 DATABASE_URL 環境變數指向 PostgreSQL")
-    
+
     await init_db()
     logger.info("Database initialized")
-    
+
     # ============================================================
-    # 價格快取排程
+    # 🆕 優化後的排程設定
     # ============================================================
-    
-    # 每 10 分鐘執行（自動判斷開盤時間）
+
+    # 價格快取：每 30 分鐘（原本 10 分鐘）
+    # 內部會判斷交易時間，非交易時間自動跳過
     scheduler.add_job(
         update_price_cache,
         'interval',
-        minutes=10,
+        minutes=30,  # 🆕 從 10 分鐘改為 30 分鐘
         id='price_cache_update',
-        name='價格快取更新(每10分鐘)',
+        name='價格快取更新(每30分鐘)',
     )
-    
+
     # 台股收盤後（週一到週五 13:35）
     scheduler.add_job(
         update_price_cache_force,
@@ -175,7 +237,7 @@ async def lifespan(app: FastAPI):
         id='tw_close_update',
         name='台股收盤更新',
     )
-    
+
     # 美股收盤後（週二到週六 05:05）
     scheduler.add_job(
         update_price_cache_force,
@@ -183,57 +245,67 @@ async def lifespan(app: FastAPI):
         id='us_close_update',
         name='美股收盤更新',
     )
-    
+
     # ============================================================
-    # 匯率排程（每天 3 次：09:00、12:00、17:00）
+    # 匯率排程（每天 2 次：09:00、17:00）
+    # 🆕 從 3 次改為 2 次
     # ============================================================
-    
+
     scheduler.add_job(
         update_exchange_rate,
         CronTrigger(hour=9, minute=0),
         id='exchange_rate_morning',
         name='匯率更新(早)',
     )
-    
-    scheduler.add_job(
-        update_exchange_rate,
-        CronTrigger(hour=12, minute=0),
-        id='exchange_rate_noon',
-        name='匯率更新(中)',
-    )
-    
+
     scheduler.add_job(
         update_exchange_rate,
         CronTrigger(hour=17, minute=0),
         id='exchange_rate_evening',
         name='匯率更新(晚)',
     )
-    
+
     # ============================================================
-    # 📡 訂閱源排程（每小時）
+    # 📡 訂閱源排程
+    # 🆕 從每小時改為每天 3 次（08:00、12:00、20:00）
     # ============================================================
-    
+
     scheduler.add_job(
         fetch_subscription_sources,
-        'interval',
-        hours=1,
-        id='subscription_fetch',
-        name='訂閱源抓取(每小時)',
+        CronTrigger(hour=8, minute=0),
+        id='subscription_fetch_morning',
+        name='訂閱源抓取(早)',
     )
-    
+
+    scheduler.add_job(
+        fetch_subscription_sources,
+        CronTrigger(hour=12, minute=0),
+        id='subscription_fetch_noon',
+        name='訂閱源抓取(中)',
+    )
+
+    scheduler.add_job(
+        fetch_subscription_sources,
+        CronTrigger(hour=20, minute=0),
+        id='subscription_fetch_evening',
+        name='訂閱源抓取(晚)',
+    )
+
     # 啟動排程器
     scheduler.start()
-    logger.info("排程器已啟動（價格快取 + 匯率 + 訂閱源）")
-    
-    # 啟動時執行一次
+    logger.info("排程器已啟動（優化版：價格快取30分鐘 + 交易時間判斷）")
+
+    # 🆕 啟動時只更新匯率，價格讓排程處理（減少啟動負擔）
     try:
-        update_price_cache_force()
         update_exchange_rate()
+        # 只在交易時間才更新價格
+        if is_any_market_open():
+            update_price_cache()
     except Exception as e:
         logger.error(f"啟動時更新失敗: {e}")
-    
+
     yield
-    
+
     # 關閉時
     scheduler.shutdown()
     logger.info("Shutting down...")
@@ -324,6 +396,29 @@ async def health_check():
     return {
         "status": "healthy",
         "version": settings.APP_VERSION,
+    }
+
+
+# 🆕 排程狀態 API
+@app.get("/api/admin/scheduler-status", tags=["管理"])
+async def scheduler_status():
+    """查看排程器狀態"""
+    jobs = []
+    for job in scheduler.get_jobs():
+        jobs.append({
+            "id": job.id,
+            "name": job.name,
+            "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
+        })
+    
+    return {
+        "running": scheduler.running,
+        "jobs": jobs,
+        "market_status": {
+            "tw_open": is_tw_market_hours(),
+            "us_open": is_us_market_hours(),
+            "any_open": is_any_market_open(),
+        }
     }
 
 
