@@ -28,7 +28,7 @@ from app.models import (
     IndexPrice, DividendHistory,
     Comparison,
     StockPriceCache,
-    PortfolioTransaction, PortfolioHolding, ExchangeRate,  # 🆕 個人投資記錄
+    PortfolioTransaction, PortfolioHolding, ExchangeRate,
 )
 from app.models.user import LoginLog, TokenBlacklist, SystemConfig
 
@@ -40,9 +40,10 @@ from app.routers import (
     settings_router,
     admin_router,
     compare_router,
-    portfolio_router,  # 🆕 個人投資記錄
+    portfolio_router,
 )
 from app.routers.market import router as market_router
+from app.routers.subscription import router as subscription_router  # 📡 訂閱精選
 
 # 排程器
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -93,7 +94,7 @@ def update_price_cache_force():
 
 
 # ============================================================
-# 🆕 匯率更新函數
+# 匯率更新函數
 # ============================================================
 
 def update_exchange_rate():
@@ -108,6 +109,27 @@ def update_exchange_rate():
         logger.info(f"[排程] 匯率更新完成: USD/TWD = {rate:.4f}")
     except Exception as e:
         logger.error(f"[排程] 匯率更新失敗: {e}")
+    finally:
+        db.close()
+
+
+# ============================================================
+# 📡 訂閱源抓取函數
+# ============================================================
+
+def fetch_subscription_sources():
+    """排程任務：抓取訂閱源更新（每小時）"""
+    from app.database import SyncSessionLocal
+    from app.services.subscription_service import SubscriptionService
+    
+    logger.info("[排程] 開始抓取訂閱源...")
+    db = SyncSessionLocal()
+    try:
+        service = SubscriptionService(db)
+        result = service.fetch_all_sources(backfill=False)
+        logger.info(f"[排程] 訂閱源抓取完成: {result}")
+    except Exception as e:
+        logger.error(f"[排程] 訂閱源抓取失敗: {e}")
     finally:
         db.close()
 
@@ -163,7 +185,7 @@ async def lifespan(app: FastAPI):
     )
     
     # ============================================================
-    # 🆕 匯率排程（每天 3 次：09:00、12:00、17:00）
+    # 匯率排程（每天 3 次：09:00、12:00、17:00）
     # ============================================================
     
     scheduler.add_job(
@@ -187,9 +209,21 @@ async def lifespan(app: FastAPI):
         name='匯率更新(晚)',
     )
     
+    # ============================================================
+    # 📡 訂閱源排程（每小時）
+    # ============================================================
+    
+    scheduler.add_job(
+        fetch_subscription_sources,
+        'interval',
+        hours=1,
+        id='subscription_fetch',
+        name='訂閱源抓取(每小時)',
+    )
+    
     # 啟動排程器
     scheduler.start()
-    logger.info("排程器已啟動（價格快取 + 匯率）")
+    logger.info("排程器已啟動（價格快取 + 匯率 + 訂閱源）")
     
     # 啟動時執行一次
     try:
@@ -222,7 +256,8 @@ app = FastAPI(
 - **市場情緒**: CNN Fear & Greed / Alternative.me
 - **圖表生成**: 完整技術分析圖表
 - **報酬率比較**: 多標的年化報酬率 (CAGR) 比較
-- **個人投資記錄**: 交易紀錄、持股管理、損益追蹤 🆕
+- **個人投資記錄**: 交易紀錄、持股管理、損益追蹤
+- **訂閱精選**: 自動追蹤投資專家精選股票 📡
 
 ### 認證方式
 
@@ -254,7 +289,8 @@ app.include_router(settings_router)
 app.include_router(admin_router)
 app.include_router(market_router)
 app.include_router(compare_router)
-app.include_router(portfolio_router)  # 🆕 個人投資記錄
+app.include_router(portfolio_router)
+app.include_router(subscription_router)  # 📡 訂閱精選
 
 # 掛載靜態檔案
 static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")

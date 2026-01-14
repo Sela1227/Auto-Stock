@@ -1,68 +1,40 @@
-# 📡 SELA 訂閱精選前端更新包
+# 📡 SELA 訂閱精選後端更新包
 
-## 📅 版本資訊
-- 更新日期：2026-01-14
-- 功能：新增「訂閱精選」Tab
-
----
+## 📅 版本：2026-01-14
 
 ## 📦 更新內容
 
-### 檔案清單
 ```
-static/
-└── dashboard.html    # 完整更新的前端頁面
+app/
+└── main.py    # 更新：新增訂閱路由和排程
 ```
 
-### 新增功能
-- ✅ 側邊欄新增「訂閱精選」導航（桌面版 + 手機版）
-- ✅ 訂閱精選 Section 頁面
-- ✅ 訂閱來源列表（顯示可訂閱的來源）
-- ✅ 一鍵訂閱/取消訂閱功能
-- ✅ 精選股票列表（含即時價格、漲跌幅）
-- ✅ 熱度標籤（🔥熱門 / 📈關注）
-- ✅ 剩餘有效天數顯示
-- ✅ 點擊股票跳轉查詢
+### 修改說明
+
+1. **新增 import**：`from app.routers.subscription import router as subscription_router`
+2. **新增路由註冊**：`app.include_router(subscription_router)`
+3. **新增排程任務**：每小時自動抓取訂閱源
 
 ---
 
 ## 🚀 部署步驟
 
-### 1. 解壓並覆蓋
-將 `static/dashboard.html` 覆蓋到專案的 `static/` 目錄
+1. 將 `app/main.py` 覆蓋到專案
+2. 提交並推送到 Railway
+3. 部署完成後執行初始化：
 
-### 2. 部署後初始化（首次）
 ```bash
-# 初始化訂閱源
-POST /api/subscription/admin/init
+curl -X POST https://web-develop-e7d7.up.railway.app/api/subscription/admin/init
 
-# 回溯抓取 30 天
-POST /api/subscription/admin/fetch?backfill=true
+curl -X POST "https://web-develop-e7d7.up.railway.app/api/subscription/admin/fetch?backfill=true"
 ```
 
 ---
 
-## 📝 後端 API 需求
+## ✅ 驗證
 
-確保以下 API 已部署並正常運作：
+```bash
+curl https://web-develop-e7d7.up.railway.app/api/subscription/sources
+```
 
-| 方法 | 路徑 | 說明 |
-|------|------|------|
-| GET | `/api/subscription/sources` | 所有訂閱源 |
-| GET | `/api/subscription/my` | 用戶已訂閱（需登入）|
-| POST | `/api/subscription/subscribe/{id}` | 訂閱（需登入）|
-| DELETE | `/api/subscription/unsubscribe/{id}` | 取消訂閱（需登入）|
-| GET | `/api/subscription/picks` | 用戶訂閱精選（需登入）|
-| GET | `/api/subscription/picks/{slug}` | 特定來源精選（公開）|
-
----
-
-## ✅ 驗證清單
-
-- [ ] 桌面版側邊欄可看到「訂閱精選」
-- [ ] 手機版側邊欄可看到「訂閱精選」
-- [ ] 點擊後可切換到訂閱精選頁面
-- [ ] 訂閱來源列表正常顯示
-- [ ] 精選股票列表正常顯示
-- [ ] 訂閱/取消訂閱功能正常
-- [ ] 點擊股票可跳轉到查詢頁面
+應返回 `{"success": true, "data": [...]}`
