@@ -4,7 +4,7 @@
 """
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -78,12 +78,47 @@ else:
         echo=settings.DEBUG,
     )
 
+# ============================================================
+# 🆕 自動資料庫遷移
+# ============================================================
+def run_auto_migrations():
+    """啟動時自動執行資料庫遷移"""
+    migrations = [
+        # 2026-01-14: MA20 排序功能
+        {
+            "name": "add_ma20_to_price_cache",
+            "check_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='stock_price_cache' AND column_name='ma20'",
+            "migrate_sql": "ALTER TABLE stock_price_cache ADD COLUMN ma20 NUMERIC(12, 4)",
+        },
+    ]
+    
+    try:
+        with sync_engine.connect() as conn:
+            for migration in migrations:
+                try:
+                    result = conn.execute(text(migration["check_sql"])).fetchone()
+                    if not result:
+                        conn.execute(text(migration["migrate_sql"]))
+                        conn.commit()
+                        print(f"✅ Migration: {migration['name']} completed")
+                except Exception as e:
+                    print(f"⚠️ Migration {migration['name']} skipped: {e}")
+    except Exception as e:
+        print(f"⚠️ Auto migration warning: {e}")
+
+# 啟動時執行遷移
+run_auto_migrations()
+# ============================================================
+
 # 同步 Session
 SyncSessionLocal = sessionmaker(
     bind=sync_engine,
     autocommit=False,
     autoflush=False,
 )
+
+# 為了向後相容，保留 SessionLocal 別名
+SessionLocal = SyncSessionLocal
 
 # ORM Base
 Base = declarative_base()

@@ -57,39 +57,17 @@ $185.50  ▲ 2.31%  [站上MA20]
 
 ### 步驟 1: 覆蓋檔案
 
-解壓後直接覆蓋到專案目錄：
+解壓後直接覆蓋到專案目錄
 
-```bash
-unzip sela-update-20260114.zip -d /path/to/project/
-```
-
-### 步驟 2: 修改 main.py（自動遷移）
-
-在 `main.py` 的 `Database initialized` 之後加入：
-
-```python
-# --- 自動資料庫遷移 ---
-from app.utils.migrations import run_migrations
-from app.database import SessionLocal
-
-try:
-    db = SessionLocal()
-    run_migrations(db)
-    db.close()
-    logger.info("Database migrations completed")
-except Exception as e:
-    logger.warning(f"Database migrations failed: {e}")
-```
-
-這樣啟動時會自動檢查並添加 `ma20` 欄位。
-
-### 步驟 3: 重新部署
+### 步驟 2: 重新部署
 
 ```bash
 git add .
 git commit -m "feat: 追蹤清單排序 + MA20 支援"
 git push
 ```
+
+**啟動時會自動添加 `ma20` 欄位，不需要手動執行 SQL。**
 
 ---
 
