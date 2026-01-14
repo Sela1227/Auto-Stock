@@ -3211,11 +3211,162 @@
             });
         }
 
+        // ========== 追蹤清單排序設定 ==========
+        let watchlistSortMode = localStorage.getItem('watchlist_sort') || 'custom';
+        let watchlistData = [];  // 緩存清單資料
+        
+        const SORT_OPTIONS = {
+            custom: { label: '自訂', icon: 'fa-clock' },
+            symbol: { label: '代碼', icon: 'fa-sort-alpha-down' },
+            change_desc: { label: '漲幅↓', icon: 'fa-arrow-up' },
+            change_asc: { label: '跌幅↓', icon: 'fa-arrow-down' },
+        };
+        
+        function setWatchlistSort(mode) {
+            watchlistSortMode = mode;
+            localStorage.setItem('watchlist_sort', mode);
+            
+            // 更新按鈕樣式
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-gray-100', 'text-gray-600');
+            });
+            const activeBtn = document.getElementById(`sort-btn-${mode}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-gray-100', 'text-gray-600');
+                activeBtn.classList.add('bg-blue-600', 'text-white');
+            }
+            
+            // 重新渲染（使用緩存資料，不重新呼叫 API）
+            if (watchlistData.length > 0) {
+                renderWatchlistCards(watchlistData);
+            }
+        }
+        
+        function sortWatchlistData(data) {
+            const sorted = [...data];
+            
+            switch (watchlistSortMode) {
+                case 'symbol':
+                    sorted.sort((a, b) => a.symbol.localeCompare(b.symbol));
+                    break;
+                case 'change_desc':
+                    sorted.sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0));
+                    break;
+                case 'change_asc':
+                    sorted.sort((a, b) => (a.change_pct || 0) - (b.change_pct || 0));
+                    break;
+                case 'custom':
+                default:
+                    sorted.sort((a, b) => new Date(b.added_at) - new Date(a.added_at));
+                    break;
+            }
+            
+            return sorted;
+        }
+        
+        function renderSortControls() {
+            return `
+                <div class="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
+                    <span class="text-sm text-gray-500 whitespace-nowrap">排序：</span>
+                    ${Object.entries(SORT_OPTIONS).map(([key, opt]) => `
+                        <button onclick="setWatchlistSort('${key}')" 
+                                id="sort-btn-${key}"
+                                class="sort-btn px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-all
+                                       ${watchlistSortMode === key 
+                                           ? 'bg-blue-600 text-white' 
+                                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">
+                            <i class="fas ${opt.icon} mr-1"></i>${opt.label}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        function renderWatchlistCards(data) {
+            const container = document.getElementById('watchlistContent');
+            if (!container) return;
+            
+            watchlistData = data;
+            const sortedData = sortWatchlistData(data);
+            
+            let html = renderSortControls();
+            html += '<div class="space-y-3">';
+            
+            for (const item of sortedData) {
+                const typeClass = item.asset_type === 'crypto' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700';
+                const typeText = item.asset_type === 'crypto' ? '幣' : '股';
+                
+                let priceInfo = '';
+                if (item.price !== null && item.price !== undefined) {
+                    const change = item.change_pct || 0;
+                    const changeClass = change >= 0 ? 'text-green-600' : 'text-red-600';
+                    const changeIcon = change >= 0 ? '▲' : '▼';
+                    priceInfo = `
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <span class="text-xl font-bold text-gray-800">$${item.price.toLocaleString()}</span>
+                            <span class="${changeClass} text-sm font-medium">${changeIcon} ${Math.abs(change).toFixed(2)}%</span>
+                        </div>
+                    `;
+                } else {
+                    priceInfo = `<div class="flex items-baseline gap-2 mt-2"><span class="text-gray-400 text-sm">價格更新中...</span></div>`;
+                }
+                
+                const nameDisplay = item.name ? `<span class="text-gray-500 text-sm ml-2">${item.name}</span>` : '';
+                const isCrypto = item.asset_type === 'crypto';
+                const isTw = item.symbol.includes('.TW') || /^\d+$/.test(item.symbol);
+                const market = isTw ? 'tw' : 'us';
+                
+                const tradeButtons = isCrypto ? '' : `
+                    <div class="flex gap-2 mr-2">
+                        <button onclick="quickTrade('${item.symbol}', '${item.name || ''}', '${market}', 'buy')" 
+                                class="px-3 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 touch-target">
+                            <i class="fas fa-arrow-down mr-1"></i>買入
+                        </button>
+                        <button onclick="quickTrade('${item.symbol}', '${item.name || ''}', '${market}', 'sell')" 
+                                class="px-3 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 touch-target">
+                            <i class="fas fa-arrow-up mr-1"></i>賣出
+                        </button>
+                    </div>
+                `;
+                
+                html += `
+                    <div class="stock-card bg-white rounded-xl shadow-sm p-4 border-l-4 ${item.asset_type === 'crypto' ? 'border-purple-500' : 'border-blue-500'}">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center flex-wrap">
+                                    <span class="font-bold text-lg text-gray-800">${item.symbol}</span>
+                                    <span class="ml-2 px-2 py-0.5 rounded text-xs ${typeClass}">${typeText}</span>
+                                    ${nameDisplay}
+                                </div>
+                                ${priceInfo}
+                                ${item.note ? `<p class="text-gray-500 text-sm mt-2 italic"><i class="fas fa-sticky-note mr-1"></i>${item.note}</p>` : ''}
+                            </div>
+                            <button onclick="removeFromWatchlist('${item.symbol}')" class="p-2 text-gray-400 hover:text-red-500 touch-target">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-between mt-3 pt-3 border-t flex-wrap gap-2">
+                            <span class="text-gray-400 text-xs"><i class="fas fa-clock mr-1"></i>加入於 ${new Date(item.added_at).toLocaleDateString()}</span>
+                            <div class="flex items-center">
+                                ${tradeButtons}
+                                <button onclick="searchSymbol('${item.symbol}')" class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 touch-target">
+                                    <i class="fas fa-chart-line mr-1"></i>詳細分析
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
         // ========== 追蹤清單 (卡片式) - 優化版：並行載入 ==========
         async function loadWatchlist() {
             const container = document.getElementById('watchlistContent');
             
-            // 驗證當前用戶
             if (!currentUser || !currentUser.id) {
                 console.error('loadWatchlist: 用戶未登入');
                 container.innerHTML = '<p class="text-red-500 text-center py-4">請先登入</p>';
@@ -3224,7 +3375,6 @@
             
             console.log(`載入追蹤清單頁面: user_id=${currentUser.id}`);
             
-            // 顯示載入中
             container.innerHTML = `
                 <div class="text-center py-8">
                     <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
@@ -3233,7 +3383,6 @@
             `;
             
             try {
-                // ★ 使用快取 API：一次取得清單 + 價格
                 const res = await apiRequest('/api/watchlist/with-prices');
                 const data = await res.json();
                 
@@ -3252,84 +3401,8 @@
                     return;
                 }
                 
-                let html = '<div class="space-y-3">';
-                
-                for (const item of data.data) {
-                    const typeClass = item.asset_type === 'crypto' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700';
-                    const typeText = item.asset_type === 'crypto' ? '幣' : '股';
-                    
-                    // 價格顯示（直接從快取取得）
-                    let priceInfo = '';
-                    if (item.price !== null && item.price !== undefined) {
-                        const change = item.change_pct || 0;
-                        const changeClass = change >= 0 ? 'text-green-600' : 'text-red-600';
-                        const changeIcon = change >= 0 ? '▲' : '▼';
-                        priceInfo = `
-                            <div class="flex items-baseline gap-2 mt-2">
-                                <span class="text-xl font-bold text-gray-800">$${item.price.toLocaleString()}</span>
-                                <span class="${changeClass} text-sm font-medium">${changeIcon} ${Math.abs(change).toFixed(2)}%</span>
-                            </div>
-                        `;
-                    } else {
-                        priceInfo = `
-                            <div class="flex items-baseline gap-2 mt-2">
-                                <span class="text-gray-400 text-sm">價格更新中...</span>
-                            </div>
-                        `;
-                    }
-                    
-                    const nameDisplay = item.name ? `<span class="text-gray-500 text-sm ml-2">${item.name}</span>` : '';
-                    
-                    // 判斷市場類型（用於買賣按鈕）
-                    const isCrypto = item.asset_type === 'crypto';
-                    const isTw = item.symbol.includes('.TW') || /^\d+$/.test(item.symbol);
-                    const market = isTw ? 'tw' : 'us';
-                    
-                    // 買賣按鈕（加密貨幣不顯示）
-                    const tradeButtons = isCrypto ? '' : `
-                        <div class="flex gap-2 mr-2">
-                            <button onclick="quickTrade('${item.symbol}', '${item.name || ''}', '${market}', 'buy')" 
-                                    class="px-3 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 touch-target">
-                                <i class="fas fa-arrow-down mr-1"></i>買入
-                            </button>
-                            <button onclick="quickTrade('${item.symbol}', '${item.name || ''}', '${market}', 'sell')" 
-                                    class="px-3 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 touch-target">
-                                <i class="fas fa-arrow-up mr-1"></i>賣出
-                            </button>
-                        </div>
-                    `;
-                    
-                    html += `
-                        <div class="stock-card bg-white rounded-xl shadow-sm p-4 border-l-4 ${item.asset_type === 'crypto' ? 'border-purple-500' : 'border-blue-500'}">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <div class="flex items-center flex-wrap">
-                                        <span class="font-bold text-lg text-gray-800">${item.symbol}</span>
-                                        <span class="ml-2 px-2 py-0.5 rounded text-xs ${typeClass}">${typeText}</span>
-                                        ${nameDisplay}
-                                    </div>
-                                    ${priceInfo}
-                                    ${item.note ? `<p class="text-gray-500 text-sm mt-2 italic"><i class="fas fa-sticky-note mr-1"></i>${item.note}</p>` : ''}
-                                </div>
-                                <button onclick="removeFromWatchlist('${item.symbol}')" class="p-2 text-gray-400 hover:text-red-500 touch-target">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                            <div class="flex items-center justify-between mt-3 pt-3 border-t flex-wrap gap-2">
-                                <span class="text-gray-400 text-xs"><i class="fas fa-clock mr-1"></i>加入於 ${new Date(item.added_at).toLocaleDateString()}</span>
-                                <div class="flex items-center">
-                                    ${tradeButtons}
-                                    <button onclick="searchSymbol('${item.symbol}')" class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 touch-target">
-                                        <i class="fas fa-chart-line mr-1"></i>詳細分析
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                html += '</div>';
-                container.innerHTML = html;
+                // 🆕 使用排序渲染函數
+                renderWatchlistCards(data.data);
                 
             } catch (e) {
                 console.error('載入追蹤清單失敗', e);
