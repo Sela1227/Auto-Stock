@@ -57,17 +57,28 @@ $185.50  ▲ 2.31%  [站上MA20]
 
 ### 步驟 1: 覆蓋檔案
 
-解壓後直接覆蓋到專案目錄
+解壓後直接覆蓋到專案目錄：
 
-### 步驟 2: 重新部署
+```bash
+unzip sela-update-20260114.zip -d /path/to/project/
+```
+
+### 步驟 2: 資料庫遷移（新增 ma20 欄位）
+
+```sql
+-- PostgreSQL
+ALTER TABLE stock_price_cache ADD COLUMN IF NOT EXISTS ma20 NUMERIC(12, 4);
+```
+
+或讓 SQLAlchemy 自動建立（重新啟動時會自動新增欄位）。
+
+### 步驟 3: 重新部署
 
 ```bash
 git add .
 git commit -m "feat: 追蹤清單排序 + MA20 支援"
 git push
 ```
-
-**啟動時會自動添加 `ma20` 欄位，不需要手動執行 SQL。**
 
 ---
 

@@ -107,6 +107,11 @@ async def get_watchlist_with_prices(
         for item in watchlist_items:
             cache = cached_prices.get(item.symbol)
             
+            # 防呆：檢查 ma20 欄位是否存在
+            ma20_value = None
+            if cache and hasattr(cache, 'ma20') and cache.ma20 is not None:
+                ma20_value = float(cache.ma20)
+            
             data.append({
                 "id": item.id,
                 "symbol": item.symbol,
@@ -118,6 +123,7 @@ async def get_watchlist_with_prices(
                 "price": float(cache.price) if cache and cache.price else None,
                 "change": float(cache.change) if cache and cache.change else None,
                 "change_pct": float(cache.change_pct) if cache and cache.change_pct else None,
+                "ma20": ma20_value,
                 "price_updated_at": cache.updated_at.isoformat() if cache and cache.updated_at else None,
             })
         

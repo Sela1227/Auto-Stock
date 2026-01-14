@@ -1,12 +1,12 @@
 """
-åƒ¹æ ¼å¿«å–æœå‹™
-è² è²¬æ‰¹æ¬¡æ›´æ–°è¿½è¹¤è‚¡ç¥¨çš„å³æ™‚åƒ¹æ ¼
+價格快取服務
+負責批次更新追蹤股票的即時價格
 
-æŽ’ç¨‹é‚è¼¯ï¼š
-- å°è‚¡é–‹ç›¤ (09:00-13:30)ï¼šæ¯ 10 åˆ†é˜æ›´æ–°å°è‚¡
-- ç¾Žè‚¡é–‹ç›¤ (21:30-05:00)ï¼šæ¯ 10 åˆ†é˜æ›´æ–°ç¾Žè‚¡
-- æ”¶ç›¤å¾Œï¼šä¸æ›´æ–°ï¼ˆä½¿ç”¨æ”¶ç›¤åƒ¹ï¼‰
-- åŠ å¯†è²¨å¹£ï¼š24 å°æ™‚æ¯ 10 åˆ†é˜æ›´æ–°
+排程邏輯：
+- 台股開盤 (09:00-13:30)：每 10 分鐘更新台股
+- 美股開盤 (21:30-05:00)：每 10 分鐘更新美股
+- 收盤後：不更新（使用收盤價）
+- 加密貨幣：24 小時每 10 分鐘更新
 """
 import logging
 from datetime import datetime, time
@@ -21,7 +21,7 @@ from app.models.watchlist import Watchlist
 logger = logging.getLogger(__name__)
 
 
-# å°è‚¡åç¨±å°ç…§ï¼ˆå¸¸è¦‹çš„ï¼‰
+# 台股名稱對照（常見的）
 TAIWAN_STOCK_NAMES = {
     # ===== 權值股 =====
     "2330": "台積電",
@@ -215,11 +215,11 @@ TAIWAN_STOCK_NAMES = {
 
 
 # ============================================================
-# é–‹ç›¤æ™‚é–“åˆ¤æ–·ï¼ˆå°ç£æ™‚é–“ï¼‰
+# 開盤時間判斷（台灣時間）
 # ============================================================
 
 def is_tw_market_open() -> bool:
-    """åˆ¤æ–·å°è‚¡æ˜¯å¦é–‹ç›¤ï¼ˆé€±ä¸€åˆ°é€±äº” 09:00-13:30ï¼‰"""
+    """判斷台股是否開盤（週一到週五 09:00-13:30）"""
     now = datetime.now()
     if now.weekday() >= 5:
         return False
@@ -227,25 +227,25 @@ def is_tw_market_open() -> bool:
 
 
 def is_us_market_open() -> bool:
-    """åˆ¤æ–·ç¾Žè‚¡æ˜¯å¦é–‹ç›¤ï¼ˆå°ç£æ™‚é–“ 21:30-05:00ï¼‰"""
+    """判斷美股是否開盤（台灣時間 21:30-05:00）"""
     now = datetime.now()
     weekday = now.weekday()
     current_time = now.time()
     
-    # æ™šä¸Š 21:30 å¾Œï¼ˆé€±ä¸€åˆ°é€±äº”ï¼‰
+    # 晚上 21:30 後（週一到週五）
     if weekday < 5 and current_time >= time(21, 30):
         return True
-    # å‡Œæ™¨ 05:00 å‰ï¼ˆé€±äºŒåˆ°é€±å…­ï¼‰
+    # 凌晨 05:00 前（週二到週六）
     if weekday > 0 and current_time <= time(5, 0):
         return True
-    # é€±å…­å‡Œæ™¨
+    # 週六凌晨
     if weekday == 5 and current_time <= time(5, 0):
         return True
     return False
 
 
 def get_market_status() -> Dict[str, bool]:
-    """å–å¾—å„å¸‚å ´é–‹ç›¤ç‹€æ…‹"""
+    """取得各市場開盤狀態"""
     return {
         "tw_open": is_tw_market_open(),
         "us_open": is_us_market_open(),
@@ -254,17 +254,17 @@ def get_market_status() -> Dict[str, bool]:
 
 
 # ============================================================
-# åƒ¹æ ¼å¿«å–æœå‹™
+# 價格快取服務
 # ============================================================
 
 class PriceCacheService:
-    """åƒ¹æ ¼å¿«å–æœå‹™"""
+    """價格快取服務"""
     
     def __init__(self, db: Session):
         self.db = db
     
     def get_all_tracked_symbols(self) -> Dict[str, List[str]]:
-        """å–å¾—æ‰€æœ‰è¢«è¿½è¹¤çš„ symbolï¼ˆåŽ»é‡ï¼ŒæŒ‰å¸‚å ´åˆ†é¡žï¼‰"""
+        """取得所有被追蹤的 symbol（去重，按市場分類）"""
         stmt = select(distinct(Watchlist.symbol), Watchlist.asset_type)
         results = self.db.execute(stmt).all()
         
@@ -280,19 +280,19 @@ class PriceCacheService:
             else:
                 us_stocks.append(symbol)
         
-        logger.info(f"è¿½è¹¤: å°è‚¡ {len(tw_stocks)}, ç¾Žè‚¡ {len(us_stocks)}, åŠ å¯†è²¨å¹£ {len(crypto)}")
+        logger.info(f"追蹤: 台股 {len(tw_stocks)}, 美股 {len(us_stocks)}, 加密貨幣 {len(crypto)}")
         return {"tw_stocks": tw_stocks, "us_stocks": us_stocks, "crypto": crypto}
     
     def batch_update_stock_prices(self, symbols: List[str]) -> Dict[str, Any]:
-        """æ‰¹æ¬¡æ›´æ–°è‚¡ç¥¨åƒ¹æ ¼"""
+        """批次更新股票價格（含 MA20）"""
         if not symbols:
             return {"updated": 0, "failed": []}
         
         result = {"updated": 0, "failed": []}
-        logger.info(f"é–‹å§‹æ›´æ–° {len(symbols)} æ”¯è‚¡ç¥¨...")
+        logger.info(f"開始更新 {len(symbols)} 支股票...")
         
         try:
-            # ä½¿ç”¨ yfinance æ‰¹æ¬¡å–å¾—
+            # 使用 yfinance 批次取得
             tickers = yf.Tickers(" ".join(symbols))
             
             for symbol in symbols:
@@ -302,44 +302,55 @@ class PriceCacheService:
                         result["failed"].append(symbol)
                         continue
                     
-                    info = ticker.info
-                    if not info:
+                    # 🆕 取得歷史數據（用於計算 MA20）
+                    hist = ticker.history(period="1mo")
+                    
+                    if hist.empty:
+                        # 嘗試用 info
+                        info = ticker.info
+                        if not info:
+                            result["failed"].append(symbol)
+                            continue
+                        
+                        price = info.get("regularMarketPrice") or info.get("currentPrice")
+                        prev_close = info.get("regularMarketPreviousClose") or info.get("previousClose")
+                        volume = info.get("regularMarketVolume") or info.get("volume")
+                        name = info.get("shortName") or info.get("longName") or ""
+                        ma20 = None
+                    else:
+                        # 從歷史數據取得
+                        price = float(hist['Close'].iloc[-1])
+                        prev_close = float(hist['Close'].iloc[-2]) if len(hist) > 1 else None
+                        volume = int(hist['Volume'].iloc[-1]) if 'Volume' in hist.columns else None
+                        
+                        # 🆕 計算 MA20
+                        ma20 = None
+                        if len(hist) >= 20:
+                            ma20 = float(hist['Close'].tail(20).mean())
+                        
+                        # 取得名稱
+                        info = ticker.info
+                        name = ""
+                        if info:
+                            name = info.get("shortName") or info.get("longName") or ""
+                    
+                    if price is None:
                         result["failed"].append(symbol)
                         continue
                     
-                    # å–å¾—åƒ¹æ ¼
-                    price = info.get("regularMarketPrice") or info.get("currentPrice")
-                    prev_close = info.get("regularMarketPreviousClose") or info.get("previousClose")
+                    # 台股名稱
+                    if not name and symbol.endswith((".TW", ".TWO")):
+                        stock_code = symbol.replace(".TW", "").replace(".TWO", "")
+                        name = TAIWAN_STOCK_NAMES.get(stock_code, "")
                     
-                    if price is None:
-                        # å˜—è©¦å¾žæ­·å²è³‡æ–™å–å¾—
-                        hist = ticker.history(period="2d")
-                        if not hist.empty:
-                            price = float(hist['Close'].iloc[-1])
-                            if len(hist) > 1:
-                                prev_close = float(hist['Close'].iloc[-2])
-                    
-                    if price is None:
-                        result["failed"].append(symbol)
-                        continue
-                    
-                    # è¨ˆç®—æ¼²è·Œ
+                    # 計算漲跌
                     change = None
                     change_pct = None
                     if prev_close and prev_close > 0:
                         change = price - prev_close
                         change_pct = (change / prev_close) * 100
                     
-                    # å–å¾—åç¨±
-                    name = info.get("shortName") or info.get("longName") or ""
-                    if not name and symbol.endswith((".TW", ".TWO")):
-                        stock_code = symbol.replace(".TW", "").replace(".TWO", "")
-                        name = TAIWAN_STOCK_NAMES.get(stock_code, "")
-                    
-                    # å–å¾—æˆäº¤é‡
-                    volume = info.get("regularMarketVolume") or info.get("volume")
-                    
-                    # æ›´æ–°å¿«å–
+                    # 更新快取（含 MA20）
                     self._upsert_cache(
                         symbol=symbol,
                         name=name,
@@ -349,23 +360,24 @@ class PriceCacheService:
                         change_pct=change_pct,
                         volume=volume,
                         asset_type="stock",
+                        ma20=ma20,
                     )
                     result["updated"] += 1
                     
                 except Exception as e:
-                    logger.error(f"æ›´æ–° {symbol} å¤±æ•—: {e}")
+                    logger.error(f"更新 {symbol} 失敗: {e}")
                     result["failed"].append(symbol)
             
             self.db.commit()
-            logger.info(f"è‚¡ç¥¨æ›´æ–°å®Œæˆ: æˆåŠŸ {result['updated']}, å¤±æ•— {len(result['failed'])}")
+            logger.info(f"股票更新完成: 成功 {result['updated']}, 失敗 {len(result['failed'])}")
             
         except Exception as e:
-            logger.error(f"æ‰¹æ¬¡æ›´æ–°å¤±æ•—: {e}")
+            logger.error(f"批次更新失敗: {e}")
         
         return result
     
     def batch_update_crypto_prices(self, symbols: List[str]) -> Dict[str, Any]:
-        """æ‰¹æ¬¡æ›´æ–°åŠ å¯†è²¨å¹£åƒ¹æ ¼"""
+        """批次更新加密貨幣價格"""
         if not symbols:
             return {"updated": 0, "failed": []}
         
@@ -390,22 +402,23 @@ class PriceCacheService:
                         change_pct=data.get("change_24h"),
                         volume=data.get("volume_24h"),
                         asset_type="crypto",
+                        ma20=None,  # 加密貨幣不計算 MA20
                     )
                     result["updated"] += 1
                     
                 except Exception as e:
-                    logger.error(f"æ›´æ–° {symbol} å¤±æ•—: {e}")
+                    logger.error(f"更新 {symbol} 失敗: {e}")
                     result["failed"].append(symbol)
             
             self.db.commit()
             
         except Exception as e:
-            logger.error(f"åŠ å¯†è²¨å¹£æ›´æ–°å¤±æ•—: {e}")
+            logger.error(f"加密貨幣更新失敗: {e}")
         
         return result
     
-    def _upsert_cache(self, symbol, name, price, prev_close, change, change_pct, volume, asset_type):
-        """æ›´æ–°æˆ–æ–°å¢žå¿«å–"""
+    def _upsert_cache(self, symbol, name, price, prev_close, change, change_pct, volume, asset_type, ma20=None):
+        """更新或新增快取（含 MA20）"""
         cache = self.db.query(StockPriceCache).filter(
             StockPriceCache.symbol == symbol
         ).first()
@@ -417,6 +430,8 @@ class PriceCacheService:
             cache.change = change
             cache.change_pct = change_pct
             cache.volume = volume
+            if ma20 is not None:
+                cache.ma20 = ma20
             cache.updated_at = datetime.now()
         else:
             cache = StockPriceCache(
@@ -426,6 +441,7 @@ class PriceCacheService:
                 prev_close=prev_close,
                 change=change,
                 change_pct=change_pct,
+                ma20=ma20,
                 volume=volume,
                 asset_type=asset_type,
             )
@@ -433,18 +449,18 @@ class PriceCacheService:
     
     def update_all(self, force: bool = False) -> Dict[str, Any]:
         """
-        æ›´æ–°æ‰€æœ‰è¿½è¹¤çš„åƒ¹æ ¼
+        更新所有追蹤的價格
         
-        - force=True: å¼·åˆ¶æ›´æ–°æ‰€æœ‰
-        - force=False: åªæ›´æ–°é–‹ç›¤ä¸­çš„å¸‚å ´
+        - force=True: 強制更新所有
+        - force=False: 只更新開盤中的市場
         """
         logger.info("=" * 40)
-        logger.info(f"é–‹å§‹æ›´æ–°åƒ¹æ ¼å¿«å– (force={force})")
-        logger.info(f"æ™‚é–“: {datetime.now()}")
+        logger.info(f"開始更新價格快取 (force={force})")
+        logger.info(f"時間: {datetime.now()}")
         
         tw_open = is_tw_market_open()
         us_open = is_us_market_open()
-        logger.info(f"å°è‚¡: {'é–‹ç›¤' if tw_open else 'æ”¶ç›¤'}, ç¾Žè‚¡: {'é–‹ç›¤' if us_open else 'æ”¶ç›¤'}")
+        logger.info(f"台股: {'開盤' if tw_open else '收盤'}, 美股: {'開盤' if us_open else '收盤'}")
         logger.info("=" * 40)
         
         tracked = self.get_all_tracked_symbols()
@@ -456,21 +472,21 @@ class PriceCacheService:
             "timestamp": datetime.now().isoformat(),
         }
         
-        # å°è‚¡
+        # 台股
         if force or tw_open:
             if tracked["tw_stocks"]:
                 result["tw_stocks"] = self.batch_update_stock_prices(tracked["tw_stocks"])
         else:
             result["tw_stocks"]["skipped"] = True
         
-        # ç¾Žè‚¡
+        # 美股
         if force or us_open:
             if tracked["us_stocks"]:
                 result["us_stocks"] = self.batch_update_stock_prices(tracked["us_stocks"])
         else:
             result["us_stocks"]["skipped"] = True
         
-        # åŠ å¯†è²¨å¹£ï¼ˆ24å°æ™‚ï¼‰
+        # 加密貨幣（24小時）
         if tracked["crypto"]:
             result["crypto"] = self.batch_update_crypto_prices(tracked["crypto"])
         
@@ -480,5 +496,5 @@ class PriceCacheService:
             result["crypto"].get("updated", 0)
         )
         
-        logger.info(f"æ›´æ–°å®Œæˆ: å…± {result['total_updated']} ç­†")
+        logger.info(f"更新完成: 共 {result['total_updated']} 筆")
         return result

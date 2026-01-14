@@ -4,6 +4,7 @@
 查詢股票時自動將結果寫入快取
 - 查詢過的股票會被快取
 - 但不會自動更新（只有追蹤清單才會）
+- 支援 MA20 欄位用於排序
 """
 import logging
 from datetime import datetime
@@ -19,6 +20,7 @@ def cache_stock_price(
     prev_close: Optional[float] = None,
     change: Optional[float] = None,
     change_pct: Optional[float] = None,
+    ma20: Optional[float] = None,
     volume: Optional[int] = None,
     asset_type: str = "stock"
 ):
@@ -32,6 +34,7 @@ def cache_stock_price(
         prev_close: 前收盤價
         change: 漲跌金額
         change_pct: 漲跌幅 %
+        ma20: 20日均線（用於排序）
         volume: 成交量
         asset_type: 資產類型 (stock/crypto)
     """
@@ -55,10 +58,12 @@ def cache_stock_price(
                     cache.change = change
                 if change_pct is not None:
                     cache.change_pct = change_pct
+                if ma20 is not None:
+                    cache.ma20 = ma20
                 if volume is not None:
                     cache.volume = volume
                 cache.updated_at = datetime.now()
-                logger.debug(f"更新快取: {symbol} = {price}")
+                logger.debug(f"更新快取: {symbol} = {price}, MA20={ma20}")
             else:
                 # 新增快取
                 cache = StockPriceCache(
@@ -68,11 +73,12 @@ def cache_stock_price(
                     prev_close=prev_close,
                     change=change,
                     change_pct=change_pct,
+                    ma20=ma20,
                     volume=volume,
                     asset_type=asset_type,
                 )
                 db.add(cache)
-                logger.info(f"新增快取: {symbol} = {price}")
+                logger.info(f"新增快取: {symbol} = {price}, MA20={ma20}")
             
             db.commit()
         finally:
@@ -90,7 +96,7 @@ def cache_crypto_price(
     volume: Optional[int] = None
 ):
     """
-    快取加密貨幣價格
+    快取加密貨幣價格（加密貨幣不需要 MA20）
     """
     cache_stock_price(
         symbol=symbol,
