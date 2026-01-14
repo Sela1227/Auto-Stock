@@ -1,119 +1,68 @@
-# SELA 更新包 20260114 - 排序功能 + MA20 支援
+# 📡 SELA 訂閱精選前端更新包
 
-## 目錄結構
-
-```
-├── static/
-│   └── dashboard.html              # 前端排序功能
-├── app/
-│   ├── models/
-│   │   └── price_cache.py          # 快取 Model（加 ma20 欄位）
-│   ├── services/
-│   │   ├── cache_helper.py         # 快取輔助模組
-│   │   └── price_cache_service.py  # 批次更新服務（計算 MA20）
-│   └── routers/
-│       ├── watchlist.py            # API 返回 ma20
-│       └── stock.py                # 查詢時寫入 MA20
-└── README.md
-```
-
-**所有檔案都是完整版本，直接覆蓋即可。**
+## 📅 版本資訊
+- 更新日期：2026-01-14
+- 功能：新增「訂閱精選」Tab
 
 ---
 
-## 功能說明
+## 📦 更新內容
 
-### 1. 追蹤清單排序
-
+### 檔案清單
 ```
-排序： [自訂] [代碼] [漲幅↓] [跌幅↓] [MA20]
-```
-
-| 模式 | 說明 |
-|------|------|
-| 自訂 | 按加入時間（最新在前）|
-| 代碼 | A-Z 排序 |
-| 漲幅↓ | 漲幅高到低 |
-| 跌幅↓ | 漲幅低到高 |
-| **MA20** | 站上 MA20 優先 |
-
-### 2. MA20 標籤顯示
-
-```
-AAPL  股  Apple Inc.
-$185.50  ▲ 2.31%  [站上MA20]
+static/
+└── dashboard.html    # 完整更新的前端頁面
 ```
 
-| 標籤 | 條件 |
-|------|------|
-| ▲MA20 | 價格高於 MA20 超過 3% |
-| 站上MA20 | 價格高於 MA20 在 0-3% |
-| 測MA20 | 價格低於 MA20 在 0-3% |
-| ▼MA20 | 價格低於 MA20 超過 3% |
+### 新增功能
+- ✅ 側邊欄新增「訂閱精選」導航（桌面版 + 手機版）
+- ✅ 訂閱精選 Section 頁面
+- ✅ 訂閱來源列表（顯示可訂閱的來源）
+- ✅ 一鍵訂閱/取消訂閱功能
+- ✅ 精選股票列表（含即時價格、漲跌幅）
+- ✅ 熱度標籤（🔥熱門 / 📈關注）
+- ✅ 剩餘有效天數顯示
+- ✅ 點擊股票跳轉查詢
 
 ---
 
-## 部署步驟
+## 🚀 部署步驟
 
-### 步驟 1: 覆蓋檔案
+### 1. 解壓並覆蓋
+將 `static/dashboard.html` 覆蓋到專案的 `static/` 目錄
 
-解壓後直接覆蓋到專案目錄
-
-### 步驟 2: 重新部署
-
+### 2. 部署後初始化（首次）
 ```bash
-git add .
-git commit -m "feat: 追蹤清單排序 + MA20 支援"
-git push
-```
+# 初始化訂閱源
+POST /api/subscription/admin/init
 
-**啟動時會自動添加 `ma20` 欄位，不需要手動執行 SQL。**
+# 回溯抓取 30 天
+POST /api/subscription/admin/fetch?backfill=true
+```
 
 ---
 
-## 驗證方式
+## 📝 後端 API 需求
 
-1. 查詢一個股票（如 AAPL）
-2. 檢查資料庫：
-   ```sql
-   SELECT symbol, price, ma20 FROM stock_price_cache WHERE symbol = 'AAPL';
-   ```
-3. 確認 ma20 欄位有值
-4. 前端追蹤清單應顯示 MA20 標籤
-5. MA20 排序功能正常
+確保以下 API 已部署並正常運作：
+
+| 方法 | 路徑 | 說明 |
+|------|------|------|
+| GET | `/api/subscription/sources` | 所有訂閱源 |
+| GET | `/api/subscription/my` | 用戶已訂閱（需登入）|
+| POST | `/api/subscription/subscribe/{id}` | 訂閱（需登入）|
+| DELETE | `/api/subscription/unsubscribe/{id}` | 取消訂閱（需登入）|
+| GET | `/api/subscription/picks` | 用戶訂閱精選（需登入）|
+| GET | `/api/subscription/picks/{slug}` | 特定來源精選（公開）|
 
 ---
 
-## 資料流程
+## ✅ 驗證清單
 
-```
-用戶查詢股票
-    │
-    ├─► Yahoo Finance 取得數據
-    │
-    ├─► 計算技術指標（含 MA20）
-    │
-    ├─► 寫入 StockPriceCache（含 MA20）
-    │
-    └─► 回傳結果
-
-
-管理員登入 / 排程更新
-    │
-    └─► batch_update_stock_prices
-        │
-        ├─► 取得 1 個月歷史數據
-        │
-        ├─► 計算 MA20 = 最近 20 天收盤價平均
-        │
-        └─► 寫入快取
-
-
-追蹤清單頁面
-    │
-    └─► GET /api/watchlist/with-prices
-        │
-        └─► 從快取讀取（含 ma20 欄位）
-            │
-            └─► 前端排序 + 顯示標籤
-```
+- [ ] 桌面版側邊欄可看到「訂閱精選」
+- [ ] 手機版側邊欄可看到「訂閱精選」
+- [ ] 點擊後可切換到訂閱精選頁面
+- [ ] 訂閱來源列表正常顯示
+- [ ] 精選股票列表正常顯示
+- [ ] 訂閱/取消訂閱功能正常
+- [ ] 點擊股票可跳轉到查詢頁面
