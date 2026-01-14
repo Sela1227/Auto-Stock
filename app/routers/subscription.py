@@ -47,12 +47,26 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_asyn
 @router.get("/sources", summary="取得所有訂閱源")
 def get_sources(db: Session = Depends(get_db)):
     """取得所有可訂閱的來源"""
+    from datetime import datetime
+    
     service = SubscriptionService(db)
     sources = service.get_all_sources(enabled_only=True)
     
+    # 計算每個來源的有效精選數量
+    results = []
+    for source in sources:
+        source_dict = source.to_dict()
+        # 計算未過期的精選數量
+        picks_count = db.query(AutoPick).filter(
+            AutoPick.source_id == source.id,
+            AutoPick.expires_at > datetime.now()
+        ).count()
+        source_dict["picks_count"] = picks_count
+        results.append(source_dict)
+    
     return {
         "success": True,
-        "data": [s.to_dict() for s in sources],
+        "data": results,
     }
 
 
