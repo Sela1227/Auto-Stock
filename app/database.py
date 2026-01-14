@@ -143,6 +143,12 @@ def run_auto_migrations():
                 )
             """,
         },
+        # 2026-01-15: P1 目標價功能
+        {
+            "name": "add_target_price_to_watchlists",
+            "check_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='watchlists' AND column_name='target_price'",
+            "migrate_sql": "ALTER TABLE watchlists ADD COLUMN target_price NUMERIC(12, 4) DEFAULT NULL",
+        },
     ]
     
     try:
