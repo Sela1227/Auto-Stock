@@ -21,6 +21,7 @@ def normalize_tw_symbol(symbol: str) -> str:
     """
     標準化台股代號
     - 純數字 4-6 位 → 自動加 .TW
+    - ETF 槓桿/反向 (如 00631L, 00632R) → 自動加 .TW
     - 已有後綴 → 保持不變
     """
     symbol = symbol.strip().upper()
@@ -31,6 +32,10 @@ def normalize_tw_symbol(symbol: str) -> str:
     
     # 台股代號：4-6 位純數字
     if symbol.isdigit() and 4 <= len(symbol) <= 6:
+        return f"{symbol}.TW"
+    
+    # 台股 ETF 槓桿/反向：數字開頭 + L/R/U 結尾 (如 00631L, 00632R, 00635U)
+    if len(symbol) >= 5 and symbol[:-1].isdigit() and symbol[-1] in ('L', 'R', 'U'):
         return f"{symbol}.TW"
     
     return symbol
