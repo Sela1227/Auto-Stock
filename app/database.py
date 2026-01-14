@@ -90,6 +90,59 @@ def run_auto_migrations():
             "check_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='stock_price_cache' AND column_name='ma20'",
             "migrate_sql": "ALTER TABLE stock_price_cache ADD COLUMN ma20 NUMERIC(12, 4)",
         },
+        # 2026-01-14: 訂閱精選功能 - 訂閱源表
+        {
+            "name": "create_subscription_sources",
+            "check_sql": "SELECT table_name FROM information_schema.tables WHERE table_name='subscription_sources'",
+            "migrate_sql": """
+                CREATE TABLE subscription_sources (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    slug VARCHAR(50) UNIQUE NOT NULL,
+                    url VARCHAR(500) NOT NULL,
+                    type VARCHAR(20) DEFAULT 'substack',
+                    description TEXT,
+                    enabled BOOLEAN DEFAULT true,
+                    last_fetched_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """,
+        },
+        # 2026-01-14: 訂閱精選功能 - 自動精選表
+        {
+            "name": "create_auto_picks",
+            "check_sql": "SELECT table_name FROM information_schema.tables WHERE table_name='auto_picks'",
+            "migrate_sql": """
+                CREATE TABLE auto_picks (
+                    id SERIAL PRIMARY KEY,
+                    source_id INTEGER REFERENCES subscription_sources(id),
+                    symbol VARCHAR(20) NOT NULL,
+                    article_url VARCHAR(500),
+                    article_title VARCHAR(300),
+                    article_date DATE,
+                    first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP,
+                    mention_count INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(source_id, symbol)
+                )
+            """,
+        },
+        # 2026-01-14: 訂閱精選功能 - 用戶訂閱表
+        {
+            "name": "create_user_subscriptions",
+            "check_sql": "SELECT table_name FROM information_schema.tables WHERE table_name='user_subscriptions'",
+            "migrate_sql": """
+                CREATE TABLE user_subscriptions (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id),
+                    source_id INTEGER REFERENCES subscription_sources(id),
+                    subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, source_id)
+                )
+            """,
+        },
     ]
     
     try:
