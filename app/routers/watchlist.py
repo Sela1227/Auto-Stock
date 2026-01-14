@@ -118,6 +118,7 @@ async def get_watchlist_with_prices(
                 "price": float(cache.price) if cache and cache.price else None,
                 "change": float(cache.change) if cache and cache.change else None,
                 "change_pct": float(cache.change_pct) if cache and cache.change_pct else None,
+                "ma20": float(cache.ma20) if cache and cache.ma20 else None,  # 🆕 MA20
                 "price_updated_at": cache.updated_at.isoformat() if cache and cache.updated_at else None,
             })
         

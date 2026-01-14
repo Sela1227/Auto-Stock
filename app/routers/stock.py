@@ -2,6 +2,7 @@
 股票查詢 API 路由
 
 修復: 台股代號自動轉換 (0050 → 0050.TW)
+新增: 查詢結果自動快取（含 MA20）
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -168,6 +169,24 @@ async def get_stock_analysis(
             from app.data_sources.yahoo_finance import TAIWAN_STOCK_NAMES
             stock_code = symbol.replace(".TW", "").replace(".TWO", "")
             stock_name = TAIWAN_STOCK_NAMES.get(stock_code, symbol)
+        
+        # 🆕 將查詢結果寫入快取（含 MA20）
+        from app.services.cache_helper import cache_stock_price
+        
+        day_change = calc_change(1)
+        prev_close = float(df.iloc[-2]['close_raw']) if len(df) > 1 else None
+        change_amount = current_price - prev_close if prev_close else None
+        
+        cache_stock_price(
+            symbol=symbol,
+            name=stock_name,
+            price=current_price,
+            prev_close=prev_close,
+            change=change_amount,
+            change_pct=day_change,
+            ma20=ma20,
+            volume=volume_today
+        )
         
         return {
             "success": True,

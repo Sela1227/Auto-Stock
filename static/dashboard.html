@@ -3220,6 +3220,7 @@
             symbol: { label: '代碼', icon: 'fa-sort-alpha-down' },
             change_desc: { label: '漲幅↓', icon: 'fa-arrow-up' },
             change_asc: { label: '跌幅↓', icon: 'fa-arrow-down' },
+            ma20: { label: 'MA20', icon: 'fa-chart-line' },
         };
         
         function setWatchlistSort(mode) {
@@ -3256,6 +3257,14 @@
                 case 'change_asc':
                     sorted.sort((a, b) => (a.change_pct || 0) - (b.change_pct || 0));
                     break;
+                case 'ma20':
+                    // MA20 排序：站上(正差) > 接近(小差) > 跌破(負差) > 無資料
+                    sorted.sort((a, b) => {
+                        const scoreA = getMa20Score(a);
+                        const scoreB = getMa20Score(b);
+                        return scoreB - scoreA;
+                    });
+                    break;
                 case 'custom':
                 default:
                     sorted.sort((a, b) => new Date(b.added_at) - new Date(a.added_at));
@@ -3263,6 +3272,30 @@
             }
             
             return sorted;
+        }
+        
+        // 計算 MA20 分數（用於排序）
+        function getMa20Score(item) {
+            if (!item.price || !item.ma20) return -999;  // 無資料放最後
+            const diff = (item.price - item.ma20) / item.ma20 * 100;
+            return diff;  // 直接用百分比差值排序
+        }
+        
+        // 取得 MA20 狀態標籤
+        function getMa20Badge(item) {
+            if (!item.price || !item.ma20) {
+                return '';
+            }
+            const diff = (item.price - item.ma20) / item.ma20 * 100;
+            if (diff > 3) {
+                return '<span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">▲MA20</span>';
+            } else if (diff > 0) {
+                return '<span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-green-50 text-green-600">站上MA20</span>';
+            } else if (diff > -3) {
+                return '<span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">測MA20</span>';
+            } else {
+                return '<span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">▼MA20</span>';
+            }
         }
         
         function renderSortControls() {
@@ -3302,10 +3335,12 @@
                     const change = item.change_pct || 0;
                     const changeClass = change >= 0 ? 'text-green-600' : 'text-red-600';
                     const changeIcon = change >= 0 ? '▲' : '▼';
+                    const ma20Badge = getMa20Badge(item);
                     priceInfo = `
-                        <div class="flex items-baseline gap-2 mt-2">
+                        <div class="flex items-baseline gap-2 mt-2 flex-wrap">
                             <span class="text-xl font-bold text-gray-800">$${item.price.toLocaleString()}</span>
                             <span class="${changeClass} text-sm font-medium">${changeIcon} ${Math.abs(change).toFixed(2)}%</span>
+                            ${ma20Badge}
                         </div>
                     `;
                 } else {

@@ -1,6 +1,8 @@
 """
 股票價格快取 Model
 用於追蹤清單的即時價格顯示（全系統共用）
+
+更新：加入 MA20 欄位支援排序功能
 """
 from sqlalchemy import Column, String, Numeric, BigInteger, DateTime, Index
 from sqlalchemy.sql import func
@@ -30,6 +32,9 @@ class StockPriceCache(Base):
     change = Column(Numeric(12, 4))          # 漲跌金額
     change_pct = Column(Numeric(8, 4))       # 漲跌幅 %
     
+    # 🆕 技術指標（用於排序）
+    ma20 = Column(Numeric(12, 4))            # 20日均線
+    
     # 成交量
     volume = Column(BigInteger)
     
@@ -55,6 +60,7 @@ class StockPriceCache(Base):
             "prev_close": float(self.prev_close) if self.prev_close else None,
             "change": float(self.change) if self.change else None,
             "change_pct": float(self.change_pct) if self.change_pct else None,
+            "ma20": float(self.ma20) if self.ma20 else None,
             "volume": self.volume,
             "asset_type": self.asset_type,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
