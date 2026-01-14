@@ -500,6 +500,29 @@
             <section id="section-dashboard" class="section">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">儀表板</h2>
                 
+                <!-- ===== 比特幣價格卡片（第一項）===== -->
+                <div class="mb-4 md:mb-6">
+                    <div id="btc-price-card" class="bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl p-4 md:p-5 text-white shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 relative overflow-hidden" onclick="showSection('search', event); setTimeout(() => { document.getElementById('searchSymbol').value='BTC'; searchStock(); }, 100);">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-2 mb-1">
+                                    <i class="fab fa-bitcoin text-xl"></i>
+                                    <span class="text-sm font-medium opacity-90">Bitcoin</span>
+                                    <span id="btc-update-indicator" class="w-2 h-2 rounded-full bg-white/50 animate-pulse hidden"></span>
+                                </div>
+                                <div class="text-2xl md:text-3xl font-bold truncate" id="btc-price">$--,---</div>
+                            </div>
+                            <div class="text-right flex-shrink-0 ml-3">
+                                <div class="text-lg md:text-xl font-semibold" id="btc-change">--%</div>
+                                <div class="text-xs opacity-75">24h</div>
+                            </div>
+                            <div class="ml-3 md:ml-4 flex-shrink-0 opacity-20">
+                                <i class="fab fa-bitcoin text-5xl md:text-6xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- 指數卡片 (4個) -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 md:mb-6">
                     <!-- S&P 500 -->
@@ -656,29 +679,6 @@
                     </div>
                 </div>
 
-                <!-- ===== 比特幣價格卡片 ===== -->
-                <div class="mb-4 md:mb-6">
-                    <div id="btc-price-card" class="bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl p-4 md:p-5 text-white shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 relative overflow-hidden" onclick="showSection('search', event); setTimeout(() => { document.getElementById('searchSymbol').value='BTC'; searchStock(); }, 100);">
-                        <div class="flex items-center justify-between">
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center space-x-2 mb-1">
-                                    <i class="fab fa-bitcoin text-xl"></i>
-                                    <span class="text-sm font-medium opacity-90">Bitcoin</span>
-                                    <span id="btc-update-indicator" class="w-2 h-2 rounded-full bg-white/50 animate-pulse hidden"></span>
-                                </div>
-                                <div class="text-2xl md:text-3xl font-bold truncate" id="btc-price">$--,---</div>
-                            </div>
-                            <div class="text-right flex-shrink-0 ml-3">
-                                <div class="text-lg md:text-xl font-semibold" id="btc-change">--%</div>
-                                <div class="text-xs opacity-75">24h</div>
-                            </div>
-                            <div class="ml-3 md:ml-4 flex-shrink-0 opacity-20">
-                                <i class="fab fa-bitcoin text-5xl md:text-6xl"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- 追蹤清單快覽 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6">
                     <div class="flex items-center justify-between mb-4">
@@ -832,33 +832,91 @@
             <section id="section-portfolio" class="section hidden">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">個人投資記錄</h2>
                 
-                <!-- 投資總覽 -->
-                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-4 md:p-6 text-white mb-4 md:mb-6">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="font-semibold">投資總覽</h3>
-                        <div class="text-xs opacity-80">
-                            <span>匯率: 1 USD = </span>
-                            <span id="exchangeRateValue">--</span>
-                            <span> TWD</span>
-                            <span id="exchangeRateTime" class="ml-2 opacity-60"></span>
+                <!-- 投資總覽（三區：台股、美股、合計）-->
+                <div class="space-y-3 mb-4 md:mb-6">
+                    <!-- 台股統計 -->
+                    <div class="bg-gradient-to-r from-red-500 to-rose-500 rounded-xl p-4 text-white">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-landmark mr-2"></i>
+                            <h3 class="font-semibold">台股</h3>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">現值</p>
+                                <p id="twCurrentValue" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">損益</p>
+                                <p id="twProfit" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">報酬率</p>
+                                <p id="twReturnRate" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">持股數</p>
+                                <p id="twPositions" class="font-bold">--</p>
+                            </div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div class="bg-white/10 rounded-lg p-3">
-                            <p class="text-xs opacity-80 mb-1">總現值 (TWD)</p>
-                            <p id="totalValueTwd" class="text-lg font-bold">--</p>
+                    
+                    <!-- 美股統計 -->
+                    <div class="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl p-4 text-white">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-flag-usa mr-2"></i>
+                            <h3 class="font-semibold">美股</h3>
                         </div>
-                        <div class="bg-white/10 rounded-lg p-3">
-                            <p class="text-xs opacity-80 mb-1">總損益</p>
-                            <p id="totalProfitTwd" class="text-lg font-bold">--</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">現值 (USD)</p>
+                                <p id="usCurrentValue" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">損益</p>
+                                <p id="usProfit" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">報酬率</p>
+                                <p id="usReturnRate" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">持股數</p>
+                                <p id="usPositions" class="font-bold">--</p>
+                            </div>
                         </div>
-                        <div class="bg-white/10 rounded-lg p-3">
-                            <p class="text-xs opacity-80 mb-1">報酬率</p>
-                            <p id="totalReturnRate" class="text-lg font-bold">--</p>
+                    </div>
+                    
+                    <!-- 合計（TWD）-->
+                    <div class="bg-gradient-to-r from-purple-600 to-violet-600 rounded-xl p-4 text-white">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                <i class="fas fa-calculator mr-2"></i>
+                                <h3 class="font-semibold">合計 (TWD)</h3>
+                            </div>
+                            <div class="text-xs opacity-80">
+                                <span>匯率: 1 USD = </span>
+                                <span id="exchangeRateValue">--</span>
+                                <span> TWD</span>
+                                <span id="exchangeRateTime" class="ml-1 opacity-60"></span>
+                            </div>
                         </div>
-                        <div class="bg-white/10 rounded-lg p-3">
-                            <p class="text-xs opacity-80 mb-1">持股數</p>
-                            <p id="totalPositions" class="text-lg font-bold">--</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">總現值</p>
+                                <p id="totalValueTwd" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">總損益</p>
+                                <p id="totalProfitTwd" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">報酬率</p>
+                                <p id="totalReturnRate" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">總持股</p>
+                                <p id="totalPositions" class="font-bold">--</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1768,6 +1826,9 @@
                     document.getElementById('adminLink').classList.remove('hidden');
                     const adminSidebarLink = document.getElementById('adminSidebarLink');
                     if (adminSidebarLink) adminSidebarLink.classList.remove('hidden');
+                    
+                    // 🆕 管理員登入時觸發全部更新
+                    triggerAdminUpdates();
                 }
                 
                 // 顯示主內容
@@ -1868,6 +1929,44 @@
         }
 
         // ========== 載入儀表板 ==========
+        // ========== 管理員登入觸發更新 ==========
+        async function triggerAdminUpdates() {
+            console.log('🔄 管理員登入，觸發全部更新...');
+            
+            try {
+                // 1. 更新四大指數
+                fetch(`${API_BASE}/api/admin/update-indices`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).then(r => r.json()).then(d => {
+                    console.log('✅ 四大指數更新:', d.success ? '成功' : '失敗');
+                }).catch(e => console.error('❌ 四大指數更新失敗:', e));
+                
+                // 2. 更新追蹤清單價格快取
+                fetch(`${API_BASE}/api/admin/update-price-cache`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).then(r => r.json()).then(d => {
+                    console.log('✅ 價格快取更新:', d.success ? '成功' : '失敗');
+                }).catch(e => console.error('❌ 價格快取更新失敗:', e));
+                
+                // 3. 更新 BTC 價格（透過前端重新載入）
+                loadBtcPrice();
+                console.log('✅ BTC 價格更新觸發');
+                
+                // 4. 更新匯率
+                fetch(`${API_BASE}/api/admin/update-exchange-rate`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).then(r => r.json()).then(d => {
+                    console.log('✅ 匯率更新:', d.success ? '成功' : '失敗');
+                }).catch(e => console.error('❌ 匯率更新失敗:', e));
+                
+            } catch (e) {
+                console.error('管理員更新觸發失敗:', e);
+            }
+        }
+
         async function loadDashboard() {
             await loadIndices();
             await loadSentiment();
@@ -3947,35 +4046,75 @@
                         document.getElementById('exchangeRateTime').textContent = `(${time})`;
                     }
                     
-                    // 總覽
+                    // ===== 台股區 =====
+                    const twValue = s.tw?.current_value || 0;
+                    document.getElementById('twCurrentValue').textContent = twValue > 0 
+                        ? `NT$${Math.round(twValue).toLocaleString()}` : '--';
+                    
+                    const twProfit = (s.tw?.realized_profit || 0) + (s.tw?.unrealized_profit || 0);
+                    const twProfitEl = document.getElementById('twProfit');
+                    twProfitEl.textContent = twValue > 0 
+                        ? `${twProfit >= 0 ? '+' : ''}NT$${Math.round(Math.abs(twProfit)).toLocaleString()}` : '--';
+                    twProfitEl.className = twProfit >= 0 ? 'font-bold text-green-200' : 'font-bold text-red-200';
+                    
+                    const twReturn = s.tw?.return_rate;
+                    const twReturnEl = document.getElementById('twReturnRate');
+                    if (twReturn !== null && twReturn !== undefined) {
+                        twReturnEl.textContent = `${twReturn >= 0 ? '+' : ''}${twReturn.toFixed(2)}%`;
+                        twReturnEl.className = twReturn >= 0 ? 'font-bold text-green-200' : 'font-bold text-red-200';
+                    } else {
+                        twReturnEl.textContent = '--';
+                    }
+                    
+                    document.getElementById('twPositions').textContent = s.tw?.positions || 0;
+                    
+                    // ===== 美股區 =====
+                    const usValue = s.us?.current_value || 0;
+                    document.getElementById('usCurrentValue').textContent = usValue > 0 
+                        ? `$${Math.round(usValue).toLocaleString()}` : '--';
+                    
+                    const usProfit = (s.us?.realized_profit || 0) + (s.us?.unrealized_profit || 0);
+                    const usProfitEl = document.getElementById('usProfit');
+                    usProfitEl.textContent = usValue > 0 
+                        ? `${usProfit >= 0 ? '+' : ''}$${Math.round(Math.abs(usProfit)).toLocaleString()}` : '--';
+                    usProfitEl.className = usProfit >= 0 ? 'font-bold text-green-200' : 'font-bold text-red-200';
+                    
+                    const usReturn = s.us?.return_rate;
+                    const usReturnEl = document.getElementById('usReturnRate');
+                    if (usReturn !== null && usReturn !== undefined) {
+                        usReturnEl.textContent = `${usReturn >= 0 ? '+' : ''}${usReturn.toFixed(2)}%`;
+                        usReturnEl.className = usReturn >= 0 ? 'font-bold text-green-200' : 'font-bold text-red-200';
+                    } else {
+                        usReturnEl.textContent = '--';
+                    }
+                    
+                    document.getElementById('usPositions').textContent = s.us?.positions || 0;
+                    
+                    // ===== 合計區（TWD）=====
                     document.getElementById('totalValueTwd').textContent = s.total?.current_value_twd 
                         ? `NT$${Math.round(s.total.current_value_twd).toLocaleString()}` : '--';
                     
-                    const profit = s.total?.total_profit_twd || 0;
-                    const profitEl = document.getElementById('totalProfitTwd');
-                    profitEl.textContent = `${profit >= 0 ? '+' : ''}NT$${Math.round(Math.abs(profit)).toLocaleString()}`;
-                    profitEl.className = profit >= 0 ? 'text-lg font-bold text-green-300' : 'text-lg font-bold text-red-300';
+                    const totalProfit = s.total?.total_profit_twd || 0;
+                    const totalProfitEl = document.getElementById('totalProfitTwd');
+                    totalProfitEl.textContent = `${totalProfit >= 0 ? '+' : ''}NT$${Math.round(Math.abs(totalProfit)).toLocaleString()}`;
+                    totalProfitEl.className = totalProfit >= 0 ? 'font-bold text-green-200' : 'font-bold text-red-200';
                     
-                    const returnRate = s.total?.return_rate;
-                    const returnEl = document.getElementById('totalReturnRate');
-                    if (returnRate !== null && returnRate !== undefined) {
-                        returnEl.textContent = `${returnRate >= 0 ? '+' : ''}${returnRate.toFixed(2)}%`;
-                        returnEl.className = returnRate >= 0 ? 'text-lg font-bold text-green-300' : 'text-lg font-bold text-red-300';
+                    const totalReturn = s.total?.return_rate;
+                    const totalReturnEl = document.getElementById('totalReturnRate');
+                    if (totalReturn !== null && totalReturn !== undefined) {
+                        totalReturnEl.textContent = `${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(2)}%`;
+                        totalReturnEl.className = totalReturn >= 0 ? 'font-bold text-green-200' : 'font-bold text-red-200';
                     } else {
-                        returnEl.textContent = '--';
+                        totalReturnEl.textContent = '--';
                     }
                     
                     document.getElementById('totalPositions').textContent = s.total?.positions || 0;
                     
-                    // 台股摘要
-                    const twProfit = (s.tw?.realized_profit || 0) + (s.tw?.unrealized_profit || 0);
-                    const twReturn = s.tw?.return_rate;
+                    // 台股/美股持股區摘要（保留原有功能）
                     document.getElementById('twSummaryLine').innerHTML = s.tw?.positions > 0
                         ? `${s.tw.positions} 檔 · 損益 <span class="${twProfit >= 0 ? 'text-green-600' : 'text-red-600'}">${twProfit >= 0 ? '+' : ''}NT$${Math.round(Math.abs(twProfit)).toLocaleString()}</span>`
                         : '尚無持股';
                     
-                    // 美股摘要
-                    const usProfit = (s.us?.realized_profit || 0) + (s.us?.unrealized_profit || 0);
                     document.getElementById('usSummaryLine').innerHTML = s.us?.positions > 0
                         ? `${s.us.positions} 檔 · 損益 <span class="${usProfit >= 0 ? 'text-green-600' : 'text-red-600'}">${usProfit >= 0 ? '+' : ''}$${Math.round(Math.abs(usProfit)).toLocaleString()}</span>`
                         : '尚無持股';
