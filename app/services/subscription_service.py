@@ -102,10 +102,25 @@ class SubscriptionService:
         
         result = {"new": 0, "updated": 0, "symbols": []}
         
+        # 用來追蹤本次處理過的 symbols（避免重複插入）
+        processed_symbols = {}
+        
         for pick in picks:
             symbol = pick["symbol"]
             
-            # 檢查是否已存在
+            # 檢查是否在本次迴圈中已處理過
+            if symbol in processed_symbols:
+                # 更新本次迴圈中的記錄
+                existing_pick = processed_symbols[symbol]
+                existing_pick.update_mention(
+                    article_url=pick["article_url"],
+                    article_title=pick["article_title"],
+                    article_date=pick["article_date"],
+                )
+                result["updated"] += 1
+                continue
+            
+            # 檢查資料庫中是否已存在
             existing = self.db.query(AutoPick).filter(
                 and_(
                     AutoPick.source_id == source.id,
@@ -120,6 +135,7 @@ class SubscriptionService:
                     article_title=pick["article_title"],
                     article_date=pick["article_date"],
                 )
+                processed_symbols[symbol] = existing
                 result["updated"] += 1
             else:
                 # 新增
@@ -135,9 +151,11 @@ class SubscriptionService:
                     mention_count=1,
                 )
                 self.db.add(new_pick)
+                processed_symbols[symbol] = new_pick
                 result["new"] += 1
             
-            result["symbols"].append(symbol)
+            if symbol not in result["symbols"]:
+                result["symbols"].append(symbol)
         
         # 更新最後抓取時間
         source.last_fetched_at = datetime.now()
