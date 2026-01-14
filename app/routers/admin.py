@@ -12,6 +12,7 @@ import logging
 from app.database import get_async_session
 from app.models.user import User, LoginLog, TokenBlacklist, SystemConfig
 from app.services.auth_service import AuthService
+from app.services.exchange_rate_service import update_exchange_rate_sync  # 🆕 匯率更新
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -922,3 +923,89 @@ async def list_notifications(
             "total_pages": ((total or 0) + page_size - 1) // page_size,
         }
     }
+
+
+# ============================================================
+# 🆕 管理員觸發更新 API
+# ============================================================
+
+@router.post("/update-exchange-rate", summary="更新匯率")
+async def admin_update_exchange_rate(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    管理員手動觸發 USD/TWD 匯率更新
+    """
+    from app.database import SyncSessionLocal
+    
+    logger.info(f"管理員 {admin.display_name} 觸發匯率更新")
+    
+    try:
+        sync_db = SyncSessionLocal()
+        try:
+            rate = update_exchange_rate_sync(sync_db)
+            return {
+                "success": True,
+                "message": f"匯率已更新: USD/TWD = {rate:.4f}",
+                "rate": rate,
+            }
+        finally:
+            sync_db.close()
+    except Exception as e:
+        logger.error(f"匯率更新失敗: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/update-indices", summary="更新四大指數")
+async def admin_update_indices(
+    admin: User = Depends(get_admin_user),
+):
+    """
+    管理員手動觸發四大指數更新
+    """
+    from app.services.index_service import update_all_indices
+    
+    logger.info(f"管理員 {admin.display_name} 觸發四大指數更新")
+    
+    try:
+        result = update_all_indices()
+        return {
+            "success": True,
+            "message": "四大指數已更新",
+            "updated": result.get("updated", 0),
+            "errors": result.get("errors", []),
+        }
+    except Exception as e:
+        logger.error(f"四大指數更新失敗: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/update-price-cache", summary="更新價格快取")
+async def admin_update_price_cache(
+    admin: User = Depends(get_admin_user),
+):
+    """
+    管理員手動觸發追蹤清單價格快取更新
+    """
+    from app.database import SyncSessionLocal
+    from app.services.price_cache_service import PriceCacheService
+    
+    logger.info(f"管理員 {admin.display_name} 觸發價格快取更新")
+    
+    try:
+        sync_db = SyncSessionLocal()
+        try:
+            service = PriceCacheService(sync_db)
+            result = service.update_all(force=True)
+            return {
+                "success": True,
+                "message": "價格快取已更新",
+                "total_updated": result.get("total_updated", 0),
+                "errors": result.get("errors", []),
+            }
+        finally:
+            sync_db.close()
+    except Exception as e:
+        logger.error(f"價格快取更新失敗: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
