@@ -1990,29 +1990,42 @@
 
                 const res = await fetch(`${API_BASE}/api/crypto/BTC`);
                 const data = await res.json();
+                
+                console.log('[BTC] API 回應:', data);
 
                 if (data.success) {
-                    const price = data.price?.current || 0;
-                    const dayChange = data.change?.day || 0;
-
-                    priceEl.textContent = '$' + price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-                    const prefix = dayChange >= 0 ? '+' : '';
-                    changeEl.textContent = `${prefix}${dayChange.toFixed(2)}%`;
+                    // 價格：優先從 price.current，否則用 current_price
+                    const price = data.price?.current || data.current_price || 0;
+                    // 漲跌：優先從 change.day，否則用 change_24h
+                    const dayChange = data.change?.day ?? data.change_24h ?? 0;
                     
-                    changeEl.classList.remove('text-green-200', 'text-red-200');
-                    changeEl.classList.add(dayChange >= 0 ? 'text-green-200' : 'text-red-200');
+                    console.log('[BTC] 價格:', price, '漲跌:', dayChange);
 
-                    if (cardEl) {
-                        cardEl.classList.remove('from-orange-500', 'to-yellow-500', 'from-green-500', 'to-emerald-500', 'from-red-500', 'to-rose-500');
-                        if (dayChange >= 3) {
-                            cardEl.classList.add('from-green-500', 'to-emerald-500');
-                        } else if (dayChange <= -3) {
-                            cardEl.classList.add('from-red-500', 'to-rose-500');
-                        } else {
-                            cardEl.classList.add('from-orange-500', 'to-yellow-500');
+                    if (price > 0) {
+                        priceEl.textContent = '$' + price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+                        const prefix = dayChange >= 0 ? '+' : '';
+                        changeEl.textContent = `${prefix}${dayChange.toFixed(2)}%`;
+                        
+                        changeEl.classList.remove('text-green-200', 'text-red-200');
+                        changeEl.classList.add(dayChange >= 0 ? 'text-green-200' : 'text-red-200');
+
+                        if (cardEl) {
+                            cardEl.classList.remove('from-orange-500', 'to-yellow-500', 'from-green-500', 'to-emerald-500', 'from-red-500', 'to-rose-500');
+                            if (dayChange >= 3) {
+                                cardEl.classList.add('from-green-500', 'to-emerald-500');
+                            } else if (dayChange <= -3) {
+                                cardEl.classList.add('from-red-500', 'to-rose-500');
+                            } else {
+                                cardEl.classList.add('from-orange-500', 'to-yellow-500');
+                            }
                         }
+                    } else {
+                        console.warn('[BTC] 價格為 0 或無效');
+                        priceEl.textContent = '載入中...';
                     }
+                } else {
+                    console.error('[BTC] API 回應失敗:', data);
                 }
             } catch (e) {
                 console.error('[BTC] 載入失敗:', e);
