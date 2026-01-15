@@ -46,7 +46,7 @@
                                     <p class="text-xs text-gray-500 truncate">${source.description || ''}</p>
                                 </div>
                             </div>
-                            <button onclick="toggleSubscription(${source.id}, ${isSubscribed})" 
+                            <button onclick="window.toggleSubscription(${source.id}, ${isSubscribed})" 
                                     class="ml-3 px-3 py-1.5 text-sm rounded-lg flex-shrink-0 ${isSubscribed 
                                         ? 'bg-green-100 text-green-700 hover:bg-green-200' 
                                         : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}">
@@ -71,13 +71,19 @@
      * 切換訂閱狀態
      */
     async function toggleSubscription(sourceId, isCurrentlySubscribed) {
+        console.log('toggleSubscription 被呼叫:', sourceId, isCurrentlySubscribed);
+        
         try {
             const endpoint = isCurrentlySubscribed
                 ? `/api/subscription/unsubscribe/${sourceId}`
                 : `/api/subscription/subscribe/${sourceId}`;
             
+            console.log('呼叫 API:', endpoint);
+            
             const res = await apiRequest(endpoint, { method: 'POST' });
             const data = await res.json();
+            
+            console.log('API 回應:', data);
             
             if (data.success) {
                 showToast(isCurrentlySubscribed ? '已取消訂閱' : '已訂閱');
@@ -87,7 +93,7 @@
             }
         } catch (e) {
             console.error('切換訂閱失敗:', e);
-            showToast('操作失敗');
+            showToast('操作失敗: ' + e.message);
         }
     }
     
@@ -104,18 +110,23 @@
             const res = await apiRequest('/api/subscription/picks');
             const data = await res.json();
             
+            console.log('精選股票資料:', data);
+            
             if (data.success && data.data && data.data.length > 0) {
                 if (countEl) countEl.textContent = `共 ${data.data.length} 檔`;
                 
                 container.innerHTML = data.data.map(p => {
-                    // 安全處理時間欄位
+                    // 🆕 優先使用文章發佈日期 article_date
                     let timeStr = '';
-                    const dateField = p.mentioned_at || p.article_date || p.first_seen_at || p.created_at;
+                    const dateField = p.article_date || p.mentioned_at || p.first_seen_at;
                     if (dateField) {
                         try {
-                            timeStr = new Date(dateField).toLocaleDateString();
+                            const d = new Date(dateField);
+                            if (!isNaN(d.getTime())) {
+                                timeStr = d.toLocaleDateString('zh-TW');
+                            }
                         } catch (e) {
-                            timeStr = '';
+                            console.warn('日期解析失敗:', dateField);
                         }
                     }
                     
@@ -142,11 +153,11 @@
                 `}).join('');
             } else {
                 if (countEl) countEl.textContent = '';
-                container.innerHTML = '<p class="text-gray-400 text-center py-4">尚無精選股票</p>';
+                container.innerHTML = '<p class="text-gray-400 text-center py-4">尚無精選股票，請先更新訂閱</p>';
             }
         } catch (e) {
             console.error('載入精選股票失敗:', e);
-            container.innerHTML = '<p class="text-gray-400 text-center py-4">尚無精選股票</p>';
+            container.innerHTML = '<p class="text-gray-400 text-center py-4">載入失敗</p>';
         }
     }
     
@@ -164,11 +175,44 @@
         showToast('已更新');
     }
     
+    /**
+     * 🆕 管理員：手動抓取訂閱（回溯 30 天）
+     */
+    async function adminFetchSubscriptions(backfill = true) {
+        const btn = event?.target?.closest('button');
+        if (btn) btn.disabled = true;
+        
+        showToast('正在抓取訂閱內容...');
+        
+        try {
+            const res = await apiRequest(`/api/subscription/admin/fetch?backfill=${backfill}`, { 
+                method: 'POST' 
+            });
+            const data = await res.json();
+            
+            console.log('抓取結果:', data);
+            
+            if (data.success) {
+                const result = data.data || {};
+                showToast(`抓取完成：新增 ${result.total_new || 0}，更新 ${result.total_updated || 0}`);
+                await loadSubscriptionPicks();
+            } else {
+                showToast(data.detail || '抓取失敗');
+            }
+        } catch (e) {
+            console.error('抓取訂閱失敗:', e);
+            showToast('抓取失敗: ' + e.message);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+    
     // 導出到全域
     window.loadSubscriptionData = loadSubscriptionData;
     window.loadSubscriptionPicks = loadSubscriptionPicks;
     window.toggleSubscription = toggleSubscription;
     window.refreshSubscriptionPicks = refreshSubscriptionPicks;
+    window.adminFetchSubscriptions = adminFetchSubscriptions;
     
     console.log('📡 subscription.js 模組已載入');
 })();

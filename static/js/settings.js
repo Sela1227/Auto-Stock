@@ -226,6 +226,80 @@
     }
     
     // ============================================================
+    // 🆕 管理員工具
+    // ============================================================
+    
+    async function adminUpdatePriceCache() {
+        const btn = event?.target?.closest('button');
+        if (btn) btn.disabled = true;
+        showToast('正在更新價格快取...');
+        
+        try {
+            const res = await apiRequest('/api/admin/update-price-cache', { method: 'POST' });
+            const data = await res.json();
+            
+            if (data.success) {
+                showToast(`價格快取已更新：${data.total_updated || 0} 筆`);
+            } else {
+                showToast(data.detail || '更新失敗');
+            }
+        } catch (e) {
+            console.error('更新價格快取失敗:', e);
+            showToast('更新失敗');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+    
+    async function adminUpdateExchangeRate() {
+        const btn = event?.target?.closest('button');
+        if (btn) btn.disabled = true;
+        showToast('正在更新匯率...');
+        
+        try {
+            const res = await apiRequest('/api/admin/update-exchange-rate', { method: 'POST' });
+            const data = await res.json();
+            
+            if (data.success) {
+                showToast(`匯率已更新：${data.rate || ''}`);
+            } else {
+                showToast(data.detail || '更新失敗');
+            }
+        } catch (e) {
+            console.error('更新匯率失敗:', e);
+            showToast('更新失敗');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+    
+    async function adminFetchSubscriptions() {
+        const btn = event?.target?.closest('button');
+        if (btn) btn.disabled = true;
+        showToast('正在抓取訂閱內容（回溯 30 天）...');
+        
+        try {
+            const res = await apiRequest('/api/subscription/admin/fetch?backfill=true', { method: 'POST' });
+            const data = await res.json();
+            
+            if (data.success) {
+                const result = data.data || {};
+                showToast(`抓取完成：新增 ${result.total_new || 0}，更新 ${result.total_updated || 0}`);
+                if (typeof loadSubscriptionPicks === 'function') {
+                    loadSubscriptionPicks();
+                }
+            } else {
+                showToast(data.detail || '抓取失敗');
+            }
+        } catch (e) {
+            console.error('抓取訂閱失敗:', e);
+            showToast('抓取失敗');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+    
+    // ============================================================
     // 導出到全域
     // ============================================================
     
@@ -235,6 +309,9 @@
     window.saveParamSettings = saveParamSettings;
     window.applyTemplate = applyTemplate;
     window.updateExchangeRate = updateExchangeRate;
+    window.adminUpdatePriceCache = adminUpdatePriceCache;
+    window.adminUpdateExchangeRate = adminUpdateExchangeRate;
+    window.adminFetchSubscriptions = adminFetchSubscriptions;
     
     console.log('⚙️ settings.js 模組已載入');
 })();

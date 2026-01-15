@@ -32,8 +32,16 @@
         const multiplier = order === 'asc' ? 1 : -1;
         
         return [...data].sort((a, b) => {
-            let aVal = a[field];
-            let bVal = b[field];
+            let aVal, bVal;
+            
+            // 🆕 MA20 距離排序
+            if (field === 'ma20_diff') {
+                aVal = (a.ma20 && a.price) ? ((a.price - a.ma20) / a.ma20 * 100) : -999;
+                bVal = (b.ma20 && b.price) ? ((b.price - b.ma20) / b.ma20 * 100) : -999;
+            } else {
+                aVal = a[field];
+                bVal = b[field];
+            }
             
             if (aVal === null || aVal === undefined) aVal = field === 'change_pct' ? -999 : '';
             if (bVal === null || bVal === undefined) bVal = field === 'change_pct' ? -999 : '';
@@ -59,7 +67,8 @@
             { field: 'added_at', label: '加入時間', icon: 'fa-clock' },
             { field: 'symbol', label: '代號', icon: 'fa-sort-alpha-down' },
             { field: 'change_pct', label: '漲跌幅', icon: 'fa-percent' },
-            { field: 'price', label: '價格', icon: 'fa-dollar-sign' }
+            { field: 'price', label: '價格', icon: 'fa-dollar-sign' },
+            { field: 'ma20_diff', label: 'MA20距離', icon: 'fa-chart-line' }
         ];
         
         return `
@@ -548,6 +557,44 @@
     }
     
     // ============================================================
+    // 🆕 快速新增到追蹤清單（從其他頁面呼叫）
+    // ============================================================
+    
+    async function quickAddToWatchlist(symbol, assetType = 'stock') {
+        const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : window.currentUser;
+        
+        if (!currentUser || !currentUser.id) {
+            showToast('請先登入');
+            return;
+        }
+        
+        try {
+            const res = await apiRequest('/api/watchlist', {
+                method: 'POST',
+                body: { symbol, asset_type: assetType, note: '' }
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                showToast(`${symbol} 已加入追蹤清單`);
+                // 重新載入追蹤清單（如果在該頁面）
+                if (typeof loadWatchlist === 'function') {
+                    loadWatchlist();
+                }
+                if (typeof loadWatchlistOverview === 'function') {
+                    loadWatchlistOverview();
+                }
+            } else {
+                showToast(data.detail || '新增失敗');
+            }
+        } catch (e) {
+            console.error('快速新增追蹤失敗:', e);
+            showToast('新增失敗');
+        }
+    }
+    
+    // ============================================================
     // 儀表板快覽
     // ============================================================
     
@@ -672,6 +719,7 @@
     window.hideTargetPriceModal = hideTargetPriceModal;
     window.saveTargetPrice = saveTargetPrice;
     window.clearTargetPrice = clearTargetPrice;
+    window.quickAddToWatchlist = quickAddToWatchlist;
     
     console.log('⭐ watchlist.js 模組已載入');
 })();
