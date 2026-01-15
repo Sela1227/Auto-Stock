@@ -107,7 +107,19 @@
             if (data.success && data.data && data.data.length > 0) {
                 if (countEl) countEl.textContent = `共 ${data.data.length} 檔`;
                 
-                container.innerHTML = data.data.map(p => `
+                container.innerHTML = data.data.map(p => {
+                    // 安全處理時間欄位
+                    let timeStr = '';
+                    const dateField = p.mentioned_at || p.article_date || p.first_seen_at || p.created_at;
+                    if (dateField) {
+                        try {
+                            timeStr = new Date(dateField).toLocaleDateString();
+                        } catch (e) {
+                            timeStr = '';
+                        }
+                    }
+                    
+                    return `
                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2 cursor-pointer hover:bg-gray-100"
                          onclick="searchSymbol('${p.symbol}')">
                         <div class="flex items-center">
@@ -116,7 +128,7 @@
                             </div>
                             <div>
                                 <p class="font-medium text-gray-800">${p.symbol}</p>
-                                <p class="text-xs text-gray-500">${p.source_name || ''} · ${new Date(p.mentioned_at).toLocaleDateString()}</p>
+                                <p class="text-xs text-gray-500">${p.source_name || ''}${timeStr ? ' · ' + timeStr : ''}</p>
                             </div>
                         </div>
                         <div class="text-right">
@@ -127,7 +139,7 @@
                             </button>
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
             } else {
                 if (countEl) countEl.textContent = '';
                 container.innerHTML = '<p class="text-gray-400 text-center py-4">尚無精選股票</p>';
