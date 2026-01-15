@@ -49,10 +49,15 @@ async def get_stock_analysis(
     """
     查詢單一股票的技術分析報告
     
+<<<<<<< HEAD
     優化：
     - 查詢結果自動存入資料庫快取
     - 5 分鐘內重複查詢直接返回快取（瞬間響應）
     - 加上 refresh=true 可強制從 Yahoo Finance 重新查詢
+=======
+    注意：此 API 總是返回完整資料（含圖表和所有指標）
+    查詢完成後會自動更新價格快取（供追蹤清單使用）
+>>>>>>> develop
     """
     from app.data_sources.yahoo_finance import yahoo_finance
     from app.services.indicator_service import indicator_service
@@ -246,22 +251,34 @@ async def get_stock_analysis(
             stock_name = TAIWAN_STOCK_NAMES.get(stock_code, symbol)
         
         # 🆕 將查詢結果寫入快取（含 MA20）
-        from app.services.cache_helper import cache_stock_price
-        
         day_change = calc_change(1)
         prev_close = float(df.iloc[-2]['close_raw']) if len(df) > 1 else None
         change_amount = current_price - prev_close if prev_close else None
         
-        cache_stock_price(
-            symbol=symbol,
-            name=stock_name,
-            price=current_price,
-            prev_close=prev_close,
-            change=change_amount,
-            change_pct=day_change,
-            ma20=ma20,
-            volume=volume_today
-        )
+        try:
+            from app.services.price_cache_service import PriceCacheService
+            from app.database import SyncSessionLocal
+            
+            db = SyncSessionLocal()
+            try:
+                cache_service = PriceCacheService(db)
+                cache_service._upsert_cache(
+                    symbol=symbol,
+                    name=stock_name,
+                    price=current_price,
+                    prev_close=prev_close,
+                    change=change_amount,
+                    change_pct=day_change,
+                    volume=volume_today,
+                    asset_type="stock",
+                    ma20=ma20,
+                )
+                db.commit()
+                logger.info(f"💾 已快取: {symbol}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"快取寫入失敗: {e}")
         
         return {
             "success": True,
