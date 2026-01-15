@@ -1,6 +1,6 @@
 """
 追蹤清單 API 路由
-包含價格快取功能 + 🆕 匯出匯入功能
+🔧 P0修復：使用統一認證模組
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
@@ -15,7 +15,6 @@ import io
 from datetime import datetime
 
 from app.database import get_async_session
-from app.services.auth_service import AuthService
 from app.services.watchlist_service import WatchlistService
 from app.schemas.schemas import (
     WatchlistAdd,
@@ -30,17 +29,19 @@ from app.models.user import User
 from app.models.watchlist import Watchlist
 from app.models.price_cache import StockPriceCache
 
+# 🔧 使用統一認證模組
+from app.dependencies import get_current_user
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/watchlist", tags=["追蹤清單"])
 
 
-# 🆕 目標價更新 Schema
+# Schemas
 class TargetPriceUpdate(BaseModel):
     target_price: Optional[float] = None
 
 
-# 🆕 匯入資料 Schema
 class WatchlistImportItem(BaseModel):
     symbol: str
     asset_type: Optional[str] = "stock"
@@ -52,36 +53,8 @@ class WatchlistImportRequest(BaseModel):
     items: List[WatchlistImportItem]
 
 
-async def get_current_user(
-    request: Request,
-    db: AsyncSession = Depends(get_async_session),
-) -> User:
-    """依賴注入：取得當前用戶"""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        logger.warning("Watchlist API: 未提供認證 Token")
-        raise HTTPException(
-            status_code=401,
-            detail="未提供認證 Token"
-        )
-
-    token = auth_header.split(" ")[1]
-    auth_service = AuthService(db)
-    user = await auth_service.get_user_from_token(token)
-
-    if not user:
-        logger.warning("Watchlist API: Token 驗證失敗")
-        raise HTTPException(
-            status_code=401,
-            detail="無效的 Token"
-        )
-
-    logger.debug(f"Watchlist API: 驗證成功 user_id={user.id}, line_id={user.line_user_id}")
-    return user
-
-
 # ============================================================
-# 🆕 匯出匯入 API
+# 匯出匯入 API
 # ============================================================
 
 @router.get("/export", summary="匯出追蹤清單")
@@ -231,7 +204,7 @@ async def import_watchlist(
 
 
 # ============================================================
-# 🆕 價格快取 API
+# 價格快取 API
 # ============================================================
 
 @router.get("/with-prices", summary="追蹤清單（含即時價格）")
@@ -245,7 +218,7 @@ async def get_watchlist_with_prices(
     - 價格來自 stock_price_cache 表
     - 每 10 分鐘由排程更新
     - 回應時間：毫秒級
-    - 🆕 包含目標價及是否達標
+    - 包含目標價及是否達標
     """
     logger.info(f"API: 追蹤清單(含價格) - user_id={user.id}")
 
@@ -274,21 +247,19 @@ async def get_watchlist_with_prices(
             StockPriceCache.symbol.in_(symbols)
         )
         cache_result = await db.execute(cache_stmt)
-        cached_prices = {r.symbol: r for r in cache_result.scalars().all()}
+        cache_map = {c.symbol: c for c in cache_result.scalars().all()}
 
         # 4. 組合資料
         data = []
         for item in watchlist_items:
-            cache = cached_prices.get(item.symbol)
-
-            # 防呆：檢查 ma20 欄位是否存在
-            ma20_value = None
-            if cache and hasattr(cache, 'ma20') and cache.ma20 is not None:
-                ma20_value = float(cache.ma20)
-
-            # 🆕 計算是否達到目標價
-            current_price = float(cache.price) if cache and cache.price else None
+            cache = cache_map.get(item.symbol)
+            
+            # MA20 值
+            ma20_value = float(cache.ma20) if cache and cache.ma20 else None
+            
+            # 目標價判斷
             target_price = float(item.target_price) if item.target_price else None
+            current_price = float(cache.price) if cache and cache.price else None
             target_reached = False
             
             if current_price and target_price:
@@ -299,8 +270,8 @@ async def get_watchlist_with_prices(
                 "symbol": item.symbol,
                 "asset_type": item.asset_type,
                 "note": item.note,
-                "target_price": target_price,  # 🆕
-                "target_reached": target_reached,  # 🆕
+                "target_price": target_price,
+                "target_reached": target_reached,
                 "added_at": item.added_at.isoformat() if item.added_at else None,
                 # 價格資訊（從快取）
                 "name": cache.name if cache else None,
@@ -364,7 +335,7 @@ async def get_cache_status(
 
 
 # ============================================================
-# 🆕 目標價 API
+# 目標價 API
 # ============================================================
 
 @router.put("/{item_id}/target-price", summary="設定目標價")

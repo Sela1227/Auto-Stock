@@ -1,5 +1,6 @@
 """
 訂閱精選 API 路由
+🔧 P0修復：使用統一認證模組
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -12,32 +13,12 @@ from app.services.subscription_service import SubscriptionService
 from app.models.subscription import SubscriptionSource, AutoPick
 from app.models.price_cache import StockPriceCache
 
+# 🔧 使用統一認證模組
+from app.dependencies import get_current_user, get_admin_user
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/subscription", tags=["訂閱精選"])
-
-
-# ============================================================
-# 認證（複用 watchlist 的認證邏輯）
-# ============================================================
-
-async def get_current_user(request: Request, db: AsyncSession = Depends(get_async_session)):
-    """從 watchlist.py 複用的認證"""
-    from app.services.auth_service import AuthService
-    from app.models.user import User
-    
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="未提供認證 Token")
-    
-    token = auth_header.split(" ")[1]
-    auth_service = AuthService(db)
-    user = await auth_service.get_user_from_token(token)
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="無效的 Token")
-    
-    return user
 
 
 # ============================================================
@@ -244,8 +225,9 @@ def get_source_picks(
 # ============================================================
 
 @router.post("/admin/fetch", summary="手動抓取")
-def admin_fetch(
+async def admin_fetch(
     backfill: bool = False,
+    admin = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -253,6 +235,8 @@ def admin_fetch(
     - backfill=True: 回溯 30 天
     - backfill=False: 只抓新的
     """
+    logger.info(f"管理員 {admin.display_name} 觸發訂閱源抓取 (backfill={backfill})")
+    
     service = SubscriptionService(db)
     result = service.fetch_all_sources(backfill=backfill)
     
@@ -264,8 +248,13 @@ def admin_fetch(
 
 
 @router.post("/admin/init", summary="初始化訂閱源")
-def admin_init(db: Session = Depends(get_db)):
+async def admin_init(
+    admin = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
     """初始化預設訂閱源"""
+    logger.info(f"管理員 {admin.display_name} 初始化訂閱源")
+    
     service = SubscriptionService(db)
     service.init_default_sources()
     
