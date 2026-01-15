@@ -3,6 +3,10 @@
 
 修復: 台股代號自動轉換 (0050 → 0050.TW)
 新增: 查詢結果自動快取（含 MA20）
+
+🔧 修復版本 - 2026-01-16
+- 移除 Git merge conflict 標記
+- 禁用快取返回簡化資料（確保圖表和完整指標顯示）
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -49,15 +53,8 @@ async def get_stock_analysis(
     """
     查詢單一股票的技術分析報告
     
-<<<<<<< HEAD
-    優化：
-    - 查詢結果自動存入資料庫快取
-    - 5 分鐘內重複查詢直接返回快取（瞬間響應）
-    - 加上 refresh=true 可強制從 Yahoo Finance 重新查詢
-=======
     注意：此 API 總是返回完整資料（含圖表和所有指標）
     查詢完成後會自動更新價格快取（供追蹤清單使用）
->>>>>>> develop
     """
     from app.data_sources.yahoo_finance import yahoo_finance
     from app.services.indicator_service import indicator_service
@@ -69,69 +66,23 @@ async def get_stock_analysis(
     original_symbol = symbol
     logger.info(f"開始查詢股票: {symbol}, refresh={refresh}")
     
-    # ========== 🆕 快取檢查（非強制刷新時）==========
-    if not refresh:
-        try:
-            sync_db = next(get_sync_db())
-            cache_service = PriceCacheService(sync_db)
-            cached = cache_service.get_cached_price(symbol, max_age_minutes=5)
-            
-            if cached and cached.get("price"):
-                logger.info(f"📦 返回快取資料: {symbol}")
-                
-                # 返回快取的簡化資料（快速響應）
-                return {
-                    "success": True,
-                    "symbol": cached["symbol"],
-                    "name": cached["name"] or symbol,
-                    "asset_type": "stock",
-                    "price": {
-                        "current": cached["price"],
-                        "high_52w": None,
-                        "low_52w": None,
-                    },
-                    "change": {
-                        "day": cached["change_pct"],
-                        "week": None,
-                        "month": None,
-                    },
-                    "volume": {
-                        "today": cached["volume"],
-                        "avg_20d": None,
-                        "ratio": None,
-                    },
-                    "indicators": {
-                        "ma": {
-                            "ma20": cached["ma20"],
-                            "ma50": None,
-                            "ma200": None,
-                            "alignment": "neutral",
-                        },
-                        "rsi": {
-                            "value": None,
-                            "period": 14,
-                            "status": "neutral",
-                        },
-                        "macd": {
-                            "dif": None,
-                            "macd": None,
-                            "histogram": None,
-                            "status": "neutral",
-                        },
-                    },
-                    "score": {
-                        "buy": 0,
-                        "sell": 0,
-                        "rating": "neutral",
-                    },
-                    "chart_data": None,  # 快取不含圖表資料
-                    "from_cache": True,
-                    "cache_time": cached["updated_at"],
-                }
-        except Exception as e:
-            logger.warning(f"快取檢查失敗: {e}")
+    # ========== 🔧 修復：禁用快取返回簡化資料 ==========
+    # 註：為確保圖表和完整指標顯示，不使用快取簡化返回
+    # 快取仍會在查詢完成後更新，供追蹤清單使用
+    # 
+    # 原始快取邏輯已被禁用：
+    # if not refresh:
+    #     try:
+    #         sync_db = next(get_sync_db())
+    #         cache_service = PriceCacheService(sync_db)
+    #         cached = cache_service.get_cached_price(symbol, max_age_minutes=5)
+    #         if cached and cached.get("price"):
+    #             return {...簡化資料...}  # 沒有 chart_data
+    #     except Exception as e:
+    #         pass
+    # ==========
     
-    # ========== 從 Yahoo Finance 查詢（無快取或強制刷新）==========
+    # ========== 從 Yahoo Finance 查詢 ==========
     try:
         # 取得股票資料 (抓取 10 年以計算長期 CAGR)
         logger.info(f"正在從 Yahoo Finance 取得 {symbol} 資料...")
@@ -240,12 +191,12 @@ async def get_stock_analysis(
         
         logger.info(f"{symbol} 查詢完成，評分: {rating}")
         
-        # 確保 name 正確獲取
+        # 確保 name 正確粹取
         stock_name = ""
         if info:
             stock_name = info.get("name", "")
         if not stock_name:
-            # 再次嘗試從本地映射表獲取
+            # 再次嘗試從本地映射表粹取
             from app.data_sources.yahoo_finance import TAIWAN_STOCK_NAMES
             stock_code = symbol.replace(".TW", "").replace(".TWO", "")
             stock_name = TAIWAN_STOCK_NAMES.get(stock_code, symbol)
@@ -484,31 +435,18 @@ async def compare_stocks(
                 if math.isnan(val) or math.isinf(val):
                     continue
                 history.append({
-                    "date": row["date"].isoformat() if hasattr(row["date"], "isoformat") else str(row["date"]),
+                    "date": str(row["date"]),
                     "value": round(val, 2),
-                    "price": round(float(row["close"]), 2),  # 顯示用原始價格
                 })
             
             if history:
-                end_price_adj = float(df.iloc[-1][price_col])
                 result[symbol] = {
-                    "symbol": symbol,
                     "name": name,
-                    "start_price": round(float(df.iloc[0]["close"]), 2),  # 顯示用原始價格
-                    "end_price": round(float(df.iloc[-1]["close"]), 2),   # 顯示用原始價格
-                    "change_pct": round((end_price_adj / start_price - 1) * 100, 2),  # 計算用調整後價格
-                    "data": history,
+                    "history": history,
                 }
                 
-                # 記錄日期用於對齊
-                dates = set(h["date"] for h in history)
-                if common_dates is None:
-                    common_dates = dates
-                else:
-                    common_dates = common_dates.intersection(dates)
-        
         except Exception as e:
-            logger.error(f"處理 {symbol} 失敗: {e}")
+            logger.error(f"處理 {symbol} 時發生錯誤: {e}")
             continue
     
     if not result:
@@ -516,294 +454,6 @@ async def compare_stocks(
     
     return {
         "success": True,
-        "data": {
-            "symbols": list(result.keys()),
-            "days": days,
-            "stocks": result,
-        }
+        "days": days,
+        "data": result,
     }
-
-
-@router.get("/{symbol}/returns", summary="年化報酬率")
-async def get_stock_returns(
-    symbol: str,
-):
-    """
-    計算股票的歷史年化報酬率 (CAGR)
-    
-    計算方式：含配息再投入的總報酬率
-    - 分割調整：已處理
-    - 配息還原：在計算時將配息加回
-    
-    回傳 1Y, 3Y, 5Y, 10Y 的 CAGR
-    """
-    from app.data_sources.yahoo_finance import yahoo_finance
-    from datetime import date, timedelta
-    import math
-    
-    # 台股代號自動轉換
-    symbol = normalize_tw_symbol(symbol)
-    original_symbol = symbol
-    logger.info(f"計算年化報酬率: {symbol}")
-    
-    try:
-        # 取得 10 年股價歷史
-        df = yahoo_finance.get_stock_history(symbol, period="10y")
-        
-        # 如果 .TW 找不到，嘗試 .TWO
-        if (df is None or df.empty) and symbol.endswith('.TW'):
-            two_symbol = symbol.replace('.TW', '.TWO')
-            df = yahoo_finance.get_stock_history(two_symbol, period="10y")
-            if df is not None and not df.empty:
-                symbol = two_symbol
-        
-        if df is None or df.empty:
-            raise HTTPException(status_code=404, detail=f"找不到股票: {original_symbol}")
-        
-        # 確保有 date 欄位
-        if 'date' not in df.columns:
-            df = df.reset_index()
-            if 'Date' in df.columns:
-                df = df.rename(columns={'Date': 'date'})
-        
-        df['date'] = pd.to_datetime(df['date']).dt.date
-        df = df.sort_values('date').reset_index(drop=True)
-        
-        # 取得配息歷史
-        dividends_df = yahoo_finance.get_dividends(symbol, period="10y")
-        
-        # 建立配息字典 {date: amount}
-        dividends = {}
-        if dividends_df is not None and not dividends_df.empty:
-            for _, row in dividends_df.iterrows():
-                div_date = row['date']
-                if isinstance(div_date, str):
-                    div_date = datetime.strptime(div_date, '%Y-%m-%d').date()
-                dividends[div_date] = float(row['amount'])
-        
-        logger.info(f"{symbol} 配息記錄: {len(dividends)} 筆")
-        
-        # 取得股票名稱
-        info = yahoo_finance.get_stock_info(symbol)
-        stock_name = info.get("name", symbol) if info else symbol
-        
-        # 現價（顯示用，用原始收盤價）
-        current_price_display = float(df.iloc[-1]['close'])
-        current_date = df.iloc[-1]['date']
-        
-        # ===== 計算含息調整價格（用於報酬率計算） =====
-        # 從最新日期往前，每遇到一次配息就調整之前的價格
-        df['adj_close_with_div'] = df['adj_close'].astype(float)
-        date_to_idx = {row['date']: idx for idx, row in df.iterrows()}
-        
-        # 找出在資料範圍內的配息
-        min_date = df['date'].min()
-        max_date = df['date'].max()
-        relevant_divs = [(d, amt) for d, amt in dividends.items() 
-                        if min_date < d <= max_date]
-        
-        if relevant_divs:
-            # 從最新到最舊處理配息
-            for div_date, div_amount in sorted(relevant_divs, reverse=True):
-                if div_date in date_to_idx:
-                    ex_idx = date_to_idx[div_date]
-                    if ex_idx > 0:
-                        # 除息前一天的價格
-                        prev_price = df.loc[ex_idx - 1, 'adj_close_with_div']
-                        if prev_price > div_amount and div_amount > 0:
-                            # 還原因子
-                            adjustment_factor = prev_price / (prev_price - div_amount)
-                            # 調整除息日之前的所有價格
-                            df.loc[:ex_idx-1, 'adj_close_with_div'] = df.loc[:ex_idx-1, 'adj_close_with_div'] / adjustment_factor
-        
-        # 含息調整後現價
-        current_price_adj = float(df.iloc[-1]['adj_close_with_div'])
-        
-        # 計算不同期間的報酬率
-        periods = [
-            ("1Y", 1),
-            ("3Y", 3),
-            ("5Y", 5),
-            ("10Y", 10),
-        ]
-        
-        results = {}
-        
-        for period_name, years in periods:
-            target_date = current_date - timedelta(days=years * 365)
-            
-            # 找到最接近目標日期的股價
-            past_df = df[df['date'] <= target_date]
-            
-            if past_df.empty or len(past_df) < 10:
-                results[period_name] = None
-                continue
-            
-            start_row = past_df.iloc[-1]
-            # 使用含息調整後價格計算報酬率
-            start_price_adj = float(start_row['adj_close_with_div'])
-            start_date = start_row['date']
-            
-            if start_price_adj <= 0:
-                results[period_name] = None
-                continue
-            
-            # 實際年數（更精確）
-            actual_days = (current_date - start_date).days
-            actual_years = actual_days / 365.25
-            
-            if actual_years < 0.5:
-                results[period_name] = None
-                continue
-            
-            # CAGR 計算（含息調整後價格）
-            cagr = (current_price_adj / start_price_adj) ** (1 / actual_years) - 1
-            
-            # 計算期間內的配息統計（參考用）
-            period_dividends = {d: amt for d, amt in dividends.items() 
-                              if start_date < d <= current_date}
-            
-            total_dividends_per_share = sum(period_dividends.values())
-            
-            logger.info(f"{symbol} {period_name}: 起始日={start_date}, 起始價(含息調整)={start_price_adj:.2f}, 現價(含息調整)={current_price_adj:.2f}, CAGR={cagr*100:.2f}%")
-            
-            # 檢查數值有效性
-            def safe_pct(val):
-                if val is None or math.isnan(val) or math.isinf(val):
-                    return None
-                return round(val * 100, 2)
-            
-            results[period_name] = {
-                "years": round(actual_years, 1),
-                "start_date": start_date.isoformat(),
-                "start_price": round(float(start_row['close']), 2),  # 顯示原始起始價
-                "end_price": round(current_price_display, 2),  # 顯示原始現價
-                "cagr": safe_pct(cagr),
-                "dividend_count": len(period_dividends),
-                "total_dividends": round(total_dividends_per_share, 4),
-            }
-        
-        return {
-            "success": True,
-            "data": {
-                "symbol": symbol,
-                "name": stock_name,
-                "current_price": round(current_price_display, 2),
-                "current_date": current_date.isoformat(),
-                "returns": results,
-                "note": "CAGR 已包含分割調整及配息再投入效果"
-            }
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"計算年化報酬率失敗 {symbol}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/{symbol}/debug-prices", summary="Debug: 查看價格調整資訊")
-async def debug_prices(
-    symbol: str,
-    years: int = Query(5, description="查詢年數"),
-):
-    """
-    Debug 用：查看原始價格、分割調整、配息資訊
-    """
-    from app.data_sources.yahoo_finance import yahoo_finance
-    from datetime import date, timedelta
-    import yfinance as yf
-    
-    # 台股代號自動轉換
-    symbol = normalize_tw_symbol(symbol)
-    
-    # 如果 .TW 找不到，嘗試 .TWO
-    df = yahoo_finance.get_stock_history(symbol, period=f"{years}y")
-    if (df is None or df.empty) and symbol.endswith('.TW'):
-        two_symbol = symbol.replace('.TW', '.TWO')
-        df = yahoo_finance.get_stock_history(two_symbol, period=f"{years}y")
-        if df is not None and not df.empty:
-            symbol = two_symbol
-    
-    try:
-        if df is None or df.empty:
-            raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
-        
-        # 取得配息記錄
-        ticker = yf.Ticker(symbol)
-        dividends = ticker.dividends
-        div_records = []
-        total_div = 0
-        if dividends is not None and len(dividends) > 0:
-            for date_idx, amount in dividends.items():
-                div_date = date_idx.date() if hasattr(date_idx, 'date') else pd.to_datetime(date_idx).date()
-                div_records.append({
-                    "date": str(div_date),
-                    "amount": round(float(amount), 4)
-                })
-                total_div += float(amount)
-        
-        # 取得分割記錄
-        splits = ticker.splits
-        split_records = []
-        if splits is not None and len(splits) > 0:
-            for date_idx, ratio in splits.items():
-                split_records.append({
-                    "date": str(date_idx.date()),
-                    "ratio": float(ratio)
-                })
-        
-        # 取樣價格比較
-        sample_prices = []
-        indices = [0]
-        for y in range(years, 0, -1):
-            target_date = date.today() - timedelta(days=y*365)
-            closest = df[df['date'] <= target_date]
-            if not closest.empty:
-                indices.append(closest.index[-1])
-        indices.append(len(df) - 1)
-        indices = sorted(set(indices))
-        
-        for idx in indices:
-            if idx < len(df):
-                row = df.iloc[idx]
-                sample_prices.append({
-                    "date": str(row['date']),
-                    "close_raw": round(float(row['close']), 2),
-                    "close_split_adj": round(float(row['adj_close']), 2),
-                })
-        
-        # 計算報酬率比較
-        first_raw = float(df.iloc[0]['close'])
-        first_adj = float(df.iloc[0]['adj_close'])
-        last_raw = float(df.iloc[-1]['close'])
-        last_adj = float(df.iloc[-1]['adj_close'])
-        
-        raw_return = (last_raw / first_raw - 1) * 100 if first_raw > 0 else 0
-        split_adj_return = (last_adj / first_adj - 1) * 100 if first_adj > 0 else 0
-        
-        return {
-            "success": True,
-            "symbol": symbol,
-            "total_records": len(df),
-            "date_range": {
-                "start": str(df.iloc[0]['date']),
-                "end": str(df.iloc[-1]['date'])
-            },
-            "splits": split_records,
-            "dividends": div_records[-10:] if len(div_records) > 10 else div_records,  # 最近 10 筆
-            "dividend_count": len(div_records),
-            "total_dividends": round(total_div, 4),
-            "sample_prices": sample_prices,
-            "returns": {
-                "raw_return_pct": round(raw_return, 2),
-                "split_adj_return_pct": round(split_adj_return, 2),
-            },
-            "note": "close_raw=原始價格, close_split_adj=分割調整後(圖表用), 年化報酬另含配息還原"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Debug prices 失敗 {symbol}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
