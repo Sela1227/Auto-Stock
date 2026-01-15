@@ -1,6 +1,9 @@
 """
 資料庫連線與 Session 管理
 支援 SQLite (開發) 和 PostgreSQL (生產)
+
+🔧 修復版本 - 2026-01-16
+新增 get_sync_db 別名
 """
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
@@ -221,3 +224,9 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# ============================================================
+# 🆕 新增別名 - 修復 stock.py ImportError
+# ============================================================
+get_sync_db = get_db
