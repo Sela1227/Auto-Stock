@@ -1,35 +1,69 @@
-# SELA 部署包 2026-01-15
+# SELA 自動選股系統 - 更新包 2026/01/15
 
-## 包含功能
-1. ✅ 追蹤清單 500 錯誤修復（target_price 遷移）
-2. ✅ Token 有效期調整（一般用戶 10 分鐘 / 管理員 60 分鐘）
-3. ✅ 目標價功能前端（🎯 按鈕 + 達標變色）
+## 📦 包含檔案
 
-## 目錄結構
 ```
-app/
-├── config.py              # 新增 JWT_EXPIRE_MINUTES_USER/ADMIN
-├── database.py            # 新增 target_price 遷移
-└── services/
-    └── auth_service.py    # Token 過期時間依角色設定
-static/
-└── dashboard.html         # 目標價 UI + 動態閒置時間
+sela_update_20260115/
+├── app/
+│   └── routers/
+│       ├── watchlist.py   # 追蹤清單 API（含匯出匯入）
+│       └── portfolio.py   # 持股交易 API（含匯出匯入）
+└── static/
+    └── dashboard.html     # 前端頁面（含所有新功能）
 ```
 
-## 部署步驟
-```bash
-cd /Users/sela/Documents/Python/自動選股系統
+## ✨ 新增功能
 
-# 解壓到專案目錄（會覆蓋對應檔案）
-unzip -o deploy-2026-01-15.zip
+### 1. 追蹤清單匯出匯入
+- **匯出**: 支援 JSON 和 CSV 格式
+- **匯入**: 自動跳過重複項目
+- API 端點:
+  - `GET /api/watchlist/export?format=json|csv`
+  - `POST /api/watchlist/import`
 
-# 部署
-git add .
-git commit -m "feat: Token有效期調整 + 目標價功能 + 遷移修復"
-git push
+### 2. 持股交易匯出匯入
+- **匯出**: 可選擇全部、台股或美股
+- **匯入**: 逐筆新增，返回統計
+- API 端點:
+  - `GET /api/portfolio/export?format=json|csv&market=tw|us`
+  - `POST /api/portfolio/import`
+
+### 3. 到價提醒變色
+- 設定目標價後，達標時卡片邊框變為黃色並閃爍提示
+- API 端點:
+  - `PUT /api/watchlist/{item_id}/target-price`
+- 前端在追蹤清單卡片上新增「🎯」按鈕設定目標價
+
+### 4. 訂閱精選前端 Tab
+- 已在之前版本實作，本次保留並確認功能正常
+
+## 🔧 部署方式
+
+1. 解壓縮 ZIP 檔案
+2. 將檔案覆蓋到對應目錄:
+   - `app/routers/watchlist.py` → 覆蓋原有檔案
+   - `app/routers/portfolio.py` → 覆蓋原有檔案
+   - `static/dashboard.html` → 覆蓋原有檔案
+3. 重啟服務
+
+## ⚠️ 注意事項
+
+- 確保資料庫已有 `target_price` 欄位在 `watchlist` 表中
+- 如果沒有，需要執行資料庫遷移（已在 database.py 的 run_migrations 中處理）
+
+## 📋 CSV 格式範例
+
+### 追蹤清單 CSV
+```csv
+symbol,asset_type,note,target_price
+AAPL,stock,觀察中,200
+MSFT,stock,,
+BTC,crypto,長期持有,
 ```
 
-## 驗證
-- 一般用戶登入：閒置計時器顯示 10:00
-- 管理員登入：閒置計時器顯示 60:00
-- 追蹤清單：🎯 按鈕可設定目標價
+### 交易紀錄 CSV
+```csv
+symbol,name,market,transaction_type,quantity,price,fee,tax,transaction_date,note
+AAPL,蘋果,us,buy,10,175.50,1.00,0,2024-01-15,定期定額
+2330,台積電,tw,buy,1000,580.00,0.1425,0,2024-01-16,
+```

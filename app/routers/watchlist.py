@@ -1,13 +1,18 @@
 """
 追蹤清單 API 路由
-包含價格快取功能
+包含價格快取功能 + 🆕 匯出匯入功能
 """
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional
 from pydantic import BaseModel
 import logging
+import json
+import csv
+import io
+from datetime import datetime
 
 from app.database import get_async_session
 from app.services.auth_service import AuthService
@@ -33,6 +38,18 @@ router = APIRouter(prefix="/api/watchlist", tags=["追蹤清單"])
 # 🆕 目標價更新 Schema
 class TargetPriceUpdate(BaseModel):
     target_price: Optional[float] = None
+
+
+# 🆕 匯入資料 Schema
+class WatchlistImportItem(BaseModel):
+    symbol: str
+    asset_type: Optional[str] = "stock"
+    note: Optional[str] = None
+    target_price: Optional[float] = None
+
+
+class WatchlistImportRequest(BaseModel):
+    items: List[WatchlistImportItem]
 
 
 async def get_current_user(
@@ -61,6 +78,156 @@ async def get_current_user(
 
     logger.debug(f"Watchlist API: 驗證成功 user_id={user.id}, line_id={user.line_user_id}")
     return user
+
+
+# ============================================================
+# 🆕 匯出匯入 API
+# ============================================================
+
+@router.get("/export", summary="匯出追蹤清單")
+async def export_watchlist(
+    format: str = "json",
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    匯出用戶的追蹤清單
+    
+    - format: json 或 csv
+    - 包含 symbol, asset_type, note, target_price
+    """
+    logger.info(f"API: 匯出追蹤清單 - user_id={user.id}, format={format}")
+
+    try:
+        # 取得用戶的追蹤清單
+        stmt = (
+            select(Watchlist)
+            .where(Watchlist.user_id == user.id)
+            .order_by(Watchlist.added_at.desc())
+        )
+        result = await db.execute(stmt)
+        items = list(result.scalars().all())
+
+        if not items:
+            raise HTTPException(status_code=404, detail="追蹤清單為空")
+
+        # 準備匯出資料
+        export_data = []
+        for item in items:
+            export_data.append({
+                "symbol": item.symbol,
+                "asset_type": item.asset_type,
+                "note": item.note or "",
+                "target_price": float(item.target_price) if item.target_price else None,
+                "added_at": item.added_at.isoformat() if item.added_at else None,
+            })
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        if format.lower() == "csv":
+            # CSV 格式
+            output = io.StringIO()
+            writer = csv.DictWriter(output, fieldnames=["symbol", "asset_type", "note", "target_price", "added_at"])
+            writer.writeheader()
+            writer.writerows(export_data)
+            
+            return StreamingResponse(
+                iter([output.getvalue()]),
+                media_type="text/csv",
+                headers={
+                    "Content-Disposition": f"attachment; filename=watchlist_{timestamp}.csv"
+                }
+            )
+        else:
+            # JSON 格式
+            json_str = json.dumps({
+                "export_time": datetime.now().isoformat(),
+                "total": len(export_data),
+                "items": export_data
+            }, ensure_ascii=False, indent=2)
+            
+            return StreamingResponse(
+                iter([json_str]),
+                media_type="application/json",
+                headers={
+                    "Content-Disposition": f"attachment; filename=watchlist_{timestamp}.json"
+                }
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"匯出追蹤清單失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/import", summary="匯入追蹤清單")
+async def import_watchlist(
+    data: WatchlistImportRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    匯入追蹤清單
+    
+    - 已存在的 symbol 會跳過
+    - 返回成功/跳過/失敗的統計
+    """
+    logger.info(f"API: 匯入追蹤清單 - user_id={user.id}, items={len(data.items)}")
+
+    try:
+        # 取得現有追蹤清單
+        stmt = select(Watchlist.symbol).where(Watchlist.user_id == user.id)
+        result = await db.execute(stmt)
+        existing_symbols = set(row[0] for row in result.all())
+
+        added = []
+        skipped = []
+        errors = []
+
+        for item in data.items:
+            symbol = item.symbol.upper().strip()
+            
+            if not symbol:
+                continue
+                
+            if symbol in existing_symbols:
+                skipped.append(symbol)
+                continue
+
+            try:
+                # 新增追蹤
+                new_item = Watchlist(
+                    user_id=user.id,
+                    symbol=symbol,
+                    asset_type=item.asset_type or "stock",
+                    note=item.note,
+                    target_price=item.target_price,
+                )
+                db.add(new_item)
+                added.append(symbol)
+                existing_symbols.add(symbol)
+            except Exception as e:
+                errors.append({"symbol": symbol, "error": str(e)})
+
+        await db.commit()
+
+        return {
+            "success": True,
+            "message": f"匯入完成：新增 {len(added)} 筆，跳過 {len(skipped)} 筆",
+            "data": {
+                "added": added,
+                "skipped": skipped,
+                "errors": errors,
+                "total_added": len(added),
+                "total_skipped": len(skipped),
+                "total_errors": len(errors),
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"匯入追蹤清單失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================
