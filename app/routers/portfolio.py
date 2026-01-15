@@ -1,6 +1,6 @@
 """
 個人投資記錄 API 路由
-🆕 添加匯出匯入功能
+🔧 P0修復：使用統一認證模組
 """
 from datetime import date, datetime
 from typing import Optional, List
@@ -15,10 +15,12 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_async_session
-from app.services.auth_service import AuthService
 from app.services.portfolio_service import PortfolioService
 from app.services.exchange_rate_service import get_exchange_rate, set_exchange_rate
 from app.models.user import User
+
+# 🔧 使用統一認證模組
+from app.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +64,6 @@ class ExchangeRateUpdate(BaseModel):
     rate: float = Field(..., gt=0, description="USD/TWD 匯率")
 
 
-# 🆕 匯入資料 Schema
 class TransactionImportItem(BaseModel):
     symbol: str
     name: Optional[str] = None
@@ -81,30 +82,7 @@ class TransactionImportRequest(BaseModel):
 
 
 # ============================================================
-# 依賴注入
-# ============================================================
-
-async def get_current_user(
-    request: Request,
-    db: AsyncSession = Depends(get_async_session),
-) -> User:
-    """驗證用戶身份"""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="未提供認證 Token")
-    
-    token = auth_header.split(" ")[1]
-    auth_service = AuthService(db)
-    user = await auth_service.get_user_from_token(token)
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="無效的 Token")
-    
-    return user
-
-
-# ============================================================
-# 🆕 匯出匯入 API
+# 匯出匯入 API
 # ============================================================
 
 @router.get("/export", summary="匯出交易記錄")

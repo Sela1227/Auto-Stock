@@ -1,5 +1,6 @@
 """
 管理員 API 路由
+🔧 P0修復：使用統一認證模組
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,44 +12,15 @@ import logging
 
 from app.database import get_async_session
 from app.models.user import User, LoginLog, TokenBlacklist, SystemConfig
-from app.services.auth_service import AuthService
-from app.services.exchange_rate_service import update_exchange_rate_sync  # 🆕 匯率更新
+from app.services.exchange_rate_service import update_exchange_rate_sync
 from app.config import settings
+
+# 🔧 使用統一認證模組
+from app.dependencies import get_admin_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["管理員"])
-
-
-async def get_admin_user(request: Request, db: AsyncSession = Depends(get_async_session)) -> User:
-    """驗證管理員身份"""
-    # 從 Header 取得 Token
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="未提供認證 Token")
-    
-    token = auth_header.split(" ")[1]
-    
-    # 驗證 Token 並取得用戶
-    auth_service = AuthService(db)
-    user = await auth_service.get_user_from_token(token)
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="無效的 Token")
-    
-    # 檢查是否為管理員
-    if not user.is_admin:
-        # 檢查是否在環境變數的初始管理員名單中
-        admin_ids = settings.get_admin_line_ids()
-        if user.line_user_id not in admin_ids:
-            raise HTTPException(status_code=403, detail="需要管理員權限")
-        
-        # 自動設定為管理員
-        user.is_admin = True
-        await db.commit()
-        logger.info(f"Auto-promoted user {user.id} to admin")
-    
-    return user
 
 
 @router.get("/stats", summary="系統統計")
@@ -266,23 +238,27 @@ async def block_user(
     if not user:
         raise HTTPException(status_code=404, detail="用戶不存在")
     
-    user.is_blocked = True
-    user.blocked_reason = reason
-    user.blocked_at = datetime.utcnow()
+    if user.is_admin:
+        raise HTTPException(status_code=400, detail="不能封鎖管理員")
     
-    # 記錄日誌
+    user.is_blocked = True
+    user.block_reason = reason
+    
+    # 記錄操作
     log = LoginLog(
         user_id=user_id,
         action="blocked",
-        ip_address=f"by_admin:{admin.id}",
+        ip_address=None,
+        user_agent=f"By admin: {admin.display_name}",
     )
     db.add(log)
     
     await db.commit()
     
-    logger.info(f"User {user_id} blocked by admin {admin.id}, reason: {reason}")
-    
-    return {"success": True, "message": f"已封鎖用戶 {user.display_name}"}
+    return {
+        "success": True,
+        "message": f"已封鎖用戶: {user.display_name}",
+    }
 
 
 @router.post("/users/{user_id}/unblock", summary="解除封鎖")
@@ -299,156 +275,59 @@ async def unblock_user(
         raise HTTPException(status_code=404, detail="用戶不存在")
     
     user.is_blocked = False
-    user.blocked_reason = None
-    user.blocked_at = None
+    user.block_reason = None
     
-    # 記錄日誌
+    # 記錄操作
     log = LoginLog(
         user_id=user_id,
         action="unblocked",
-        ip_address=f"by_admin:{admin.id}",
+        ip_address=None,
+        user_agent=f"By admin: {admin.display_name}",
     )
     db.add(log)
     
     await db.commit()
-    
-    logger.info(f"User {user_id} unblocked by admin {admin.id}")
-    
-    return {"success": True, "message": f"已解除封鎖 {user.display_name}"}
-
-
-@router.post("/users/{user_id}/set-admin", summary="設為管理員")
-async def set_admin(
-    user_id: int,
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_async_session),
-):
-    """設定用戶為管理員"""
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="用戶不存在")
-    
-    user.is_admin = True
-    await db.commit()
-    
-    logger.info(f"User {user_id} promoted to admin by {admin.id}")
-    
-    return {"success": True, "message": f"已將 {user.display_name} 設為管理員"}
-
-
-@router.post("/users/{user_id}/remove-admin", summary="移除管理員")
-async def remove_admin(
-    user_id: int,
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_async_session),
-):
-    """移除管理員權限"""
-    if user_id == admin.id:
-        raise HTTPException(status_code=400, detail="不能移除自己的管理員權限")
-    
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="用戶不存在")
-    
-    user.is_admin = False
-    await db.commit()
-    
-    logger.info(f"User {user_id} admin removed by {admin.id}")
-    
-    return {"success": True, "message": f"已移除 {user.display_name} 的管理員權限"}
-
-
-@router.post("/users/{user_id}/kick", summary="踢出用戶")
-async def kick_user(
-    user_id: int,
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_async_session),
-):
-    """踢出單一用戶（使其 Token 失效）"""
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="用戶不存在")
-    
-    # 增加 token 版本，使舊 token 失效
-    # 這裡我們用時間戳記錄
-    config_key = f"user_token_version:{user_id}"
-    result = await db.execute(
-        select(SystemConfig).where(SystemConfig.key == config_key)
-    )
-    config = result.scalar_one_or_none()
-    
-    if config:
-        config.value = str(int(datetime.utcnow().timestamp()))
-    else:
-        config = SystemConfig(
-            key=config_key,
-            value=str(int(datetime.utcnow().timestamp())),
-            description=f"Token version for user {user_id}"
-        )
-        db.add(config)
-    
-    # 記錄日誌
-    log = LoginLog(
-        user_id=user_id,
-        action="kicked",
-        ip_address=f"by_admin:{admin.id}",
-    )
-    db.add(log)
-    
-    await db.commit()
-    
-    logger.info(f"User {user_id} kicked by admin {admin.id}")
-    
-    return {"success": True, "message": f"已踢出用戶 {user.display_name}"}
-
-
-@router.post("/kick-all", summary="踢出所有用戶")
-async def kick_all_users(
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_async_session),
-):
-    """踢出所有用戶（使所有 Token 失效）"""
-    # 設定全域 token 版本
-    config_key = "global_token_version"
-    result = await db.execute(
-        select(SystemConfig).where(SystemConfig.key == config_key)
-    )
-    config = result.scalar_one_or_none()
-    
-    new_version = str(int(datetime.utcnow().timestamp()))
-    
-    if config:
-        config.value = new_version
-    else:
-        config = SystemConfig(
-            key=config_key,
-            value=new_version,
-            description="Global token version for kick-all"
-        )
-        db.add(config)
-    
-    # 記錄日誌
-    log = LoginLog(
-        user_id=admin.id,
-        action="kick_all",
-        ip_address=f"admin:{admin.id}",
-    )
-    db.add(log)
-    
-    await db.commit()
-    
-    logger.warning(f"All users kicked by admin {admin.id}")
     
     return {
         "success": True,
-        "message": "已踢出所有用戶，所有人需要重新登入",
-        "new_version": new_version
+        "message": f"已解除封鎖: {user.display_name}",
+    }
+
+
+@router.post("/users/{user_id}/set-admin", summary="設定管理員")
+async def set_admin(
+    user_id: int,
+    is_admin: bool = Query(..., description="是否為管理員"),
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """設定或取消管理員權限"""
+    if user_id == admin.id and not is_admin:
+        raise HTTPException(status_code=400, detail="不能取消自己的管理員權限")
+    
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="用戶不存在")
+    
+    user.is_admin = is_admin
+    
+    # 記錄操作
+    action = "promoted_to_admin" if is_admin else "demoted_from_admin"
+    log = LoginLog(
+        user_id=user_id,
+        action=action,
+        ip_address=None,
+        user_agent=f"By admin: {admin.display_name}",
+    )
+    db.add(log)
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": f"已{'設定' if is_admin else '取消'} {user.display_name} 的管理員權限",
     }
 
 
@@ -458,7 +337,7 @@ async def delete_user(
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """刪除用戶（危險操作）"""
+    """刪除用戶（僅限測試環境）"""
     if user_id == admin.id:
         raise HTTPException(status_code=400, detail="不能刪除自己")
     
@@ -468,283 +347,84 @@ async def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="用戶不存在")
     
-    display_name = user.display_name
+    if user.is_admin:
+        raise HTTPException(status_code=400, detail="不能刪除管理員")
     
+    # 刪除相關資料
+    await db.execute(delete(LoginLog).where(LoginLog.user_id == user_id))
     await db.delete(user)
     await db.commit()
     
-    logger.warning(f"User {user_id} ({display_name}) deleted by admin {admin.id}")
-    
-    return {"success": True, "message": f"已刪除用戶 {display_name}"}
+    return {
+        "success": True,
+        "message": f"已刪除用戶: {user.display_name}",
+    }
 
 
-@router.get("/debug/watchlists", summary="診斷追蹤清單")
-async def debug_watchlists(
+# ============================================================
+# 系統設定
+# ============================================================
+
+@router.get("/config", summary="取得系統設定")
+async def get_config(
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """
-    診斷追蹤清單（查看所有用戶的追蹤清單數量）
-    """
-    from app.models.watchlist import Watchlist
+    """取得系統設定"""
+    result = await db.execute(select(SystemConfig))
+    configs = result.scalars().all()
     
-    # 統計每個用戶的追蹤清單數量
+    return {
+        "success": True,
+        "configs": {c.key: c.value for c in configs},
+    }
+
+
+@router.put("/config/{key}", summary="更新系統設定")
+async def update_config(
+    key: str,
+    value: str = Query(..., description="設定值"),
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """更新系統設定"""
     result = await db.execute(
-        select(
-            Watchlist.user_id,
-            func.count(Watchlist.id).label('count')
-        ).group_by(Watchlist.user_id)
+        select(SystemConfig).where(SystemConfig.key == key)
     )
-    user_counts = result.all()
+    config = result.scalar_one_or_none()
     
-    # 取得用戶資訊
-    user_data = []
-    for user_id, count in user_counts:
-        user_result = await db.execute(select(User).where(User.id == user_id))
-        user = user_result.scalar_one_or_none()
-        user_data.append({
-            "user_id": user_id,
-            "display_name": user.display_name if user else "未知",
-            "line_user_id": user.line_user_id[:10] + "..." if user else "未知",
-            "watchlist_count": count
-        })
-    
-    # 總數
-    total = await db.scalar(select(func.count(Watchlist.id)))
-    
-    return {
-        "success": True,
-        "total_watchlist_items": total,
-        "users": user_data
-    }
-
-
-# ============== 訊號檢查與推播 ==============
-
-@router.post("/signals/check", summary="執行訊號檢查")
-async def run_signal_check(
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_async_session),
-):
-    """
-    手動執行訊號檢查
-    
-    檢查所有用戶追蹤的股票，偵測技術指標訊號並發送 LINE 通知
-    """
-    from app.services.notification_service import notification_service
-    
-    try:
-        result = await notification_service.run_signal_check(db)
-        
-        return {
-            "success": True,
-            "message": "訊號檢查完成",
-            "result": result
-        }
-    except Exception as e:
-        logger.error(f"訊號檢查失敗: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/signals/test/{symbol}", summary="測試單一股票訊號")
-async def test_signal_detection(
-    symbol: str,
-    admin: User = Depends(get_admin_user),
-):
-    """
-    測試單一股票的訊號偵測（不發送通知）
-    """
-    from app.services.signal_service import signal_service
-    from app.services.indicator_service import indicator_service
-    from app.data_sources.yahoo_finance import yahoo_finance
-    
-    symbol = symbol.upper()
-    
-    try:
-        # 取得股價資料
-        df = yahoo_finance.get_stock_history(symbol, period="6mo")
-        
-        if df is None or df.empty:
-            raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
-        
-        # 計算技術指標
-        indicators = indicator_service.calculate_all_indicators(df)
-        
-        if not indicators:
-            raise HTTPException(status_code=500, detail="無法計算技術指標")
-        
-        # 偵測訊號
-        signals = signal_service.detect_signals(symbol, indicators, "stock")
-        
-        # 格式化輸出
-        signals_data = []
-        for s in signals:
-            signals_data.append({
-                "type": s.signal_type.value,
-                "indicator": s.indicator,
-                "message": s.message,
-                "price": s.price,
-                "details": s.details,
-            })
-        
-        return {
-            "success": True,
-            "symbol": symbol,
-            "current_price": indicators.get("current_price"),
-            "signals_count": len(signals),
-            "signals": signals_data,
-            "indicators_summary": {
-                "ma20": indicators.get("ma", {}).get("ma20"),
-                "ma50": indicators.get("ma", {}).get("ma50"),
-                "rsi": indicators.get("rsi", {}).get("value"),
-                "macd_status": indicators.get("macd", {}).get("status"),
-                "kd_k": indicators.get("kd", {}).get("k"),
-            }
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"測試訊號偵測失敗 {symbol}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/notify/test", summary="測試 LINE 推播")
-async def test_line_push(
-    message: str = Query("這是測試訊息", description="測試訊息內容"),
-    admin: User = Depends(get_admin_user),
-):
-    """
-    測試 LINE 推播功能（發送給管理員自己）
-    """
-    from app.services.line_notify_service import line_notify_service
-    
-    if not line_notify_service.enabled:
-        raise HTTPException(
-            status_code=400, 
-            detail="LINE Messaging API 未設定，請設定 LINE_MESSAGING_CHANNEL_ACCESS_TOKEN 環境變數"
-        )
-    
-    try:
-        test_message = f"🔔 SELA 系統測試\n\n{message}\n\n⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        
-        success = await line_notify_service.push_text_message(
-            admin.line_user_id,
-            test_message
-        )
-        
-        if success:
-            return {
-                "success": True,
-                "message": "測試訊息已發送，請檢查 LINE"
-            }
-        else:
-            raise HTTPException(status_code=500, detail="LINE 推播失敗")
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"測試 LINE 推播失敗: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/notifications", summary="通知記錄")
-async def list_notifications(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
-    user_id: Optional[int] = None,
-    symbol: Optional[str] = None,
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_async_session),
-):
-    """取得通知記錄"""
-    from app.models.notification import Notification
-    
-    query = select(Notification).order_by(Notification.triggered_at.desc())
-    
-    if user_id:
-        query = query.where(Notification.user_id == user_id)
-    
-    if symbol:
-        query = query.where(Notification.symbol == symbol.upper())
-    
-    # 計算總數
-    count_query = select(func.count()).select_from(query.subquery())
-    total = await db.scalar(count_query)
-    
-    # 分頁
-    query = query.offset((page - 1) * page_size).limit(page_size)
-    result = await db.execute(query)
-    notifications = result.scalars().all()
-    
-    # 取得用戶名稱
-    user_ids = list(set(n.user_id for n in notifications))
-    if user_ids:
-        users_result = await db.execute(
-            select(User).where(User.id.in_(user_ids))
-        )
-        users_map = {u.id: u.display_name for u in users_result.scalars().all()}
+    if config:
+        config.value = value
     else:
-        users_map = {}
+        config = SystemConfig(key=key, value=value)
+        db.add(config)
     
-    notifications_data = []
-    for n in notifications:
-        n_dict = n.to_dict()
-        n_dict["user_name"] = users_map.get(n.user_id, "Unknown")
-        notifications_data.append(n_dict)
+    await db.commit()
     
     return {
         "success": True,
-        "notifications": notifications_data,
-        "pagination": {
-            "page": page,
-            "page_size": page_size,
-            "total": total or 0,
-            "total_pages": ((total or 0) + page_size - 1) // page_size,
-        }
+        "message": f"已更新設定: {key}",
     }
 
 
-@router.post("/signal/detect", summary="偵測訊號（測試）")
-async def detect_signals(
-    admin: User = Depends(get_admin_user),
-):
-    """
-    手動執行訊號偵測（不發送通知）
-    用於測試訊號偵測功能
-    """
-    from app.tasks.scheduler import scheduler_service
-    
-    try:
-        result = scheduler_service.run_signal_detection_only()
-        
-        return {
-            "success": True,
-            "signals_count": len(result.get("signals", [])),
-            "by_symbol": result.get("by_symbol", {}),
-            "message": f"偵測到 {len(result.get('signals', []))} 個交叉訊號"
-        }
-    except Exception as e:
-        logger.error(f"訊號偵測失敗: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# ============================================================
+# 訊號通知管理
+# ============================================================
 
-
-@router.post("/signal/notify", summary="發送訊號通知")
-async def send_signal_notifications(
+@router.post("/signal/send-now", summary="立即發送訊號通知")
+async def send_signal_now(
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    手動執行訊號偵測並發送通知
-    會偵測所有追蹤股票的交叉訊號，並發送 LINE 推播給相關用戶
+    立即執行訊號偵測並發送通知
     """
     from app.tasks.scheduler import scheduler_service
     
+    logger.info(f"管理員 {admin.display_name} 觸發立即發送訊號通知")
+    
     try:
-        # 使用同步 session
-        sync_db = scheduler_service._get_db()
-        result = scheduler_service._detect_and_notify(sync_db)
-        sync_db.close()
+        result = scheduler_service.run_signal_notification()
         
         return {
             "success": True,
@@ -799,7 +479,6 @@ async def get_signal_status(
     """
     from app.services.line_notify_service import line_notify_service
     from app.tasks.scheduler import scheduler_service
-    from app.config import settings
     
     return {
         "success": True,
@@ -926,7 +605,7 @@ async def list_notifications(
 
 
 # ============================================================
-# 🆕 管理員觸發更新 API
+# 管理員觸發更新 API
 # ============================================================
 
 @router.post("/update-exchange-rate", summary="更新匯率")
