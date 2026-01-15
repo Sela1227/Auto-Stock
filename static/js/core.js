@@ -315,7 +315,7 @@
         if (name === 'sentiment' && typeof loadSentimentDetail === 'function') loadSentimentDetail();
         if (name === 'settings' && typeof loadSettings === 'function') loadSettings();
         if (name === 'portfolio' && typeof loadPortfolio === 'function') loadPortfolio();
-        if (name === 'subscription' && typeof loadSubscriptionPicks === 'function') loadSubscriptionPicks();
+        if (name === 'subscription' && typeof loadSubscriptionData === 'function') loadSubscriptionData();
     }
     
     // ============================================================
