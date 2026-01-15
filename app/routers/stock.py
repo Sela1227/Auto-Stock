@@ -48,15 +48,85 @@ async def get_stock_analysis(
 ):
     """
     查詢單一股票的技術分析報告
+    
+    優化：
+    - 查詢結果自動存入資料庫快取
+    - 5 分鐘內重複查詢直接返回快取（瞬間響應）
+    - 加上 refresh=true 可強制從 Yahoo Finance 重新查詢
     """
     from app.data_sources.yahoo_finance import yahoo_finance
     from app.services.indicator_service import indicator_service
+    from app.services.price_cache_service import PriceCacheService
+    from app.database import get_sync_db
     
     # 台股代號自動轉換
     symbol = normalize_tw_symbol(symbol)
     original_symbol = symbol
-    logger.info(f"開始查詢股票: {symbol}")
+    logger.info(f"開始查詢股票: {symbol}, refresh={refresh}")
     
+    # ========== 🆕 快取檢查（非強制刷新時）==========
+    if not refresh:
+        try:
+            sync_db = next(get_sync_db())
+            cache_service = PriceCacheService(sync_db)
+            cached = cache_service.get_cached_price(symbol, max_age_minutes=5)
+            
+            if cached and cached.get("price"):
+                logger.info(f"📦 返回快取資料: {symbol}")
+                
+                # 返回快取的簡化資料（快速響應）
+                return {
+                    "success": True,
+                    "symbol": cached["symbol"],
+                    "name": cached["name"] or symbol,
+                    "asset_type": "stock",
+                    "price": {
+                        "current": cached["price"],
+                        "high_52w": None,
+                        "low_52w": None,
+                    },
+                    "change": {
+                        "day": cached["change_pct"],
+                        "week": None,
+                        "month": None,
+                    },
+                    "volume": {
+                        "today": cached["volume"],
+                        "avg_20d": None,
+                        "ratio": None,
+                    },
+                    "indicators": {
+                        "ma": {
+                            "ma20": cached["ma20"],
+                            "ma50": None,
+                            "ma200": None,
+                            "alignment": "neutral",
+                        },
+                        "rsi": {
+                            "value": None,
+                            "period": 14,
+                            "status": "neutral",
+                        },
+                        "macd": {
+                            "dif": None,
+                            "macd": None,
+                            "histogram": None,
+                            "status": "neutral",
+                        },
+                    },
+                    "score": {
+                        "buy": 0,
+                        "sell": 0,
+                        "rating": "neutral",
+                    },
+                    "chart_data": None,  # 快取不含圖表資料
+                    "from_cache": True,
+                    "cache_time": cached["updated_at"],
+                }
+        except Exception as e:
+            logger.warning(f"快取檢查失敗: {e}")
+    
+    # ========== 從 Yahoo Finance 查詢（無快取或強制刷新）==========
     try:
         # 取得股票資料 (抓取 10 年以計算長期 CAGR)
         logger.info(f"正在從 Yahoo Finance 取得 {symbol} 資料...")
@@ -253,6 +323,7 @@ async def get_stock_analysis(
                 "ma200": [float(v) if not pd.isna(v) else None for v in df['ma200'].tail(1500).tolist()] if 'ma200' in df.columns else [],
                 "ma250": [float(v) if not pd.isna(v) else None for v in df['ma250'].tail(1500).tolist()] if 'ma250' in df.columns else [],
             },
+            "from_cache": False,  # 🆕 標記：這是從 Yahoo Finance 取得的新鮮資料
         }
     except HTTPException:
         raise

@@ -1,69 +1,70 @@
-# SELA 自動選股系統 - 更新包 2026/01/15
+# SELA 前端模組化版本 - 2026/01/15
 
-## 📦 包含檔案
+## 📦 目錄結構
 
 ```
-sela_update_20260115/
-├── app/
-│   └── routers/
-│       ├── watchlist.py   # 追蹤清單 API（含匯出匯入）
-│       └── portfolio.py   # 持股交易 API（含匯出匯入）
-└── static/
-    └── dashboard.html     # 前端頁面（含所有新功能）
+static/
+├── dashboard.html         # 主頁面 (1520 行 - 原 5500 行)
+├── css/
+│   └── dashboard.css      # CSS 樣式 (329 行)
+└── js/
+    ├── utils.js           # 工具函數 (244 行)
+    ├── core.js            # 核心模組 (386 行)
+    ├── dashboard.js       # 儀表板 (460 行)
+    ├── search.js          # 股票查詢 (600 行)
+    ├── watchlist.js       # 追蹤清單 (572 行)
+    ├── portfolio.js       # 投資記錄 (445 行)
+    ├── compare.js         # 走勢比較 (256 行)
+    ├── subscription.js    # 訂閱精選 (99 行)
+    ├── settings.js        # 設定 (240 行)
+    └── transaction.js     # 交易功能 (410 行)
 ```
 
-## ✨ 新增功能
+## ✨ 模組功能
 
-### 1. 追蹤清單匯出匯入
-- **匯出**: 支援 JSON 和 CSV 格式
-- **匯入**: 自動跳過重複項目
-- API 端點:
-  - `GET /api/watchlist/export?format=json|csv`
-  - `POST /api/watchlist/import`
-
-### 2. 持股交易匯出匯入
-- **匯出**: 可選擇全部、台股或美股
-- **匯入**: 逐筆新增，返回統計
-- API 端點:
-  - `GET /api/portfolio/export?format=json|csv&market=tw|us`
-  - `POST /api/portfolio/import`
-
-### 3. 到價提醒變色
-- 設定目標價後，達標時卡片邊框變為黃色並閃爍提示
-- API 端點:
-  - `PUT /api/watchlist/{item_id}/target-price`
-- 前端在追蹤清單卡片上新增「🎯」按鈕設定目標價
-
-### 4. 訂閱精選前端 Tab
-- 已在之前版本實作，本次保留並確認功能正常
+| 模組 | 功能 |
+|------|------|
+| `utils.js` | 格式化、防抖、storage 封裝、檔案解析 |
+| `core.js` | 認證、API 請求、Session 管理、導航、Toast |
+| `dashboard.js` | BTC 價格、三大指數、市場情緒、指數圖表 Modal |
+| `search.js` | 股票搜尋、結果顯示、全螢幕圖表、年化報酬率 Modal |
+| `watchlist.js` | 追蹤清單、排序、匯出匯入、目標價設定 |
+| `portfolio.js` | 持股總覽、交易紀錄、匯出匯入 |
+| `compare.js` | 走勢比較圖表 |
+| `subscription.js` | 訂閱精選功能 |
+| `settings.js` | 指標設定、通知設定、模板套用 |
+| `transaction.js` | 台股/美股交易 Modal |
 
 ## 🔧 部署方式
 
-1. 解壓縮 ZIP 檔案
-2. 將檔案覆蓋到對應目錄:
-   - `app/routers/watchlist.py` → 覆蓋原有檔案
-   - `app/routers/portfolio.py` → 覆蓋原有檔案
-   - `static/dashboard.html` → 覆蓋原有檔案
-3. 重啟服務
+1. 將整個 `static/` 目錄複製到你的專案
+2. 確保靜態資源路徑正確：
+   - CSS: `/static/css/dashboard.css`
+   - JS: `/static/js/*.js`
+
+## 📊 效果對比
+
+| 項目 | 優化前 | 模組化後 | 減少 |
+|------|--------|----------|------|
+| dashboard.html | 5500 行 | 1520 行 | **72%** |
+| JavaScript | 內聯 ~3700 行 | 11 個模組 ~4200 行 | 結構化 |
+| 可維護性 | 低 | 高 | - |
+| 功能擴展 | 困難 | 容易 | - |
+
+## 🚀 優點
+
+1. **易於維護**：每個功能獨立成模組
+2. **可重用**：函數可在其他頁面使用
+3. **易於測試**：可單獨測試各模組
+4. **團隊協作**：不同人可同時修改不同模組
+5. **向後兼容**：所有函數都導出到 window
 
 ## ⚠️ 注意事項
 
-- 確保資料庫已有 `target_price` 欄位在 `watchlist` 表中
-- 如果沒有，需要執行資料庫遷移（已在 database.py 的 run_migrations 中處理）
+- 模組載入順序很重要：
+  1. `utils.js` - 工具函數（無依賴）
+  2. `core.js` - 核心功能（依賴 utils）
+  3. 其他模組（依賴 core）
+- 所有模組都使用 IIFE，不會污染全域命名空間
+- 函數通過 `window.xxx = xxx` 導出，支援 HTML onclick
 
-## 📋 CSV 格式範例
-
-### 追蹤清單 CSV
-```csv
-symbol,asset_type,note,target_price
-AAPL,stock,觀察中,200
-MSFT,stock,,
-BTC,crypto,長期持有,
-```
-
-### 交易紀錄 CSV
-```csv
-symbol,name,market,transaction_type,quantity,price,fee,tax,transaction_date,note
-AAPL,蘋果,us,buy,10,175.50,1.00,0,2024-01-15,定期定額
-2330,台積電,tw,buy,1000,580.00,0.1425,0,2024-01-16,
-```
