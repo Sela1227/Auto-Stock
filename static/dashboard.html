@@ -361,14 +361,32 @@
                     </div>
                 </div>
 
-                <!-- 追蹤清單快覽 -->
-                <div class="bg-white rounded-xl shadow p-4 md:p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-semibold text-gray-700">追蹤清單</h3>
-                        <a href="#" onclick="showSection('watchlist')" class="text-blue-600 text-sm hover:underline">查看全部</a>
+                <!-- 追蹤清單 + 熱門追蹤 (兩欄) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                    <!-- 追蹤清單快覽 -->
+                    <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-700">
+                                <i class="fas fa-star text-yellow-500 mr-2"></i>我的追蹤
+                            </h3>
+                            <a href="#" onclick="showSection('watchlist')" class="text-blue-600 text-sm hover:underline">查看全部</a>
+                        </div>
+                        <div id="dashboardWatchlist">
+                            <p class="text-gray-500 text-center py-4">載入中...</p>
+                        </div>
                     </div>
-                    <div id="dashboardWatchlist">
-                        <p class="text-gray-500 text-center py-4">載入中...</p>
+                    
+                    <!-- 🆕 熱門追蹤統計 -->
+                    <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-700">
+                                <i class="fas fa-fire text-orange-500 mr-2"></i>熱門追蹤
+                            </h3>
+                            <span class="text-gray-400 text-xs">TOP 10</span>
+                        </div>
+                        <div id="popularStocksContainer">
+                            <p class="text-gray-500 text-center py-4">載入中...</p>
+                        </div>
                     </div>
                 </div>
             </section>
