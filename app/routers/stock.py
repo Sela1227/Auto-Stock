@@ -3,8 +3,7 @@
 
 🚀 效能優化版 - 2026-01-16
 - 歷史資料存入 PostgreSQL
-- 同日重查 < 500ms
-- 隔日查詢 1-3 秒
+- 新增 /returns 路由計算年化報酬率
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -33,25 +32,17 @@ def normalize_tw_symbol(symbol: str) -> str:
     return symbol
 
 
-@router.get("/{symbol}", summary="查詢股票")
-async def get_stock_analysis(
-    symbol: str,
-    refresh: bool = Query(False, description="是否強制更新資料"),
-):
+def _get_stock_df(symbol: str, years: int = 10, force_refresh: bool = False):
     """
-    查詢單一股票的技術分析報告
+    取得股票 DataFrame（帶快取）
+    
+    Returns:
+        (df, symbol, data_source)
     """
     from app.data_sources.yahoo_finance import yahoo_finance
-    from app.services.indicator_service import indicator_service
-    from app.services.price_cache_service import PriceCacheService
     from app.services.stock_history_service import StockHistoryService
     from app.database import SyncSessionLocal
     
-    symbol = normalize_tw_symbol(symbol)
-    original_symbol = symbol
-    logger.info(f"開始查詢股票: {symbol}, refresh={refresh}")
-    
-    # ========== 取得資料 ==========
     df = None
     data_source = "yahoo"
     
@@ -59,63 +50,71 @@ async def get_stock_analysis(
         db = SyncSessionLocal()
         try:
             history_service = StockHistoryService(db)
-            df, data_source = history_service.get_stock_history(symbol, years=10, force_refresh=refresh)
+            df, data_source = history_service.get_stock_history(symbol, years=years, force_refresh=force_refresh)
             
-            # 嘗試上櫃
             if (df is None or df.empty) and symbol.endswith('.TW'):
                 two_symbol = symbol.replace('.TW', '.TWO')
-                df, data_source = history_service.get_stock_history(two_symbol, years=10, force_refresh=refresh)
+                df, data_source = history_service.get_stock_history(two_symbol, years=years, force_refresh=force_refresh)
                 if df is not None and not df.empty:
                     symbol = two_symbol
         finally:
             db.close()
     except Exception as e:
-        logger.warning(f"快取服務異常: {e}，退回 Yahoo Finance")
-        df = yahoo_finance.get_stock_history(symbol, period="10y")
+        logger.warning(f"快取服務異常: {e}")
+        df = yahoo_finance.get_stock_history(symbol, period=f"{years}y")
         if (df is None or df.empty) and symbol.endswith('.TW'):
             two_symbol = symbol.replace('.TW', '.TWO')
-            df = yahoo_finance.get_stock_history(two_symbol, period="10y")
+            df = yahoo_finance.get_stock_history(two_symbol, period=f"{years}y")
             if df is not None and not df.empty:
                 symbol = two_symbol
         data_source = "yahoo"
+    
+    return df, symbol, data_source
+
+
+@router.get("/{symbol}", summary="查詢股票")
+async def get_stock_analysis(
+    symbol: str,
+    refresh: bool = Query(False, description="是否強制更新資料"),
+):
+    """查詢單一股票的技術分析報告"""
+    from app.data_sources.yahoo_finance import yahoo_finance
+    from app.services.indicator_service import indicator_service
+    from app.services.price_cache_service import PriceCacheService
+    from app.database import SyncSessionLocal
+    
+    symbol = normalize_tw_symbol(symbol)
+    original_symbol = symbol
+    logger.info(f"開始查詢股票: {symbol}, refresh={refresh}")
+    
+    df, symbol, data_source = _get_stock_df(symbol, years=10, force_refresh=refresh)
     
     if df is None or df.empty:
         raise HTTPException(status_code=404, detail=f"找不到股票: {original_symbol}")
     
     logger.info(f"取得 {len(df)} 筆資料，來源: {data_source}")
     
-    # ========== 處理資料 ==========
     try:
-        # 確保欄位名稱小寫
         df.columns = [c.lower() for c in df.columns]
-        
-        # 保存原始收盤價
         df['close_raw'] = df['close'].copy()
         
-        # 使用調整後價格計算指標
         if 'adj_close' in df.columns:
             df['close'] = df['adj_close']
         
-        # 確保有 date 欄位
         if 'date' not in df.columns:
             df['date'] = df.index
         
-        # 計算技術指標
         df = indicator_service.calculate_all_indicators(df)
         
-        # 取得最新資料
         latest = df.iloc[-1]
         current_price = float(latest.get('close_raw', latest['close']))
         
-        # 取得股票資訊
         info = yahoo_finance.get_stock_info(symbol)
         
-        # 價格資訊
         close_col = 'close_raw' if 'close_raw' in df.columns else 'close'
         high_52w = float(df[close_col].tail(252).max()) if len(df) >= 252 else float(df[close_col].max())
         low_52w = float(df[close_col].tail(252).min()) if len(df) >= 252 else float(df[close_col].min())
         
-        # 漲跌幅
         current_price_adj = float(latest['close'])
         def calc_change(days):
             if len(df) > days:
@@ -123,7 +122,6 @@ async def get_stock_analysis(
                 return round((current_price_adj - old) / old * 100, 2)
             return None
         
-        # 均線
         ma20 = float(latest['ma20']) if 'ma20' in latest and pd.notna(latest.get('ma20')) else None
         ma50 = float(latest['ma50']) if 'ma50' in latest and pd.notna(latest.get('ma50')) else None
         ma200 = float(latest['ma200']) if 'ma200' in latest and pd.notna(latest.get('ma200')) else None
@@ -135,22 +133,18 @@ async def get_stock_analysis(
             elif current_price_adj < ma20 < ma50 < ma200:
                 alignment = "bearish"
         
-        # RSI
         rsi_value = float(latest['rsi']) if 'rsi' in latest and pd.notna(latest.get('rsi')) else 50
         rsi_status = "overbought" if rsi_value > 70 else "oversold" if rsi_value < 30 else "neutral"
         
-        # MACD
         macd_dif = float(latest['macd_dif']) if 'macd_dif' in latest and pd.notna(latest.get('macd_dif')) else 0
         macd_dea = float(latest['macd_dea']) if 'macd_dea' in latest and pd.notna(latest.get('macd_dea')) else 0
         macd_hist = float(latest['macd_hist']) if 'macd_hist' in latest and pd.notna(latest.get('macd_hist')) else 0
         macd_status = "bullish" if macd_dif > macd_dea else "bearish"
         
-        # 成交量
         volume_today = int(latest['volume']) if pd.notna(latest.get('volume')) else 0
         volume_avg = int(df['volume'].tail(20).mean()) if 'volume' in df.columns else 0
         volume_ratio = round(volume_today / volume_avg, 2) if volume_avg > 0 else 1.0
         
-        # 評分
         buy_score = 0
         sell_score = 0
         if alignment == "bullish": buy_score += 1
@@ -161,7 +155,6 @@ async def get_stock_analysis(
         else: sell_score += 1
         rating = "bullish" if buy_score > sell_score else "bearish" if sell_score > buy_score else "neutral"
         
-        # 股票名稱
         stock_name = info.get("name", "") if info else ""
         if not stock_name:
             from app.data_sources.yahoo_finance import TAIWAN_STOCK_NAMES
@@ -243,6 +236,76 @@ async def get_stock_analysis(
         raise HTTPException(status_code=500, detail=f"查詢失敗: {str(e)}")
 
 
+@router.get("/{symbol}/returns", summary="年化報酬率")
+async def get_stock_returns(symbol: str):
+    """
+    計算股票的年化報酬率 (CAGR)
+    
+    Returns:
+        - returns: 累積報酬率 (1m, 3m, 6m, 1y)
+        - cagr: 年化報酬率 (cagr_1y, cagr_3y, cagr_5y, cagr_10y)
+    """
+    symbol = normalize_tw_symbol(symbol)
+    logger.info(f"計算年化報酬率: {symbol}")
+    
+    df, symbol, _ = _get_stock_df(symbol, years=10, force_refresh=False)
+    
+    if df is None or df.empty:
+        raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
+    
+    try:
+        df.columns = [c.lower() for c in df.columns]
+        
+        # 使用調整後價格計算報酬
+        price_col = 'adj_close' if 'adj_close' in df.columns else 'close'
+        
+        current_price = float(df.iloc[-1][price_col])
+        
+        # 累積報酬率
+        def calc_return(days):
+            if len(df) > days:
+                old_price = float(df.iloc[-days-1][price_col])
+                if old_price > 0:
+                    return round((current_price - old_price) / old_price * 100, 2)
+            return None
+        
+        returns = {
+            "1m": calc_return(22),
+            "3m": calc_return(65),
+            "6m": calc_return(130),
+            "1y": calc_return(252),
+        }
+        
+        # CAGR 計算
+        def calc_cagr(years):
+            days = years * 252
+            if len(df) > days:
+                start_price = float(df.iloc[-days-1][price_col])
+                if start_price > 0:
+                    cagr = ((current_price / start_price) ** (1 / years) - 1) * 100
+                    return round(cagr, 2)
+            return None
+        
+        cagr = {
+            "cagr_1y": calc_cagr(1),
+            "cagr_3y": calc_cagr(3),
+            "cagr_5y": calc_cagr(5),
+            "cagr_10y": calc_cagr(10),
+        }
+        
+        return {
+            "success": True,
+            "symbol": symbol,
+            "returns": returns,
+            "cagr": cagr,
+            "note": "CAGR 已包含分割調整及配息再投入效果",
+        }
+        
+    except Exception as e:
+        logger.error(f"計算 {symbol} 年化報酬率失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"計算失敗: {str(e)}")
+
+
 @router.get("/{symbol}/chart", summary="取得股票圖表")
 async def get_stock_chart(
     symbol: str,
@@ -252,56 +315,27 @@ async def get_stock_chart(
     from app.data_sources.yahoo_finance import yahoo_finance
     from app.services.indicator_service import indicator_service
     from app.services.chart_service import chart_service
-    from app.services.stock_history_service import StockHistoryService
-    from app.database import SyncSessionLocal
     
     symbol = normalize_tw_symbol(symbol)
     
-    # 取得資料
-    df = None
-    try:
-        db = SyncSessionLocal()
-        try:
-            history_service = StockHistoryService(db)
-            df, _ = history_service.get_stock_history(symbol, years=2, force_refresh=False)
-            
-            if (df is None or df.empty) and symbol.endswith('.TW'):
-                two_symbol = symbol.replace('.TW', '.TWO')
-                df, _ = history_service.get_stock_history(two_symbol, years=2, force_refresh=False)
-                if df is not None and not df.empty:
-                    symbol = two_symbol
-        finally:
-            db.close()
-    except:
-        df = yahoo_finance.get_stock_history(symbol, period="2y")
-        if (df is None or df.empty) and symbol.endswith('.TW'):
-            two_symbol = symbol.replace('.TW', '.TWO')
-            df = yahoo_finance.get_stock_history(two_symbol, period="2y")
-            if df is not None and not df.empty:
-                symbol = two_symbol
+    df, symbol, _ = _get_stock_df(symbol, years=2, force_refresh=False)
     
     if df is None or df.empty:
         raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
     
-    # 處理資料格式
     df.columns = [c.lower() for c in df.columns]
     
-    # 使用調整後價格
     if 'adj_close' in df.columns:
         df['close'] = df['adj_close']
     
-    # 確保有 date 欄位
     if 'date' not in df.columns:
         df['date'] = df.index
     
-    # 計算技術指標（這是關鍵！）
     df = indicator_service.calculate_all_indicators(df)
     
-    # 取得名稱
     info = yahoo_finance.get_stock_info(symbol)
     name = info.get("name", "") if info else ""
     
-    # 生成圖表
     chart_path = chart_service.plot_stock_analysis(
         df,
         symbol=symbol,
@@ -320,8 +354,6 @@ async def compare_stocks(
 ):
     """取得多支股票的正規化走勢資料"""
     from app.data_sources.yahoo_finance import yahoo_finance
-    from app.services.stock_history_service import StockHistoryService
-    from app.database import SyncSessionLocal
     import math
     
     symbol_list = [normalize_tw_symbol(s.strip()) for s in symbols.split(",") if s.strip()]
@@ -338,15 +370,7 @@ async def compare_stocks(
             if symbol.startswith("^"):
                 df = yahoo_finance.get_index_data(symbol, period="2y")
             else:
-                try:
-                    db = SyncSessionLocal()
-                    try:
-                        history_service = StockHistoryService(db)
-                        df, _ = history_service.get_stock_history(symbol, years=2)
-                    finally:
-                        db.close()
-                except:
-                    df = yahoo_finance.get_stock_history(symbol, period="2y")
+                df, symbol, _ = _get_stock_df(symbol, years=2)
             
             if df is None or df.empty:
                 continue
