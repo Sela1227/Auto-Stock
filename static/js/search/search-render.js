@@ -265,6 +265,8 @@
         const title = $('chartFullscreenTitle');
         if (title) title.textContent = `${symbol} 技術分析`;
 
+        // 🔴 修正：直接設定 display 而非依賴 CSS class
+        modal.style.display = 'block';
         modal.classList.add('active');
 
         // 預設顯示 65 天 (3M)
@@ -276,6 +278,8 @@
         const modal = $('chartFullscreen');
         if (!modal) return;
 
+        // 🔴 修正：直接設定 display
+        modal.style.display = 'none';
         modal.classList.remove('active');
 
         if (fullscreenChartInstance) {
