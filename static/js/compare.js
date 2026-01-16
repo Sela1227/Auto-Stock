@@ -19,6 +19,8 @@
      */
     function addCompareSymbol(symbol) {
         const input = document.getElementById('compareSymbols');
+        if (!input) return;
+        
         const current = input.value.trim();
         const symbols = current ? current.split(',').map(s => s.trim().toUpperCase()) : [];
         
@@ -38,6 +40,8 @@
      */
     function removeCompareSymbol(symbol) {
         const input = document.getElementById('compareSymbols');
+        if (!input) return;
+        
         const current = input.value.trim();
         const symbols = current ? current.split(',').map(s => s.trim().toUpperCase()) : [];
         const filtered = symbols.filter(s => s !== symbol.toUpperCase());
@@ -107,7 +111,8 @@
                 throw new Error(data.detail || '取得資料失敗');
             }
             
-            const stocks = data.data.stocks;
+            // ✅ 修正：後端返回 data.data 直接是股票字典，不是 data.data.stocks
+            const stocks = data.data;
             const symbolList = Object.keys(stocks);
             
             if (symbolList.length === 0) {
@@ -122,9 +127,14 @@
                 const stock = stocks[sym];
                 const color = compareColors[idx % compareColors.length];
                 
+                // ✅ 修正：後端返回 stock.history，不是 stock.data
+                const historyData = stock.history || [];
+                
+                if (historyData.length === 0) return;
+                
                 datasets.push({
                     label: `${stock.name} (${sym})`,
-                    data: stock.data.map(d => ({ x: d.date, y: d.value })),
+                    data: historyData.map(d => ({ x: d.date, y: d.value })),
                     borderColor: color,
                     backgroundColor: color + '20',
                     borderWidth: 2,
@@ -134,9 +144,14 @@
                     fill: false,
                 });
                 
-                // 表格資料
-                const changeClass = stock.change_pct >= 0 ? 'text-green-600' : 'text-red-600';
-                const changeIcon = stock.change_pct >= 0 ? '▲' : '▼';
+                // ✅ 修正：從 history 計算起始價、結束價、漲跌幅
+                const startValue = historyData[0]?.value || 100;
+                const endValue = historyData[historyData.length - 1]?.value || 100;
+                const changePct = endValue - startValue; // 因為已經正規化為 100 基準
+                
+                const changeClass = changePct >= 0 ? 'text-green-600' : 'text-red-600';
+                const changeIcon = changePct >= 0 ? '▲' : '▼';
+                
                 tableHtml += `
                     <tr class="border-b hover:bg-gray-50">
                         <td class="py-2 px-3">
@@ -144,18 +159,24 @@
                             <span class="font-medium">${stock.name}</span>
                             <span class="text-gray-400 text-xs ml-1">${sym}</span>
                         </td>
-                        <td class="text-right py-2 px-3">${stock.start_price.toLocaleString()}</td>
-                        <td class="text-right py-2 px-3">${stock.end_price.toLocaleString()}</td>
+                        <td class="text-right py-2 px-3">${startValue.toFixed(2)}%</td>
+                        <td class="text-right py-2 px-3">${endValue.toFixed(2)}%</td>
                         <td class="text-right py-2 px-3 ${changeClass} font-medium">
-                            ${changeIcon} ${Math.abs(stock.change_pct).toFixed(2)}%
+                            ${changeIcon} ${Math.abs(changePct).toFixed(2)}%
                         </td>
                     </tr>
                 `;
             });
             
+            if (datasets.length === 0) {
+                throw new Error('無法處理資料');
+            }
+            
             // 繪製圖表
             const canvas = document.getElementById('compareChart');
-            if (!canvas) return;
+            if (!canvas) {
+                throw new Error('找不到圖表元素');
+            }
             
             const ctx = canvas.getContext('2d');
             
@@ -187,7 +208,10 @@
                     scales: {
                         x: {
                             type: 'time',
-                            time: { unit: 'day', displayFormats: { day: 'MM/dd' } },
+                            time: { 
+                                unit: 'day', 
+                                displayFormats: { day: 'MM/dd' } 
+                            },
                             grid: { display: false },
                             ticks: { maxTicksLimit: 8 }
                         },
