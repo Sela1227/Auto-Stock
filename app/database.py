@@ -4,6 +4,9 @@
 
 🔧 修復版本 - 2026-01-16
 新增 get_sync_db 別名
+
+🚀 效能優化 - 2026-01-16
+新增 stock_prices 歷史資料表
 """
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
@@ -151,6 +154,37 @@ def run_auto_migrations():
             "name": "add_target_price_to_watchlists",
             "check_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='watchlists' AND column_name='target_price'",
             "migrate_sql": "ALTER TABLE watchlists ADD COLUMN target_price NUMERIC(12, 4) DEFAULT NULL",
+        },
+        # ============================================================
+        # 🚀 2026-01-16: 股票歷史資料快取表（效能優化）
+        # ============================================================
+        {
+            "name": "create_stock_prices",
+            "check_sql": "SELECT table_name FROM information_schema.tables WHERE table_name='stock_prices'",
+            "migrate_sql": """
+                CREATE TABLE stock_prices (
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(20) NOT NULL,
+                    date DATE NOT NULL,
+                    open NUMERIC(12, 4),
+                    high NUMERIC(12, 4),
+                    low NUMERIC(12, 4),
+                    close NUMERIC(12, 4),
+                    volume BIGINT,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(symbol, date)
+                )
+            """,
+        },
+        {
+            "name": "create_stock_prices_symbol_index",
+            "check_sql": "SELECT indexname FROM pg_indexes WHERE indexname='idx_stock_prices_symbol'",
+            "migrate_sql": "CREATE INDEX idx_stock_prices_symbol ON stock_prices(symbol)",
+        },
+        {
+            "name": "create_stock_prices_date_index",
+            "check_sql": "SELECT indexname FROM pg_indexes WHERE indexname='idx_stock_prices_date'",
+            "migrate_sql": "CREATE INDEX idx_stock_prices_date ON stock_prices(date)",
         },
     ]
     
