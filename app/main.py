@@ -5,6 +5,8 @@ FastAPI 主程式
 🔧 修復版本 - 2026-01-16
 - 加入市場情緒排程更新（每天 3 次）
 - 啟動時初始化 sentiment
+- 🏷️ 加入 tags_router
+- 📊 加入 stock_info_router
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -49,6 +51,8 @@ from app.routers import (
 )
 from app.routers.market import router as market_router
 from app.routers.subscription import router as subscription_router  # 📡 訂閱精選
+from app.routers.tags import router as tags_router  # 🏷️ 標籤管理
+from app.routers.stock_info import router as stock_info_router  # 📊 股票資訊
 
 # 排程器
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -425,6 +429,8 @@ app.include_router(market_router)
 app.include_router(compare_router)
 app.include_router(portfolio_router)
 app.include_router(subscription_router)  # 📡 訂閱精選
+app.include_router(tags_router)  # 🏷️ 標籤管理
+app.include_router(stock_info_router)  # 📊 股票資訊
 
 # 掛載靜態檔案
 static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")

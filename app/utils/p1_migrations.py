@@ -16,6 +16,64 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 
+# ============================================================
+# 預設種子資料
+# ============================================================
+
+DEFAULT_STOCK_INFO = [
+    # 美股 - 科技巨頭
+    {"symbol": "AAPL", "name": "Apple Inc.", "name_zh": "蘋果", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    {"symbol": "MSFT", "name": "Microsoft Corporation", "name_zh": "微軟", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    {"symbol": "GOOGL", "name": "Alphabet Inc.", "name_zh": "Google", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    {"symbol": "AMZN", "name": "Amazon.com Inc.", "name_zh": "亞馬遜", "market": "us", "exchange": "NASDAQ", "sector": "Consumer Cyclical", "is_popular": True},
+    {"symbol": "NVDA", "name": "NVIDIA Corporation", "name_zh": "輝達", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    {"symbol": "META", "name": "Meta Platforms Inc.", "name_zh": "Meta", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    {"symbol": "TSLA", "name": "Tesla Inc.", "name_zh": "特斯拉", "market": "us", "exchange": "NASDAQ", "sector": "Consumer Cyclical", "is_popular": True},
+    
+    # 美股 - 金融
+    {"symbol": "JPM", "name": "JPMorgan Chase & Co.", "name_zh": "摩根大通", "market": "us", "exchange": "NYSE", "sector": "Financial Services", "is_popular": True},
+    {"symbol": "V", "name": "Visa Inc.", "name_zh": "Visa", "market": "us", "exchange": "NYSE", "sector": "Financial Services", "is_popular": True},
+    {"symbol": "MA", "name": "Mastercard Inc.", "name_zh": "萬事達卡", "market": "us", "exchange": "NYSE", "sector": "Financial Services", "is_popular": True},
+    
+    # 美股 - 半導體
+    {"symbol": "AMD", "name": "Advanced Micro Devices", "name_zh": "超微", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    {"symbol": "INTC", "name": "Intel Corporation", "name_zh": "英特爾", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    {"symbol": "AVGO", "name": "Broadcom Inc.", "name_zh": "博通", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    
+    # 台股 - 半導體
+    {"symbol": "2330.TW", "name": "Taiwan Semiconductor", "name_zh": "台積電", "market": "tw", "exchange": "TWSE", "sector": "半導體", "is_popular": True},
+    {"symbol": "2454.TW", "name": "MediaTek Inc.", "name_zh": "聯發科", "market": "tw", "exchange": "TWSE", "sector": "半導體", "is_popular": True},
+    {"symbol": "2303.TW", "name": "United Microelectronics", "name_zh": "聯電", "market": "tw", "exchange": "TWSE", "sector": "半導體", "is_popular": True},
+    {"symbol": "3711.TW", "name": "ASE Technology", "name_zh": "日月光投控", "market": "tw", "exchange": "TWSE", "sector": "半導體", "is_popular": True},
+    
+    # 台股 - 電子代工
+    {"symbol": "2317.TW", "name": "Hon Hai Precision", "name_zh": "鴻海", "market": "tw", "exchange": "TWSE", "sector": "電子", "is_popular": True},
+    {"symbol": "2382.TW", "name": "Quanta Computer", "name_zh": "廣達", "market": "tw", "exchange": "TWSE", "sector": "電子", "is_popular": True},
+    {"symbol": "2357.TW", "name": "Asustek Computer", "name_zh": "華碩", "market": "tw", "exchange": "TWSE", "sector": "電子", "is_popular": True},
+    
+    # 台股 - 金融
+    {"symbol": "2881.TW", "name": "Fubon Financial", "name_zh": "富邦金", "market": "tw", "exchange": "TWSE", "sector": "金融", "is_popular": True},
+    {"symbol": "2882.TW", "name": "Cathay Financial", "name_zh": "國泰金", "market": "tw", "exchange": "TWSE", "sector": "金融", "is_popular": True},
+    {"symbol": "2884.TW", "name": "E.Sun Financial", "name_zh": "玉山金", "market": "tw", "exchange": "TWSE", "sector": "金融", "is_popular": True},
+    
+    # 台股 - ETF
+    {"symbol": "0050.TW", "name": "Yuanta Taiwan 50 ETF", "name_zh": "元大台灣50", "market": "tw", "exchange": "TWSE", "sector": "ETF", "is_popular": True},
+    {"symbol": "0056.TW", "name": "Yuanta High Dividend ETF", "name_zh": "元大高股息", "market": "tw", "exchange": "TWSE", "sector": "ETF", "is_popular": True},
+    {"symbol": "00878.TW", "name": "Cathay ESG High Dividend ETF", "name_zh": "國泰永續高股息", "market": "tw", "exchange": "TWSE", "sector": "ETF", "is_popular": True},
+    
+    # 加密貨幣
+    {"symbol": "BTC", "name": "Bitcoin", "name_zh": "比特幣", "market": "crypto", "exchange": "CoinGecko", "sector": "Cryptocurrency", "is_popular": True},
+    {"symbol": "ETH", "name": "Ethereum", "name_zh": "以太坊", "market": "crypto", "exchange": "CoinGecko", "sector": "Cryptocurrency", "is_popular": True},
+    {"symbol": "SOL", "name": "Solana", "name_zh": "索拉納", "market": "crypto", "exchange": "CoinGecko", "sector": "Cryptocurrency", "is_popular": True},
+    
+    # 指數
+    {"symbol": "^GSPC", "name": "S&P 500", "name_zh": "標普500", "market": "us", "exchange": "INDEX", "sector": "Index", "is_popular": True},
+    {"symbol": "^DJI", "name": "Dow Jones Industrial Average", "name_zh": "道瓊工業", "market": "us", "exchange": "INDEX", "sector": "Index", "is_popular": True},
+    {"symbol": "^IXIC", "name": "NASDAQ Composite", "name_zh": "納斯達克", "market": "us", "exchange": "INDEX", "sector": "Index", "is_popular": True},
+    {"symbol": "^TWII", "name": "Taiwan Weighted Index", "name_zh": "台灣加權", "market": "tw", "exchange": "INDEX", "sector": "Index", "is_popular": True},
+]
+
+
 def run_p1_migrations(db: Session) -> dict:
     """
     執行 P1 功能的資料庫遷移
@@ -27,6 +85,7 @@ def run_p1_migrations(db: Session) -> dict:
         "success": True,
         "tables_created": [],
         "columns_added": [],
+        "seed_data": 0,
         "errors": [],
     }
     
@@ -152,13 +211,37 @@ def run_p1_migrations(db: Session) -> dict:
                 logger.warning(f"⚠️ 新增 target_price 欄位失敗: {e}")
         
         # ============================================================
+        # 5. 自動填入種子資料
+        # ============================================================
+        try:
+            # 檢查是否為空表
+            count_result = db.execute(text("SELECT COUNT(*) FROM stock_info"))
+            count = count_result.scalar()
+            
+            if count == 0:
+                logger.info("📊 stock_info 為空，開始填入種子資料...")
+                for stock_data in DEFAULT_STOCK_INFO:
+                    db.execute(text("""
+                        INSERT INTO stock_info (symbol, name, name_zh, market, exchange, sector, is_popular)
+                        VALUES (:symbol, :name, :name_zh, :market, :exchange, :sector, :is_popular)
+                        ON CONFLICT (symbol) DO NOTHING
+                    """), stock_data)
+                db.commit()
+                results["seed_data"] = len(DEFAULT_STOCK_INFO)
+                logger.info(f"✅ 已填入 {len(DEFAULT_STOCK_INFO)} 筆種子資料")
+            else:
+                logger.info(f"ℹ️ stock_info 已有 {count} 筆資料，跳過種子填入")
+        except Exception as e:
+            logger.warning(f"⚠️ 種子資料填入失敗: {e}")
+        
+        # ============================================================
         # 總結
         # ============================================================
         if results["errors"]:
             results["success"] = False
             logger.warning(f"P1 遷移完成，但有錯誤: {results['errors']}")
         else:
-            logger.info(f"✅ P1 遷移完成: 建立 {len(results['tables_created'])} 個表")
+            logger.info(f"✅ P1 遷移完成: 建立 {len(results['tables_created'])} 個表, 種子 {results['seed_data']} 筆")
         
         return results
         
@@ -168,31 +251,3 @@ def run_p1_migrations(db: Session) -> dict:
         results["success"] = False
         results["errors"].append(str(e))
         return results
-
-
-# ============================================================
-# 整合到現有的 run_migrations
-# ============================================================
-
-MIGRATION_CODE = '''
-# 在 app/database.py 的 run_migrations() 函數中加入：
-
-def run_migrations(db: Session):
-    """執行所有資料庫遷移"""
-    logger.info("開始執行資料庫遷移...")
-    
-    # ... 現有的遷移 ...
-    
-    # P1 遷移
-    try:
-        from app.utils.p1_migrations import run_p1_migrations
-        p1_result = run_p1_migrations(db)
-        if p1_result["success"]:
-            logger.info(f"P1 遷移成功: {p1_result}")
-        else:
-            logger.warning(f"P1 遷移有錯誤: {p1_result}")
-    except ImportError:
-        logger.info("P1 遷移模組未安裝")
-    except Exception as e:
-        logger.error(f"P1 遷移失敗: {e}")
-'''
