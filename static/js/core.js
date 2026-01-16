@@ -1,22 +1,170 @@
 /**
- * 核心模組
- * 包含：認證、API 請求、頁面切換、初始化
+ * SELA 核心模組 (P0 優化版)
+ * 
+ * 優化內容：
+ * 1. DOM 快取 - 減少重複查詢
+ * 2. 批量更新 - 減少瀏覽器重排
+ * 3. 統一命名空間 - 減少全域污染
+ * 
+ * 向後兼容：保留所有 window.xxx 導出
  */
 
 (function() {
     'use strict';
     
     // ============================================================
+    // DOM 快取系統 (P0 核心優化)
+    // ============================================================
+    
+    const _domCache = new Map();
+    const _querySelectorCache = new Map();
+    
+    /**
+     * 快取版 getElementById
+     * 第一次查詢後快取，後續直接返回
+     * @param {string} id - 元素 ID
+     * @param {boolean} force - 強制重新查詢
+     * @returns {HTMLElement|null}
+     */
+    function $(id, force = false) {
+        if (!force && _domCache.has(id)) {
+            return _domCache.get(id);
+        }
+        const el = document.getElementById(id);
+        if (el) {
+            _domCache.set(id, el);
+        }
+        return el;
+    }
+    
+    /**
+     * 快取版 querySelector
+     * @param {string} selector - CSS 選擇器
+     * @param {boolean} force - 強制重新查詢
+     * @returns {HTMLElement|null}
+     */
+    function $q(selector, force = false) {
+        if (!force && _querySelectorCache.has(selector)) {
+            return _querySelectorCache.get(selector);
+        }
+        const el = document.querySelector(selector);
+        if (el) {
+            _querySelectorCache.set(selector, el);
+        }
+        return el;
+    }
+    
+    /**
+     * 清除 DOM 快取
+     * 當 DOM 結構變化時調用（如動態載入內容後）
+     */
+    function clearDomCache() {
+        _domCache.clear();
+        _querySelectorCache.clear();
+        console.log('🗑️ DOM 快取已清除');
+    }
+    
+    /**
+     * 預載入常用 DOM 元素到快取
+     */
+    function preloadDomCache() {
+        const commonIds = [
+            'loading-screen', 'app-content',
+            'userName', 'userAvatar', 'sidebarUserName', 'sidebarAvatar',
+            'sessionTimer', 'sidebarTimer',
+            'mobileSidebar', 'sidebarOverlay',
+            'toast', 'toastMessage', 'toastContainer',
+            'searchSymbol', 'searchResult',
+            'adminLink', 'adminSidebarLink', 'adminMobileLink'
+        ];
+        commonIds.forEach(id => $(id));
+        console.log(`📦 已預載入 ${_domCache.size} 個 DOM 元素到快取`);
+    }
+    
+    // ============================================================
+    // 批量 DOM 更新 (P0 核心優化)
+    // ============================================================
+    
+    /**
+     * 批量更新多個元素
+     * 使用 requestAnimationFrame 確保在同一幀內完成
+     * @param {Array} updates - [{id: 'xxx', prop: 'textContent', value: 'xxx'}, ...]
+     */
+    function batchUpdate(updates) {
+        requestAnimationFrame(() => {
+            updates.forEach(({ id, prop, value, html, className, classList }) => {
+                const el = $(id);
+                if (!el) return;
+                
+                if (prop && value !== undefined) {
+                    el[prop] = value;
+                }
+                if (html !== undefined) {
+                    el.innerHTML = html;
+                }
+                if (className !== undefined) {
+                    el.className = className;
+                }
+                if (classList) {
+                    if (classList.add) el.classList.add(...classList.add);
+                    if (classList.remove) el.classList.remove(...classList.remove);
+                    if (classList.toggle) {
+                        Object.entries(classList.toggle).forEach(([cls, force]) => {
+                            el.classList.toggle(cls, force);
+                        });
+                    }
+                }
+            });
+        });
+    }
+    
+    /**
+     * 安全設置 innerHTML（批量版）
+     * 先構建完整 HTML 字串，再一次性更新
+     * @param {string} id - 元素 ID
+     * @param {string|Array} html - HTML 字串或字串陣列
+     */
+    function setHtml(id, html) {
+        const el = $(id);
+        if (!el) return;
+        
+        requestAnimationFrame(() => {
+            el.innerHTML = Array.isArray(html) ? html.join('') : html;
+        });
+    }
+    
+    /**
+     * 使用 DocumentFragment 批量添加子元素
+     * 比多次 appendChild 效能好 10 倍
+     * @param {string} containerId - 容器元素 ID
+     * @param {Array} items - 要添加的項目
+     * @param {Function} renderFn - 渲染函數 (item) => HTMLElement
+     */
+    function appendBatch(containerId, items, renderFn) {
+        const container = $(containerId);
+        if (!container) return;
+        
+        const fragment = document.createDocumentFragment();
+        items.forEach(item => {
+            const el = renderFn(item);
+            if (el) fragment.appendChild(el);
+        });
+        
+        requestAnimationFrame(() => {
+            container.appendChild(fragment);
+        });
+    }
+    
+    // ============================================================
     // 全域變數
     // ============================================================
     
-    const API_BASE = '';  // 同域名
+    const API_BASE = '';
     let token = localStorage.getItem('token');
     let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
     let sessionTimer = null;
     let lastActivity = Date.now();
     
-    // 設備資訊
     const deviceInfo = {
         isMobile: window.innerWidth < 768,
         isTouch: 'ontouchstart' in window,
@@ -98,8 +246,9 @@
             const secs = Math.floor((remaining % 60000) / 1000);
             const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
             
-            const timerEl = document.getElementById('sessionTimer');
-            const sidebarTimerEl = document.getElementById('sidebarTimer');
+            // ✅ 使用快取版 DOM 查詢
+            const timerEl = $('sessionTimer');
+            const sidebarTimerEl = $('sidebarTimer');
             if (timerEl) timerEl.textContent = `閒置登出: ${timeStr}`;
             if (sidebarTimerEl) sidebarTimerEl.textContent = timeStr;
         }
@@ -143,17 +292,16 @@
             
             const serverUser = await res.json();
             
-            // 驗證本地用戶與伺服器用戶一致
             const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
             if (storedUser.id && storedUser.id !== serverUser.id) {
-                console.error('用戶 ID 不一致! 本地:', storedUser.id, '伺服器:', serverUser.id);
+                console.error('用戶 ID 不一致!');
                 clearAllUserData();
                 window.location.href = '/static/index.html';
                 return;
             }
             
             if (storedUser.line_user_id && storedUser.line_user_id !== serverUser.line_user_id) {
-                console.error('LINE ID 不一致! 本地:', storedUser.line_user_id, '伺服器:', serverUser.line_user_id);
+                console.error('LINE ID 不一致!');
                 clearAllUserData();
                 window.location.href = '/static/index.html';
                 return;
@@ -161,7 +309,6 @@
             
             currentUser = serverUser;
             
-            // 更新本地存儲
             localStorage.setItem('user', JSON.stringify({
                 id: serverUser.id,
                 display_name: serverUser.display_name,
@@ -170,18 +317,18 @@
                 is_admin: serverUser.is_admin || false
             }));
             
-            console.log('登入驗證成功: 用戶 ID =', serverUser.id, ', LINE ID =', serverUser.line_user_id);
+            console.log('登入驗證成功: 用戶 ID =', serverUser.id);
             
-            // 更新 UI
             updateUserUI();
             
-            // 顯示主內容
-            document.getElementById('loading-screen').style.display = 'none';
-            document.getElementById('app-content').style.display = 'block';
+            // ✅ 使用快取版 DOM 查詢
+            const loadingScreen = $('loading-screen');
+            const appContent = $('app-content');
+            if (loadingScreen) loadingScreen.style.display = 'none';
+            if (appContent) appContent.style.display = 'block';
             
             startSessionMonitor();
             
-            // 載入儀表板
             if (typeof loadDashboard === 'function') {
                 loadDashboard();
             }
@@ -196,21 +343,24 @@
     function updateUserUI() {
         if (!currentUser) return;
         
-        const nameEl = document.getElementById('userName');
-        const avatarEl = document.getElementById('userAvatar');
-        const sidebarNameEl = document.getElementById('sidebarUserName');
-        const sidebarAvatarEl = document.getElementById('sidebarAvatar');
+        // ✅ 使用批量更新減少重排
+        batchUpdate([
+            { id: 'userName', prop: 'textContent', value: currentUser.display_name },
+            { id: 'sidebarUserName', prop: 'textContent', value: currentUser.display_name },
+        ]);
         
-        if (nameEl) nameEl.textContent = currentUser.display_name;
-        if (avatarEl) avatarEl.src = currentUser.picture_url || 'https://via.placeholder.com/40';
-        if (sidebarNameEl) sidebarNameEl.textContent = currentUser.display_name;
-        if (sidebarAvatarEl) sidebarAvatarEl.src = currentUser.picture_url || 'https://via.placeholder.com/40';
+        // 頭像單獨處理（src 屬性）
+        const avatarUrl = currentUser.picture_url || 'https://via.placeholder.com/40';
+        const avatarEl = $('userAvatar');
+        const sidebarAvatarEl = $('sidebarAvatar');
+        if (avatarEl) avatarEl.src = avatarUrl;
+        if (sidebarAvatarEl) sidebarAvatarEl.src = avatarUrl;
         
         // 管理員入口
         if (currentUser.is_admin) {
-            const adminLink = document.getElementById('adminLink');
-            const adminSidebarLink = document.getElementById('adminSidebarLink');
-            const adminMobileLink = document.getElementById('adminMobileLink');
+            const adminLink = $('adminLink');
+            const adminSidebarLink = $('adminSidebarLink');
+            const adminMobileLink = $('adminMobileLink');
             if (adminLink) adminLink.classList.remove('hidden');
             if (adminSidebarLink) adminSidebarLink.classList.remove('hidden');
             if (adminMobileLink) {
@@ -218,7 +368,6 @@
                 adminMobileLink.classList.add('flex');
             }
             
-            // 觸發管理員更新
             if (typeof triggerAdminUpdates === 'function') {
                 triggerAdminUpdates();
             }
@@ -253,14 +402,19 @@
     // ============================================================
     
     function openMobileSidebar() {
-        document.getElementById('mobileSidebar').classList.add('open');
-        document.getElementById('sidebarOverlay').classList.add('open');
+        // ✅ 使用快取版 DOM 查詢
+        const sidebar = $('mobileSidebar');
+        const overlay = $('sidebarOverlay');
+        if (sidebar) sidebar.classList.add('open');
+        if (overlay) overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
     }
     
     function closeMobileSidebar() {
-        document.getElementById('mobileSidebar').classList.remove('open');
-        document.getElementById('sidebarOverlay').classList.remove('open');
+        const sidebar = $('mobileSidebar');
+        const overlay = $('sidebarOverlay');
+        if (sidebar) sidebar.classList.remove('open');
+        if (overlay) overlay.classList.remove('open');
         document.body.style.overflow = '';
     }
     
@@ -268,10 +422,12 @@
         closeMobileSidebar();
         showSection(section);
         
-        // 更新底部導航和側邊選單高亮
+        // ✅ 只查詢一次，不在迴圈中重複查詢
         document.querySelectorAll('.bottom-nav-item, .mobile-nav-link').forEach(el => {
+            const isActive = el.dataset.section === section;
             el.classList.remove('active', 'bg-blue-50', 'text-gray-700');
-            if (el.dataset.section === section) {
+            
+            if (isActive) {
                 el.classList.add('active');
                 if (el.classList.contains('mobile-nav-link')) {
                     el.classList.add('bg-blue-50', 'text-gray-700');
@@ -283,24 +439,51 @@
     }
     
     // ============================================================
-    // 頁面切換
+    // 頁面切換 (優化版)
     // ============================================================
     
+    // 快取所有 section 元素
+    let _sectionsCache = null;
+    function getAllSections() {
+        if (!_sectionsCache) {
+            _sectionsCache = document.querySelectorAll('.section');
+        }
+        return _sectionsCache;
+    }
+    
+    // 快取所有導航連結
+    let _navLinksCache = null;
+    function getAllNavLinks() {
+        if (!_navLinksCache) {
+            _navLinksCache = document.querySelectorAll('.nav-link');
+        }
+        return _navLinksCache;
+    }
+    
+    // 快取所有底部導航
+    let _bottomNavCache = null;
+    function getAllBottomNav() {
+        if (!_bottomNavCache) {
+            _bottomNavCache = document.querySelectorAll('.bottom-nav-item');
+        }
+        return _bottomNavCache;
+    }
+    
     function showSection(name, evt) {
-        document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
-        const section = document.getElementById(`section-${name}`);
+        // ✅ 使用快取的 section 列表
+        getAllSections().forEach(s => s.classList.add('hidden'));
+        
+        const section = $(`section-${name}`);
         if (section) {
             section.classList.remove('hidden');
         }
         
-        // 更新電腦版導航高亮
-        document.querySelectorAll('.nav-link').forEach(l => {
-            l.classList.remove('bg-blue-50', 'text-gray-700');
-            l.classList.add('text-gray-600');
-            if (l.dataset.section === name) {
-                l.classList.add('bg-blue-50', 'text-gray-700');
-                l.classList.remove('text-gray-600');
-            }
+        // ✅ 使用快取的導航連結
+        getAllNavLinks().forEach(l => {
+            const isActive = l.dataset.section === name;
+            l.classList.toggle('bg-blue-50', isActive);
+            l.classList.toggle('text-gray-700', isActive);
+            l.classList.toggle('text-gray-600', !isActive);
         });
         
         if (evt && evt.target) {
@@ -311,12 +494,9 @@
             }
         }
         
-        // 更新底部導航高亮
-        document.querySelectorAll('.bottom-nav-item').forEach(el => {
-            el.classList.remove('active');
-            if (el.dataset.section === name) {
-                el.classList.add('active');
-            }
+        // ✅ 使用快取的底部導航
+        getAllBottomNav().forEach(el => {
+            el.classList.toggle('active', el.dataset.section === name);
         });
 
         // 載入對應資料
@@ -325,11 +505,8 @@
         if (name === 'settings' && typeof loadSettings === 'function') loadSettings();
         if (name === 'portfolio' && typeof loadPortfolio === 'function') loadPortfolio();
         if (name === 'subscription' && typeof loadSubscriptionData === 'function') loadSubscriptionData();
-        
-        // 🆕 報酬率比較
         if (name === 'cagr' && typeof initCagr === 'function') initCagr();
         
-        // 🆕 管理後台
         if (name === 'admin') {
             if (typeof adminLoadStats === 'function') adminLoadStats();
             if (typeof adminLoadUsers === 'function') adminLoadUsers();
@@ -337,12 +514,12 @@
     }
     
     // ============================================================
-    // Toast 提示
+    // Toast 提示 (優化版)
     // ============================================================
     
     function showToast(message, type = 'info', duration = 3000) {
-        // 嘗試使用 toastContainer (如果存在)
-        const container = document.getElementById('toastContainer');
+        // ✅ 使用快取版 DOM 查詢
+        const container = $('toastContainer');
         if (container) {
             const toast = document.createElement('div');
             toast.className = 'toast bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg mb-2 transform transition-all duration-300 translate-y-full opacity-0';
@@ -360,9 +537,8 @@
             return;
         }
         
-        // 備用：使用簡單的 toast 元素
-        const toastEl = document.getElementById('toast');
-        const toastMsg = document.getElementById('toastMessage');
+        const toastEl = $('toast');
+        const toastMsg = $('toastMessage');
         if (toastEl && toastMsg) {
             toastMsg.textContent = message;
             toastEl.classList.remove('hidden');
@@ -371,18 +547,39 @@
     }
     
     // ============================================================
+    // 工具函數
+    // ============================================================
+    
+    /**
+     * 摺疊面板切換
+     */
+    function toggleCollapsible(button) {
+        const content = button.nextElementSibling;
+        const icon = button.querySelector('i');
+        
+        if (content.style.maxHeight) {
+            content.style.maxHeight = null;
+            if (icon) icon.style.transform = '';
+        } else {
+            content.style.maxHeight = content.scrollHeight + 'px';
+            if (icon) icon.style.transform = 'rotate(180deg)';
+        }
+    }
+    
+    // ============================================================
     // 初始化
     // ============================================================
     
     function init() {
-        console.log('🚀 SELA 系統初始化中...');
+        console.log('🚀 SELA 系統初始化中... (P0 優化版)');
         console.log('Device info:', deviceInfo);
         
-        // 檢查登入狀態
+        // ✅ 預載入常用 DOM 元素
+        preloadDomCache();
+        
         checkAuth();
     }
     
-    // DOM 載入完成後初始化
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
@@ -390,7 +587,39 @@
     }
     
     // ============================================================
-    // 導出到全域
+    // SELA 命名空間 (P0 新增)
+    // ============================================================
+    
+    window.SELA = {
+        // DOM 工具
+        $,
+        $q,
+        clearDomCache,
+        preloadDomCache,
+        
+        // 批量更新
+        batchUpdate,
+        setHtml,
+        appendBatch,
+        
+        // 狀態
+        getCurrentUser,
+        getToken,
+        deviceInfo,
+        
+        // API
+        apiRequest,
+        
+        // UI
+        showSection,
+        showToast,
+        
+        // 版本
+        version: '0.8.2-p0'
+    };
+    
+    // ============================================================
+    // 向後兼容：導出到全域
     // ============================================================
     
     window.API_BASE = API_BASE;
@@ -406,10 +635,18 @@
     window.mobileNavTo = mobileNavTo;
     window.showToast = showToast;
     window.deviceInfo = deviceInfo;
+    window.toggleCollapsible = toggleCollapsible;
     
     // 兼容舊代碼
     window.token = token;
     window.currentUser = currentUser;
     
-    console.log('🎯 core.js 核心模組已載入');
+    // ✅ 新增：導出 DOM 快取工具供其他模組使用
+    window.$ = $;
+    window.$q = $q;
+    window.clearDomCache = clearDomCache;
+    window.batchUpdate = batchUpdate;
+    window.setHtml = setHtml;
+    
+    console.log('🎯 core.js 核心模組已載入 (P0 優化版)');
 })();
