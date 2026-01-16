@@ -319,6 +319,11 @@
             
             console.log('登入驗證成功: 用戶 ID =', serverUser.id);
             
+            // ✅ P1: 同步到 AppState
+            if (window.AppState) {
+                window.AppState.setUser(serverUser);
+            }
+            
             updateUserUI();
             
             // ✅ 使用快取版 DOM 查詢
@@ -386,6 +391,12 @@
     function logout() {
         stopSessionMonitor();
         clearAllUserData();
+        
+        // ✅ P1: 重置 AppState
+        if (window.AppState) {
+            window.AppState.reset();
+        }
+        
         window.location.href = '/static/index.html';
     }
     
@@ -470,6 +481,11 @@
     }
     
     function showSection(name, evt) {
+        // ✅ P1: 同步到 AppState
+        if (window.AppState) {
+            window.AppState.switchSection(name);
+        }
+        
         // ✅ 使用快取的 section 列表
         getAllSections().forEach(s => s.classList.add('hidden'));
         
@@ -587,10 +603,11 @@
     }
     
     // ============================================================
-    // SELA 命名空間 (P0 新增)
+    // SELA 命名空間 (P0+P1)
     // ============================================================
     
-    window.SELA = {
+    window.SELA = window.SELA || {};
+    Object.assign(window.SELA, {
         // DOM 工具
         $,
         $q,
@@ -602,7 +619,7 @@
         setHtml,
         appendBatch,
         
-        // 狀態
+        // 狀態 (P1: AppState 在 state.js 中)
         getCurrentUser,
         getToken,
         deviceInfo,
@@ -615,8 +632,8 @@
         showToast,
         
         // 版本
-        version: '0.8.2-p0'
-    };
+        version: '0.8.2-p1'
+    });
     
     // ============================================================
     // 向後兼容：導出到全域
