@@ -390,7 +390,13 @@
                 return;
             }
 
-            await loadAllWatchlistTags(data.data);
+            // ⭐ 效能優化：直接使用 API 返回的標籤，消除 N+1 問題
+            // 舊方法：await loadAllWatchlistTags(data.data); // 會產生 N 次請求
+            watchlistTagsMap = {};
+            data.data.forEach(item => {
+                watchlistTagsMap[item.id] = item.tags || [];
+            });
+            
             renderWatchlistCards(data.data);
 
         } catch (e) {

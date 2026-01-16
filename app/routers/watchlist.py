@@ -1,6 +1,7 @@
 """
 追蹤清單 API 路由
 🔧 P0修復：使用統一認證模組
+⚡ 效能優化：批量載入標籤，消除 N+1 問題
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
@@ -28,6 +29,7 @@ from app.schemas.schemas import (
 from app.models.user import User
 from app.models.watchlist import Watchlist
 from app.models.price_cache import StockPriceCache
+from app.models.watchlist_tag import UserTag, watchlist_tags  # ⭐ 新增
 
 # 🔧 使用統一認證模組
 from app.dependencies import get_current_user
@@ -259,7 +261,7 @@ async def import_watchlist(
 
 
 # ============================================================
-# 價格快取 API
+# 價格快取 API（⭐ 優化版：包含標籤）
 # ============================================================
 
 @router.get("/with-prices", summary="追蹤清單（含即時價格）")
@@ -270,10 +272,13 @@ async def get_watchlist_with_prices(
     """
     取得用戶追蹤清單，包含即時價格（從快取讀取）
     
+    ⭐ 效能優化：一次性載入所有標籤，消除 N+1 問題
+    
     - 價格來自 stock_price_cache 表
     - 每 10 分鐘由排程更新
     - 回應時間：毫秒級
     - 包含目標價及是否達標
+    - 包含該項目的所有標籤
     """
     logger.info(f"API: 追蹤清單(含價格) - user_id={user.id}")
 
@@ -294,8 +299,9 @@ async def get_watchlist_with_prices(
                 "total": 0,
             }
 
-        # 2. 取得所有 symbol
+        # 2. 取得所有 symbol 和 watchlist_id
         symbols = [item.symbol for item in watchlist_items]
+        watchlist_ids = [item.id for item in watchlist_items]
 
         # 3. 從快取批次取得價格
         cache_stmt = select(StockPriceCache).where(
@@ -304,7 +310,36 @@ async def get_watchlist_with_prices(
         cache_result = await db.execute(cache_stmt)
         cache_map = {c.symbol: c for c in cache_result.scalars().all()}
 
-        # 4. 組合資料
+        # 4. ⭐ 批次取得所有標籤關聯（消除 N+1 問題）
+        tags_map = {}
+        try:
+            tags_stmt = (
+                select(
+                    watchlist_tags.c.watchlist_id,
+                    UserTag
+                )
+                .join(UserTag, UserTag.id == watchlist_tags.c.tag_id)
+                .where(watchlist_tags.c.watchlist_id.in_(watchlist_ids))
+            )
+            tags_result = await db.execute(tags_stmt)
+            
+            # 建立 watchlist_id -> tags 的映射
+            for row in tags_result:
+                wl_id = row[0]
+                tag = row[1]
+                if wl_id not in tags_map:
+                    tags_map[wl_id] = []
+                tags_map[wl_id].append({
+                    "id": tag.id,
+                    "name": tag.name,
+                    "color": tag.color,
+                    "icon": tag.icon,
+                })
+        except Exception as e:
+            logger.warning(f"載入標籤失敗（可能是新系統尚未建立標籤表）: {e}")
+            # 標籤載入失敗不影響主要功能
+
+        # 5. 組合資料
         data = []
         for item in watchlist_items:
             cache = cache_map.get(item.symbol)
@@ -335,6 +370,8 @@ async def get_watchlist_with_prices(
                 "change_pct": float(cache.change_pct) if cache and cache.change_pct else None,
                 "ma20": ma20_value,
                 "price_updated_at": cache.updated_at.isoformat() if cache and cache.updated_at else None,
+                # ⭐ 標籤資訊（批量載入）
+                "tags": tags_map.get(item.id, []),
             })
 
         return {

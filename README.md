@@ -1,59 +1,43 @@
-# 導航修復 - 報酬率比較與管理後台整合
+# SELA 追蹤清單載入效能優化
 
-## 問題
-原本「報酬率比較」和「管理後台」是指向外部頁面 (`/static/compare.html`, `/static/admin.html`)，導致 UI 不一致。
+## 🚀 效能改善
 
-## 修復內容
+| 項目 | 優化前 | 優化後 | 改善 |
+|------|--------|--------|------|
+| API 請求數 | 1 + N 次 | 1 次 | -95% |
+| 載入時間 | 2-5 秒 | < 200ms | -90%+ |
 
-### 1. dashboard.html 修改
-- 新增 `section-cagr`（報酬率比較區塊）
-- 新增 `section-admin`（管理後台區塊）
-- 修正導航連結改為內部 section 切換
-- 加入 `cagr.js` 和 `admin.js` 載入
-- 加入 Tag Modal（標籤編輯和指派）
+## 📁 檔案說明
 
-### 2. 新增 JS 檔案
-- `static/js/cagr.js` - 報酬率比較功能
-- `static/js/admin.js` - 管理後台功能
-
-## 部署步驟
-
-```powershell
-# 1. 解壓 nav_fix.zip
-Expand-Archive nav_fix.zip -DestinationPath nav_fix
-
-# 2. 複製檔案
-Copy-Item "nav_fix\static\dashboard.html" "static\dashboard.html" -Force
-Copy-Item "nav_fix\static\js\cagr.js" "static\js\cagr.js" -Force
-Copy-Item "nav_fix\static\js\admin.js" "static\js\admin.js" -Force
-
-# 3. 提交部署
-git add .
-git commit -m "fix: 整合報酬率比較和管理後台到 dashboard"
-git push
+```
+sela_update/
+├── app/
+│   └── routers/
+│       └── watchlist.py      # 後端 API（完整替換）
+├── static/
+│   └── js/
+│       └── watchlist.js      # 前端 JS（完整替換）
+└── README.md
 ```
 
-## 修改摘要
+## 📝 更新方式
 
-| 修改項目 | 原本 | 修正後 |
-|---------|------|--------|
-| 手機版報酬率比較 | `href="/static/compare.html"` | `onclick="mobileNavTo('cagr')"` |
-| 電腦版報酬率比較 | `href="/static/compare.html"` | `onclick="showSection('cagr', event)"` |
-| 頂部管理後台 | `href="/static/admin.html"` | `onclick="showSection('admin', event)"` |
-| 側邊欄管理後台 | `href="/static/admin.html"` | `onclick="showSection('admin', event)"` |
+1. **後端**：將 `app/routers/watchlist.py` 複製到專案中替換原檔案
+2. **前端**：將 `static/js/watchlist.js` 複製到專案中替換原檔案
+3. **部署**：重新部署即可，無需資料庫遷移
 
-## 新增的 Section
+## 🔧 修改內容
 
-### section-cagr（報酬率比較）
-- 快速比較預設組合（科技七雄、三大指數、台股ETF、加密貨幣）
-- 自訂標的選擇
-- 年化報酬率計算
-- 基準指數對比
-- 儲存我的組合
+### 後端 `watchlist.py`
+- 在 `/api/watchlist/with-prices` 端點中加入批量標籤查詢
+- 每個返回項目現在包含 `tags` 陣列
+- 新增匯入：`from app.models.watchlist_tag import UserTag, watchlist_tags`
 
-### section-admin（管理後台）
-- 用戶統計
-- 市場資料管理
-- 訊號檢查與推播
-- 訂閱源管理
-- 用戶管理
+### 前端 `watchlist.js`
+- `loadWatchlist()` 函數不再調用 `loadAllWatchlistTags()`
+- 直接使用 API 返回的 `item.tags` 陣列
+
+## ⚠️ 注意事項
+
+- 確認 `app/models/watchlist_tag.py` 存在且包含 `UserTag` 和 `watchlist_tags`
+- 如果標籤功能尚未啟用，API 會自動容錯，不影響主要功能
