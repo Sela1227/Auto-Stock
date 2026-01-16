@@ -210,8 +210,13 @@
         if (currentUser.is_admin) {
             const adminLink = document.getElementById('adminLink');
             const adminSidebarLink = document.getElementById('adminSidebarLink');
+            const adminMobileLink = document.getElementById('adminMobileLink');
             if (adminLink) adminLink.classList.remove('hidden');
             if (adminSidebarLink) adminSidebarLink.classList.remove('hidden');
+            if (adminMobileLink) {
+                adminMobileLink.classList.remove('hidden');
+                adminMobileLink.classList.add('flex');
+            }
             
             // 觸發管理員更新
             if (typeof triggerAdminUpdates === 'function') {
@@ -292,6 +297,10 @@
         document.querySelectorAll('.nav-link').forEach(l => {
             l.classList.remove('bg-blue-50', 'text-gray-700');
             l.classList.add('text-gray-600');
+            if (l.dataset.section === name) {
+                l.classList.add('bg-blue-50', 'text-gray-700');
+                l.classList.remove('text-gray-600');
+            }
         });
         
         if (evt && evt.target) {
@@ -316,29 +325,49 @@
         if (name === 'settings' && typeof loadSettings === 'function') loadSettings();
         if (name === 'portfolio' && typeof loadPortfolio === 'function') loadPortfolio();
         if (name === 'subscription' && typeof loadSubscriptionData === 'function') loadSubscriptionData();
+        
+        // 🆕 報酬率比較
+        if (name === 'cagr' && typeof initCagr === 'function') initCagr();
+        
+        // 🆕 管理後台
+        if (name === 'admin') {
+            if (typeof adminLoadStats === 'function') adminLoadStats();
+            if (typeof adminLoadUsers === 'function') adminLoadUsers();
+        }
     }
     
     // ============================================================
     // Toast 提示
     // ============================================================
     
-    function showToast(message, duration = 3000) {
+    function showToast(message, type = 'info', duration = 3000) {
+        // 嘗試使用 toastContainer (如果存在)
         const container = document.getElementById('toastContainer');
-        if (!container) return;
+        if (container) {
+            const toast = document.createElement('div');
+            toast.className = 'toast bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg mb-2 transform transition-all duration-300 translate-y-full opacity-0';
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-full', 'opacity-0');
+            });
+            
+            setTimeout(() => {
+                toast.classList.add('translate-y-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+            return;
+        }
         
-        const toast = document.createElement('div');
-        toast.className = 'toast bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg mb-2 transform transition-all duration-300 translate-y-full opacity-0';
-        toast.textContent = message;
-        container.appendChild(toast);
-        
-        requestAnimationFrame(() => {
-            toast.classList.remove('translate-y-full', 'opacity-0');
-        });
-        
-        setTimeout(() => {
-            toast.classList.add('translate-y-full', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, duration);
+        // 備用：使用簡單的 toast 元素
+        const toastEl = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMessage');
+        if (toastEl && toastMsg) {
+            toastMsg.textContent = message;
+            toastEl.classList.remove('hidden');
+            setTimeout(() => toastEl.classList.add('hidden'), duration);
+        }
     }
     
     // ============================================================
@@ -382,5 +411,5 @@
     window.token = token;
     window.currentUser = currentUser;
     
-    console.log('🎯 main.js 核心模組已載入');
+    console.log('🎯 core.js 核心模組已載入');
 })();

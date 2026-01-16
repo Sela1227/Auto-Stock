@@ -13,10 +13,11 @@ from app.database import Base
 
 
 # 多對多關聯表：追蹤項目 <-> 標籤
+# 注意：Watchlist 表名是 "watchlists"（有 s）
 watchlist_tags = Table(
     'watchlist_tags',
     Base.metadata,
-    Column('watchlist_id', Integer, ForeignKey('watchlist.id', ondelete='CASCADE'), primary_key=True),
+    Column('watchlist_id', Integer, ForeignKey('watchlists.id', ondelete='CASCADE'), primary_key=True),
     Column('tag_id', Integer, ForeignKey('user_tags.id', ondelete='CASCADE'), primary_key=True),
 )
 
