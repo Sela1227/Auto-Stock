@@ -12,15 +12,56 @@ function initAdmin() {
     if (user.is_admin) {
         // 顯示管理員入口
         const adminMobileLink = document.getElementById('adminMobileLink');
-        if (adminMobileLink) adminMobileLink.classList.remove('hidden');
-        adminMobileLink?.classList.add('flex');
+        if (adminMobileLink) {
+            adminMobileLink.classList.remove('hidden');
+            adminMobileLink.classList.add('flex');
+        }
+    }
+}
+
+// ==================== API 請求封裝 (返回 JSON) ====================
+async function adminApiRequest(endpoint, options = {}) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/static/index.html';
+        return null;
+    }
+    
+    const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...options.headers
+    };
+    
+    try {
+        const response = await fetch(endpoint, {
+            ...options,
+            headers
+        });
+        
+        if (response.status === 401) {
+            localStorage.clear();
+            window.location.href = '/static/index.html';
+            return null;
+        }
+        
+        if (response.status === 403) {
+            showToast('您沒有管理員權限', 'error');
+            showSection('dashboard');
+            return null;
+        }
+        
+        return await response.json();
+    } catch (e) {
+        console.error('Admin API 請求失敗:', e);
+        return null;
     }
 }
 
 // ==================== 載入統計 ====================
 async function adminLoadStats() {
     try {
-        const data = await apiRequest('/api/admin/stats');
+        const data = await adminApiRequest('/api/admin/stats');
         if (data && data.success) {
             document.getElementById('adminStatTotal').textContent = data.stats.total_users;
             document.getElementById('adminStatTotalLogins').textContent = data.stats.total_logins;
@@ -35,15 +76,15 @@ async function adminLoadStats() {
 
 // ==================== 用戶管理 ====================
 async function adminLoadUsers() {
-    const search = document.getElementById('adminSearchInput').value;
-    const blockedOnly = document.getElementById('adminBlockedOnly').checked;
+    const search = document.getElementById('adminSearchInput')?.value || '';
+    const blockedOnly = document.getElementById('adminBlockedOnly')?.checked || false;
     
     let url = `/api/admin/users?page=${adminCurrentPage}&page_size=15`;
     if (search) url += `&search=${encodeURIComponent(search)}`;
     if (blockedOnly) url += `&blocked_only=true`;
     
     try {
-        const data = await apiRequest(url);
+        const data = await adminApiRequest(url);
         if (data && data.success) {
             adminRenderUsers(data.users);
             adminTotalPages = data.pagination.total_pages;
@@ -120,7 +161,7 @@ async function adminBlockUser(userId) {
     if (reason === null) return;
     
     try {
-        const data = await apiRequest(`/api/admin/users/${userId}/block`, {
+        const data = await adminApiRequest(`/api/admin/users/${userId}/block`, {
             method: 'POST',
             body: JSON.stringify({ reason: reason })
         });
@@ -141,7 +182,7 @@ async function adminUnblockUser(userId) {
     if (!confirm('確定要解除封鎖此用戶？')) return;
     
     try {
-        const data = await apiRequest(`/api/admin/users/${userId}/unblock`, {
+        const data = await adminApiRequest(`/api/admin/users/${userId}/unblock`, {
             method: 'POST'
         });
         
@@ -161,7 +202,7 @@ async function adminKickUser(userId) {
     if (!confirm('確定要踢出此用戶？')) return;
     
     try {
-        const data = await apiRequest(`/api/admin/users/${userId}/kick`, {
+        const data = await adminApiRequest(`/api/admin/users/${userId}/kick`, {
             method: 'POST'
         });
         
@@ -179,7 +220,7 @@ async function adminKickAllUsers() {
     if (!confirm('確定要踢出所有用戶？這會讓所有人重新登入。')) return;
     
     try {
-        const data = await apiRequest('/api/admin/users/kick-all', {
+        const data = await adminApiRequest('/api/admin/users/kick-all', {
             method: 'POST'
         });
         
@@ -196,15 +237,17 @@ async function adminKickAllUsers() {
 // ==================== 系統管理 ====================
 function adminShowSystemMessage(msg, isError = false) {
     const el = document.getElementById('adminSystemMessage');
-    el.textContent = msg;
-    el.className = isError ? 'mt-3 text-sm text-red-500' : 'mt-3 text-sm text-green-600';
+    if (el) {
+        el.textContent = msg;
+        el.className = isError ? 'mt-3 text-sm text-red-500' : 'mt-3 text-sm text-green-600';
+    }
 }
 
 async function adminInitializeData() {
     adminShowSystemMessage('正在初始化歷史資料...');
     
     try {
-        const data = await apiRequest('/api/market/admin/initialize', { method: 'POST' });
+        const data = await adminApiRequest('/api/market/admin/initialize', { method: 'POST' });
         if (data && data.success) {
             adminShowSystemMessage(`✅ 初始化完成！${data.data?.count || 0} 筆資料`);
         } else {
@@ -219,7 +262,7 @@ async function adminUpdateIndices() {
     adminShowSystemMessage('正在更新三大指數...');
     
     try {
-        const data = await apiRequest('/api/market/admin/update-indices', { method: 'POST' });
+        const data = await adminApiRequest('/api/market/admin/update-indices', { method: 'POST' });
         if (data && data.success) {
             adminShowSystemMessage(`✅ 三大指數更新完成！${data.data?.count || 0} 筆資料`);
         } else {
@@ -234,7 +277,7 @@ async function adminUpdateSentiment() {
     adminShowSystemMessage('正在更新恐懼貪婪指數...');
     
     try {
-        const data = await apiRequest('/api/market/admin/update-sentiment', { method: 'POST' });
+        const data = await adminApiRequest('/api/market/admin/update-sentiment', { method: 'POST' });
         if (data && data.success) {
             adminShowSystemMessage(`✅ 恐懼貪婪指數更新完成！`);
         } else {
@@ -249,7 +292,7 @@ async function adminTriggerDailyUpdate() {
     adminShowSystemMessage('正在執行每日更新...');
     
     try {
-        const data = await apiRequest('/api/market/admin/update', { method: 'POST' });
+        const data = await adminApiRequest('/api/market/admin/update', { method: 'POST' });
         if (data && data.success) {
             adminShowSystemMessage(`✅ 每日更新完成！`);
         } else {
@@ -263,23 +306,27 @@ async function adminTriggerDailyUpdate() {
 // ==================== 訊號檢查 ====================
 function adminShowSignalMessage(msg, isError = false) {
     const el = document.getElementById('adminSignalMessage');
-    el.textContent = msg;
-    el.className = isError ? 'mt-3 text-sm text-red-500' : 'mt-3 text-sm text-green-600';
+    if (el) {
+        el.textContent = msg;
+        el.className = isError ? 'mt-3 text-sm text-red-500' : 'mt-3 text-sm text-green-600';
+    }
 }
 
 async function adminRunSignalCheck() {
     adminShowSignalMessage('正在執行訊號檢查...');
-    document.getElementById('adminSignalResult').classList.add('hidden');
+    document.getElementById('adminSignalResult')?.classList.add('hidden');
     
     try {
-        const data = await apiRequest('/api/admin/signal/detect', { method: 'POST' });
+        const data = await adminApiRequest('/api/admin/signal/detect', { method: 'POST' });
         if (data && data.success) {
             adminShowSignalMessage(`✅ 檢查完成：偵測到 ${data.total_signals} 個訊號`);
             
             if (data.signals_by_symbol && Object.keys(data.signals_by_symbol).length > 0) {
-                document.getElementById('adminSignalResult').classList.remove('hidden');
-                document.getElementById('adminSignalResultContent').textContent = 
-                    JSON.stringify(data.signals_by_symbol, null, 2);
+                document.getElementById('adminSignalResult')?.classList.remove('hidden');
+                const contentEl = document.getElementById('adminSignalResultContent');
+                if (contentEl) {
+                    contentEl.textContent = JSON.stringify(data.signals_by_symbol, null, 2);
+                }
             }
         } else {
             adminShowSignalMessage(`❌ 檢查失敗: ${data?.detail || '未知錯誤'}`, true);
@@ -293,15 +340,17 @@ async function adminSendSignalNotifications() {
     adminShowSignalMessage('正在發送訊號通知...');
     
     try {
-        const data = await apiRequest('/api/admin/signal/notify', { method: 'POST' });
+        const data = await adminApiRequest('/api/admin/signal/notify', { method: 'POST' });
         if (data && data.success) {
             const r = data.result || {};
             adminShowSignalMessage(`✅ ${data.message} - 股票更新: ${r.stocks_updated}, 訊號偵測: ${r.signals_detected}, 通知發送: ${r.notifications_sent}`);
             
             if (r.errors && r.errors.length > 0) {
-                document.getElementById('adminSignalResult').classList.remove('hidden');
-                document.getElementById('adminSignalResultContent').textContent = 
-                    '錯誤記錄:\n' + r.errors.join('\n');
+                document.getElementById('adminSignalResult')?.classList.remove('hidden');
+                const contentEl = document.getElementById('adminSignalResultContent');
+                if (contentEl) {
+                    contentEl.textContent = '錯誤記錄:\n' + r.errors.join('\n');
+                }
             }
         } else {
             adminShowSignalMessage(`❌ 發送失敗: ${data?.detail || '未知錯誤'}`, true);
@@ -312,26 +361,28 @@ async function adminSendSignalNotifications() {
 }
 
 async function adminTestSignalDetection() {
-    const symbol = document.getElementById('adminTestSymbolInput').value.trim();
+    const symbol = document.getElementById('adminTestSymbolInput')?.value.trim();
     if (!symbol) {
         adminShowSignalMessage('請輸入股票代號', true);
         return;
     }
     
     adminShowSignalMessage(`正在測試 ${symbol.toUpperCase()} 的訊號偵測...`);
-    document.getElementById('adminSignalResult').classList.add('hidden');
+    document.getElementById('adminSignalResult')?.classList.add('hidden');
     
     try {
-        const data = await apiRequest('/api/admin/signal/detect', { method: 'POST' });
+        const data = await adminApiRequest('/api/admin/signal/detect', { method: 'POST' });
         if (data && data.success) {
             const symbolUpper = symbol.toUpperCase();
             const symbolSignals = data.signals_by_symbol[symbolUpper] || [];
             
             adminShowSignalMessage(`✅ ${symbolUpper} 偵測到 ${symbolSignals.length} 個訊號`);
             
-            document.getElementById('adminSignalResult').classList.remove('hidden');
-            document.getElementById('adminSignalResultContent').textContent = 
-                JSON.stringify({ symbol: symbolUpper, signals: symbolSignals }, null, 2);
+            document.getElementById('adminSignalResult')?.classList.remove('hidden');
+            const contentEl = document.getElementById('adminSignalResultContent');
+            if (contentEl) {
+                contentEl.textContent = JSON.stringify({ symbol: symbolUpper, signals: symbolSignals }, null, 2);
+            }
         } else {
             adminShowSignalMessage(`❌ 偵測失敗: ${data?.detail || '未知錯誤'}`, true);
         }
@@ -344,7 +395,7 @@ async function adminTestLineNotify() {
     adminShowSignalMessage('正在發送測試訊息...');
     
     try {
-        const data = await apiRequest('/api/admin/signal/test-push?message=管理員測試訊息', { method: 'POST' });
+        const data = await adminApiRequest('/api/admin/signal/test-push?message=管理員測試訊息', { method: 'POST' });
         if (data && data.success) {
             adminShowSignalMessage('✅ 測試訊息已發送，請檢查 LINE');
         } else {
