@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SELA 自動選股系統</title>
+    <title>SELA è‡ªå‹•é¸è‚¡ç³»çµ±</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -14,7 +14,7 @@
     <div id="loading-screen" class="fixed inset-0 bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center z-50">
         <div class="text-center">
             <img src="/static/logo.png" alt="SELA" class="w-24 h-24 mx-auto mb-4 rounded-xl">
-            <p class="text-white text-lg">載入中...</p>
+            <p class="text-white text-lg">è¼‰å…¥ä¸­...</p>
             <i class="fas fa-spinner fa-spin text-white text-2xl mt-4"></i>
         </div>
     </div>
@@ -35,39 +35,39 @@
             <nav class="p-4 space-y-2">
                 <a href="#" onclick="mobileNavTo('dashboard')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-700 bg-blue-50 rounded-lg touch-target" data-section="dashboard">
                     <i class="fas fa-tachometer-alt mr-3 w-5"></i>
-                    <span>儀表板</span>
+                    <span>å„€è¡¨æ¿</span>
                 </a>
                 <a href="#" onclick="mobileNavTo('search')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="search">
                     <i class="fas fa-search mr-3 w-5"></i>
-                    <span>股票查詢</span>
+                    <span>è‚¡ç¥¨æŸ¥è©¢</span>
                 </a>
                 <a href="#" onclick="mobileNavTo('watchlist')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="watchlist">
                     <i class="fas fa-star mr-3 w-5"></i>
-                    <span>追蹤清單</span>
+                    <span>è¿½è¹¤æ¸…å–®</span>
                 </a>
                 <a href="#" onclick="mobileNavTo('sentiment')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="sentiment">
                     <i class="fas fa-heart-pulse mr-3 w-5"></i>
-                    <span>恐懼貪婪</span>
+                    <span>ææ‡¼è²ªå©ª</span>
                 </a>
                 <a href="#" onclick="mobileNavTo('compare')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="compare">
                     <i class="fas fa-chart-line mr-3 w-5"></i>
-                    <span>走勢比較</span>
+                    <span>èµ°å‹¢æ¯”è¼ƒ</span>
                 </a>
                 <a href="#" onclick="mobileNavTo('portfolio')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="portfolio">
                     <i class="fas fa-wallet mr-3 w-5"></i>
-                    <span>個人投資記錄</span>
+                    <span>å€‹äººæŠ•è³‡è¨˜éŒ„</span>
                 </a>
                 <a href="#" onclick="mobileNavTo('subscription')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="subscription">
                     <i class="fas fa-satellite-dish mr-3 w-5"></i>
-                    <span>訂閱精選</span>
+                    <span>è¨‚é–±ç²¾é¸</span>
                 </a>
                 <a href="#" onclick="mobileNavTo('cagr')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="cagr">
                     <i class="fas fa-trophy mr-3 w-5"></i>
-                    <span>報酬率比較</span>
+                    <span>å ±é…¬çŽ‡æ¯”è¼ƒ</span>
                 </a>
                 <a href="#" onclick="mobileNavTo('settings')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="settings">
                     <i class="fas fa-cog mr-3 w-5"></i>
-                    <span>設定</span>
+                    <span>è¨­å®š</span>
                 </a>
             </nav>
             <div class="absolute bottom-0 left-0 right-0 p-4 border-t">
@@ -78,11 +78,11 @@
                     </div>
                 </div>
                 <div class="text-xs text-gray-400 mb-2">
-                    閒置登出: <span id="sidebarTimer">5:00</span>
+                    é–’ç½®ç™»å‡º: <span id="sidebarTimer">5:00</span>
                 </div>
                 <button onclick="logout()" class="w-full py-2 text-red-500 hover:bg-red-50 rounded-lg flex items-center justify-center touch-target">
                     <i class="fas fa-sign-out-alt mr-2"></i>
-                    <span>登出</span>
+                    <span>ç™»å‡º</span>
                 </button>
             </div>
         </aside>
@@ -95,18 +95,18 @@
                 
                 <div class="flex items-center">
                     <img src="/static/logo.png" alt="SELA" class="w-8 h-8 rounded-lg mr-2">
-                    <span class="font-bold text-lg text-gray-800 hidden sm:inline">自動選股系統</span>
+                    <span class="font-bold text-lg text-gray-800 hidden sm:inline">è‡ªå‹•é¸è‚¡ç³»çµ±</span>
                     <span class="font-bold text-lg text-gray-800 sm:hidden">SELA</span>
                 </div>
                 
                 <div class="flex items-center space-x-2">
                     <span id="sessionTimer" class="text-xs text-gray-400 hidden sm:inline"></span>
-                    <a id="adminLink" href="#" onclick="showSection('admin', event)" class="text-orange-500 hover:text-orange-600 hidden p-2" title="管理後台">
+                    <a id="adminLink" href="#" onclick="showSection('admin', event)" class="text-orange-500 hover:text-orange-600 hidden p-2" title="ç®¡ç†å¾Œå°">
                         <i class="fas fa-user-shield"></i>
                     </a>
                     <span id="userName" class="text-gray-600 text-sm hidden md:inline"></span>
                     <img id="userAvatar" class="w-8 h-8 rounded-full" src="" alt="">
-                    <button onclick="logout()" class="text-gray-500 hover:text-red-500 hidden sm:inline p-2" title="登出">
+                    <button onclick="logout()" class="text-gray-500 hover:text-red-500 hidden sm:inline p-2" title="ç™»å‡º">
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
@@ -116,50 +116,50 @@
             <nav class="p-4 space-y-2">
                 <a href="#" onclick="showSection('dashboard', event)" class="nav-link flex items-center px-4 py-2 text-gray-700 bg-blue-50 rounded-lg" data-section="dashboard">
                     <i class="fas fa-tachometer-alt mr-3"></i>
-                    <span>儀表板</span>
+                    <span>å„€è¡¨æ¿</span>
                 </a>
                 <a href="#" onclick="showSection('search', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="search">
                     <i class="fas fa-search mr-3"></i>
-                    <span>股票查詢</span>
+                    <span>è‚¡ç¥¨æŸ¥è©¢</span>
                 </a>
                 <a href="#" onclick="showSection('watchlist', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="watchlist">
                     <i class="fas fa-star mr-3"></i>
-                    <span>追蹤清單</span>
+                    <span>è¿½è¹¤æ¸…å–®</span>
                 </a>
                 <a href="#" onclick="showSection('sentiment', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="sentiment">
                     <i class="fas fa-heart-pulse mr-3"></i>
-                    <span>恐懼貪婪</span>
+                    <span>ææ‡¼è²ªå©ª</span>
                 </a>
                 <a href="#" onclick="showSection('compare', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="compare">
                     <i class="fas fa-chart-line mr-3"></i>
-                    <span>走勢比較</span>
+                    <span>èµ°å‹¢æ¯”è¼ƒ</span>
                 </a>
                 <a href="#" onclick="showSection('portfolio', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="portfolio">
                     <i class="fas fa-wallet mr-3"></i>
-                    <span>個人投資記錄</span>
+                    <span>å€‹äººæŠ•è³‡è¨˜éŒ„</span>
                 </a>
                 <a href="#" onclick="showSection('subscription', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="subscription">
                     <i class="fas fa-satellite-dish mr-3"></i>
-                    <span>訂閱精選</span>
+                    <span>è¨‚é–±ç²¾é¸</span>
                 </a>
                 <a href="#" onclick="showSection('cagr', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="cagr">
                     <i class="fas fa-trophy mr-3"></i>
-                    <span>報酬率比較</span>
+                    <span>å ±é…¬çŽ‡æ¯”è¼ƒ</span>
                 </a>
                 <a href="#" onclick="showSection('settings', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="settings">
                     <i class="fas fa-cog mr-3"></i>
-                    <span>設定</span>
+                    <span>è¨­å®š</span>
                 </a>
                 <a id="adminSidebarLink" href="#" onclick="showSection('admin', event)" class="hidden flex items-center px-4 py-2 text-orange-500 hover:bg-orange-50 rounded-lg mt-4 border-t pt-4" data-section="admin">
                     <i class="fas fa-user-shield mr-3"></i>
-                    <span>管理後台</span>
+                    <span>ç®¡ç†å¾Œå°</span>
                 </a>
             </nav>
         </aside>
         <main class="main-content">
             
             <section id="section-dashboard" class="section">
-                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">儀表板</h2>
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">å„€è¡¨æ¿</h2>
                 
                 <div class="mb-4 md:mb-6">
                     <div id="btc-price-card" class="bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl p-4 md:p-5 text-white shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 relative overflow-hidden" onclick="showSection('search', event); setTimeout(() => { document.getElementById('searchSymbol').value='BTC'; searchStock(); }, 100);">
@@ -204,14 +204,14 @@
                         <p id="index-GSPC-date" class="text-xs text-gray-400 mt-1"></p>
                     </div>
                     
-                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^DJI', '道瓊工業')">
+                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^DJI', 'é“ç“Šå·¥æ¥­')">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
                                 <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
                                     <i class="fas fa-industry text-green-600"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-semibold text-gray-700 text-sm">道瓊工業</h3>
+                                    <h3 class="font-semibold text-gray-700 text-sm">é“ç“Šå·¥æ¥­</h3>
                                     <p class="text-xs text-gray-400">^DJI</p>
                                 </div>
                             </div>
@@ -224,14 +224,14 @@
                         <p id="index-DJI-date" class="text-xs text-gray-400 mt-1"></p>
                     </div>
                     
-                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^IXIC', '納斯達克')">
+                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^IXIC', 'ç´æ–¯é”å…‹')">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
                                 <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
                                     <i class="fas fa-microchip text-purple-600"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-semibold text-gray-700 text-sm">納斯達克</h3>
+                                    <h3 class="font-semibold text-gray-700 text-sm">ç´æ–¯é”å…‹</h3>
                                     <p class="text-xs text-gray-400">^IXIC</p>
                                 </div>
                             </div>
@@ -244,14 +244,14 @@
                         <p id="index-IXIC-date" class="text-xs text-gray-400 mt-1"></p>
                     </div>
                     
-                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^TWII', '台股加權')">
+                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^TWII', 'å°è‚¡åŠ æ¬Š')">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
                                 <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mr-3">
                                     <i class="fas fa-landmark text-red-600"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-semibold text-gray-700 text-sm">台股加權</h3>
+                                    <h3 class="font-semibold text-gray-700 text-sm">å°è‚¡åŠ æ¬Š</h3>
                                     <p class="text-xs text-gray-400">^TWII</p>
                                 </div>
                             </div>
@@ -266,10 +266,10 @@
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
-                    <div class="bg-white rounded-xl shadow p-4 md:p-6 cursor-pointer hover:shadow-lg transition-shadow" onclick="openSentimentModal('stock', '美股恐懼貪婪指數')">
+                    <div class="bg-white rounded-xl shadow p-4 md:p-6 cursor-pointer hover:shadow-lg transition-shadow" onclick="openSentimentModal('stock', 'ç¾Žè‚¡ææ‡¼è²ªå©ªæŒ‡æ•¸')">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-semibold text-gray-700 text-sm md:text-base">
-                                <i class="fas fa-flag-usa mr-2 text-blue-500"></i>美股恐懼貪婪指數
+                                <i class="fas fa-flag-usa mr-2 text-blue-500"></i>ç¾Žè‚¡ææ‡¼è²ªå©ªæŒ‡æ•¸
                             </h3>
                             <i class="fas fa-chart-area text-gray-300"></i>
                         </div>
@@ -294,13 +294,13 @@
                         </div>
                         <p id="stockSentimentStatus" class="text-center font-semibold text-lg mt-1"></p>
                         <p id="stockSentimentTime" class="text-xs text-gray-400 text-center mt-1"></p>
-                        <p class="text-xs text-blue-500 text-center mt-2"><i class="fas fa-chart-line mr-1"></i>點擊查看走勢</p>
+                        <p class="text-xs text-blue-500 text-center mt-2"><i class="fas fa-chart-line mr-1"></i>é»žæ“ŠæŸ¥çœ‹èµ°å‹¢</p>
                     </div>
                     
-                    <div class="bg-white rounded-xl shadow p-4 md:p-6 cursor-pointer hover:shadow-lg transition-shadow" onclick="openSentimentModal('crypto', '幣圈恐懼貪婪指數')">
+                    <div class="bg-white rounded-xl shadow p-4 md:p-6 cursor-pointer hover:shadow-lg transition-shadow" onclick="openSentimentModal('crypto', 'å¹£åœˆææ‡¼è²ªå©ªæŒ‡æ•¸')">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-semibold text-gray-700 text-sm md:text-base">
-                                <i class="fab fa-bitcoin mr-2 text-orange-500"></i>幣圈恐懼貪婪指數
+                                <i class="fab fa-bitcoin mr-2 text-orange-500"></i>å¹£åœˆææ‡¼è²ªå©ªæŒ‡æ•¸
                             </h3>
                             <i class="fas fa-chart-area text-gray-300"></i>
                         </div>
@@ -325,111 +325,111 @@
                         </div>
                         <p id="cryptoSentimentStatus" class="text-center font-semibold text-lg mt-1"></p>
                         <p id="cryptoSentimentTime" class="text-xs text-gray-400 text-center mt-1"></p>
-                        <p class="text-xs text-blue-500 text-center mt-2"><i class="fas fa-chart-line mr-1"></i>點擊查看走勢</p>
+                        <p class="text-xs text-blue-500 text-center mt-2"><i class="fas fa-chart-line mr-1"></i>é»žæ“ŠæŸ¥çœ‹èµ°å‹¢</p>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow p-4 md:p-6">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-semibold text-gray-700">追蹤清單</h3>
-                        <a href="#" onclick="showSection('watchlist')" class="text-blue-600 text-sm hover:underline">查看全部</a>
+                        <h3 class="font-semibold text-gray-700">è¿½è¹¤æ¸…å–®</h3>
+                        <a href="#" onclick="showSection('watchlist')" class="text-blue-600 text-sm hover:underline">æŸ¥çœ‹å…¨éƒ¨</a>
                     </div>
                     <div id="dashboardWatchlist">
-                        <p class="text-gray-500 text-center py-4">載入中...</p>
+                        <p class="text-gray-500 text-center py-4">è¼‰å…¥ä¸­...</p>
                     </div>
                 </div>
             </section>
             <section id="section-search" class="section hidden">
-                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">股票查詢</h2>
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">è‚¡ç¥¨æŸ¥è©¢</h2>
                 
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4 md:mb-6">
                     <div class="flex flex-col sm:flex-row gap-3">
-                        <input type="text" id="searchSymbol" placeholder="輸入股票代號（如 AAPL、2330）" 
+                        <input type="text" id="searchSymbol" placeholder="è¼¸å…¥è‚¡ç¥¨ä»£è™Ÿï¼ˆå¦‚ AAPLã€2330ï¼‰" 
                             class="flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
                             onkeypress="if(event.key==='Enter')searchStock()">
                         <button onclick="searchStock()" class="brand-orange text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center touch-target">
                             <i class="fas fa-search mr-2"></i>
-                            <span>查詢</span>
+                            <span>æŸ¥è©¢</span>
                         </button>
                     </div>
-                    <p class="text-gray-500 text-xs md:text-sm mt-2">支援美股、台股 (輸入純數字如 2330) 及加密貨幣 (BTC, ETH)</p>
+                    <p class="text-gray-500 text-xs md:text-sm mt-2">æ”¯æ´ç¾Žè‚¡ã€å°è‚¡ (è¼¸å…¥ç´”æ•¸å­—å¦‚ 2330) åŠåŠ å¯†è²¨å¹£ (BTC, ETH)</p>
                 </div>
                 
                 <div id="searchResult" class="hidden"></div>
             </section>
             <section id="section-watchlist" class="section hidden">
                 <div class="flex items-center justify-between mb-4 md:mb-6">
-                    <h2 class="text-xl md:text-2xl font-bold text-gray-800">追蹤清單</h2>
+                    <h2 class="text-xl md:text-2xl font-bold text-gray-800">è¿½è¹¤æ¸…å–®</h2>
                     <div class="flex items-center gap-2">
                         <div class="relative">
-                            <button onclick="toggleWatchlistMenu()" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg border hover:bg-gray-50" title="匯出匯入">
+                            <button onclick="toggleWatchlistMenu()" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg border hover:bg-gray-50" title="åŒ¯å‡ºåŒ¯å…¥">
                                 <i class="fas fa-exchange-alt"></i>
                             </button>
                             <div id="watchlistMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
                                 <button onclick="exportWatchlist('json')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
-                                    <i class="fas fa-download mr-2 text-blue-500"></i>匯出 JSON
+                                    <i class="fas fa-download mr-2 text-blue-500"></i>åŒ¯å‡º JSON
                                 </button>
                                 <button onclick="exportWatchlist('csv')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
-                                    <i class="fas fa-file-csv mr-2 text-green-500"></i>匯出 CSV
+                                    <i class="fas fa-file-csv mr-2 text-green-500"></i>åŒ¯å‡º CSV
                                 </button>
                                 <hr class="my-1">
                                 <button onclick="showImportWatchlistModal()" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
-                                    <i class="fas fa-upload mr-2 text-orange-500"></i>匯入清單
+                                    <i class="fas fa-upload mr-2 text-orange-500"></i>åŒ¯å…¥æ¸…å–®
                                 </button>
                             </div>
                         </div>
                         <button onclick="showAddWatchlistModal()" class="brand-orange text-white px-4 py-2 rounded-lg font-medium flex items-center touch-target">
                             <i class="fas fa-plus mr-2"></i>
-                            <span class="hidden sm:inline">新增</span>
+                            <span class="hidden sm:inline">æ–°å¢ž</span>
                         </button>
                     </div>
                 </div>
                 <div id="watchlistContent">
-                    <p class="text-gray-500 text-center py-4">載入中...</p>
+                    <p class="text-gray-500 text-center py-4">è¼‰å…¥ä¸­...</p>
                 </div>
             </section>
             <section id="section-sentiment" class="section hidden">
-                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">恐懼貪婪指數</h2>
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">ææ‡¼è²ªå©ªæŒ‡æ•¸</h2>
                 <div id="sentimentContent">
-                    <p class="text-gray-500 text-center py-4">載入中...</p>
+                    <p class="text-gray-500 text-center py-4">è¼‰å…¥ä¸­...</p>
                 </div>
             </section>
             <section id="section-compare" class="section hidden">
-                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">走勢比較</h2>
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">èµ°å‹¢æ¯”è¼ƒ</h2>
                 
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-plus-circle mr-2 text-blue-500"></i>
-                        選擇比較標的
+                        é¸æ“‡æ¯”è¼ƒæ¨™çš„
                     </h3>
-                    <p class="text-gray-500 text-sm mb-4">輸入股票代號或指數（最多 5 個），以逗號分隔</p>
+                    <p class="text-gray-500 text-sm mb-4">è¼¸å…¥è‚¡ç¥¨ä»£è™Ÿæˆ–æŒ‡æ•¸ï¼ˆæœ€å¤š 5 å€‹ï¼‰ï¼Œä»¥é€—è™Ÿåˆ†éš”</p>
                     
                     <div class="mb-4">
-                        <span class="text-sm text-gray-600 mr-2">快速選擇：</span>
+                        <span class="text-sm text-gray-600 mr-2">å¿«é€Ÿé¸æ“‡ï¼š</span>
                         <button onclick="addCompareSymbol('^GSPC')" class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded mr-1 mb-1">S&P 500</button>
-                        <button onclick="addCompareSymbol('^DJI')" class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded mr-1 mb-1">道瓊</button>
-                        <button onclick="addCompareSymbol('^IXIC')" class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded mr-1 mb-1">納斯達克</button>
-                        <button onclick="addCompareSymbol('^TWII')" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded mr-1 mb-1">台股加權</button>
+                        <button onclick="addCompareSymbol('^DJI')" class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded mr-1 mb-1">é“ç“Š</button>
+                        <button onclick="addCompareSymbol('^IXIC')" class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded mr-1 mb-1">ç´æ–¯é”å…‹</button>
+                        <button onclick="addCompareSymbol('^TWII')" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded mr-1 mb-1">å°è‚¡åŠ æ¬Š</button>
                         <button onclick="addCompareSymbol('AAPL')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">AAPL</button>
                         <button onclick="addCompareSymbol('MSFT')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">MSFT</button>
                         <button onclick="addCompareSymbol('NVDA')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">NVDA</button>
                         <button onclick="addCompareSymbol('TSLA')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">TSLA</button>
-                        <button onclick="addCompareSymbol('2330.TW')" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded mr-1 mb-1">台積電</button>
-                        <button onclick="addCompareSymbol('2317.TW')" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded mr-1 mb-1">鴻海</button>
+                        <button onclick="addCompareSymbol('2330.TW')" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded mr-1 mb-1">å°ç©é›»</button>
+                        <button onclick="addCompareSymbol('2317.TW')" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded mr-1 mb-1">é´»æµ·</button>
                         <button onclick="addCompareSymbol('BTC-USD')" class="px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 rounded mr-1 mb-1">BTC</button>
                         <button onclick="addCompareSymbol('ETH-USD')" class="px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 rounded mr-1 mb-1">ETH</button>
                     </div>
                     
                     <div class="flex flex-col md:flex-row gap-3">
-                        <input type="text" id="compareSymbols" placeholder="例: AAPL, MSFT, ^GSPC" 
+                        <input type="text" id="compareSymbols" placeholder="ä¾‹: AAPL, MSFT, ^GSPC" 
                                class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <select id="compareDays" class="px-4 py-2 border rounded-lg bg-white">
-                            <option value="30">1 個月</option>
-                            <option value="90" selected>3 個月</option>
-                            <option value="180">6 個月</option>
-                            <option value="365">1 年</option>
+                            <option value="30">1 å€‹æœˆ</option>
+                            <option value="90" selected>3 å€‹æœˆ</option>
+                            <option value="180">6 å€‹æœˆ</option>
+                            <option value="365">1 å¹´</option>
                         </select>
                         <button onclick="loadCompareChart()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                            <i class="fas fa-chart-line mr-2"></i>比較
+                            <i class="fas fa-chart-line mr-2"></i>æ¯”è¼ƒ
                         </button>
                     </div>
                     
@@ -441,9 +441,9 @@
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-semibold text-gray-700">
                                 <i class="fas fa-chart-line mr-2 text-green-500"></i>
-                                走勢比較圖
+                                èµ°å‹¢æ¯”è¼ƒåœ–
                             </h3>
-                            <span class="text-sm text-gray-500">起始日 = 100%</span>
+                            <span class="text-sm text-gray-500">èµ·å§‹æ—¥ = 100%</span>
                         </div>
                         <div class="relative" style="height: 400px;">
                             <canvas id="compareChart"></canvas>
@@ -451,27 +451,27 @@
                     </div>
                     <div id="compareChartPlaceholder" class="text-center py-12">
                         <i class="fas fa-chart-line text-gray-300 text-5xl mb-4"></i>
-                        <p class="text-gray-500">選擇標的後顯示比較圖表</p>
+                        <p class="text-gray-500">é¸æ“‡æ¨™çš„å¾Œé¡¯ç¤ºæ¯”è¼ƒåœ–è¡¨</p>
                     </div>
                     <div id="compareChartLoading" class="hidden text-center py-12">
                         <i class="fas fa-spinner fa-spin text-blue-500 text-3xl mb-4"></i>
-                        <p class="text-gray-500">載入中...</p>
+                        <p class="text-gray-500">è¼‰å…¥ä¸­...</p>
                     </div>
                 </div>
                 
                 <div id="compareResultTable" class="bg-white rounded-xl shadow p-4 md:p-6 hidden">
                     <h3 class="font-semibold text-gray-700 mb-4">
                         <i class="fas fa-table mr-2 text-purple-500"></i>
-                        比較結果
+                        æ¯”è¼ƒçµæžœ
                     </h3>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b">
-                                    <th class="text-left py-2 px-3">標的</th>
-                                    <th class="text-right py-2 px-3">起始價</th>
-                                    <th class="text-right py-2 px-3">最新價</th>
-                                    <th class="text-right py-2 px-3">漲跌幅</th>
+                                    <th class="text-left py-2 px-3">æ¨™çš„</th>
+                                    <th class="text-right py-2 px-3">èµ·å§‹åƒ¹</th>
+                                    <th class="text-right py-2 px-3">æœ€æ–°åƒ¹</th>
+                                    <th class="text-right py-2 px-3">æ¼²è·Œå¹…</th>
                                 </tr>
                             </thead>
                             <tbody id="compareTableBody"></tbody>
@@ -481,27 +481,27 @@
             </section>
             <section id="section-portfolio" class="section hidden">
                 <div class="flex items-center justify-between mb-4 md:mb-6">
-                    <h2 class="text-xl md:text-2xl font-bold text-gray-800">個人投資記錄</h2>
+                    <h2 class="text-xl md:text-2xl font-bold text-gray-800">å€‹äººæŠ•è³‡è¨˜éŒ„</h2>
                     <div class="relative">
-                        <button onclick="togglePortfolioMenu()" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg border hover:bg-gray-50" title="匯出匯入">
+                        <button onclick="togglePortfolioMenu()" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg border hover:bg-gray-50" title="åŒ¯å‡ºåŒ¯å…¥">
                             <i class="fas fa-exchange-alt mr-1"></i>
-                            <span class="hidden sm:inline text-sm">匯出匯入</span>
+                            <span class="hidden sm:inline text-sm">åŒ¯å‡ºåŒ¯å…¥</span>
                         </button>
                         <div id="portfolioMenu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border z-50">
-                            <div class="px-3 py-2 text-xs text-gray-400 border-b">匯出交易紀錄</div>
+                            <div class="px-3 py-2 text-xs text-gray-400 border-b">åŒ¯å‡ºäº¤æ˜“ç´€éŒ„</div>
                             <button onclick="exportPortfolio('json', null)" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
-                                <i class="fas fa-download mr-2 text-blue-500"></i>全部 (JSON)
+                                <i class="fas fa-download mr-2 text-blue-500"></i>å…¨éƒ¨ (JSON)
                             </button>
                             <button onclick="exportPortfolio('csv', 'tw')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
-                                <i class="fas fa-file-csv mr-2 text-red-500"></i>台股 (CSV)
+                                <i class="fas fa-file-csv mr-2 text-red-500"></i>å°è‚¡ (CSV)
                             </button>
                             <button onclick="exportPortfolio('csv', 'us')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
-                                <i class="fas fa-file-csv mr-2 text-blue-500"></i>美股 (CSV)
+                                <i class="fas fa-file-csv mr-2 text-blue-500"></i>ç¾Žè‚¡ (CSV)
                             </button>
                             <hr class="my-1">
-                            <div class="px-3 py-2 text-xs text-gray-400 border-b">匯入交易紀錄</div>
+                            <div class="px-3 py-2 text-xs text-gray-400 border-b">åŒ¯å…¥äº¤æ˜“ç´€éŒ„</div>
                             <button onclick="showImportPortfolioModal()" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
-                                <i class="fas fa-upload mr-2 text-orange-500"></i>匯入紀錄
+                                <i class="fas fa-upload mr-2 text-orange-500"></i>åŒ¯å…¥ç´€éŒ„
                             </button>
                         </div>
                     </div>
@@ -511,23 +511,23 @@
                     <div class="bg-gradient-to-r from-red-500 to-rose-500 rounded-xl p-4 text-white">
                         <div class="flex items-center mb-2">
                             <i class="fas fa-landmark mr-2"></i>
-                            <h3 class="font-semibold">台股</h3>
+                            <h3 class="font-semibold">å°è‚¡</h3>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
                             <div class="bg-white/10 rounded-lg p-2">
-                                <p class="text-xs opacity-80">現值</p>
+                                <p class="text-xs opacity-80">ç¾å€¼</p>
                                 <p id="twCurrentValue" class="font-bold">--</p>
                             </div>
                             <div class="bg-white/10 rounded-lg p-2">
-                                <p class="text-xs opacity-80">損益</p>
+                                <p class="text-xs opacity-80">æç›Š</p>
                                 <p id="twProfit" class="font-bold">--</p>
                             </div>
                             <div class="bg-white/10 rounded-lg p-2">
-                                <p class="text-xs opacity-80">報酬率</p>
+                                <p class="text-xs opacity-80">å ±é…¬çŽ‡</p>
                                 <p id="twReturnRate" class="font-bold">--</p>
                             </div>
                             <div class="bg-white/10 rounded-lg p-2">
-                                <p class="text-xs opacity-80">持股數</p>
+                                <p class="text-xs opacity-80">æŒè‚¡æ•¸</p>
                                 <p id="twPositions" class="font-bold">--</p>
                             </div>
                         </div>
@@ -536,23 +536,23 @@
                     <div class="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl p-4 text-white">
                         <div class="flex items-center mb-2">
                             <i class="fas fa-flag-usa mr-2"></i>
-                            <h3 class="font-semibold">美股</h3>
+                            <h3 class="font-semibold">ç¾Žè‚¡</h3>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
                             <div class="bg-white/10 rounded-lg p-2">
-                                <p class="text-xs opacity-80">現值 (USD)</p>
+                                <p class="text-xs opacity-80">ç¾å€¼ (USD)</p>
                                 <p id="usCurrentValue" class="font-bold">--</p>
                             </div>
                             <div class="bg-white/10 rounded-lg p-2">
-                                <p class="text-xs opacity-80">損益</p>
+                                <p class="text-xs opacity-80">æç›Š</p>
                                 <p id="usProfit" class="font-bold">--</p>
                             </div>
                             <div class="bg-white/10 rounded-lg p-2">
-                                <p class="text-xs opacity-80">報酬率</p>
+                                <p class="text-xs opacity-80">å ±é…¬çŽ‡</p>
                                 <p id="usReturnRate" class="font-bold">--</p>
                             </div>
                             <div class="bg-white/10 rounded-lg p-2">
-                                <p class="text-xs opacity-80">持股數</p>
+                                <p class="text-xs opacity-80">æŒè‚¡æ•¸</p>
                                 <p id="usPositions" class="font-bold">--</p>
                             </div>
                         </div>
@@ -562,10 +562,10 @@
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
                                 <i class="fas fa-calculator mr-2"></i>
-                                <h3 class="font-semibold">合計 (TWD)</h3>
+                                <h3 class="font-semibold">åˆè¨ˆ (TWD)</h3>
                             </div>
                             <div class="text-xs opacity-80">
-                                <span>匯率: 1 USD = </span>
+                                <span>åŒ¯çŽ‡: 1 USD = </span>
                                 <span id="exchangeRateValue">--</span>
                                 <span> TWD</span>
                                 <span id="exchangeRateTime" class="ml-1 opacity-60"></span>
@@ -573,19 +573,19 @@
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
                             <div class="bg-white/10 rounded-lg p-2">
-                                <p class="text-xs opacity-80">總現值</p>
+                                <p class="text-xs opacity-80">ç¸½ç¾å€¼</p>
                                 <p id="totalValueTwd" class="font-bold">--</p>
                             </div>
                             <div class="bg-white/10 rounded-lg p-2">
-                                <p class="text-xs opacity-80">總損益</p>
+                                <p class="text-xs opacity-80">ç¸½æç›Š</p>
                                 <p id="totalProfitTwd" class="font-bold">--</p>
                             </div>
                             <div class="bg-white/10 rounded-lg p-2">
-                                <p class="text-xs opacity-80">報酬率</p>
+                                <p class="text-xs opacity-80">å ±é…¬çŽ‡</p>
                                 <p id="totalReturnRate" class="font-bold">--</p>
                             </div>
                             <div class="bg-white/10 rounded-lg p-2">
-                                <p class="text-xs opacity-80">總持股</p>
+                                <p class="text-xs opacity-80">ç¸½æŒè‚¡</p>
                                 <p id="totalPositions" class="font-bold">--</p>
                             </div>
                         </div>
@@ -594,13 +594,13 @@
                 
                 <div class="flex border-b mb-4 overflow-x-auto">
                     <button onclick="switchPortfolioTab('holdings')" id="tabHoldings" class="px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-600 whitespace-nowrap">
-                        持股總覽
+                        æŒè‚¡ç¸½è¦½
                     </button>
                     <button onclick="switchPortfolioTab('tw-transactions')" id="tabTwTransactions" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
-                        台股紀錄
+                        å°è‚¡ç´€éŒ„
                     </button>
                     <button onclick="switchPortfolioTab('us-transactions')" id="tabUsTransactions" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
-                        美股紀錄
+                        ç¾Žè‚¡ç´€éŒ„
                     </button>
                 </div>
                 
@@ -612,16 +612,16 @@
                                     <i class="fas fa-landmark text-red-600 text-sm"></i>
                                 </span>
                                 <div>
-                                    <h3 class="font-semibold text-gray-700">台股</h3>
+                                    <h3 class="font-semibold text-gray-700">å°è‚¡</h3>
                                     <p id="twSummaryLine" class="text-xs text-gray-500">--</p>
                                 </div>
                             </div>
                             <button onclick="showAddTwModal()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">
-                                <i class="fas fa-plus mr-1"></i>新增
+                                <i class="fas fa-plus mr-1"></i>æ–°å¢ž
                             </button>
                         </div>
                         <div id="holdingsTW" class="space-y-2">
-                            <p class="text-gray-400 text-center py-4">載入中...</p>
+                            <p class="text-gray-400 text-center py-4">è¼‰å…¥ä¸­...</p>
                         </div>
                     </div>
                     
@@ -632,16 +632,16 @@
                                     <i class="fas fa-flag-usa text-blue-600 text-sm"></i>
                                 </span>
                                 <div>
-                                    <h3 class="font-semibold text-gray-700">美股</h3>
+                                    <h3 class="font-semibold text-gray-700">ç¾Žè‚¡</h3>
                                     <p id="usSummaryLine" class="text-xs text-gray-500">--</p>
                                 </div>
                             </div>
                             <button onclick="showAddUsModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">
-                                <i class="fas fa-plus mr-1"></i>新增
+                                <i class="fas fa-plus mr-1"></i>æ–°å¢ž
                             </button>
                         </div>
                         <div id="holdingsUS" class="space-y-2">
-                            <p class="text-gray-400 text-center py-4">載入中...</p>
+                            <p class="text-gray-400 text-center py-4">è¼‰å…¥ä¸­...</p>
                         </div>
                     </div>
                 </div>
@@ -650,14 +650,14 @@
                     <div class="bg-white rounded-xl shadow p-4 md:p-6">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-semibold text-gray-700">
-                                <i class="fas fa-landmark text-red-500 mr-2"></i>台股交易紀錄
+                                <i class="fas fa-landmark text-red-500 mr-2"></i>å°è‚¡äº¤æ˜“ç´€éŒ„
                             </h3>
                             <button onclick="showAddTwModal()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">
-                                <i class="fas fa-plus mr-1"></i>新增
+                                <i class="fas fa-plus mr-1"></i>æ–°å¢ž
                             </button>
                         </div>
                         <div id="twTransactionList" class="space-y-2">
-                            <p class="text-gray-400 text-center py-4">載入中...</p>
+                            <p class="text-gray-400 text-center py-4">è¼‰å…¥ä¸­...</p>
                         </div>
                     </div>
                 </div>
@@ -666,14 +666,14 @@
                     <div class="bg-white rounded-xl shadow p-4 md:p-6">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-semibold text-gray-700">
-                                <i class="fas fa-flag-usa text-blue-500 mr-2"></i>美股交易紀錄
+                                <i class="fas fa-flag-usa text-blue-500 mr-2"></i>ç¾Žè‚¡äº¤æ˜“ç´€éŒ„
                             </h3>
                             <button onclick="showAddUsModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">
-                                <i class="fas fa-plus mr-1"></i>新增
+                                <i class="fas fa-plus mr-1"></i>æ–°å¢ž
                             </button>
                         </div>
                         <div id="usTransactionList" class="space-y-2">
-                            <p class="text-gray-400 text-center py-4">載入中...</p>
+                            <p class="text-gray-400 text-center py-4">è¼‰å…¥ä¸­...</p>
                         </div>
                     </div>
                 </div>
@@ -681,8 +681,8 @@
             
             <section id="section-subscription" class="section hidden">
                 <div class="flex items-center justify-between mb-4 md:mb-6">
-                    <h2 class="text-xl md:text-2xl font-bold text-gray-800">📡 訂閱精選</h2>
-                    <button onclick="refreshSubscriptionPicks()" class="text-gray-500 hover:text-gray-700 p-2" title="重新整理">
+                    <h2 class="text-xl md:text-2xl font-bold text-gray-800">ðŸ“¡ è¨‚é–±ç²¾é¸</h2>
+                    <button onclick="refreshSubscriptionPicks()" class="text-gray-500 hover:text-gray-700 p-2" title="é‡æ–°æ•´ç†">
                         <i class="fas fa-sync-alt"></i>
                     </button>
                 </div>
@@ -690,10 +690,10 @@
                 <div id="subscriptionSourcesCard" class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-rss mr-2 text-orange-500"></i>
-                        訂閱來源
+                        è¨‚é–±ä¾†æº
                     </h3>
                     <div id="subscriptionSourcesList">
-                        <p class="text-gray-500 text-center py-4">載入中...</p>
+                        <p class="text-gray-500 text-center py-4">è¼‰å…¥ä¸­...</p>
                     </div>
                 </div>
                 
@@ -701,77 +701,77 @@
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center justify-between">
                         <span>
                             <i class="fas fa-fire mr-2 text-red-500"></i>
-                            精選股票
+                            ç²¾é¸è‚¡ç¥¨
                         </span>
                         <span id="subscriptionPicksCount" class="text-sm text-gray-400"></span>
                     </h3>
                     <div id="subscriptionPicksList">
-                        <p class="text-gray-500 text-center py-4">載入中...</p>
+                        <p class="text-gray-500 text-center py-4">è¼‰å…¥ä¸­...</p>
                     </div>
                 </div>
             </section>
             <section id="section-settings" class="section hidden">
-                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">設定</h2>
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">è¨­å®š</h2>
                 
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-magic mr-2 text-purple-500"></i>
-                        快速套用模板
+                        å¿«é€Ÿå¥—ç”¨æ¨¡æ¿
                     </h3>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-2" id="templateButtons">
                         <button onclick="applyTemplate('minimal')" data-template="minimal" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-all">
-                            <i class="fas fa-minus-circle text-gray-400 mr-1"></i>極簡
+                            <i class="fas fa-minus-circle text-gray-400 mr-1"></i>æ¥µç°¡
                         </button>
                         <button onclick="applyTemplate('standard')" data-template="standard" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-all border-blue-500 bg-blue-50 text-blue-600">
-                            <i class="fas fa-check-circle text-blue-500 mr-1"></i>標準
+                            <i class="fas fa-check-circle text-blue-500 mr-1"></i>æ¨™æº–
                         </button>
                         <button onclick="applyTemplate('full')" data-template="full" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-all">
-                            <i class="fas fa-layer-group text-green-500 mr-1"></i>完整
+                            <i class="fas fa-layer-group text-green-500 mr-1"></i>å®Œæ•´
                         </button>
                         <button onclick="applyTemplate('short_term')" data-template="short_term" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-all">
-                            <i class="fas fa-bolt text-yellow-500 mr-1"></i>短線
+                            <i class="fas fa-bolt text-yellow-500 mr-1"></i>çŸ­ç·š
                         </button>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-chart-line mr-2 text-blue-500"></i>
-                        指標顯示設定
+                        æŒ‡æ¨™é¡¯ç¤ºè¨­å®š
                     </h3>
-                    <p class="text-gray-500 text-sm mb-4">選擇在股票分析中要顯示的技術指標</p>
+                    <p class="text-gray-500 text-sm mb-4">é¸æ“‡åœ¨è‚¡ç¥¨åˆ†æžä¸­è¦é¡¯ç¤ºçš„æŠ€è¡“æŒ‡æ¨™</p>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="show_ma" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
                             <span class="ml-3">
-                                <span class="font-medium text-gray-700">均線 MA</span>
-                                <span class="block text-xs text-gray-500">20/50/200日</span>
+                                <span class="font-medium text-gray-700">å‡ç·š MA</span>
+                                <span class="block text-xs text-gray-500">20/50/200æ—¥</span>
                             </span>
                         </label>
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="show_rsi" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
                             <span class="ml-3">
                                 <span class="font-medium text-gray-700">RSI</span>
-                                <span class="block text-xs text-gray-500">相對強弱指標</span>
+                                <span class="block text-xs text-gray-500">ç›¸å°å¼·å¼±æŒ‡æ¨™</span>
                             </span>
                         </label>
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="show_macd" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
                             <span class="ml-3">
                                 <span class="font-medium text-gray-700">MACD</span>
-                                <span class="block text-xs text-gray-500">指數平滑異同</span>
+                                <span class="block text-xs text-gray-500">æŒ‡æ•¸å¹³æ»‘ç•°åŒ</span>
                             </span>
                         </label>
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="show_kd" class="indicator-toggle w-5 h-5 text-blue-600 rounded">
                             <span class="ml-3">
                                 <span class="font-medium text-gray-700">KD</span>
-                                <span class="block text-xs text-gray-500">隨機指標</span>
+                                <span class="block text-xs text-gray-500">éš¨æ©ŸæŒ‡æ¨™</span>
                             </span>
                         </label>
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="show_bollinger" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
                             <span class="ml-3">
-                                <span class="font-medium text-gray-700">布林通道</span>
+                                <span class="font-medium text-gray-700">å¸ƒæž—é€šé“</span>
                                 <span class="block text-xs text-gray-500">Bollinger Bands</span>
                             </span>
                         </label>
@@ -779,168 +779,168 @@
                             <input type="checkbox" id="show_obv" class="indicator-toggle w-5 h-5 text-blue-600 rounded">
                             <span class="ml-3">
                                 <span class="font-medium text-gray-700">OBV</span>
-                                <span class="block text-xs text-gray-500">能量潮指標</span>
+                                <span class="block text-xs text-gray-500">èƒ½é‡æ½®æŒ‡æ¨™</span>
                             </span>
                         </label>
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="show_volume" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
                             <span class="ml-3">
-                                <span class="font-medium text-gray-700">成交量</span>
+                                <span class="font-medium text-gray-700">æˆäº¤é‡</span>
                                 <span class="block text-xs text-gray-500">Volume</span>
                             </span>
                         </label>
                     </div>
                     <button onclick="saveIndicatorSettings()" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                        <i class="fas fa-save mr-2"></i>儲存指標設定
+                        <i class="fas fa-save mr-2"></i>å„²å­˜æŒ‡æ¨™è¨­å®š
                     </button>
                 </div>
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-bell mr-2 text-yellow-500"></i>
-                        通知設定
-                        <span class="ml-2 text-xs text-gray-400">(即將推出)</span>
+                        é€šçŸ¥è¨­å®š
+                        <span class="ml-2 text-xs text-gray-400">(å³å°‡æŽ¨å‡º)</span>
                     </h3>
-                    <p class="text-gray-500 text-sm mb-4">選擇要接收的技術訊號通知</p>
+                    <p class="text-gray-500 text-sm mb-4">é¸æ“‡è¦æŽ¥æ”¶çš„æŠ€è¡“è¨Šè™Ÿé€šçŸ¥</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="alert_ma_cross" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
                             <span class="ml-3">
-                                <span class="font-medium text-gray-700">均線交叉</span>
-                                <span class="block text-xs text-gray-500">黃金交叉/死亡交叉</span>
+                                <span class="font-medium text-gray-700">å‡ç·šäº¤å‰</span>
+                                <span class="block text-xs text-gray-500">é»ƒé‡‘äº¤å‰/æ­»äº¡äº¤å‰</span>
                             </span>
                         </label>
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="alert_ma_breakout" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
                             <span class="ml-3">
-                                <span class="font-medium text-gray-700">均線突破</span>
-                                <span class="block text-xs text-gray-500">價格穿越均線</span>
+                                <span class="font-medium text-gray-700">å‡ç·šçªç ´</span>
+                                <span class="block text-xs text-gray-500">åƒ¹æ ¼ç©¿è¶Šå‡ç·š</span>
                             </span>
                         </label>
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="alert_rsi" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
                             <span class="ml-3">
-                                <span class="font-medium text-gray-700">RSI 超買超賣</span>
-                                <span class="block text-xs text-gray-500">進入極端區域</span>
+                                <span class="font-medium text-gray-700">RSI è¶…è²·è¶…è³£</span>
+                                <span class="block text-xs text-gray-500">é€²å…¥æ¥µç«¯å€åŸŸ</span>
                             </span>
                         </label>
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="alert_macd" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
                             <span class="ml-3">
-                                <span class="font-medium text-gray-700">MACD 交叉</span>
-                                <span class="block text-xs text-gray-500">DIF 穿越 MACD</span>
+                                <span class="font-medium text-gray-700">MACD äº¤å‰</span>
+                                <span class="block text-xs text-gray-500">DIF ç©¿è¶Š MACD</span>
                             </span>
                         </label>
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="alert_kd" class="alert-toggle w-5 h-5 text-yellow-600 rounded">
                             <span class="ml-3">
-                                <span class="font-medium text-gray-700">KD 交叉</span>
-                                <span class="block text-xs text-gray-500">K 穿越 D</span>
+                                <span class="font-medium text-gray-700">KD äº¤å‰</span>
+                                <span class="block text-xs text-gray-500">K ç©¿è¶Š D</span>
                             </span>
                         </label>
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="alert_bollinger" class="alert-toggle w-5 h-5 text-yellow-600 rounded">
                             <span class="ml-3">
-                                <span class="font-medium text-gray-700">布林突破</span>
-                                <span class="block text-xs text-gray-500">觸及上下軌</span>
+                                <span class="font-medium text-gray-700">å¸ƒæž—çªç ´</span>
+                                <span class="block text-xs text-gray-500">è§¸åŠä¸Šä¸‹è»Œ</span>
                             </span>
                         </label>
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="alert_volume" class="alert-toggle w-5 h-5 text-yellow-600 rounded">
                             <span class="ml-3">
-                                <span class="font-medium text-gray-700">量能異常</span>
-                                <span class="block text-xs text-gray-500">成交量暴增</span>
+                                <span class="font-medium text-gray-700">é‡èƒ½ç•°å¸¸</span>
+                                <span class="block text-xs text-gray-500">æˆäº¤é‡æš´å¢ž</span>
                             </span>
                         </label>
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="checkbox" id="alert_sentiment" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
                             <span class="ml-3">
-                                <span class="font-medium text-gray-700">情緒極端</span>
-                                <span class="block text-xs text-gray-500">極度恐懼/貪婪</span>
+                                <span class="font-medium text-gray-700">æƒ…ç·’æ¥µç«¯</span>
+                                <span class="block text-xs text-gray-500">æ¥µåº¦ææ‡¼/è²ªå©ª</span>
                             </span>
                         </label>
                     </div>
                     <button onclick="saveAlertSettings()" class="mt-4 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">
-                        <i class="fas fa-save mr-2"></i>儲存通知設定
+                        <i class="fas fa-save mr-2"></i>å„²å­˜é€šçŸ¥è¨­å®š
                     </button>
                 </div>
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-sliders-h mr-2 text-green-500"></i>
-                        指標參數調整
+                        æŒ‡æ¨™åƒæ•¸èª¿æ•´
                     </h3>
-                    <p class="text-gray-500 text-sm mb-4">自訂技術指標的計算參數</p>
+                    <p class="text-gray-500 text-sm mb-4">è‡ªè¨‚æŠ€è¡“æŒ‡æ¨™çš„è¨ˆç®—åƒæ•¸</p>
                     
                     <div class="mb-6">
-                        <h4 class="font-medium text-gray-600 mb-2">均線週期</h4>
+                        <h4 class="font-medium text-gray-600 mb-2">å‡ç·šé€±æœŸ</h4>
                         <div class="grid grid-cols-3 gap-3">
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">短期均線</label>
+                                <label class="block text-xs text-gray-500 mb-1">çŸ­æœŸå‡ç·š</label>
                                 <input type="number" id="ma_short" value="20" min="5" max="50" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">中期均線</label>
+                                <label class="block text-xs text-gray-500 mb-1">ä¸­æœŸå‡ç·š</label>
                                 <input type="number" id="ma_mid" value="50" min="20" max="100" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">長期均線</label>
+                                <label class="block text-xs text-gray-500 mb-1">é•·æœŸå‡ç·š</label>
                                 <input type="number" id="ma_long" value="200" min="50" max="300" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                         </div>
                     </div>
                     
                     <div class="mb-6">
-                        <h4 class="font-medium text-gray-600 mb-2">RSI 參數</h4>
+                        <h4 class="font-medium text-gray-600 mb-2">RSI åƒæ•¸</h4>
                         <div class="grid grid-cols-3 gap-3">
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">RSI 週期</label>
+                                <label class="block text-xs text-gray-500 mb-1">RSI é€±æœŸ</label>
                                 <input type="number" id="rsi_period" value="14" min="5" max="30" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">超買門檻</label>
+                                <label class="block text-xs text-gray-500 mb-1">è¶…è²·é–€æª»</label>
                                 <input type="number" id="rsi_overbought" value="70" min="60" max="90" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">超賣門檻</label>
+                                <label class="block text-xs text-gray-500 mb-1">è¶…è³£é–€æª»</label>
                                 <input type="number" id="rsi_oversold" value="30" min="10" max="40" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                         </div>
                     </div>
                     
                     <div class="mb-6">
-                        <h4 class="font-medium text-gray-600 mb-2">MACD 參數</h4>
+                        <h4 class="font-medium text-gray-600 mb-2">MACD åƒæ•¸</h4>
                         <div class="grid grid-cols-3 gap-3">
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">快線週期</label>
+                                <label class="block text-xs text-gray-500 mb-1">å¿«ç·šé€±æœŸ</label>
                                 <input type="number" id="macd_fast" value="12" min="5" max="20" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">慢線週期</label>
+                                <label class="block text-xs text-gray-500 mb-1">æ…¢ç·šé€±æœŸ</label>
                                 <input type="number" id="macd_slow" value="26" min="15" max="40" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">訊號線</label>
+                                <label class="block text-xs text-gray-500 mb-1">è¨Šè™Ÿç·š</label>
                                 <input type="number" id="macd_signal" value="9" min="5" max="15" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                         </div>
                     </div>
                     
                     <div class="mb-6">
-                        <h4 class="font-medium text-gray-600 mb-2">其他參數</h4>
+                        <h4 class="font-medium text-gray-600 mb-2">å…¶ä»–åƒæ•¸</h4>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">KD 週期</label>
+                                <label class="block text-xs text-gray-500 mb-1">KD é€±æœŸ</label>
                                 <input type="number" id="kd_period" value="9" min="5" max="20" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">布林週期</label>
+                                <label class="block text-xs text-gray-500 mb-1">å¸ƒæž—é€±æœŸ</label>
                                 <input type="number" id="bollinger_period" value="20" min="10" max="30" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">突破預警%</label>
+                                <label class="block text-xs text-gray-500 mb-1">çªç ´é è­¦%</label>
                                 <input type="number" id="breakout_threshold" value="2.0" min="0.5" max="5" step="0.5" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">量比警戒</label>
+                                <label class="block text-xs text-gray-500 mb-1">é‡æ¯”è­¦æˆ’</label>
                                 <input type="number" id="volume_alert_ratio" value="2.0" min="1.5" max="5" step="0.5" class="param-input w-full px-3 py-2 border rounded-lg text-center">
                             </div>
                         </div>
@@ -948,43 +948,43 @@
                     
                     <div class="flex gap-2">
                         <button onclick="saveParamSettings()" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-                            <i class="fas fa-save mr-2"></i>儲存參數
+                            <i class="fas fa-save mr-2"></i>å„²å­˜åƒæ•¸
                         </button>
                         <button onclick="resetParams()" class="px-4 py-2 border text-gray-600 rounded-lg hover:bg-gray-50">
-                            <i class="fas fa-undo mr-2"></i>恢復預設
+                            <i class="fas fa-undo mr-2"></i>æ¢å¾©é è¨­
                         </button>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-tags mr-2 text-blue-500"></i>
-                        標籤管理
+                        æ¨™ç±¤ç®¡ç†
                     </h3>
-                    <p class="text-gray-500 text-sm mb-4">建立標籤來分類追蹤清單中的股票</p>
+                    <p class="text-gray-500 text-sm mb-4">å»ºç«‹æ¨™ç±¤ä¾†åˆ†é¡žè¿½è¹¤æ¸…å–®ä¸­çš„è‚¡ç¥¨</p>
                     <div id="tagManagerContent">
-                        <p class="text-gray-400 text-center py-4">載入中...</p>
+                        <p class="text-gray-400 text-center py-4">è¼‰å…¥ä¸­...</p>
                     </div>
                 </div>
                 <div id="adminToolsSection" class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-tools mr-2 text-orange-500"></i>
-                        管理員工具
+                        ç®¡ç†å“¡å·¥å…·
                     </h3>
-                    <p class="text-gray-500 text-sm mb-4">手動觸發系統更新</p>
+                    <p class="text-gray-500 text-sm mb-4">æ‰‹å‹•è§¸ç™¼ç³»çµ±æ›´æ–°</p>
                     
                     <div class="space-y-3">
                         <button onclick="adminUpdatePriceCache()" class="w-full px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 flex items-center justify-between">
-                            <span><i class="fas fa-dollar-sign mr-2"></i>更新價格快取</span>
+                            <span><i class="fas fa-dollar-sign mr-2"></i>æ›´æ–°åƒ¹æ ¼å¿«å–</span>
                             <i class="fas fa-chevron-right text-gray-400"></i>
                         </button>
                         
                         <button onclick="adminUpdateExchangeRate()" class="w-full px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 flex items-center justify-between">
-                            <span><i class="fas fa-exchange-alt mr-2"></i>更新匯率</span>
+                            <span><i class="fas fa-exchange-alt mr-2"></i>æ›´æ–°åŒ¯çŽ‡</span>
                             <i class="fas fa-chevron-right text-gray-400"></i>
                         </button>
                         
                         <button onclick="adminFetchSubscriptions()" class="w-full px-4 py-3 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 flex items-center justify-between">
-                            <span><i class="fas fa-rss mr-2"></i>抓取訂閱精選 (回溯30天)</span>
+                            <span><i class="fas fa-rss mr-2"></i>æŠ“å–è¨‚é–±ç²¾é¸ (å›žæº¯30å¤©)</span>
                             <i class="fas fa-chevron-right text-gray-400"></i>
                         </button>
                     </div>
@@ -992,69 +992,69 @@
                 <div class="bg-white rounded-xl shadow p-4 md:p-6">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-user mr-2 text-gray-500"></i>
-                        帳號資訊
+                        å¸³è™Ÿè³‡è¨Š
                     </h3>
                     <div class="space-y-2 text-sm">
                         <div class="flex justify-between py-2 border-b">
-                            <span class="text-gray-500">用戶名稱</span>
+                            <span class="text-gray-500">ç”¨æˆ¶åç¨±</span>
                             <span id="settingsUserName" class="font-medium">-</span>
                         </div>
                         <div class="flex justify-between py-2 border-b">
-                            <span class="text-gray-500">會員等級</span>
-                            <span id="settingsMemberLevel" class="font-medium text-orange-500">一般會員</span>
+                            <span class="text-gray-500">æœƒå“¡ç­‰ç´š</span>
+                            <span id="settingsMemberLevel" class="font-medium text-orange-500">ä¸€èˆ¬æœƒå“¡</span>
                         </div>
                         <div class="flex justify-between py-2">
-                            <span class="text-gray-500">系統版本</span>
+                            <span class="text-gray-500">ç³»çµ±ç‰ˆæœ¬</span>
                             <span class="font-medium">v0.5.3</span>
                         </div>
                     </div>
                     <button onclick="logout()" class="mt-4 w-full py-3 border border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-50">
-                        <i class="fas fa-sign-out-alt mr-2"></i>登出
+                        <i class="fas fa-sign-out-alt mr-2"></i>ç™»å‡º
                     </button>
                 </div>
             </section>
             <section id="section-cagr" class="section hidden">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">
                     <i class="fas fa-trophy text-yellow-500 mr-2"></i>
-                    報酬率比較
+                    å ±é…¬çŽ‡æ¯”è¼ƒ
                 </h2>
                 
                 <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-4 md:p-6 mb-4 text-white">
-                    <h3 class="text-lg font-bold mb-2">🏆 年化報酬率 (CAGR) 比較器</h3>
-                    <p class="text-blue-100 text-sm">比較股票、加密貨幣、指數的長期投資報酬表現，找出最佳投資標的</p>
+                    <h3 class="text-lg font-bold mb-2">ðŸ† å¹´åŒ–å ±é…¬çŽ‡ (CAGR) æ¯”è¼ƒå™¨</h3>
+                    <p class="text-blue-100 text-sm">æ¯”è¼ƒè‚¡ç¥¨ã€åŠ å¯†è²¨å¹£ã€æŒ‡æ•¸çš„é•·æœŸæŠ•è³‡å ±é…¬è¡¨ç¾ï¼Œæ‰¾å‡ºæœ€ä½³æŠ•è³‡æ¨™çš„</p>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                     <div class="lg:col-span-1 space-y-4">
                         <div class="bg-white rounded-xl shadow p-4">
-                            <h3 class="font-bold text-gray-700 mb-3">🚀 快速比較</h3>
+                            <h3 class="font-bold text-gray-700 mb-3">ðŸš€ å¿«é€Ÿæ¯”è¼ƒ</h3>
                             <div class="space-y-2" id="cagrPresetList">
                                 <button onclick="cagrLoadPreset('mag7')" class="w-full text-left px-3 py-2 bg-gray-50 hover:bg-blue-50 rounded-lg text-sm">
-                                    <i class="fas fa-star text-yellow-500 mr-2"></i>科技七雄 (MAG7)
+                                    <i class="fas fa-star text-yellow-500 mr-2"></i>ç§‘æŠ€ä¸ƒé›„ (MAG7)
                                 </button>
                                 <button onclick="cagrLoadPreset('indices')" class="w-full text-left px-3 py-2 bg-gray-50 hover:bg-blue-50 rounded-lg text-sm">
-                                    <i class="fas fa-chart-line text-blue-500 mr-2"></i>美股三大指數
+                                    <i class="fas fa-chart-line text-blue-500 mr-2"></i>ç¾Žè‚¡ä¸‰å¤§æŒ‡æ•¸
                                 </button>
                                 <button onclick="cagrLoadPreset('tw_etf')" class="w-full text-left px-3 py-2 bg-gray-50 hover:bg-blue-50 rounded-lg text-sm">
-                                    <i class="fas fa-flag text-red-500 mr-2"></i>台股熱門 ETF
+                                    <i class="fas fa-flag text-red-500 mr-2"></i>å°è‚¡ç†±é–€ ETF
                                 </button>
                                 <button onclick="cagrLoadPreset('crypto')" class="w-full text-left px-3 py-2 bg-gray-50 hover:bg-blue-50 rounded-lg text-sm">
-                                    <i class="fab fa-bitcoin text-orange-500 mr-2"></i>加密貨幣
+                                    <i class="fab fa-bitcoin text-orange-500 mr-2"></i>åŠ å¯†è²¨å¹£
                                 </button>
                             </div>
                         </div>
                         
                         <div class="bg-white rounded-xl shadow p-4">
-                            <h3 class="font-bold text-gray-700 mb-3">✏️ 自訂比較</h3>
+                            <h3 class="font-bold text-gray-700 mb-3">âœï¸ è‡ªè¨‚æ¯”è¼ƒ</h3>
                             
                             <div class="mb-3">
-                                <label class="text-sm text-gray-500 mb-1 block">已選標的 (最多5個)</label>
+                                <label class="text-sm text-gray-500 mb-1 block">å·²é¸æ¨™çš„ (æœ€å¤š5å€‹)</label>
                                 <div id="cagrSelectedSymbols" class="min-h-[40px] p-2 bg-gray-50 rounded-lg flex flex-wrap">
-                                    <span class="text-gray-400 text-sm">尚未選擇</span>
+                                    <span class="text-gray-400 text-sm">å°šæœªé¸æ“‡</span>
                                 </div>
                             </div>
                             
                             <div class="flex gap-2 mb-3">
-                                <input type="text" id="cagrSymbolInput" placeholder="輸入代號 (如 AAPL, BTC)"
+                                <input type="text" id="cagrSymbolInput" placeholder="è¼¸å…¥ä»£è™Ÿ (å¦‚ AAPL, BTC)"
                                     class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
                                     onkeypress="if(event.key==='Enter') cagrAddSymbol()">
                                 <button onclick="cagrAddSymbol()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
@@ -1063,73 +1063,73 @@
                             </div>
                             
                             <div class="mb-3">
-                                <label class="text-sm text-gray-500 mb-1 block">比較週期</label>
+                                <label class="text-sm text-gray-500 mb-1 block">æ¯”è¼ƒé€±æœŸ</label>
                                 <div class="flex flex-wrap gap-2 text-sm">
                                     <label class="flex items-center">
-                                        <input type="checkbox" class="cagr-period-check mr-1" value="1y" checked> 1年
+                                        <input type="checkbox" class="cagr-period-check mr-1" value="1y" checked> 1å¹´
                                     </label>
                                     <label class="flex items-center">
-                                        <input type="checkbox" class="cagr-period-check mr-1" value="3y" checked> 3年
+                                        <input type="checkbox" class="cagr-period-check mr-1" value="3y" checked> 3å¹´
                                     </label>
                                     <label class="flex items-center">
-                                        <input type="checkbox" class="cagr-period-check mr-1" value="5y" checked> 5年
+                                        <input type="checkbox" class="cagr-period-check mr-1" value="5y" checked> 5å¹´
                                     </label>
                                     <label class="flex items-center">
-                                        <input type="checkbox" class="cagr-period-check mr-1" value="10y"> 10年
+                                        <input type="checkbox" class="cagr-period-check mr-1" value="10y"> 10å¹´
                                     </label>
                                 </div>
                             </div>
                             
                             <div class="mb-4">
-                                <label class="text-sm text-gray-500 mb-1 block">基準指數</label>
+                                <label class="text-sm text-gray-500 mb-1 block">åŸºæº–æŒ‡æ•¸</label>
                                 <select id="cagrBenchmarkSelect" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm">
                                     <option value="^GSPC">S&P 500</option>
-                                    <option value="^IXIC">納斯達克</option>
-                                    <option value="^DJI">道瓊工業</option>
-                                    <option value="">無</option>
+                                    <option value="^IXIC">ç´æ–¯é”å…‹</option>
+                                    <option value="^DJI">é“ç“Šå·¥æ¥­</option>
+                                    <option value="">ç„¡</option>
                                 </select>
                             </div>
                             
                             <div class="mb-4">
-                                <label class="text-sm text-gray-500 mb-1 block">排序依據</label>
+                                <label class="text-sm text-gray-500 mb-1 block">æŽ’åºä¾æ“š</label>
                                 <select id="cagrSortBySelect" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm">
-                                    <option value="1y">1年報酬率</option>
-                                    <option value="3y">3年報酬率</option>
-                                    <option value="5y" selected>5年報酬率</option>
-                                    <option value="10y">10年報酬率</option>
+                                    <option value="1y">1å¹´å ±é…¬çŽ‡</option>
+                                    <option value="3y">3å¹´å ±é…¬çŽ‡</option>
+                                    <option value="5y" selected>5å¹´å ±é…¬çŽ‡</option>
+                                    <option value="10y">10å¹´å ±é…¬çŽ‡</option>
                                 </select>
                             </div>
                             
                             <button onclick="cagrRunComparison()" 
                                 class="w-full py-3 bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600 transition">
-                                <i class="fas fa-chart-bar mr-2"></i>開始比較
+                                <i class="fas fa-chart-bar mr-2"></i>é–‹å§‹æ¯”è¼ƒ
                             </button>
                         </div>
                         
                         <div class="bg-white rounded-xl shadow p-4">
                             <div class="flex justify-between items-center mb-3">
-                                <h3 class="font-bold text-gray-700">💾 我的組合</h3>
+                                <h3 class="font-bold text-gray-700">ðŸ’¾ æˆ‘çš„çµ„åˆ</h3>
                                 <button onclick="cagrSaveCurrentComparison()" class="text-blue-600 hover:text-blue-800 text-sm">
-                                    <i class="fas fa-save mr-1"></i>儲存目前
+                                    <i class="fas fa-save mr-1"></i>å„²å­˜ç›®å‰
                                 </button>
                             </div>
                             <div id="cagrSavedComparisons" class="space-y-2">
-                                <p class="text-gray-400 text-sm">登入後可儲存組合</p>
+                                <p class="text-gray-400 text-sm">ç™»å…¥å¾Œå¯å„²å­˜çµ„åˆ</p>
                             </div>
                         </div>
                     </div>
                     <div class="lg:col-span-2">
                         <div class="bg-white rounded-xl shadow p-4 md:p-6">
                             <div class="flex justify-between items-center mb-4">
-                                <h3 class="font-bold text-gray-700 text-lg">📊 比較結果</h3>
+                                <h3 class="font-bold text-gray-700 text-lg">ðŸ“Š æ¯”è¼ƒçµæžœ</h3>
                                 <span id="cagrResultTime" class="text-sm text-gray-400"></span>
                             </div>
                             
                             <div id="cagrComparisonResult">
                                 <div class="text-center py-12 text-gray-400">
                                     <i class="fas fa-chart-line text-6xl mb-4"></i>
-                                    <p>選擇標的後點擊「開始比較」</p>
-                                    <p class="text-sm mt-2">或使用左側的快速比較預設組合</p>
+                                    <p>é¸æ“‡æ¨™çš„å¾Œé»žæ“Šã€Œé–‹å§‹æ¯”è¼ƒã€</p>
+                                    <p class="text-sm mt-2">æˆ–ä½¿ç”¨å·¦å´çš„å¿«é€Ÿæ¯”è¼ƒé è¨­çµ„åˆ</p>
                                 </div>
                             </div>
                         </div>
@@ -1139,104 +1139,104 @@
             <section id="section-admin" class="section hidden">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">
                     <i class="fas fa-user-shield text-orange-500 mr-2"></i>
-                    管理後台
+                    ç®¡ç†å¾Œå°
                 </h2>
                 
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-4 md:mb-6">
                     <div class="bg-white rounded-lg shadow p-3 md:p-4">
-                        <div class="text-gray-500 text-xs md:text-sm">總用戶數</div>
+                        <div class="text-gray-500 text-xs md:text-sm">ç¸½ç”¨æˆ¶æ•¸</div>
                         <div id="adminStatTotal" class="text-xl md:text-2xl font-bold text-slate-800">-</div>
                     </div>
                     <div class="bg-white rounded-lg shadow p-3 md:p-4">
-                        <div class="text-gray-500 text-xs md:text-sm">總登入次數</div>
+                        <div class="text-gray-500 text-xs md:text-sm">ç¸½ç™»å…¥æ¬¡æ•¸</div>
                         <div id="adminStatTotalLogins" class="text-xl md:text-2xl font-bold text-purple-600">-</div>
                     </div>
                     <div class="bg-white rounded-lg shadow p-3 md:p-4">
-                        <div class="text-gray-500 text-xs md:text-sm">今日登入</div>
+                        <div class="text-gray-500 text-xs md:text-sm">ä»Šæ—¥ç™»å…¥</div>
                         <div id="adminStatToday" class="text-xl md:text-2xl font-bold text-green-600">-</div>
                     </div>
                     <div class="bg-white rounded-lg shadow p-3 md:p-4">
-                        <div class="text-gray-500 text-xs md:text-sm">封鎖用戶</div>
+                        <div class="text-gray-500 text-xs md:text-sm">å°éŽ–ç”¨æˆ¶</div>
                         <div id="adminStatBlocked" class="text-xl md:text-2xl font-bold text-red-600">-</div>
                     </div>
                     <div class="bg-white rounded-lg shadow p-3 md:p-4">
-                        <div class="text-gray-500 text-xs md:text-sm">管理員</div>
+                        <div class="text-gray-500 text-xs md:text-sm">ç®¡ç†å“¡</div>
                         <div id="adminStatAdmin" class="text-xl md:text-2xl font-bold text-blue-600">-</div>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
-                    <h3 class="font-bold text-gray-700 mb-4">📊 市場資料管理</h3>
+                    <h3 class="font-bold text-gray-700 mb-4">ðŸ“Š å¸‚å ´è³‡æ–™ç®¡ç†</h3>
                     <div class="flex flex-wrap gap-2 md:gap-3">
                         <button onclick="adminInitializeData()" class="bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center text-sm">
-                            <i class="fas fa-sync mr-2"></i>初始化歷史資料
+                            <i class="fas fa-sync mr-2"></i>åˆå§‹åŒ–æ­·å²è³‡æ–™
                         </button>
                         <button onclick="adminUpdateIndices()" class="bg-green-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-green-700 flex items-center text-sm">
-                            <i class="fas fa-chart-line mr-2"></i>更新三大指數
+                            <i class="fas fa-chart-line mr-2"></i>æ›´æ–°ä¸‰å¤§æŒ‡æ•¸
                         </button>
                         <button onclick="adminUpdateSentiment()" class="bg-purple-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center text-sm">
-                            <i class="fas fa-brain mr-2"></i>更新恐懼貪婪
+                            <i class="fas fa-brain mr-2"></i>æ›´æ–°ææ‡¼è²ªå©ª
                         </button>
                         <button onclick="adminTriggerDailyUpdate()" class="bg-orange-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center text-sm">
-                            <i class="fas fa-bolt mr-2"></i>執行每日更新
+                            <i class="fas fa-bolt mr-2"></i>åŸ·è¡Œæ¯æ—¥æ›´æ–°
                         </button>
                     </div>
                     <p id="adminSystemMessage" class="mt-3 text-sm text-gray-500"></p>
                 </div>
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
-                    <h3 class="font-bold text-gray-700 mb-4">🔔 訊號檢查與推播</h3>
+                    <h3 class="font-bold text-gray-700 mb-4">ðŸ”” è¨Šè™Ÿæª¢æŸ¥èˆ‡æŽ¨æ’­</h3>
                     <div class="flex flex-wrap gap-2 md:gap-3 mb-3">
                         <button onclick="adminRunSignalCheck()" class="bg-indigo-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center text-sm">
-                            <i class="fas fa-search mr-2"></i>偵測訊號
+                            <i class="fas fa-search mr-2"></i>åµæ¸¬è¨Šè™Ÿ
                         </button>
                         <button onclick="adminSendSignalNotifications()" class="bg-orange-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center text-sm">
-                            <i class="fas fa-paper-plane mr-2"></i>發送訊號通知
+                            <i class="fas fa-paper-plane mr-2"></i>ç™¼é€è¨Šè™Ÿé€šçŸ¥
                         </button>
                         <button onclick="adminTestLineNotify()" class="bg-green-500 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-green-600 flex items-center text-sm">
-                            <i class="fab fa-line mr-2"></i>測試 LINE 推播
+                            <i class="fab fa-line mr-2"></i>æ¸¬è©¦ LINE æŽ¨æ’­
                         </button>
                     </div>
                     <div class="flex gap-2 items-center">
-                        <input type="text" id="adminTestSymbolInput" placeholder="輸入股票代號測試訊號偵測 (如 AAPL)"
+                        <input type="text" id="adminTestSymbolInput" placeholder="è¼¸å…¥è‚¡ç¥¨ä»£è™Ÿæ¸¬è©¦è¨Šè™Ÿåµæ¸¬ (å¦‚ AAPL)"
                             class="flex-1 px-3 md:px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm"
                             onkeypress="if(event.key==='Enter') adminTestSignalDetection()">
                         <button onclick="adminTestSignalDetection()" class="bg-gray-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-gray-700 text-sm">
-                            測試偵測
+                            æ¸¬è©¦åµæ¸¬
                         </button>
                     </div>
                     <p id="adminSignalMessage" class="mt-3 text-sm text-gray-500"></p>
                     <div id="adminSignalResult" class="mt-3 hidden">
-                        <h4 class="font-medium text-gray-700 mb-2">偵測結果：</h4>
+                        <h4 class="font-medium text-gray-700 mb-2">åµæ¸¬çµæžœï¼š</h4>
                         <pre id="adminSignalResultContent" class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-48"></pre>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
-                    <h3 class="font-bold text-gray-700 mb-4">📡 訂閱源管理</h3>
+                    <h3 class="font-bold text-gray-700 mb-4">ðŸ“¡ è¨‚é–±æºç®¡ç†</h3>
                     <div class="flex flex-wrap gap-2 md:gap-3 mb-3">
                         <button onclick="adminFetchSubscriptions()" class="bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center text-sm">
-                            <i class="fas fa-sync mr-2"></i>抓取訂閱精選
+                            <i class="fas fa-sync mr-2"></i>æŠ“å–è¨‚é–±ç²¾é¸
                         </button>
                         <button onclick="adminBackfillSubscriptions()" class="bg-purple-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center text-sm">
-                            <i class="fas fa-history mr-2"></i>回補歷史文章
+                            <i class="fas fa-history mr-2"></i>å›žè£œæ­·å²æ–‡ç« 
                         </button>
                     </div>
                     <p id="adminSubscriptionMessage" class="mt-3 text-sm text-gray-500"></p>
                 </div>
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
-                    <h3 class="font-bold text-gray-700 mb-4">👥 用戶管理</h3>
+                    <h3 class="font-bold text-gray-700 mb-4">ðŸ‘¥ ç”¨æˆ¶ç®¡ç†</h3>
                     <div class="flex flex-col md:flex-row gap-3 md:gap-4 mb-4">
-                        <input type="text" id="adminSearchInput" placeholder="搜尋用戶名稱、Email 或 LINE ID..."
+                        <input type="text" id="adminSearchInput" placeholder="æœå°‹ç”¨æˆ¶åç¨±ã€Email æˆ– LINE ID..."
                             class="flex-1 px-3 md:px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
                             onkeypress="if(event.key==='Enter') adminLoadUsers()">
                         <div class="flex gap-2 items-center">
                             <label class="flex items-center text-sm">
                                 <input type="checkbox" id="adminBlockedOnly" class="mr-2">
-                                <span>只顯示封鎖</span>
+                                <span>åªé¡¯ç¤ºå°éŽ–</span>
                             </label>
                             <button onclick="adminLoadUsers()" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 text-sm">
-                                搜尋
+                                æœå°‹
                             </button>
                             <button onclick="adminKickAllUsers()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm">
-                                踢出全部
+                                è¸¢å‡ºå…¨éƒ¨
                             </button>
                         </div>
                     </div>
@@ -1245,15 +1245,15 @@
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b bg-gray-50">
-                                    <th class="text-left py-2 px-3">用戶</th>
+                                    <th class="text-left py-2 px-3">ç”¨æˆ¶</th>
                                     <th class="text-left py-2 px-3 hidden md:table-cell">LINE ID</th>
-                                    <th class="text-center py-2 px-3">登入</th>
-                                    <th class="text-center py-2 px-3">狀態</th>
-                                    <th class="text-center py-2 px-3">操作</th>
+                                    <th class="text-center py-2 px-3">ç™»å…¥</th>
+                                    <th class="text-center py-2 px-3">ç‹€æ…‹</th>
+                                    <th class="text-center py-2 px-3">æ“ä½œ</th>
                                 </tr>
                             </thead>
                             <tbody id="adminUserList">
-                                <tr><td colspan="5" class="text-center py-4 text-gray-400">點擊「搜尋」載入用戶</td></tr>
+                                <tr><td colspan="5" class="text-center py-4 text-gray-400">é»žæ“Šã€Œæœå°‹ã€è¼‰å…¥ç”¨æˆ¶</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1264,23 +1264,23 @@
         <nav class="mobile-bottom-nav">
             <a href="#" onclick="mobileNavTo('dashboard')" class="bottom-nav-item active" data-section="dashboard">
                 <i class="fas fa-tachometer-alt"></i>
-                <span>首頁</span>
+                <span>é¦–é </span>
             </a>
             <a href="#" onclick="mobileNavTo('search')" class="bottom-nav-item" data-section="search">
                 <i class="fas fa-search"></i>
-                <span>查詢</span>
+                <span>æŸ¥è©¢</span>
             </a>
             <a href="#" onclick="mobileNavTo('watchlist')" class="bottom-nav-item" data-section="watchlist">
                 <i class="fas fa-star"></i>
-                <span>追蹤</span>
+                <span>è¿½è¹¤</span>
             </a>
             <a href="#" onclick="mobileNavTo('sentiment')" class="bottom-nav-item" data-section="sentiment">
                 <i class="fas fa-heart-pulse"></i>
-                <span>情緒</span>
+                <span>æƒ…ç·’</span>
             </a>
             <a href="#" onclick="mobileNavTo('settings')" class="bottom-nav-item" data-section="settings">
                 <i class="fas fa-cog"></i>
-                <span>設定</span>
+                <span>è¨­å®š</span>
             </a>
         </nav>
     </div>
@@ -1291,6 +1291,7 @@
     <script src="/static/js/modals.js"></script>
     <script src="/static/js/dashboard.js"></script>
     <script src="/static/js/search.js"></script>
+    <script src="/static/js/chart-fix.js"></script>
     <script src="/static/js/tags.js"></script>
     <script src="/static/js/watchlist.js"></script>
     <script src="/static/js/portfolio.js"></script>
