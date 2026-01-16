@@ -1,6 +1,10 @@
 /**
  * 標籤管理模組
  * P1 功能：追蹤清單分組 Tag
+ * 
+ * 🔧 修復版本 - 2026-01-16
+ * - 新增 selectTagColor 函數
+ * - 新增 selectTagIcon 函數
  */
 
 (function() {
@@ -13,6 +17,7 @@
     let userTags = [];
     let currentEditTagId = null;
     let currentAssignWatchlistId = null;
+    let currentFilterTagId = null;
     
     // ============================================================
     // 標籤 CRUD
@@ -264,6 +269,66 @@
     }
     
     // ============================================================
+    // 🆕 顏色/圖示選擇函數（修復新增）
+    // ============================================================
+    
+    /**
+     * 選擇標籤顏色
+     * 點擊顏色圓圈時呼叫，更新 hidden input 並高亮選中的顏色
+     */
+    function selectTagColor(color) {
+        // 1. 更新 hidden input 的值
+        const input = document.getElementById('tagColorInput');
+        if (input) input.value = color;
+        
+        // 2. 清除所有按鈕的選中樣式
+        const buttons = document.querySelectorAll('#tagColorOptions button');
+        buttons.forEach(btn => {
+            btn.classList.remove('ring-2', 'ring-offset-2');
+        });
+        
+        // 3. 找到對應顏色的按鈕並加上選中樣式
+        const hexToRgb = (hex) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result 
+                ? `rgb(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)})` 
+                : null;
+        };
+        
+        buttons.forEach(btn => {
+            const computedColor = window.getComputedStyle(btn).backgroundColor;
+            if (computedColor === hexToRgb(color)) {
+                btn.classList.add('ring-2', 'ring-offset-2');
+            }
+        });
+    }
+
+    /**
+     * 選擇標籤圖示
+     * 點擊圖示按鈕時呼叫，更新 hidden input 並高亮選中的圖示
+     */
+    function selectTagIcon(icon) {
+        // 1. 更新 hidden input 的值
+        const input = document.getElementById('tagIconInput');
+        if (input) input.value = icon;
+        
+        // 2. 清除所有按鈕的選中樣式
+        document.querySelectorAll('#tagIconOptions button').forEach(btn => {
+            btn.classList.remove('border-2', 'border-blue-500', 'bg-blue-50', 'text-blue-500');
+            btn.classList.add('border', 'border-gray-200', 'text-gray-400');
+        });
+        
+        // 3. 找到對應圖示的按鈕並加上選中樣式
+        document.querySelectorAll('#tagIconOptions button').forEach(btn => {
+            const iconEl = btn.querySelector('i');
+            if (iconEl && iconEl.classList.contains(icon)) {
+                btn.classList.remove('border', 'border-gray-200', 'text-gray-400');
+                btn.classList.add('border-2', 'border-blue-500', 'bg-blue-50', 'text-blue-500');
+            }
+        });
+    }
+    
+    // ============================================================
     // Modal 控制
     // ============================================================
     
@@ -279,6 +344,10 @@
         if (nameInput) nameInput.value = '';
         if (colorInput) colorInput.value = '#3B82F6';
         if (iconInput) iconInput.value = 'fa-tag';
+        
+        // 重置顏色選擇器的視覺狀態
+        selectTagColor('#3B82F6');
+        selectTagIcon('fa-tag');
         
         if (modal) {
             modal.classList.remove('hidden');
@@ -301,6 +370,10 @@
         if (nameInput) nameInput.value = tag.name;
         if (colorInput) colorInput.value = tag.color;
         if (iconInput) iconInput.value = tag.icon;
+        
+        // 設定顏色選擇器的視覺狀態
+        selectTagColor(tag.color);
+        selectTagIcon(tag.icon);
         
         if (modal) {
             modal.classList.remove('hidden');
@@ -387,10 +460,8 @@
             <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                 <input type="checkbox" class="assign-tag-checkbox w-5 h-5 rounded" 
                        value="${tag.id}" ${currentTagIds.has(tag.id) ? 'checked' : ''}>
-                <span class="ml-3 flex items-center">
-                    <i class="fas ${tag.icon} mr-2" style="color: ${tag.color}"></i>
-                    <span class="font-medium">${tag.name}</span>
-                </span>
+                <i class="fas ${tag.icon} ml-3 mr-2" style="color: ${tag.color}"></i>
+                <span>${tag.name}</span>
             </label>
         `).join('');
     }
@@ -415,14 +486,13 @@
     }
     
     // ============================================================
-    // 標籤篩選
+    // 篩選功能
     // ============================================================
-    
-    let currentFilterTagId = null;
     
     function filterByTag(tagId) {
         currentFilterTagId = tagId;
-        // 重新渲染追蹤清單
+        
+        // 重新載入追蹤清單（帶篩選）
         if (typeof loadWatchlist === 'function') {
             loadWatchlist();
         }
@@ -457,5 +527,9 @@
     window.getFilterTagId = getFilterTagId;
     window.userTags = userTags;
     
-    console.log('🏷️ tags.js 模組已載入');
+    // 🆕 新增：暴露顏色/圖示選擇函數
+    window.selectTagColor = selectTagColor;
+    window.selectTagIcon = selectTagIcon;
+    
+    console.log('🏷️ tags.js 模組已載入（含選色/選圖示功能）');
 })();
