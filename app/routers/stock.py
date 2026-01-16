@@ -4,12 +4,13 @@
 🚀 效能優化版 - 2026-01-16
 - 歷史資料存入 PostgreSQL
 - 修正路由順序（具體路由在前）
+- 修正 returns API 格式符合前端期望
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 import logging
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -172,10 +173,10 @@ async def get_stock_returns(symbol: str):
     """
     計算股票的年化報酬率 (CAGR)
     
-    Returns:
-        - returns: 累積報酬率 (1m, 3m, 6m, 1y)
-        - cagr: 年化報酬率 (cagr_1y, cagr_3y, cagr_5y, cagr_10y)
+    返回格式符合前端 returns.js 期望
     """
+    from app.data_sources.yahoo_finance import yahoo_finance
+    
     symbol = normalize_tw_symbol(symbol)
     logger.info(f"計算年化報酬率: {symbol}")
     
@@ -190,50 +191,66 @@ async def get_stock_returns(symbol: str):
         # 使用調整後價格計算報酬
         price_col = 'adj_close' if 'adj_close' in df.columns else 'close'
         
+        # 確保 date 欄位存在
+        if 'date' not in df.columns:
+            df['date'] = df.index
+        
         current_price = float(df.iloc[-1][price_col])
+        current_date = str(df.iloc[-1]['date'])
         
-        # 累積報酬率
-        def calc_return(days):
-            if len(df) > days:
-                old_price = float(df.iloc[-days-1][price_col])
-                if old_price > 0:
-                    return round((current_price - old_price) / old_price * 100, 2)
-            return None
+        # 取得股票名稱
+        info = yahoo_finance.get_stock_info(symbol)
+        stock_name = info.get("name", symbol) if info else symbol
+        if not stock_name:
+            from app.data_sources.yahoo_finance import TAIWAN_STOCK_NAMES
+            stock_code = symbol.replace(".TW", "").replace(".TWO", "")
+            stock_name = TAIWAN_STOCK_NAMES.get(stock_code, symbol)
         
-        returns = {
-            "1m": calc_return(22),
-            "3m": calc_return(65),
-            "6m": calc_return(130),
-            "1y": calc_return(252),
-        }
-        
-        # CAGR 計算
-        def calc_cagr(years):
+        # 計算各期間報酬率（符合前端期望格式）
+        def calc_period_return(years):
             days = years * 252
-            if len(df) > days:
-                start_price = float(df.iloc[-days-1][price_col])
-                if start_price > 0:
-                    cagr = ((current_price / start_price) ** (1 / years) - 1) * 100
-                    return round(cagr, 2)
-            return None
+            if len(df) <= days:
+                return None
+            
+            start_idx = -days - 1
+            start_row = df.iloc[start_idx]
+            start_price = float(start_row[price_col])
+            start_date = str(start_row['date'])
+            
+            if start_price <= 0:
+                return None
+            
+            # 計算 CAGR
+            cagr = ((current_price / start_price) ** (1 / years) - 1) * 100
+            
+            return {
+                "cagr": round(cagr, 2),
+                "start_date": start_date,
+                "start_price": round(start_price, 2),
+                "end_price": round(current_price, 2),
+                "dividend_count": 0,  # 配息次數（adj_close 已包含）
+                "total_dividends": 0.0,  # 總配息（已反映在價格中）
+            }
         
-        cagr = {
-            "cagr_1y": calc_cagr(1),
-            "cagr_3y": calc_cagr(3),
-            "cagr_5y": calc_cagr(5),
-            "cagr_10y": calc_cagr(10),
-        }
+        returns = {}
+        for period_name, years in [("1Y", 1), ("3Y", 3), ("5Y", 5), ("10Y", 10)]:
+            result = calc_period_return(years)
+            if result:
+                returns[period_name] = result
         
         return {
             "success": True,
-            "symbol": symbol,
-            "returns": returns,
-            "cagr": cagr,
-            "note": "CAGR 已包含分割調整及配息再投入效果",
+            "data": {
+                "symbol": symbol,
+                "name": stock_name,
+                "current_price": round(current_price, 2),
+                "current_date": current_date,
+                "returns": returns,
+            }
         }
         
     except Exception as e:
-        logger.error(f"計算 {symbol} 年化報酬率失敗: {e}")
+        logger.error(f"計算 {symbol} 年化報酬率失敗: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"計算失敗: {str(e)}")
 
 
