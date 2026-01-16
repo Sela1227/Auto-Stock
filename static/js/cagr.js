@@ -5,6 +5,26 @@
 // 選中的標的
 let cagrSelectedSymbols = [];
 
+// 預設組合
+const CAGR_PRESETS = {
+    'mag7': {
+        name: '科技七雄 (MAG7)',
+        symbols: ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA']
+    },
+    'indices': {
+        name: '美股三大指數',
+        symbols: ['^GSPC', '^DJI', '^IXIC']
+    },
+    'tw_etf': {
+        name: '台股熱門 ETF',
+        symbols: ['0050.TW', '0056.TW', '00878.TW', '00919.TW']
+    },
+    'crypto': {
+        name: '加密貨幣',
+        symbols: ['BTC-USD', 'ETH-USD', 'SOL-USD']
+    }
+};
+
 // ==================== 初始化 ====================
 function initCagr() {
     cagrLoadPresets();
@@ -12,25 +32,30 @@ function initCagr() {
 }
 
 // ==================== 預設組合 ====================
-async function cagrLoadPresets() {
-    try {
-        const res = await fetch('/api/compare/presets');
-        const data = await res.json();
-        
-        if (data.success) {
-            const container = document.getElementById('cagrPresetList');
-            container.innerHTML = data.presets.map(preset => `
-                <button onclick="cagrQuickCompare('${preset.id}')" 
-                    class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition flex justify-between items-center text-sm">
-                    <span>${preset.name}</span>
-                    <span class="text-xs text-gray-400">${preset.count}個</span>
-                </button>
-            `).join('');
-        }
-    } catch (e) {
-        console.error('載入預設組合失敗', e);
-        document.getElementById('cagrPresetList').innerHTML = '<p class="text-red-400 text-sm">載入失敗</p>';
+function cagrLoadPresets() {
+    const container = document.getElementById('cagrPresetList');
+    if (!container) return;
+    
+    container.innerHTML = Object.entries(CAGR_PRESETS).map(([id, preset]) => `
+        <button onclick="cagrLoadPreset('${id}')" 
+            class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition flex justify-between items-center text-sm">
+            <span>${preset.name}</span>
+            <span class="text-xs text-gray-400">${preset.symbols.length}個</span>
+        </button>
+    `).join('');
+}
+
+function cagrLoadPreset(presetId) {
+    const preset = CAGR_PRESETS[presetId];
+    if (!preset) {
+        showToast('找不到預設組合', 'error');
+        return;
     }
+    
+    // 限制最多 5 個
+    cagrSelectedSymbols = preset.symbols.slice(0, 5);
+    cagrRenderSelectedSymbols();
+    cagrRunComparison();
 }
 
 async function cagrQuickCompare(presetId) {

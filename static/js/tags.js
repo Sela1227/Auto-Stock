@@ -227,7 +227,7 @@
     }
     
     /**
-     * 渲染標籤選擇徽章（用於追蹤清單卡片）
+     * 渲染標籤 badges
      */
     function renderTagBadges(tags) {
         if (!tags || tags.length === 0) return '';

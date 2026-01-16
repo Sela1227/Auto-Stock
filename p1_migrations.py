@@ -169,7 +169,7 @@ def run_p1_migrations(db: Session) -> dict:
         try:
             db.execute(text("""
                 CREATE TABLE IF NOT EXISTS watchlist_tags (
-                    watchlist_id INTEGER NOT NULL REFERENCES watchlist(id) ON DELETE CASCADE,
+                    watchlist_id INTEGER NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
                     tag_id INTEGER NOT NULL REFERENCES user_tags(id) ON DELETE CASCADE,
                     PRIMARY KEY (watchlist_id, tag_id)
                 )
@@ -186,23 +186,23 @@ def run_p1_migrations(db: Session) -> dict:
                 logger.error(f"❌ watchlist_tags 建立失敗: {e}")
         
         # ============================================================
-        # 4. 檢查 watchlist 表是否有 target_price 欄位
+        # 4. 檢查 watchlists 表是否有 target_price 欄位
         # ============================================================
         try:
             # 檢查欄位是否存在
             result = db.execute(text("""
                 SELECT column_name FROM information_schema.columns 
-                WHERE table_name = 'watchlist' AND column_name = 'target_price'
+                WHERE table_name = 'watchlists' AND column_name = 'target_price'
             """))
             if not result.fetchone():
                 db.execute(text("""
-                    ALTER TABLE watchlist ADD COLUMN target_price DECIMAL(20, 8)
+                    ALTER TABLE watchlists ADD COLUMN target_price DECIMAL(20, 8)
                 """))
                 db.commit()
-                results["columns_added"].append("watchlist.target_price")
-                logger.info("✅ watchlist.target_price 欄位已新增")
+                results["columns_added"].append("watchlists.target_price")
+                logger.info("✅ watchlists.target_price 欄位已新增")
             else:
-                logger.info("ℹ️ watchlist.target_price 欄位已存在")
+                logger.info("ℹ️ watchlists.target_price 欄位已存在")
         except Exception as e:
             if "already exists" in str(e).lower():
                 pass

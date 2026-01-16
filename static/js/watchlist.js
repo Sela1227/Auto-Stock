@@ -1,6 +1,8 @@
 /**
  * 追蹤清單模組
  * 包含：清單顯示、新增刪除、匯出匯入、目標價設定
+ * 
+ * 🆕 2026-01-16: 整合標籤功能
  */
 
 (function() {
@@ -13,6 +15,9 @@
     let watchlistData = [];
     let sortConfig = JSON.parse(localStorage.getItem('watchlistSort') || '{"field":"added_at","order":"desc"}');
     let currentTargetItemId = null;
+    
+    // 🆕 標籤相關
+    let watchlistTagsMap = {};  // { watchlistId: [tag1, tag2, ...] }
     
     // ============================================================
     // 排序功能
@@ -111,9 +116,27 @@
         if (!container) return;
         
         watchlistData = data;
-        const sortedData = sortWatchlistData(data);
         
-        let html = renderSortControls();
+        // 🆕 標籤篩選
+        const filterTagId = typeof getFilterTagId === 'function' ? getFilterTagId() : null;
+        let filteredData = data;
+        
+        if (filterTagId) {
+            filteredData = data.filter(item => {
+                const itemTags = watchlistTagsMap[item.id] || [];
+                return itemTags.some(t => t.id === filterTagId);
+            });
+        }
+        
+        const sortedData = sortWatchlistData(filteredData);
+        
+        // 🆕 標籤篩選器
+        let html = '';
+        if (typeof renderTagFilter === 'function') {
+            html += renderTagFilter(filterTagId);
+        }
+        
+        html += renderSortControls();
         html += '<div class="space-y-3">';
         
         for (const item of sortedData) {
@@ -164,6 +187,10 @@
             const isTw = item.symbol.includes('.TW') || /^\d+$/.test(item.symbol);
             const market = isTw ? 'tw' : 'us';
             
+            // 🆕 渲染標籤 badges
+            const itemTags = watchlistTagsMap[item.id] || [];
+            const tagBadges = typeof renderTagBadges === 'function' ? renderTagBadges(itemTags) : '';
+            
             const tradeButtons = isCrypto ? '' : `
                 <div class="flex gap-2 mr-2">
                     <button onclick="quickTrade('${item.symbol}', '${item.name || ''}', '${market}', 'buy')" 
@@ -185,16 +212,27 @@
                 </button>
             `;
             
+            // 🆕 標籤按鈕
+            const tagBtn = `
+                <button onclick="showAssignTagModal(${item.id}, '${item.symbol}')" 
+                        class="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 touch-target mr-2"
+                        title="設定標籤">
+                    <i class="fas fa-tags"></i>
+                </button>
+            `;
+            
             html += `
                 <div class="stock-card bg-white rounded-xl shadow-sm p-4 border-l-4 ${cardBorderClass}">
                     <div class="flex items-start justify-between">
                         <div class="flex-1">
-                            <div class="flex items-center flex-wrap">
+                            <div class="flex items-center flex-wrap gap-1">
                                 <span class="font-bold text-lg text-gray-800">${item.symbol}</span>
-                                <span class="ml-2 px-2 py-0.5 rounded text-xs ${typeClass}">${typeText}</span>
-                                ${targetReached ? '<span class="ml-2 px-2 py-0.5 rounded text-xs bg-yellow-500 text-white"><i class="fas fa-bell"></i> 到價</span>' : ''}
+                                <span class="px-2 py-0.5 rounded text-xs ${typeClass}">${typeText}</span>
+                                ${targetReached ? '<span class="px-2 py-0.5 rounded text-xs bg-yellow-500 text-white"><i class="fas fa-bell"></i> 到價</span>' : ''}
                                 ${nameDisplay}
                             </div>
+                            <!-- 🆕 標籤顯示 -->
+                            ${tagBadges ? `<div class="flex flex-wrap gap-1 mt-1">${tagBadges}</div>` : ''}
                             ${priceInfo}
                             ${item.note ? `<p class="text-gray-500 text-sm mt-2 italic"><i class="fas fa-sticky-note mr-1"></i>${item.note}</p>` : ''}
                         </div>
@@ -205,6 +243,7 @@
                     <div class="flex items-center justify-between mt-3 pt-3 border-t flex-wrap gap-2">
                         <span class="text-gray-400 text-xs"><i class="fas fa-clock mr-1"></i>加入於 ${new Date(item.added_at).toLocaleDateString()}</span>
                         <div class="flex items-center">
+                            ${tagBtn}
                             ${targetPriceBtn}
                             ${tradeButtons}
                             <button onclick="searchSymbol('${item.symbol}')" class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 touch-target">
@@ -246,6 +285,11 @@
         }
         
         try {
+            // 🆕 同時載入標籤
+            if (typeof loadTags === 'function') {
+                await loadTags();
+            }
+            
             const res = await apiRequest('/api/watchlist/with-prices');
             const data = await res.json();
             
@@ -264,6 +308,9 @@
                 return;
             }
             
+            // 🆕 載入每個追蹤項目的標籤
+            await loadAllWatchlistTags(data.data);
+            
             renderWatchlistCards(data.data);
             
         } catch (e) {
@@ -272,6 +319,25 @@
                 container.innerHTML = '<p class="text-red-500 text-center py-4">載入失敗，請稍後再試</p>';
             }
         }
+    }
+    
+    // 🆕 載入所有追蹤項目的標籤
+    async function loadAllWatchlistTags(items) {
+        watchlistTagsMap = {};
+        
+        // 批次載入（避免太多請求）
+        const promises = items.map(async item => {
+            try {
+                if (typeof getWatchlistTags === 'function') {
+                    const tags = await getWatchlistTags(item.id);
+                    watchlistTagsMap[item.id] = tags;
+                }
+            } catch (e) {
+                watchlistTagsMap[item.id] = [];
+            }
+        });
+        
+        await Promise.all(promises);
     }
     
     async function addToWatchlist() {
@@ -392,94 +458,100 @@
         
         try {
             const res = await apiRequest(`/api/watchlist/export?format=${format}`);
-            
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.detail || '匯出失敗');
-            }
-            
             const blob = await res.blob();
-            const filename = res.headers.get('Content-Disposition')?.split('filename=')[1] || `watchlist.${format}`;
             
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = filename;
+            a.download = `watchlist.${format}`;
             document.body.appendChild(a);
             a.click();
-            a.remove();
+            document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            showToast('匯出成功！');
+            showToast('匯出成功');
         } catch (e) {
             console.error('匯出失敗:', e);
-            showToast(e.message || '匯出失敗');
+            showToast('匯出失敗');
         }
     }
     
-    function previewWatchlistFile(input) {
-        const file = input.files[0];
+    function previewWatchlistFile(event) {
+        const file = event.target.files[0];
         if (!file) return;
         
         const preview = document.getElementById('importWatchlistPreview');
-        const reader = new FileReader();
+        if (!preview) return;
         
+        const reader = new FileReader();
         reader.onload = function(e) {
             try {
                 let items = [];
                 const content = e.target.result;
                 
                 if (file.name.endsWith('.json')) {
-                    const data = JSON.parse(content);
-                    items = data.items || data;
+                    items = JSON.parse(content);
                 } else if (file.name.endsWith('.csv')) {
                     const lines = content.split('\n').filter(l => l.trim());
-                    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+                    const headers = lines[0].split(',').map(h => h.trim());
                     
                     for (let i = 1; i < lines.length; i++) {
-                        const values = lines[i].split(',');
-                        const obj = {};
-                        headers.forEach((h, idx) => obj[h] = values[idx]?.trim());
-                        if (obj.symbol) items.push(obj);
+                        const values = lines[i].split(',').map(v => v.trim());
+                        const item = {};
+                        headers.forEach((h, idx) => {
+                            item[h] = values[idx];
+                        });
+                        items.push(item);
                     }
                 }
                 
                 preview.innerHTML = `
-                    <div class="p-3 bg-green-50 rounded-lg">
-                        <p class="text-green-700 font-medium"><i class="fas fa-check-circle mr-2"></i>找到 ${items.length} 筆資料</p>
-                        <p class="text-sm text-gray-600 mt-1">代號: ${items.slice(0, 5).map(i => i.symbol).join(', ')}${items.length > 5 ? '...' : ''}</p>
+                    <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-2">預覽 (${items.length} 筆):</p>
+                        <ul class="text-sm space-y-1 max-h-40 overflow-y-auto">
+                            ${items.slice(0, 10).map(item => `
+                                <li class="flex justify-between">
+                                    <span class="font-medium">${item.symbol}</span>
+                                    <span class="text-gray-500">${item.asset_type || 'stock'}</span>
+                                </li>
+                            `).join('')}
+                            ${items.length > 10 ? `<li class="text-gray-400">...還有 ${items.length - 10} 筆</li>` : ''}
+                        </ul>
                     </div>
                 `;
-                preview.dataset.items = JSON.stringify(items);
             } catch (err) {
-                preview.innerHTML = `<p class="text-red-500"><i class="fas fa-times-circle mr-2"></i>檔案解析失敗: ${err.message}</p>`;
+                preview.innerHTML = '<p class="text-red-500 text-sm mt-2">檔案格式錯誤</p>';
             }
         };
-        
         reader.readAsText(file);
     }
     
     async function importWatchlist() {
-        const preview = document.getElementById('importWatchlistPreview');
-        const itemsStr = preview?.dataset?.items;
+        const fileInput = document.getElementById('importWatchlistFile');
+        const file = fileInput?.files[0];
         
-        if (!itemsStr) {
-            showToast('請先選擇檔案');
+        if (!file) {
+            showToast('請選擇檔案');
             return;
         }
         
+        const formData = new FormData();
+        formData.append('file', file);
+        
         try {
-            const items = JSON.parse(itemsStr);
-            
-            const res = await apiRequest('/api/watchlist/import', {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/watchlist/import', {
                 method: 'POST',
-                body: { items }
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
             });
             
             const data = await res.json();
             
             if (data.success) {
-                showToast(data.message);
+                showToast(`匯入成功: ${data.imported} 筆`);
                 hideImportWatchlistModal();
                 loadWatchlist();
                 if (typeof loadWatchlistOverview === 'function') {
@@ -500,17 +572,19 @@
     
     function showTargetPriceModal(itemId, symbol, currentTarget) {
         currentTargetItemId = itemId;
-        const symbolEl = document.getElementById('targetPriceSymbol');
-        const inputEl = document.getElementById('targetPriceInput');
+        
         const modal = document.getElementById('targetPriceModal');
+        const symbolEl = document.getElementById('targetPriceSymbol');
+        const input = document.getElementById('targetPriceInput');
         
         if (symbolEl) symbolEl.textContent = symbol;
-        if (inputEl) inputEl.value = currentTarget || '';
+        if (input) input.value = currentTarget || '';
+        
         if (modal) {
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+            if (input) input.focus();
         }
-        if (inputEl) inputEl.focus();
     }
     
     function hideTargetPriceModal() {
@@ -526,18 +600,23 @@
         if (!currentTargetItemId) return;
         
         const input = document.getElementById('targetPriceInput');
-        const targetPrice = input?.value ? parseFloat(input.value) : null;
+        const price = parseFloat(input?.value);
+        
+        if (isNaN(price) || price <= 0) {
+            showToast('請輸入有效價格');
+            return;
+        }
         
         try {
             const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target-price`, {
                 method: 'PUT',
-                body: { target_price: targetPrice }
+                body: { target_price: price }
             });
             
             const data = await res.json();
             
             if (data.success) {
-                showToast(data.message);
+                showToast('目標價已設定');
                 hideTargetPriceModal();
                 loadWatchlist();
             } else {
@@ -551,37 +630,44 @@
     
     async function clearTargetPrice() {
         if (!currentTargetItemId) return;
-        const input = document.getElementById('targetPriceInput');
-        if (input) input.value = '';
-        await saveTargetPrice();
+        
+        try {
+            const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target-price`, {
+                method: 'DELETE'
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                showToast('已清除目標價');
+                hideTargetPriceModal();
+                loadWatchlist();
+            } else {
+                showToast(data.detail || '清除失敗');
+            }
+        } catch (e) {
+            console.error('清除目標價失敗:', e);
+            showToast('清除失敗');
+        }
     }
     
     // ============================================================
-    // 🆕 快速新增到追蹤清單（從其他頁面呼叫）
+    // 快速新增（從訂閱精選）
     // ============================================================
     
-    async function quickAddToWatchlist(symbol, assetType = 'stock') {
-        const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : window.currentUser;
-        
-        if (!currentUser || !currentUser.id) {
-            showToast('請先登入');
-            return;
-        }
+    async function quickAddToWatchlist(symbol) {
+        if (!symbol) return;
         
         try {
             const res = await apiRequest('/api/watchlist', {
                 method: 'POST',
-                body: { symbol, asset_type: assetType, note: '' }
+                body: { symbol: symbol.toUpperCase(), asset_type: 'stock' }
             });
             
             const data = await res.json();
             
             if (data.success) {
                 showToast(`${symbol} 已加入追蹤清單`);
-                // 重新載入追蹤清單（如果在該頁面）
-                if (typeof loadWatchlist === 'function') {
-                    loadWatchlist();
-                }
                 if (typeof loadWatchlistOverview === 'function') {
                     loadWatchlistOverview();
                 }
@@ -721,5 +807,5 @@
     window.clearTargetPrice = clearTargetPrice;
     window.quickAddToWatchlist = quickAddToWatchlist;
     
-    console.log('⭐ watchlist.js 模組已載入');
+    console.log('⭐ watchlist.js 模組已載入（含標籤整合）');
 })();
