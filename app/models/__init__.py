@@ -16,7 +16,13 @@ from app.models.index_price import IndexPrice, INDEX_SYMBOLS
 from app.models.dividend_history import DividendHistory
 from app.models.comparison import Comparison
 from app.models.price_cache import StockPriceCache
-from app.models.portfolio import PortfolioTransaction, PortfolioHolding, ExchangeRate  # 🆕 個人投資記錄
+from app.models.portfolio import PortfolioTransaction, PortfolioHolding, ExchangeRate
+
+# 🏷️ P1: 標籤功能 - 必須在 Watchlist 之後 import
+from app.models.watchlist_tag import UserTag, watchlist_tags
+
+# 📊 P1: 股票資訊種子表
+from app.models.stock_info import StockInfo
 
 __all__ = [
     "StockPrice",
@@ -36,7 +42,11 @@ __all__ = [
     "DividendHistory",
     "Comparison",
     "StockPriceCache",
-    "PortfolioTransaction",  # 🆕 個人投資記錄
-    "PortfolioHolding",      # 🆕 個人投資記錄
-    "ExchangeRate",          # 🆕 匯率
+    "PortfolioTransaction",
+    "PortfolioHolding",
+    "ExchangeRate",
+    # P1
+    "UserTag",
+    "watchlist_tags",
+    "StockInfo",
 ]
