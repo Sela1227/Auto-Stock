@@ -11,7 +11,6 @@
     <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 <body class="bg-gray-100">
-    <!-- 載入畫面 -->
     <div id="loading-screen" class="fixed inset-0 bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center z-50">
         <div class="text-center">
             <img src="/static/logo.png" alt="SELA" class="w-24 h-24 mx-auto mb-4 rounded-xl">
@@ -19,14 +18,10 @@
             <i class="fas fa-spinner fa-spin text-white text-2xl mt-4"></i>
         </div>
     </div>
-
-    <!-- 主應用程式內容 -->
     <div id="app-content">
         
-        <!-- ===== 手機版側邊選單遮罩 ===== -->
         <div id="sidebarOverlay" class="mobile-sidebar-overlay" onclick="closeMobileSidebar()"></div>
         
-        <!-- ===== 手機版側邊選單 ===== -->
         <aside id="mobileSidebar" class="mobile-sidebar">
             <div class="p-4 border-b flex items-center justify-between">
                 <div class="flex items-center">
@@ -92,25 +87,20 @@
             </div>
         </aside>
         
-        <!-- ===== 頂部導覽列 ===== -->
         <nav class="top-nav bg-white shadow-sm border-b">
             <div class="px-4 h-14 flex items-center justify-between">
-                <!-- 手機版: 漢堡選單按鈕 -->
                 <button onclick="openMobileSidebar()" class="mobile-header-menu p-2 -ml-2 text-gray-600 touch-target">
                     <i class="fas fa-bars text-xl"></i>
                 </button>
                 
-                <!-- Logo -->
                 <div class="flex items-center">
                     <img src="/static/logo.png" alt="SELA" class="w-8 h-8 rounded-lg mr-2">
                     <span class="font-bold text-lg text-gray-800 hidden sm:inline">自動選股系統</span>
                     <span class="font-bold text-lg text-gray-800 sm:hidden">SELA</span>
                 </div>
                 
-                <!-- 右側資訊 -->
                 <div class="flex items-center space-x-2">
                     <span id="sessionTimer" class="text-xs text-gray-400 hidden sm:inline"></span>
-                    <!-- 管理員入口 -->
                     <a id="adminLink" href="#" onclick="showSection('admin', event)" class="text-orange-500 hover:text-orange-600 hidden p-2" title="管理後台">
                         <i class="fas fa-user-shield"></i>
                     </a>
@@ -122,8 +112,6 @@
                 </div>
             </div>
         </nav>
-
-        <!-- ===== 電腦版側邊欄 ===== -->
         <aside class="desktop-sidebar bg-white shadow-sm">
             <nav class="p-4 space-y-2">
                 <a href="#" onclick="showSection('dashboard', event)" class="nav-link flex items-center px-4 py-2 text-gray-700 bg-blue-50 rounded-lg" data-section="dashboard">
@@ -162,22 +150,17 @@
                     <i class="fas fa-cog mr-3"></i>
                     <span>設定</span>
                 </a>
-                <!-- 管理員入口 (預設隱藏) -->
                 <a id="adminSidebarLink" href="#" onclick="showSection('admin', event)" class="hidden flex items-center px-4 py-2 text-orange-500 hover:bg-orange-50 rounded-lg mt-4 border-t pt-4" data-section="admin">
                     <i class="fas fa-user-shield mr-3"></i>
                     <span>管理後台</span>
                 </a>
             </nav>
         </aside>
-
-        <!-- ===== 主區域 ===== -->
         <main class="main-content">
             
-            <!-- ===== 儀表板區塊 ===== -->
             <section id="section-dashboard" class="section">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">儀表板</h2>
                 
-                <!-- ===== 比特幣價格卡片（第一項）===== -->
                 <div class="mb-4 md:mb-6">
                     <div id="btc-price-card" class="bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl p-4 md:p-5 text-white shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 relative overflow-hidden" onclick="showSection('search', event); setTimeout(() => { document.getElementById('searchSymbol').value='BTC'; searchStock(); }, 100);">
                         <div class="flex items-center justify-between">
@@ -200,9 +183,7 @@
                     </div>
                 </div>
                 
-                <!-- 指數卡片 (4個) -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 md:mb-6">
-                    <!-- S&P 500 -->
                     <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^GSPC', 'S&P 500')">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
@@ -223,7 +204,6 @@
                         <p id="index-GSPC-date" class="text-xs text-gray-400 mt-1"></p>
                     </div>
                     
-                    <!-- 道瓊工業 -->
                     <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^DJI', '道瓊工業')">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
@@ -244,7 +224,6 @@
                         <p id="index-DJI-date" class="text-xs text-gray-400 mt-1"></p>
                     </div>
                     
-                    <!-- 納斯達克 -->
                     <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^IXIC', '納斯達克')">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
@@ -265,7 +244,6 @@
                         <p id="index-IXIC-date" class="text-xs text-gray-400 mt-1"></p>
                     </div>
                     
-                    <!-- 台股加權 -->
                     <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^TWII', '台股加權')">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
@@ -287,9 +265,7 @@
                     </div>
                 </div>
                 
-                <!-- 恐懼貪婪指數卡片 -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
-                    <!-- 美股恐懼貪婪指數 -->
                     <div class="bg-white rounded-xl shadow p-4 md:p-6 cursor-pointer hover:shadow-lg transition-shadow" onclick="openSentimentModal('stock', '美股恐懼貪婪指數')">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-semibold text-gray-700 text-sm md:text-base">
@@ -297,7 +273,6 @@
                             </h3>
                             <i class="fas fa-chart-area text-gray-300"></i>
                         </div>
-                        <!-- 簡潔儀表盤 -->
                         <div class="fear-greed-gauge" id="stockGauge">
                             <svg viewBox="0 0 200 115" class="gauge-svg">
                                 <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
@@ -322,7 +297,6 @@
                         <p class="text-xs text-blue-500 text-center mt-2"><i class="fas fa-chart-line mr-1"></i>點擊查看走勢</p>
                     </div>
                     
-                    <!-- 幣圈恐懼貪婪指數 -->
                     <div class="bg-white rounded-xl shadow p-4 md:p-6 cursor-pointer hover:shadow-lg transition-shadow" onclick="openSentimentModal('crypto', '幣圈恐懼貪婪指數')">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-semibold text-gray-700 text-sm md:text-base">
@@ -330,7 +304,6 @@
                             </h3>
                             <i class="fas fa-chart-area text-gray-300"></i>
                         </div>
-                        <!-- 簡潔儀表盤 -->
                         <div class="fear-greed-gauge" id="cryptoGauge">
                             <svg viewBox="0 0 200 115" class="gauge-svg">
                                 <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
@@ -355,8 +328,6 @@
                         <p class="text-xs text-blue-500 text-center mt-2"><i class="fas fa-chart-line mr-1"></i>點擊查看走勢</p>
                     </div>
                 </div>
-
-                <!-- 追蹤清單快覽 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="font-semibold text-gray-700">追蹤清單</h3>
@@ -367,12 +338,9 @@
                     </div>
                 </div>
             </section>
-
-            <!-- ===== 股票查詢區塊 ===== -->
             <section id="section-search" class="section hidden">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">股票查詢</h2>
                 
-                <!-- 搜尋框 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4 md:mb-6">
                     <div class="flex flex-col sm:flex-row gap-3">
                         <input type="text" id="searchSymbol" placeholder="輸入股票代號（如 AAPL、2330）" 
@@ -386,16 +354,12 @@
                     <p class="text-gray-500 text-xs md:text-sm mt-2">支援美股、台股 (輸入純數字如 2330) 及加密貨幣 (BTC, ETH)</p>
                 </div>
                 
-                <!-- 搜尋結果 -->
                 <div id="searchResult" class="hidden"></div>
             </section>
-
-            <!-- ===== 追蹤清單區塊 ===== -->
             <section id="section-watchlist" class="section hidden">
                 <div class="flex items-center justify-between mb-4 md:mb-6">
                     <h2 class="text-xl md:text-2xl font-bold text-gray-800">追蹤清單</h2>
                     <div class="flex items-center gap-2">
-                        <!-- 🆕 匯出匯入按鈕 -->
                         <div class="relative">
                             <button onclick="toggleWatchlistMenu()" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg border hover:bg-gray-50" title="匯出匯入">
                                 <i class="fas fa-exchange-alt"></i>
@@ -423,20 +387,15 @@
                     <p class="text-gray-500 text-center py-4">載入中...</p>
                 </div>
             </section>
-
-            <!-- ===== 市場情緒區塊 ===== -->
             <section id="section-sentiment" class="section hidden">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">恐懼貪婪指數</h2>
                 <div id="sentimentContent">
                     <p class="text-gray-500 text-center py-4">載入中...</p>
                 </div>
             </section>
-
-            <!-- ===== 走勢比較區塊 ===== -->
             <section id="section-compare" class="section hidden">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">走勢比較</h2>
                 
-                <!-- 輸入區 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-plus-circle mr-2 text-blue-500"></i>
@@ -444,7 +403,6 @@
                     </h3>
                     <p class="text-gray-500 text-sm mb-4">輸入股票代號或指數（最多 5 個），以逗號分隔</p>
                     
-                    <!-- 快速選擇 -->
                     <div class="mb-4">
                         <span class="text-sm text-gray-600 mr-2">快速選擇：</span>
                         <button onclick="addCompareSymbol('^GSPC')" class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded mr-1 mb-1">S&P 500</button>
@@ -475,11 +433,9 @@
                         </button>
                     </div>
                     
-                    <!-- 已選標的 -->
                     <div id="selectedSymbols" class="flex flex-wrap gap-2 mt-3"></div>
                 </div>
                 
-                <!-- 圖表區 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <div id="compareChartContainer" class="hidden">
                         <div class="flex items-center justify-between mb-4">
@@ -503,7 +459,6 @@
                     </div>
                 </div>
                 
-                <!-- 比較結果表格 -->
                 <div id="compareResultTable" class="bg-white rounded-xl shadow p-4 md:p-6 hidden">
                     <h3 class="font-semibold text-gray-700 mb-4">
                         <i class="fas fa-table mr-2 text-purple-500"></i>
@@ -524,12 +479,9 @@
                     </div>
                 </div>
             </section>
-
-            <!-- ===== 個人投資記錄區塊 ===== -->
             <section id="section-portfolio" class="section hidden">
                 <div class="flex items-center justify-between mb-4 md:mb-6">
                     <h2 class="text-xl md:text-2xl font-bold text-gray-800">個人投資記錄</h2>
-                    <!-- 🆕 匯出匯入按鈕 -->
                     <div class="relative">
                         <button onclick="togglePortfolioMenu()" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg border hover:bg-gray-50" title="匯出匯入">
                             <i class="fas fa-exchange-alt mr-1"></i>
@@ -555,9 +507,7 @@
                     </div>
                 </div>
                 
-                <!-- 投資總覽（三區：台股、美股、合計）-->
                 <div class="space-y-3 mb-4 md:mb-6">
-                    <!-- 台股統計 -->
                     <div class="bg-gradient-to-r from-red-500 to-rose-500 rounded-xl p-4 text-white">
                         <div class="flex items-center mb-2">
                             <i class="fas fa-landmark mr-2"></i>
@@ -583,7 +533,6 @@
                         </div>
                     </div>
                     
-                    <!-- 美股統計 -->
                     <div class="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl p-4 text-white">
                         <div class="flex items-center mb-2">
                             <i class="fas fa-flag-usa mr-2"></i>
@@ -609,7 +558,6 @@
                         </div>
                     </div>
                     
-                    <!-- 合計（TWD）-->
                     <div class="bg-gradient-to-r from-purple-600 to-violet-600 rounded-xl p-4 text-white">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
@@ -644,7 +592,6 @@
                     </div>
                 </div>
                 
-                <!-- 分頁標籤 -->
                 <div class="flex border-b mb-4 overflow-x-auto">
                     <button onclick="switchPortfolioTab('holdings')" id="tabHoldings" class="px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-600 whitespace-nowrap">
                         持股總覽
@@ -657,9 +604,7 @@
                     </button>
                 </div>
                 
-                <!-- 持股內容 -->
                 <div id="portfolioHoldings" class="space-y-4">
-                    <!-- 台股 -->
                     <div class="bg-white rounded-xl shadow p-4 md:p-6">
                         <div class="flex items-center justify-between mb-4">
                             <div class="flex items-center">
@@ -680,7 +625,6 @@
                         </div>
                     </div>
                     
-                    <!-- 美股 -->
                     <div class="bg-white rounded-xl shadow p-4 md:p-6">
                         <div class="flex items-center justify-between mb-4">
                             <div class="flex items-center">
@@ -702,7 +646,6 @@
                     </div>
                 </div>
                 
-                <!-- 台股交易紀錄 -->
                 <div id="portfolioTwTransactions" class="hidden">
                     <div class="bg-white rounded-xl shadow p-4 md:p-6">
                         <div class="flex items-center justify-between mb-4">
@@ -719,7 +662,6 @@
                     </div>
                 </div>
                 
-                <!-- 美股交易紀錄 -->
                 <div id="portfolioUsTransactions" class="hidden">
                     <div class="bg-white rounded-xl shadow p-4 md:p-6">
                         <div class="flex items-center justify-between mb-4">
@@ -736,9 +678,7 @@
                     </div>
                 </div>
             </section>
-
             
-            <!-- ===== 訂閱精選區塊 ===== -->
             <section id="section-subscription" class="section hidden">
                 <div class="flex items-center justify-between mb-4 md:mb-6">
                     <h2 class="text-xl md:text-2xl font-bold text-gray-800">📡 訂閱精選</h2>
@@ -747,7 +687,6 @@
                     </button>
                 </div>
                 
-                <!-- 訂閱來源卡片 -->
                 <div id="subscriptionSourcesCard" class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-rss mr-2 text-orange-500"></i>
@@ -758,7 +697,6 @@
                     </div>
                 </div>
                 
-                <!-- 精選股票列表 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center justify-between">
                         <span>
@@ -772,12 +710,9 @@
                     </div>
                 </div>
             </section>
-
-            <!-- ===== 設定區塊 ===== -->
             <section id="section-settings" class="section hidden">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">設定</h2>
                 
-                <!-- 快速模板 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-magic mr-2 text-purple-500"></i>
@@ -798,8 +733,6 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- 指標顯示設定 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-chart-line mr-2 text-blue-500"></i>
@@ -861,8 +794,6 @@
                         <i class="fas fa-save mr-2"></i>儲存指標設定
                     </button>
                 </div>
-
-                <!-- 通知設定 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-bell mr-2 text-yellow-500"></i>
@@ -932,8 +863,6 @@
                         <i class="fas fa-save mr-2"></i>儲存通知設定
                     </button>
                 </div>
-
-                <!-- 指標參數 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-sliders-h mr-2 text-green-500"></i>
@@ -941,7 +870,6 @@
                     </h3>
                     <p class="text-gray-500 text-sm mb-4">自訂技術指標的計算參數</p>
                     
-                    <!-- 均線參數 -->
                     <div class="mb-6">
                         <h4 class="font-medium text-gray-600 mb-2">均線週期</h4>
                         <div class="grid grid-cols-3 gap-3">
@@ -960,7 +888,6 @@
                         </div>
                     </div>
                     
-                    <!-- RSI 參數 -->
                     <div class="mb-6">
                         <h4 class="font-medium text-gray-600 mb-2">RSI 參數</h4>
                         <div class="grid grid-cols-3 gap-3">
@@ -979,7 +906,6 @@
                         </div>
                     </div>
                     
-                    <!-- MACD 參數 -->
                     <div class="mb-6">
                         <h4 class="font-medium text-gray-600 mb-2">MACD 參數</h4>
                         <div class="grid grid-cols-3 gap-3">
@@ -998,7 +924,6 @@
                         </div>
                     </div>
                     
-                    <!-- 其他參數 -->
                     <div class="mb-6">
                         <h4 class="font-medium text-gray-600 mb-2">其他參數</h4>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1030,8 +955,6 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- 🆕 標籤管理 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-tags mr-2 text-blue-500"></i>
@@ -1042,8 +965,6 @@
                         <p class="text-gray-400 text-center py-4">載入中...</p>
                     </div>
                 </div>
-
-                <!-- 🆕 管理員工具 (管理員可見) -->
                 <div id="adminToolsSection" class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-tools mr-2 text-orange-500"></i>
@@ -1068,8 +989,6 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- 帳號資訊 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6">
                     <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
                         <i class="fas fa-user mr-2 text-gray-500"></i>
@@ -1094,24 +1013,18 @@
                     </button>
                 </div>
             </section>
-
-            <!-- ===== 報酬率比較區塊 ===== -->
             <section id="section-cagr" class="section hidden">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">
                     <i class="fas fa-trophy text-yellow-500 mr-2"></i>
                     報酬率比較
                 </h2>
                 
-                <!-- 說明卡片 -->
                 <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-4 md:p-6 mb-4 text-white">
                     <h3 class="text-lg font-bold mb-2">🏆 年化報酬率 (CAGR) 比較器</h3>
                     <p class="text-blue-100 text-sm">比較股票、加密貨幣、指數的長期投資報酬表現，找出最佳投資標的</p>
                 </div>
-
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                    <!-- 左側：選擇標的 -->
                     <div class="lg:col-span-1 space-y-4">
-                        <!-- 快速選擇預設組合 -->
                         <div class="bg-white rounded-xl shadow p-4">
                             <h3 class="font-bold text-gray-700 mb-3">🚀 快速比較</h3>
                             <div class="space-y-2" id="cagrPresetList">
@@ -1130,11 +1043,9 @@
                             </div>
                         </div>
                         
-                        <!-- 自訂標的 -->
                         <div class="bg-white rounded-xl shadow p-4">
                             <h3 class="font-bold text-gray-700 mb-3">✏️ 自訂比較</h3>
                             
-                            <!-- 已選標的 -->
                             <div class="mb-3">
                                 <label class="text-sm text-gray-500 mb-1 block">已選標的 (最多5個)</label>
                                 <div id="cagrSelectedSymbols" class="min-h-[40px] p-2 bg-gray-50 rounded-lg flex flex-wrap">
@@ -1142,7 +1053,6 @@
                                 </div>
                             </div>
                             
-                            <!-- 輸入框 -->
                             <div class="flex gap-2 mb-3">
                                 <input type="text" id="cagrSymbolInput" placeholder="輸入代號 (如 AAPL, BTC)"
                                     class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
@@ -1152,7 +1062,6 @@
                                 </button>
                             </div>
                             
-                            <!-- 時間週期 -->
                             <div class="mb-3">
                                 <label class="text-sm text-gray-500 mb-1 block">比較週期</label>
                                 <div class="flex flex-wrap gap-2 text-sm">
@@ -1171,7 +1080,6 @@
                                 </div>
                             </div>
                             
-                            <!-- 基準指數 -->
                             <div class="mb-4">
                                 <label class="text-sm text-gray-500 mb-1 block">基準指數</label>
                                 <select id="cagrBenchmarkSelect" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm">
@@ -1182,7 +1090,6 @@
                                 </select>
                             </div>
                             
-                            <!-- 排序 -->
                             <div class="mb-4">
                                 <label class="text-sm text-gray-500 mb-1 block">排序依據</label>
                                 <select id="cagrSortBySelect" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm">
@@ -1193,14 +1100,12 @@
                                 </select>
                             </div>
                             
-                            <!-- 執行比較按鈕 -->
                             <button onclick="cagrRunComparison()" 
                                 class="w-full py-3 bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600 transition">
                                 <i class="fas fa-chart-bar mr-2"></i>開始比較
                             </button>
                         </div>
                         
-                        <!-- 我的組合 -->
                         <div class="bg-white rounded-xl shadow p-4">
                             <div class="flex justify-between items-center mb-3">
                                 <h3 class="font-bold text-gray-700">💾 我的組合</h3>
@@ -1213,8 +1118,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- 右側：比較結果 -->
                     <div class="lg:col-span-2">
                         <div class="bg-white rounded-xl shadow p-4 md:p-6">
                             <div class="flex justify-between items-center mb-4">
@@ -1233,15 +1136,12 @@
                     </div>
                 </div>
             </section>
-
-            <!-- ===== 管理後台區塊 ===== -->
             <section id="section-admin" class="section hidden">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">
                     <i class="fas fa-user-shield text-orange-500 mr-2"></i>
                     管理後台
                 </h2>
                 
-                <!-- 統計卡片 -->
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-4 md:mb-6">
                     <div class="bg-white rounded-lg shadow p-3 md:p-4">
                         <div class="text-gray-500 text-xs md:text-sm">總用戶數</div>
@@ -1264,8 +1164,6 @@
                         <div id="adminStatAdmin" class="text-xl md:text-2xl font-bold text-blue-600">-</div>
                     </div>
                 </div>
-
-                <!-- 系統管理 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-bold text-gray-700 mb-4">📊 市場資料管理</h3>
                     <div class="flex flex-wrap gap-2 md:gap-3">
@@ -1284,8 +1182,6 @@
                     </div>
                     <p id="adminSystemMessage" class="mt-3 text-sm text-gray-500"></p>
                 </div>
-
-                <!-- 訊號檢查與推播 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-bold text-gray-700 mb-4">🔔 訊號檢查與推播</h3>
                     <div class="flex flex-wrap gap-2 md:gap-3 mb-3">
@@ -1313,8 +1209,6 @@
                         <pre id="adminSignalResultContent" class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-48"></pre>
                     </div>
                 </div>
-
-                <!-- 訂閱源管理 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-bold text-gray-700 mb-4">📡 訂閱源管理</h3>
                     <div class="flex flex-wrap gap-2 md:gap-3 mb-3">
@@ -1327,8 +1221,6 @@
                     </div>
                     <p id="adminSubscriptionMessage" class="mt-3 text-sm text-gray-500"></p>
                 </div>
-
-                <!-- 用戶管理 -->
                 <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
                     <h3 class="font-bold text-gray-700 mb-4">👥 用戶管理</h3>
                     <div class="flex flex-col md:flex-row gap-3 md:gap-4 mb-4">
@@ -1369,8 +1261,6 @@
             </section>
             
         </main>
-
-        <!-- ===== 手機版底部導航列 ===== -->
         <nav class="mobile-bottom-nav">
             <a href="#" onclick="mobileNavTo('dashboard')" class="bottom-nav-item active" data-section="dashboard">
                 <i class="fas fa-tachometer-alt"></i>
@@ -1393,13 +1283,8 @@
                 <span>設定</span>
             </a>
         </nav>
-
-    </div><!-- end app-content -->
-
-    <!-- Modal 容器 (由 modals.js 動態填充) -->
+    </div>
     <div id="modal-container"></div>
-
-    <!-- JavaScript 模組 -->
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/core.js"></script>
     <script src="/static/js/modals.js"></script>
