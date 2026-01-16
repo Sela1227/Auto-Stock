@@ -23,25 +23,94 @@
     <!-- 主應用程式內容 -->
     <div id="app-content">
         
-        <!-- 手機版側邊選單遮罩 -->
+        <!-- ===== 手機版側邊選單遮罩 ===== -->
         <div id="sidebarOverlay" class="mobile-sidebar-overlay" onclick="closeMobileSidebar()"></div>
         
-        <!-- 手機版側邊選單 (由 JS 生成) -->
-        <aside id="mobileSidebar" class="mobile-sidebar"></aside>
+        <!-- ===== 手機版側邊選單 ===== -->
+        <aside id="mobileSidebar" class="mobile-sidebar">
+            <div class="p-4 border-b flex items-center justify-between">
+                <div class="flex items-center">
+                    <img src="/static/logo.png" alt="SELA" class="w-10 h-10 rounded-lg mr-2">
+                    <span class="font-bold text-lg">SELA</span>
+                </div>
+                <button onclick="closeMobileSidebar()" class="p-2 text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <nav class="p-4 space-y-2">
+                <a href="#" onclick="mobileNavTo('dashboard')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-700 bg-blue-50 rounded-lg touch-target" data-section="dashboard">
+                    <i class="fas fa-tachometer-alt mr-3 w-5"></i>
+                    <span>儀表板</span>
+                </a>
+                <a href="#" onclick="mobileNavTo('search')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="search">
+                    <i class="fas fa-search mr-3 w-5"></i>
+                    <span>股票查詢</span>
+                </a>
+                <a href="#" onclick="mobileNavTo('watchlist')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="watchlist">
+                    <i class="fas fa-star mr-3 w-5"></i>
+                    <span>追蹤清單</span>
+                </a>
+                <a href="#" onclick="mobileNavTo('sentiment')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="sentiment">
+                    <i class="fas fa-heart-pulse mr-3 w-5"></i>
+                    <span>恐懼貪婪</span>
+                </a>
+                <a href="#" onclick="mobileNavTo('compare')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="compare">
+                    <i class="fas fa-chart-line mr-3 w-5"></i>
+                    <span>走勢比較</span>
+                </a>
+                <a href="#" onclick="mobileNavTo('portfolio')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="portfolio">
+                    <i class="fas fa-wallet mr-3 w-5"></i>
+                    <span>個人投資記錄</span>
+                </a>
+                <a href="#" onclick="mobileNavTo('subscription')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="subscription">
+                    <i class="fas fa-satellite-dish mr-3 w-5"></i>
+                    <span>訂閱精選</span>
+                </a>
+                <a href="#" onclick="mobileNavTo('cagr')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="cagr">
+                    <i class="fas fa-trophy mr-3 w-5"></i>
+                    <span>報酬率比較</span>
+                </a>
+                <a href="#" onclick="mobileNavTo('settings')" class="mobile-nav-link flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg touch-target" data-section="settings">
+                    <i class="fas fa-cog mr-3 w-5"></i>
+                    <span>設定</span>
+                </a>
+            </nav>
+            <div class="absolute bottom-0 left-0 right-0 p-4 border-t">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <img id="sidebarAvatar" class="w-10 h-10 rounded-full mr-3" src="" alt="">
+                        <span id="sidebarUserName" class="text-gray-700 font-medium"></span>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-400 mb-2">
+                    閒置登出: <span id="sidebarTimer">5:00</span>
+                </div>
+                <button onclick="logout()" class="w-full py-2 text-red-500 hover:bg-red-50 rounded-lg flex items-center justify-center touch-target">
+                    <i class="fas fa-sign-out-alt mr-2"></i>
+                    <span>登出</span>
+                </button>
+            </div>
+        </aside>
         
-        <!-- 頂部導覽列 -->
+        <!-- ===== 頂部導覽列 ===== -->
         <nav class="top-nav bg-white shadow-sm border-b">
             <div class="px-4 h-14 flex items-center justify-between">
+                <!-- 手機版: 漢堡選單按鈕 -->
                 <button onclick="openMobileSidebar()" class="mobile-header-menu p-2 -ml-2 text-gray-600 touch-target">
                     <i class="fas fa-bars text-xl"></i>
                 </button>
+                
+                <!-- Logo -->
                 <div class="flex items-center">
                     <img src="/static/logo.png" alt="SELA" class="w-8 h-8 rounded-lg mr-2">
                     <span class="font-bold text-lg text-gray-800 hidden sm:inline">自動選股系統</span>
                     <span class="font-bold text-lg text-gray-800 sm:hidden">SELA</span>
                 </div>
+                
+                <!-- 右側資訊 -->
                 <div class="flex items-center space-x-2">
                     <span id="sessionTimer" class="text-xs text-gray-400 hidden sm:inline"></span>
+                    <!-- 管理員入口 -->
                     <a id="adminLink" href="#" onclick="showSection('admin', event)" class="text-orange-500 hover:text-orange-600 hidden p-2" title="管理後台">
                         <i class="fas fa-user-shield"></i>
                     </a>
@@ -54,37 +123,1285 @@
             </div>
         </nav>
 
-        <!-- 電腦版側邊欄 (由 JS 生成) -->
-        <aside id="desktopSidebar" class="desktop-sidebar bg-white shadow-sm"></aside>
+        <!-- ===== 電腦版側邊欄 ===== -->
+        <aside class="desktop-sidebar bg-white shadow-sm">
+            <nav class="p-4 space-y-2">
+                <a href="#" onclick="showSection('dashboard', event)" class="nav-link flex items-center px-4 py-2 text-gray-700 bg-blue-50 rounded-lg" data-section="dashboard">
+                    <i class="fas fa-tachometer-alt mr-3"></i>
+                    <span>儀表板</span>
+                </a>
+                <a href="#" onclick="showSection('search', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="search">
+                    <i class="fas fa-search mr-3"></i>
+                    <span>股票查詢</span>
+                </a>
+                <a href="#" onclick="showSection('watchlist', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="watchlist">
+                    <i class="fas fa-star mr-3"></i>
+                    <span>追蹤清單</span>
+                </a>
+                <a href="#" onclick="showSection('sentiment', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="sentiment">
+                    <i class="fas fa-heart-pulse mr-3"></i>
+                    <span>恐懼貪婪</span>
+                </a>
+                <a href="#" onclick="showSection('compare', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="compare">
+                    <i class="fas fa-chart-line mr-3"></i>
+                    <span>走勢比較</span>
+                </a>
+                <a href="#" onclick="showSection('portfolio', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="portfolio">
+                    <i class="fas fa-wallet mr-3"></i>
+                    <span>個人投資記錄</span>
+                </a>
+                <a href="#" onclick="showSection('subscription', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="subscription">
+                    <i class="fas fa-satellite-dish mr-3"></i>
+                    <span>訂閱精選</span>
+                </a>
+                <a href="#" onclick="showSection('cagr', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="cagr">
+                    <i class="fas fa-trophy mr-3"></i>
+                    <span>報酬率比較</span>
+                </a>
+                <a href="#" onclick="showSection('settings', event)" class="nav-link flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" data-section="settings">
+                    <i class="fas fa-cog mr-3"></i>
+                    <span>設定</span>
+                </a>
+                <!-- 管理員入口 (預設隱藏) -->
+                <a id="adminSidebarLink" href="#" onclick="showSection('admin', event)" class="hidden flex items-center px-4 py-2 text-orange-500 hover:bg-orange-50 rounded-lg mt-4 border-t pt-4" data-section="admin">
+                    <i class="fas fa-user-shield mr-3"></i>
+                    <span>管理後台</span>
+                </a>
+            </nav>
+        </aside>
 
-        <!-- 主區域 -->
+        <!-- ===== 主區域 ===== -->
         <main class="main-content">
-            <!-- 所有 section 容器 (內容由 JS 動態載入) -->
-            <section id="section-dashboard" class="section"></section>
-            <section id="section-search" class="section hidden"></section>
-            <section id="section-watchlist" class="section hidden"></section>
-            <section id="section-sentiment" class="section hidden"></section>
-            <section id="section-compare" class="section hidden"></section>
-            <section id="section-portfolio" class="section hidden"></section>
-            <section id="section-subscription" class="section hidden"></section>
-            <section id="section-settings" class="section hidden"></section>
-            <section id="section-cagr" class="section hidden"></section>
-            <section id="section-admin" class="section hidden"></section>
+            
+            <!-- ===== 儀表板區塊 ===== -->
+            <section id="section-dashboard" class="section">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">儀表板</h2>
+                
+                <!-- ===== 比特幣價格卡片（第一項）===== -->
+                <div class="mb-4 md:mb-6">
+                    <div id="btc-price-card" class="bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl p-4 md:p-5 text-white shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 relative overflow-hidden" onclick="showSection('search', event); setTimeout(() => { document.getElementById('searchSymbol').value='BTC'; searchStock(); }, 100);">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-2 mb-1">
+                                    <i class="fab fa-bitcoin text-xl"></i>
+                                    <span class="text-sm font-medium opacity-90">Bitcoin</span>
+                                    <span id="btc-update-indicator" class="w-2 h-2 rounded-full bg-white/50 animate-pulse hidden"></span>
+                                </div>
+                                <div class="text-2xl md:text-3xl font-bold truncate" id="btc-price">$--,---</div>
+                            </div>
+                            <div class="text-right flex-shrink-0 ml-3">
+                                <div class="text-lg md:text-xl font-semibold" id="btc-change">--%</div>
+                                <div class="text-xs opacity-75">24h</div>
+                            </div>
+                            <div class="ml-3 md:ml-4 flex-shrink-0 opacity-20">
+                                <i class="fab fa-bitcoin text-5xl md:text-6xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 指數卡片 (4個) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 md:mb-6">
+                    <!-- S&P 500 -->
+                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^GSPC', 'S&P 500')">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-chart-line text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-gray-700 text-sm">S&P 500</h3>
+                                    <p class="text-xs text-gray-400">^GSPC</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chart-area text-gray-300"></i>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <span id="index-GSPC-price" class="text-xl font-bold text-gray-800">--</span>
+                            <span id="index-GSPC-change" class="text-sm font-medium">--</span>
+                        </div>
+                        <p id="index-GSPC-date" class="text-xs text-gray-400 mt-1"></p>
+                    </div>
+                    
+                    <!-- 道瓊工業 -->
+                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^DJI', '道瓊工業')">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-industry text-green-600"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-gray-700 text-sm">道瓊工業</h3>
+                                    <p class="text-xs text-gray-400">^DJI</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chart-area text-gray-300"></i>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <span id="index-DJI-price" class="text-xl font-bold text-gray-800">--</span>
+                            <span id="index-DJI-change" class="text-sm font-medium">--</span>
+                        </div>
+                        <p id="index-DJI-date" class="text-xs text-gray-400 mt-1"></p>
+                    </div>
+                    
+                    <!-- 納斯達克 -->
+                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^IXIC', '納斯達克')">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-microchip text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-gray-700 text-sm">納斯達克</h3>
+                                    <p class="text-xs text-gray-400">^IXIC</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chart-area text-gray-300"></i>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <span id="index-IXIC-price" class="text-xl font-bold text-gray-800">--</span>
+                            <span id="index-IXIC-change" class="text-sm font-medium">--</span>
+                        </div>
+                        <p id="index-IXIC-date" class="text-xs text-gray-400 mt-1"></p>
+                    </div>
+                    
+                    <!-- 台股加權 -->
+                    <div class="bg-white rounded-xl shadow p-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="openIndexModal('^TWII', '台股加權')">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-landmark text-red-600"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-gray-700 text-sm">台股加權</h3>
+                                    <p class="text-xs text-gray-400">^TWII</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chart-area text-gray-300"></i>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <span id="index-TWII-price" class="text-xl font-bold text-gray-800">--</span>
+                            <span id="index-TWII-change" class="text-sm font-medium">--</span>
+                        </div>
+                        <p id="index-TWII-date" class="text-xs text-gray-400 mt-1"></p>
+                    </div>
+                </div>
+                
+                <!-- 恐懼貪婪指數卡片 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
+                    <!-- 美股恐懼貪婪指數 -->
+                    <div class="bg-white rounded-xl shadow p-4 md:p-6 cursor-pointer hover:shadow-lg transition-shadow" onclick="openSentimentModal('stock', '美股恐懼貪婪指數')">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-700 text-sm md:text-base">
+                                <i class="fas fa-flag-usa mr-2 text-blue-500"></i>美股恐懼貪婪指數
+                            </h3>
+                            <i class="fas fa-chart-area text-gray-300"></i>
+                        </div>
+                        <!-- 簡潔儀表盤 -->
+                        <div class="fear-greed-gauge" id="stockGauge">
+                            <svg viewBox="0 0 200 115" class="gauge-svg">
+                                <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
+                                <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
+                                <path class="gauge-arc gauge-arc-neutral" d="M 75 32 A 80 80 0 0 1 125 32" />
+                                <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
+                                <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
+                                <text x="8" y="105" class="gauge-tick-text">0</text>
+                                <text x="96" y="12" class="gauge-tick-text" text-anchor="middle">50</text>
+                                <text x="188" y="105" class="gauge-tick-text">100</text>
+                                <g id="stockNeedleGroup" class="gauge-needle-group">
+                                    <polygon class="gauge-needle" points="100,25 97,100 103,100" />
+                                </g>
+                                <circle class="gauge-center-dot" cx="100" cy="100" r="6" />
+                            </svg>
+                        </div>
+                        <div class="text-center mt-2">
+                            <span id="stockGaugeValue" class="text-4xl font-bold text-gray-800">--</span>
+                        </div>
+                        <p id="stockSentimentStatus" class="text-center font-semibold text-lg mt-1"></p>
+                        <p id="stockSentimentTime" class="text-xs text-gray-400 text-center mt-1"></p>
+                        <p class="text-xs text-blue-500 text-center mt-2"><i class="fas fa-chart-line mr-1"></i>點擊查看走勢</p>
+                    </div>
+                    
+                    <!-- 幣圈恐懼貪婪指數 -->
+                    <div class="bg-white rounded-xl shadow p-4 md:p-6 cursor-pointer hover:shadow-lg transition-shadow" onclick="openSentimentModal('crypto', '幣圈恐懼貪婪指數')">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-700 text-sm md:text-base">
+                                <i class="fab fa-bitcoin mr-2 text-orange-500"></i>幣圈恐懼貪婪指數
+                            </h3>
+                            <i class="fas fa-chart-area text-gray-300"></i>
+                        </div>
+                        <!-- 簡潔儀表盤 -->
+                        <div class="fear-greed-gauge" id="cryptoGauge">
+                            <svg viewBox="0 0 200 115" class="gauge-svg">
+                                <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
+                                <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
+                                <path class="gauge-arc gauge-arc-neutral" d="M 75 32 A 80 80 0 0 1 125 32" />
+                                <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
+                                <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
+                                <text x="8" y="105" class="gauge-tick-text">0</text>
+                                <text x="96" y="12" class="gauge-tick-text" text-anchor="middle">50</text>
+                                <text x="188" y="105" class="gauge-tick-text">100</text>
+                                <g id="cryptoNeedleGroup" class="gauge-needle-group">
+                                    <polygon class="gauge-needle" points="100,25 97,100 103,100" />
+                                </g>
+                                <circle class="gauge-center-dot" cx="100" cy="100" r="6" />
+                            </svg>
+                        </div>
+                        <div class="text-center mt-2">
+                            <span id="cryptoGaugeValue" class="text-4xl font-bold text-gray-800">--</span>
+                        </div>
+                        <p id="cryptoSentimentStatus" class="text-center font-semibold text-lg mt-1"></p>
+                        <p id="cryptoSentimentTime" class="text-xs text-gray-400 text-center mt-1"></p>
+                        <p class="text-xs text-blue-500 text-center mt-2"><i class="fas fa-chart-line mr-1"></i>點擊查看走勢</p>
+                    </div>
+                </div>
+
+                <!-- 追蹤清單快覽 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-gray-700">追蹤清單</h3>
+                        <a href="#" onclick="showSection('watchlist')" class="text-blue-600 text-sm hover:underline">查看全部</a>
+                    </div>
+                    <div id="dashboardWatchlist">
+                        <p class="text-gray-500 text-center py-4">載入中...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== 股票查詢區塊 ===== -->
+            <section id="section-search" class="section hidden">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">股票查詢</h2>
+                
+                <!-- 搜尋框 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4 md:mb-6">
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <input type="text" id="searchSymbol" placeholder="輸入股票代號（如 AAPL、2330）" 
+                            class="flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                            onkeypress="if(event.key==='Enter')searchStock()">
+                        <button onclick="searchStock()" class="brand-orange text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center touch-target">
+                            <i class="fas fa-search mr-2"></i>
+                            <span>查詢</span>
+                        </button>
+                    </div>
+                    <p class="text-gray-500 text-xs md:text-sm mt-2">支援美股、台股 (輸入純數字如 2330) 及加密貨幣 (BTC, ETH)</p>
+                </div>
+                
+                <!-- 搜尋結果 -->
+                <div id="searchResult" class="hidden"></div>
+            </section>
+
+            <!-- ===== 追蹤清單區塊 ===== -->
+            <section id="section-watchlist" class="section hidden">
+                <div class="flex items-center justify-between mb-4 md:mb-6">
+                    <h2 class="text-xl md:text-2xl font-bold text-gray-800">追蹤清單</h2>
+                    <div class="flex items-center gap-2">
+                        <!-- 🆕 匯出匯入按鈕 -->
+                        <div class="relative">
+                            <button onclick="toggleWatchlistMenu()" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg border hover:bg-gray-50" title="匯出匯入">
+                                <i class="fas fa-exchange-alt"></i>
+                            </button>
+                            <div id="watchlistMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
+                                <button onclick="exportWatchlist('json')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
+                                    <i class="fas fa-download mr-2 text-blue-500"></i>匯出 JSON
+                                </button>
+                                <button onclick="exportWatchlist('csv')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
+                                    <i class="fas fa-file-csv mr-2 text-green-500"></i>匯出 CSV
+                                </button>
+                                <hr class="my-1">
+                                <button onclick="showImportWatchlistModal()" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
+                                    <i class="fas fa-upload mr-2 text-orange-500"></i>匯入清單
+                                </button>
+                            </div>
+                        </div>
+                        <button onclick="showAddWatchlistModal()" class="brand-orange text-white px-4 py-2 rounded-lg font-medium flex items-center touch-target">
+                            <i class="fas fa-plus mr-2"></i>
+                            <span class="hidden sm:inline">新增</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="watchlistContent">
+                    <p class="text-gray-500 text-center py-4">載入中...</p>
+                </div>
+            </section>
+
+            <!-- ===== 市場情緒區塊 ===== -->
+            <section id="section-sentiment" class="section hidden">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">恐懼貪婪指數</h2>
+                <div id="sentimentContent">
+                    <p class="text-gray-500 text-center py-4">載入中...</p>
+                </div>
+            </section>
+
+            <!-- ===== 走勢比較區塊 ===== -->
+            <section id="section-compare" class="section hidden">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">走勢比較</h2>
+                
+                <!-- 輸入區 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-plus-circle mr-2 text-blue-500"></i>
+                        選擇比較標的
+                    </h3>
+                    <p class="text-gray-500 text-sm mb-4">輸入股票代號或指數（最多 5 個），以逗號分隔</p>
+                    
+                    <!-- 快速選擇 -->
+                    <div class="mb-4">
+                        <span class="text-sm text-gray-600 mr-2">快速選擇：</span>
+                        <button onclick="addCompareSymbol('^GSPC')" class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded mr-1 mb-1">S&P 500</button>
+                        <button onclick="addCompareSymbol('^DJI')" class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded mr-1 mb-1">道瓊</button>
+                        <button onclick="addCompareSymbol('^IXIC')" class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded mr-1 mb-1">納斯達克</button>
+                        <button onclick="addCompareSymbol('^TWII')" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded mr-1 mb-1">台股加權</button>
+                        <button onclick="addCompareSymbol('AAPL')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">AAPL</button>
+                        <button onclick="addCompareSymbol('MSFT')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">MSFT</button>
+                        <button onclick="addCompareSymbol('NVDA')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">NVDA</button>
+                        <button onclick="addCompareSymbol('TSLA')" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded mr-1 mb-1">TSLA</button>
+                        <button onclick="addCompareSymbol('2330.TW')" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded mr-1 mb-1">台積電</button>
+                        <button onclick="addCompareSymbol('2317.TW')" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded mr-1 mb-1">鴻海</button>
+                        <button onclick="addCompareSymbol('BTC-USD')" class="px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 rounded mr-1 mb-1">BTC</button>
+                        <button onclick="addCompareSymbol('ETH-USD')" class="px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 rounded mr-1 mb-1">ETH</button>
+                    </div>
+                    
+                    <div class="flex flex-col md:flex-row gap-3">
+                        <input type="text" id="compareSymbols" placeholder="例: AAPL, MSFT, ^GSPC" 
+                               class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <select id="compareDays" class="px-4 py-2 border rounded-lg bg-white">
+                            <option value="30">1 個月</option>
+                            <option value="90" selected>3 個月</option>
+                            <option value="180">6 個月</option>
+                            <option value="365">1 年</option>
+                        </select>
+                        <button onclick="loadCompareChart()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                            <i class="fas fa-chart-line mr-2"></i>比較
+                        </button>
+                    </div>
+                    
+                    <!-- 已選標的 -->
+                    <div id="selectedSymbols" class="flex flex-wrap gap-2 mt-3"></div>
+                </div>
+                
+                <!-- 圖表區 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <div id="compareChartContainer" class="hidden">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-700">
+                                <i class="fas fa-chart-line mr-2 text-green-500"></i>
+                                走勢比較圖
+                            </h3>
+                            <span class="text-sm text-gray-500">起始日 = 100%</span>
+                        </div>
+                        <div class="relative" style="height: 400px;">
+                            <canvas id="compareChart"></canvas>
+                        </div>
+                    </div>
+                    <div id="compareChartPlaceholder" class="text-center py-12">
+                        <i class="fas fa-chart-line text-gray-300 text-5xl mb-4"></i>
+                        <p class="text-gray-500">選擇標的後顯示比較圖表</p>
+                    </div>
+                    <div id="compareChartLoading" class="hidden text-center py-12">
+                        <i class="fas fa-spinner fa-spin text-blue-500 text-3xl mb-4"></i>
+                        <p class="text-gray-500">載入中...</p>
+                    </div>
+                </div>
+                
+                <!-- 比較結果表格 -->
+                <div id="compareResultTable" class="bg-white rounded-xl shadow p-4 md:p-6 hidden">
+                    <h3 class="font-semibold text-gray-700 mb-4">
+                        <i class="fas fa-table mr-2 text-purple-500"></i>
+                        比較結果
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-2 px-3">標的</th>
+                                    <th class="text-right py-2 px-3">起始價</th>
+                                    <th class="text-right py-2 px-3">最新價</th>
+                                    <th class="text-right py-2 px-3">漲跌幅</th>
+                                </tr>
+                            </thead>
+                            <tbody id="compareTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== 個人投資記錄區塊 ===== -->
+            <section id="section-portfolio" class="section hidden">
+                <div class="flex items-center justify-between mb-4 md:mb-6">
+                    <h2 class="text-xl md:text-2xl font-bold text-gray-800">個人投資記錄</h2>
+                    <!-- 🆕 匯出匯入按鈕 -->
+                    <div class="relative">
+                        <button onclick="togglePortfolioMenu()" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg border hover:bg-gray-50" title="匯出匯入">
+                            <i class="fas fa-exchange-alt mr-1"></i>
+                            <span class="hidden sm:inline text-sm">匯出匯入</span>
+                        </button>
+                        <div id="portfolioMenu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border z-50">
+                            <div class="px-3 py-2 text-xs text-gray-400 border-b">匯出交易紀錄</div>
+                            <button onclick="exportPortfolio('json', null)" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
+                                <i class="fas fa-download mr-2 text-blue-500"></i>全部 (JSON)
+                            </button>
+                            <button onclick="exportPortfolio('csv', 'tw')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
+                                <i class="fas fa-file-csv mr-2 text-red-500"></i>台股 (CSV)
+                            </button>
+                            <button onclick="exportPortfolio('csv', 'us')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
+                                <i class="fas fa-file-csv mr-2 text-blue-500"></i>美股 (CSV)
+                            </button>
+                            <hr class="my-1">
+                            <div class="px-3 py-2 text-xs text-gray-400 border-b">匯入交易紀錄</div>
+                            <button onclick="showImportPortfolioModal()" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 flex items-center">
+                                <i class="fas fa-upload mr-2 text-orange-500"></i>匯入紀錄
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 投資總覽（三區：台股、美股、合計）-->
+                <div class="space-y-3 mb-4 md:mb-6">
+                    <!-- 台股統計 -->
+                    <div class="bg-gradient-to-r from-red-500 to-rose-500 rounded-xl p-4 text-white">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-landmark mr-2"></i>
+                            <h3 class="font-semibold">台股</h3>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">現值</p>
+                                <p id="twCurrentValue" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">損益</p>
+                                <p id="twProfit" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">報酬率</p>
+                                <p id="twReturnRate" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">持股數</p>
+                                <p id="twPositions" class="font-bold">--</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 美股統計 -->
+                    <div class="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl p-4 text-white">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-flag-usa mr-2"></i>
+                            <h3 class="font-semibold">美股</h3>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">現值 (USD)</p>
+                                <p id="usCurrentValue" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">損益</p>
+                                <p id="usProfit" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">報酬率</p>
+                                <p id="usReturnRate" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">持股數</p>
+                                <p id="usPositions" class="font-bold">--</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 合計（TWD）-->
+                    <div class="bg-gradient-to-r from-purple-600 to-violet-600 rounded-xl p-4 text-white">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                <i class="fas fa-calculator mr-2"></i>
+                                <h3 class="font-semibold">合計 (TWD)</h3>
+                            </div>
+                            <div class="text-xs opacity-80">
+                                <span>匯率: 1 USD = </span>
+                                <span id="exchangeRateValue">--</span>
+                                <span> TWD</span>
+                                <span id="exchangeRateTime" class="ml-1 opacity-60"></span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">總現值</p>
+                                <p id="totalValueTwd" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">總損益</p>
+                                <p id="totalProfitTwd" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">報酬率</p>
+                                <p id="totalReturnRate" class="font-bold">--</p>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-2">
+                                <p class="text-xs opacity-80">總持股</p>
+                                <p id="totalPositions" class="font-bold">--</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 分頁標籤 -->
+                <div class="flex border-b mb-4 overflow-x-auto">
+                    <button onclick="switchPortfolioTab('holdings')" id="tabHoldings" class="px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-600 whitespace-nowrap">
+                        持股總覽
+                    </button>
+                    <button onclick="switchPortfolioTab('tw-transactions')" id="tabTwTransactions" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        台股紀錄
+                    </button>
+                    <button onclick="switchPortfolioTab('us-transactions')" id="tabUsTransactions" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        美股紀錄
+                    </button>
+                </div>
+                
+                <!-- 持股內容 -->
+                <div id="portfolioHoldings" class="space-y-4">
+                    <!-- 台股 -->
+                    <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center">
+                                <span class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-2">
+                                    <i class="fas fa-landmark text-red-600 text-sm"></i>
+                                </span>
+                                <div>
+                                    <h3 class="font-semibold text-gray-700">台股</h3>
+                                    <p id="twSummaryLine" class="text-xs text-gray-500">--</p>
+                                </div>
+                            </div>
+                            <button onclick="showAddTwModal()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">
+                                <i class="fas fa-plus mr-1"></i>新增
+                            </button>
+                        </div>
+                        <div id="holdingsTW" class="space-y-2">
+                            <p class="text-gray-400 text-center py-4">載入中...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 美股 -->
+                    <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center">
+                                <span class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-2">
+                                    <i class="fas fa-flag-usa text-blue-600 text-sm"></i>
+                                </span>
+                                <div>
+                                    <h3 class="font-semibold text-gray-700">美股</h3>
+                                    <p id="usSummaryLine" class="text-xs text-gray-500">--</p>
+                                </div>
+                            </div>
+                            <button onclick="showAddUsModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">
+                                <i class="fas fa-plus mr-1"></i>新增
+                            </button>
+                        </div>
+                        <div id="holdingsUS" class="space-y-2">
+                            <p class="text-gray-400 text-center py-4">載入中...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 台股交易紀錄 -->
+                <div id="portfolioTwTransactions" class="hidden">
+                    <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-700">
+                                <i class="fas fa-landmark text-red-500 mr-2"></i>台股交易紀錄
+                            </h3>
+                            <button onclick="showAddTwModal()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">
+                                <i class="fas fa-plus mr-1"></i>新增
+                            </button>
+                        </div>
+                        <div id="twTransactionList" class="space-y-2">
+                            <p class="text-gray-400 text-center py-4">載入中...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 美股交易紀錄 -->
+                <div id="portfolioUsTransactions" class="hidden">
+                    <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-700">
+                                <i class="fas fa-flag-usa text-blue-500 mr-2"></i>美股交易紀錄
+                            </h3>
+                            <button onclick="showAddUsModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">
+                                <i class="fas fa-plus mr-1"></i>新增
+                            </button>
+                        </div>
+                        <div id="usTransactionList" class="space-y-2">
+                            <p class="text-gray-400 text-center py-4">載入中...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            
+            <!-- ===== 訂閱精選區塊 ===== -->
+            <section id="section-subscription" class="section hidden">
+                <div class="flex items-center justify-between mb-4 md:mb-6">
+                    <h2 class="text-xl md:text-2xl font-bold text-gray-800">📡 訂閱精選</h2>
+                    <button onclick="refreshSubscriptionPicks()" class="text-gray-500 hover:text-gray-700 p-2" title="重新整理">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                
+                <!-- 訂閱來源卡片 -->
+                <div id="subscriptionSourcesCard" class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-rss mr-2 text-orange-500"></i>
+                        訂閱來源
+                    </h3>
+                    <div id="subscriptionSourcesList">
+                        <p class="text-gray-500 text-center py-4">載入中...</p>
+                    </div>
+                </div>
+                
+                <!-- 精選股票列表 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center justify-between">
+                        <span>
+                            <i class="fas fa-fire mr-2 text-red-500"></i>
+                            精選股票
+                        </span>
+                        <span id="subscriptionPicksCount" class="text-sm text-gray-400"></span>
+                    </h3>
+                    <div id="subscriptionPicksList">
+                        <p class="text-gray-500 text-center py-4">載入中...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== 設定區塊 ===== -->
+            <section id="section-settings" class="section hidden">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">設定</h2>
+                
+                <!-- 快速模板 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-magic mr-2 text-purple-500"></i>
+                        快速套用模板
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2" id="templateButtons">
+                        <button onclick="applyTemplate('minimal')" data-template="minimal" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-all">
+                            <i class="fas fa-minus-circle text-gray-400 mr-1"></i>極簡
+                        </button>
+                        <button onclick="applyTemplate('standard')" data-template="standard" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-all border-blue-500 bg-blue-50 text-blue-600">
+                            <i class="fas fa-check-circle text-blue-500 mr-1"></i>標準
+                        </button>
+                        <button onclick="applyTemplate('full')" data-template="full" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-all">
+                            <i class="fas fa-layer-group text-green-500 mr-1"></i>完整
+                        </button>
+                        <button onclick="applyTemplate('short_term')" data-template="short_term" class="template-btn px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-all">
+                            <i class="fas fa-bolt text-yellow-500 mr-1"></i>短線
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 指標顯示設定 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-chart-line mr-2 text-blue-500"></i>
+                        指標顯示設定
+                    </h3>
+                    <p class="text-gray-500 text-sm mb-4">選擇在股票分析中要顯示的技術指標</p>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_ma" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">均線 MA</span>
+                                <span class="block text-xs text-gray-500">20/50/200日</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_rsi" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">RSI</span>
+                                <span class="block text-xs text-gray-500">相對強弱指標</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_macd" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">MACD</span>
+                                <span class="block text-xs text-gray-500">指數平滑異同</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_kd" class="indicator-toggle w-5 h-5 text-blue-600 rounded">
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">KD</span>
+                                <span class="block text-xs text-gray-500">隨機指標</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_bollinger" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">布林通道</span>
+                                <span class="block text-xs text-gray-500">Bollinger Bands</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_obv" class="indicator-toggle w-5 h-5 text-blue-600 rounded">
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">OBV</span>
+                                <span class="block text-xs text-gray-500">能量潮指標</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="show_volume" class="indicator-toggle w-5 h-5 text-blue-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">成交量</span>
+                                <span class="block text-xs text-gray-500">Volume</span>
+                            </span>
+                        </label>
+                    </div>
+                    <button onclick="saveIndicatorSettings()" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                        <i class="fas fa-save mr-2"></i>儲存指標設定
+                    </button>
+                </div>
+
+                <!-- 通知設定 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-bell mr-2 text-yellow-500"></i>
+                        通知設定
+                        <span class="ml-2 text-xs text-gray-400">(即將推出)</span>
+                    </h3>
+                    <p class="text-gray-500 text-sm mb-4">選擇要接收的技術訊號通知</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_ma_cross" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">均線交叉</span>
+                                <span class="block text-xs text-gray-500">黃金交叉/死亡交叉</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_ma_breakout" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">均線突破</span>
+                                <span class="block text-xs text-gray-500">價格穿越均線</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_rsi" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">RSI 超買超賣</span>
+                                <span class="block text-xs text-gray-500">進入極端區域</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_macd" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">MACD 交叉</span>
+                                <span class="block text-xs text-gray-500">DIF 穿越 MACD</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_kd" class="alert-toggle w-5 h-5 text-yellow-600 rounded">
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">KD 交叉</span>
+                                <span class="block text-xs text-gray-500">K 穿越 D</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_bollinger" class="alert-toggle w-5 h-5 text-yellow-600 rounded">
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">布林突破</span>
+                                <span class="block text-xs text-gray-500">觸及上下軌</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_volume" class="alert-toggle w-5 h-5 text-yellow-600 rounded">
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">量能異常</span>
+                                <span class="block text-xs text-gray-500">成交量暴增</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="checkbox" id="alert_sentiment" class="alert-toggle w-5 h-5 text-yellow-600 rounded" checked>
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">情緒極端</span>
+                                <span class="block text-xs text-gray-500">極度恐懼/貪婪</span>
+                            </span>
+                        </label>
+                    </div>
+                    <button onclick="saveAlertSettings()" class="mt-4 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">
+                        <i class="fas fa-save mr-2"></i>儲存通知設定
+                    </button>
+                </div>
+
+                <!-- 指標參數 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-sliders-h mr-2 text-green-500"></i>
+                        指標參數調整
+                    </h3>
+                    <p class="text-gray-500 text-sm mb-4">自訂技術指標的計算參數</p>
+                    
+                    <!-- 均線參數 -->
+                    <div class="mb-6">
+                        <h4 class="font-medium text-gray-600 mb-2">均線週期</h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">短期均線</label>
+                                <input type="number" id="ma_short" value="20" min="5" max="50" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">中期均線</label>
+                                <input type="number" id="ma_mid" value="50" min="20" max="100" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">長期均線</label>
+                                <input type="number" id="ma_long" value="200" min="50" max="300" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- RSI 參數 -->
+                    <div class="mb-6">
+                        <h4 class="font-medium text-gray-600 mb-2">RSI 參數</h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">RSI 週期</label>
+                                <input type="number" id="rsi_period" value="14" min="5" max="30" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">超買門檻</label>
+                                <input type="number" id="rsi_overbought" value="70" min="60" max="90" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">超賣門檻</label>
+                                <input type="number" id="rsi_oversold" value="30" min="10" max="40" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- MACD 參數 -->
+                    <div class="mb-6">
+                        <h4 class="font-medium text-gray-600 mb-2">MACD 參數</h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">快線週期</label>
+                                <input type="number" id="macd_fast" value="12" min="5" max="20" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">慢線週期</label>
+                                <input type="number" id="macd_slow" value="26" min="15" max="40" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">訊號線</label>
+                                <input type="number" id="macd_signal" value="9" min="5" max="15" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 其他參數 -->
+                    <div class="mb-6">
+                        <h4 class="font-medium text-gray-600 mb-2">其他參數</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">KD 週期</label>
+                                <input type="number" id="kd_period" value="9" min="5" max="20" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">布林週期</label>
+                                <input type="number" id="bollinger_period" value="20" min="10" max="30" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">突破預警%</label>
+                                <input type="number" id="breakout_threshold" value="2.0" min="0.5" max="5" step="0.5" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">量比警戒</label>
+                                <input type="number" id="volume_alert_ratio" value="2.0" min="1.5" max="5" step="0.5" class="param-input w-full px-3 py-2 border rounded-lg text-center">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="saveParamSettings()" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                            <i class="fas fa-save mr-2"></i>儲存參數
+                        </button>
+                        <button onclick="resetParams()" class="px-4 py-2 border text-gray-600 rounded-lg hover:bg-gray-50">
+                            <i class="fas fa-undo mr-2"></i>恢復預設
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 🆕 標籤管理 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-tags mr-2 text-blue-500"></i>
+                        標籤管理
+                    </h3>
+                    <p class="text-gray-500 text-sm mb-4">建立標籤來分類追蹤清單中的股票</p>
+                    <div id="tagManagerContent">
+                        <p class="text-gray-400 text-center py-4">載入中...</p>
+                    </div>
+                </div>
+
+                <!-- 🆕 管理員工具 (管理員可見) -->
+                <div id="adminToolsSection" class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-tools mr-2 text-orange-500"></i>
+                        管理員工具
+                    </h3>
+                    <p class="text-gray-500 text-sm mb-4">手動觸發系統更新</p>
+                    
+                    <div class="space-y-3">
+                        <button onclick="adminUpdatePriceCache()" class="w-full px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 flex items-center justify-between">
+                            <span><i class="fas fa-dollar-sign mr-2"></i>更新價格快取</span>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        
+                        <button onclick="adminUpdateExchangeRate()" class="w-full px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 flex items-center justify-between">
+                            <span><i class="fas fa-exchange-alt mr-2"></i>更新匯率</span>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        
+                        <button onclick="adminFetchSubscriptions()" class="w-full px-4 py-3 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 flex items-center justify-between">
+                            <span><i class="fas fa-rss mr-2"></i>抓取訂閱精選 (回溯30天)</span>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 帳號資訊 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                    <h3 class="font-semibold text-gray-700 mb-3 flex items-center">
+                        <i class="fas fa-user mr-2 text-gray-500"></i>
+                        帳號資訊
+                    </h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between py-2 border-b">
+                            <span class="text-gray-500">用戶名稱</span>
+                            <span id="settingsUserName" class="font-medium">-</span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b">
+                            <span class="text-gray-500">會員等級</span>
+                            <span id="settingsMemberLevel" class="font-medium text-orange-500">一般會員</span>
+                        </div>
+                        <div class="flex justify-between py-2">
+                            <span class="text-gray-500">系統版本</span>
+                            <span class="font-medium">v0.5.3</span>
+                        </div>
+                    </div>
+                    <button onclick="logout()" class="mt-4 w-full py-3 border border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-50">
+                        <i class="fas fa-sign-out-alt mr-2"></i>登出
+                    </button>
+                </div>
+            </section>
+
+            <!-- ===== 報酬率比較區塊 ===== -->
+            <section id="section-cagr" class="section hidden">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">
+                    <i class="fas fa-trophy text-yellow-500 mr-2"></i>
+                    報酬率比較
+                </h2>
+                
+                <!-- 說明卡片 -->
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-4 md:p-6 mb-4 text-white">
+                    <h3 class="text-lg font-bold mb-2">🏆 年化報酬率 (CAGR) 比較器</h3>
+                    <p class="text-blue-100 text-sm">比較股票、加密貨幣、指數的長期投資報酬表現，找出最佳投資標的</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+                    <!-- 左側：選擇標的 -->
+                    <div class="lg:col-span-1 space-y-4">
+                        <!-- 快速選擇預設組合 -->
+                        <div class="bg-white rounded-xl shadow p-4">
+                            <h3 class="font-bold text-gray-700 mb-3">🚀 快速比較</h3>
+                            <div class="space-y-2" id="cagrPresetList">
+                                <button onclick="cagrLoadPreset('mag7')" class="w-full text-left px-3 py-2 bg-gray-50 hover:bg-blue-50 rounded-lg text-sm">
+                                    <i class="fas fa-star text-yellow-500 mr-2"></i>科技七雄 (MAG7)
+                                </button>
+                                <button onclick="cagrLoadPreset('indices')" class="w-full text-left px-3 py-2 bg-gray-50 hover:bg-blue-50 rounded-lg text-sm">
+                                    <i class="fas fa-chart-line text-blue-500 mr-2"></i>美股三大指數
+                                </button>
+                                <button onclick="cagrLoadPreset('tw_etf')" class="w-full text-left px-3 py-2 bg-gray-50 hover:bg-blue-50 rounded-lg text-sm">
+                                    <i class="fas fa-flag text-red-500 mr-2"></i>台股熱門 ETF
+                                </button>
+                                <button onclick="cagrLoadPreset('crypto')" class="w-full text-left px-3 py-2 bg-gray-50 hover:bg-blue-50 rounded-lg text-sm">
+                                    <i class="fab fa-bitcoin text-orange-500 mr-2"></i>加密貨幣
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 自訂標的 -->
+                        <div class="bg-white rounded-xl shadow p-4">
+                            <h3 class="font-bold text-gray-700 mb-3">✏️ 自訂比較</h3>
+                            
+                            <!-- 已選標的 -->
+                            <div class="mb-3">
+                                <label class="text-sm text-gray-500 mb-1 block">已選標的 (最多5個)</label>
+                                <div id="cagrSelectedSymbols" class="min-h-[40px] p-2 bg-gray-50 rounded-lg flex flex-wrap">
+                                    <span class="text-gray-400 text-sm">尚未選擇</span>
+                                </div>
+                            </div>
+                            
+                            <!-- 輸入框 -->
+                            <div class="flex gap-2 mb-3">
+                                <input type="text" id="cagrSymbolInput" placeholder="輸入代號 (如 AAPL, BTC)"
+                                    class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                                    onkeypress="if(event.key==='Enter') cagrAddSymbol()">
+                                <button onclick="cagrAddSymbol()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- 時間週期 -->
+                            <div class="mb-3">
+                                <label class="text-sm text-gray-500 mb-1 block">比較週期</label>
+                                <div class="flex flex-wrap gap-2 text-sm">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="cagr-period-check mr-1" value="1y" checked> 1年
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="cagr-period-check mr-1" value="3y" checked> 3年
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="cagr-period-check mr-1" value="5y" checked> 5年
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="cagr-period-check mr-1" value="10y"> 10年
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- 基準指數 -->
+                            <div class="mb-4">
+                                <label class="text-sm text-gray-500 mb-1 block">基準指數</label>
+                                <select id="cagrBenchmarkSelect" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm">
+                                    <option value="^GSPC">S&P 500</option>
+                                    <option value="^IXIC">納斯達克</option>
+                                    <option value="^DJI">道瓊工業</option>
+                                    <option value="">無</option>
+                                </select>
+                            </div>
+                            
+                            <!-- 排序 -->
+                            <div class="mb-4">
+                                <label class="text-sm text-gray-500 mb-1 block">排序依據</label>
+                                <select id="cagrSortBySelect" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm">
+                                    <option value="1y">1年報酬率</option>
+                                    <option value="3y">3年報酬率</option>
+                                    <option value="5y" selected>5年報酬率</option>
+                                    <option value="10y">10年報酬率</option>
+                                </select>
+                            </div>
+                            
+                            <!-- 執行比較按鈕 -->
+                            <button onclick="cagrRunComparison()" 
+                                class="w-full py-3 bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600 transition">
+                                <i class="fas fa-chart-bar mr-2"></i>開始比較
+                            </button>
+                        </div>
+                        
+                        <!-- 我的組合 -->
+                        <div class="bg-white rounded-xl shadow p-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-gray-700">💾 我的組合</h3>
+                                <button onclick="cagrSaveCurrentComparison()" class="text-blue-600 hover:text-blue-800 text-sm">
+                                    <i class="fas fa-save mr-1"></i>儲存目前
+                                </button>
+                            </div>
+                            <div id="cagrSavedComparisons" class="space-y-2">
+                                <p class="text-gray-400 text-sm">登入後可儲存組合</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右側：比較結果 -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-gray-700 text-lg">📊 比較結果</h3>
+                                <span id="cagrResultTime" class="text-sm text-gray-400"></span>
+                            </div>
+                            
+                            <div id="cagrComparisonResult">
+                                <div class="text-center py-12 text-gray-400">
+                                    <i class="fas fa-chart-line text-6xl mb-4"></i>
+                                    <p>選擇標的後點擊「開始比較」</p>
+                                    <p class="text-sm mt-2">或使用左側的快速比較預設組合</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== 管理後台區塊 ===== -->
+            <section id="section-admin" class="section hidden">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">
+                    <i class="fas fa-user-shield text-orange-500 mr-2"></i>
+                    管理後台
+                </h2>
+                
+                <!-- 統計卡片 -->
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-4 md:mb-6">
+                    <div class="bg-white rounded-lg shadow p-3 md:p-4">
+                        <div class="text-gray-500 text-xs md:text-sm">總用戶數</div>
+                        <div id="adminStatTotal" class="text-xl md:text-2xl font-bold text-slate-800">-</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-3 md:p-4">
+                        <div class="text-gray-500 text-xs md:text-sm">總登入次數</div>
+                        <div id="adminStatTotalLogins" class="text-xl md:text-2xl font-bold text-purple-600">-</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-3 md:p-4">
+                        <div class="text-gray-500 text-xs md:text-sm">今日登入</div>
+                        <div id="adminStatToday" class="text-xl md:text-2xl font-bold text-green-600">-</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-3 md:p-4">
+                        <div class="text-gray-500 text-xs md:text-sm">封鎖用戶</div>
+                        <div id="adminStatBlocked" class="text-xl md:text-2xl font-bold text-red-600">-</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-3 md:p-4">
+                        <div class="text-gray-500 text-xs md:text-sm">管理員</div>
+                        <div id="adminStatAdmin" class="text-xl md:text-2xl font-bold text-blue-600">-</div>
+                    </div>
+                </div>
+
+                <!-- 系統管理 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-bold text-gray-700 mb-4">📊 市場資料管理</h3>
+                    <div class="flex flex-wrap gap-2 md:gap-3">
+                        <button onclick="adminInitializeData()" class="bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center text-sm">
+                            <i class="fas fa-sync mr-2"></i>初始化歷史資料
+                        </button>
+                        <button onclick="adminUpdateIndices()" class="bg-green-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-green-700 flex items-center text-sm">
+                            <i class="fas fa-chart-line mr-2"></i>更新三大指數
+                        </button>
+                        <button onclick="adminUpdateSentiment()" class="bg-purple-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center text-sm">
+                            <i class="fas fa-brain mr-2"></i>更新恐懼貪婪
+                        </button>
+                        <button onclick="adminTriggerDailyUpdate()" class="bg-orange-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center text-sm">
+                            <i class="fas fa-bolt mr-2"></i>執行每日更新
+                        </button>
+                    </div>
+                    <p id="adminSystemMessage" class="mt-3 text-sm text-gray-500"></p>
+                </div>
+
+                <!-- 訊號檢查與推播 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-bold text-gray-700 mb-4">🔔 訊號檢查與推播</h3>
+                    <div class="flex flex-wrap gap-2 md:gap-3 mb-3">
+                        <button onclick="adminRunSignalCheck()" class="bg-indigo-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center text-sm">
+                            <i class="fas fa-search mr-2"></i>偵測訊號
+                        </button>
+                        <button onclick="adminSendSignalNotifications()" class="bg-orange-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center text-sm">
+                            <i class="fas fa-paper-plane mr-2"></i>發送訊號通知
+                        </button>
+                        <button onclick="adminTestLineNotify()" class="bg-green-500 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-green-600 flex items-center text-sm">
+                            <i class="fab fa-line mr-2"></i>測試 LINE 推播
+                        </button>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <input type="text" id="adminTestSymbolInput" placeholder="輸入股票代號測試訊號偵測 (如 AAPL)"
+                            class="flex-1 px-3 md:px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm"
+                            onkeypress="if(event.key==='Enter') adminTestSignalDetection()">
+                        <button onclick="adminTestSignalDetection()" class="bg-gray-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-gray-700 text-sm">
+                            測試偵測
+                        </button>
+                    </div>
+                    <p id="adminSignalMessage" class="mt-3 text-sm text-gray-500"></p>
+                    <div id="adminSignalResult" class="mt-3 hidden">
+                        <h4 class="font-medium text-gray-700 mb-2">偵測結果：</h4>
+                        <pre id="adminSignalResultContent" class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-48"></pre>
+                    </div>
+                </div>
+
+                <!-- 訂閱源管理 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-bold text-gray-700 mb-4">📡 訂閱源管理</h3>
+                    <div class="flex flex-wrap gap-2 md:gap-3 mb-3">
+                        <button onclick="adminFetchSubscriptions()" class="bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center text-sm">
+                            <i class="fas fa-sync mr-2"></i>抓取訂閱精選
+                        </button>
+                        <button onclick="adminBackfillSubscriptions()" class="bg-purple-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center text-sm">
+                            <i class="fas fa-history mr-2"></i>回補歷史文章
+                        </button>
+                    </div>
+                    <p id="adminSubscriptionMessage" class="mt-3 text-sm text-gray-500"></p>
+                </div>
+
+                <!-- 用戶管理 -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">
+                    <h3 class="font-bold text-gray-700 mb-4">👥 用戶管理</h3>
+                    <div class="flex flex-col md:flex-row gap-3 md:gap-4 mb-4">
+                        <input type="text" id="adminSearchInput" placeholder="搜尋用戶名稱、Email 或 LINE ID..."
+                            class="flex-1 px-3 md:px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+                            onkeypress="if(event.key==='Enter') adminLoadUsers()">
+                        <div class="flex gap-2 items-center">
+                            <label class="flex items-center text-sm">
+                                <input type="checkbox" id="adminBlockedOnly" class="mr-2">
+                                <span>只顯示封鎖</span>
+                            </label>
+                            <button onclick="adminLoadUsers()" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 text-sm">
+                                搜尋
+                            </button>
+                            <button onclick="adminKickAllUsers()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm">
+                                踢出全部
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b bg-gray-50">
+                                    <th class="text-left py-2 px-3">用戶</th>
+                                    <th class="text-left py-2 px-3 hidden md:table-cell">LINE ID</th>
+                                    <th class="text-center py-2 px-3">登入</th>
+                                    <th class="text-center py-2 px-3">狀態</th>
+                                    <th class="text-center py-2 px-3">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminUserList">
+                                <tr><td colspan="5" class="text-center py-4 text-gray-400">點擊「搜尋」載入用戶</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            
         </main>
 
-        <!-- 手機版底部導航列 (由 JS 生成) -->
-        <nav id="mobileBottomNav" class="mobile-bottom-nav"></nav>
+        <!-- ===== 手機版底部導航列 ===== -->
+        <nav class="mobile-bottom-nav">
+            <a href="#" onclick="mobileNavTo('dashboard')" class="bottom-nav-item active" data-section="dashboard">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>首頁</span>
+            </a>
+            <a href="#" onclick="mobileNavTo('search')" class="bottom-nav-item" data-section="search">
+                <i class="fas fa-search"></i>
+                <span>查詢</span>
+            </a>
+            <a href="#" onclick="mobileNavTo('watchlist')" class="bottom-nav-item" data-section="watchlist">
+                <i class="fas fa-star"></i>
+                <span>追蹤</span>
+            </a>
+            <a href="#" onclick="mobileNavTo('sentiment')" class="bottom-nav-item" data-section="sentiment">
+                <i class="fas fa-heart-pulse"></i>
+                <span>情緒</span>
+            </a>
+            <a href="#" onclick="mobileNavTo('settings')" class="bottom-nav-item" data-section="settings">
+                <i class="fas fa-cog"></i>
+                <span>設定</span>
+            </a>
+        </nav>
 
     </div><!-- end app-content -->
+
 
     <!-- Modal 容器 (由 modals.js 動態填充) -->
     <div id="modal-container"></div>
 
-    <!-- JavaScript 模組 -->
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/core.js"></script>
-    <script src="/static/js/layout.js"></script>
-    <script src="/static/js/sections.js"></script>
     <script src="/static/js/modals.js"></script>
     <script src="/static/js/dashboard.js"></script>
     <script src="/static/js/search.js"></script>
