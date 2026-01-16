@@ -290,6 +290,7 @@ async def get_stock_analysis(
                 "ma50": [float(v) if not pd.isna(v) else None for v in df['ma50'].tail(1500).tolist()] if 'ma50' in df.columns else [],
                 "ma200": [float(v) if not pd.isna(v) else None for v in df['ma200'].tail(1500).tolist()] if 'ma200' in df.columns else [],
                 "ma250": [float(v) if not pd.isna(v) else None for v in df['ma250'].tail(1500).tolist()] if 'ma250' in df.columns else [],
+                "volume": [int(v) if not pd.isna(v) else 0 for v in df['volume'].tail(1500).tolist()] if 'volume' in df.columns else [],
             },
             "from_cache": False,  # 🆕 標記：這是從 Yahoo Finance 取得的新鮮資料
         }

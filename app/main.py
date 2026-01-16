@@ -1,6 +1,10 @@
 """
 FastAPI 主程式
 股票技術分析系統 API
+
+🔧 修復版本 - 2026-01-16
+- 加入市場情緒排程更新（每天 3 次）
+- 啟動時初始化 sentiment
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -195,6 +199,31 @@ def fetch_subscription_sources():
         db.close()
 
 
+# ============================================================
+# 🆕 市場情緒更新函數（新增）
+# ============================================================
+
+def update_market_sentiment():
+    """
+    排程任務：更新市場情緒指數
+    每天執行 3 次，將外部 API 資料存入資料庫
+    解決前端每次載入都要等待外部 API 的問題
+    """
+    from app.database import SyncSessionLocal
+    from app.services.market_service import MarketService
+
+    logger.info("[排程] 開始更新市場情緒...")
+    db = SyncSessionLocal()
+    try:
+        market_service = MarketService(db)
+        result = market_service.update_today_sentiment()
+        logger.info(f"[排程] 市場情緒更新完成: {result}")
+    except Exception as e:
+        logger.error(f"[排程] 市場情緒更新失敗: {e}")
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """應用程式生命週期管理"""
@@ -291,9 +320,35 @@ async def lifespan(app: FastAPI):
         name='訂閱源抓取(晚)',
     )
 
+    # ============================================================
+    # 🆕 市場情緒排程（每天 3 次：08:30, 14:30, 20:30）
+    # 解決前端每次載入都要等待外部 API 的問題
+    # ============================================================
+
+    scheduler.add_job(
+        update_market_sentiment,
+        CronTrigger(hour=8, minute=30),
+        id='sentiment_update_morning',
+        name='市場情緒更新(早)',
+    )
+
+    scheduler.add_job(
+        update_market_sentiment,
+        CronTrigger(hour=14, minute=30),
+        id='sentiment_update_afternoon',
+        name='市場情緒更新(午)',
+    )
+
+    scheduler.add_job(
+        update_market_sentiment,
+        CronTrigger(hour=20, minute=30),
+        id='sentiment_update_evening',
+        name='市場情緒更新(晚)',
+    )
+
     # 啟動排程器
     scheduler.start()
-    logger.info("排程器已啟動（優化版：價格快取30分鐘 + 交易時間判斷）")
+    logger.info("排程器已啟動（優化版：價格快取30分鐘 + 交易時間判斷 + 情緒排程）")
 
     # 🆕 啟動時只更新匯率，價格讓排程處理（減少啟動負擔）
     try:
@@ -303,6 +358,13 @@ async def lifespan(app: FastAPI):
             update_price_cache()
     except Exception as e:
         logger.error(f"啟動時更新失敗: {e}")
+
+    # 🆕 啟動時初始化 sentiment（如果資料庫是空的或過期）
+    try:
+        update_market_sentiment()
+        logger.info("✅ 啟動時 sentiment 初始化完成")
+    except Exception as e:
+        logger.error(f"啟動時 sentiment 初始化失敗: {e}")
 
     yield
 
@@ -424,9 +486,4 @@ async def scheduler_status():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=settings.DEBUG,
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000)

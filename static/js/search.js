@@ -1,6 +1,6 @@
 /**
  * 股票查詢模組
- * 包含：搜尋、結果顯示、全螢幕圖表
+ * 包含：搜尋、結果顯示、全螢幕圖表、成交量圖表、MA進階分析
  */
 
 (function() {
@@ -12,6 +12,7 @@
     
     let currentChartData = null;
     let fullscreenChartInstance = null;
+    let volumeChartInstance = null;  // 🆕 成交量圖表實例
     
     // 前端快取（5分鐘有效）
     const stockCache = new Map();
@@ -97,7 +98,6 @@
                 endpoint = `/api/stock/${upperSymbol}`;
             }
             
-            // 🆕 強制刷新時加上 refresh=true 參數
             if (forceRefresh) {
                 endpoint += '?refresh=true';
             }
@@ -113,7 +113,6 @@
             const data = await res.json();
             console.log('API 回應:', data);
             
-            // 🆕 顯示是否來自後端快取
             if (data.from_cache) {
                 console.log(`📦 後端快取命中: ${symbol} (快取時間: ${data.cache_time})`);
             }
@@ -134,10 +133,7 @@
                 return;
             }
 
-            // 存入快取
             saveToCache(symbol, data);
-            
-            // 渲染結果
             renderSearchResult(data, symbol);
             
         } catch (e) {
@@ -154,9 +150,6 @@
     // 結果渲染
     // ============================================================
     
-    /**
-     * 渲染搜尋結果（統一入口）
-     */
     function renderSearchResult(data, symbol) {
         const upperSymbol = symbol.toUpperCase();
         const isCrypto = ['BTC', 'ETH', 'BITCOIN', 'ETHEREUM'].includes(upperSymbol);
@@ -197,12 +190,14 @@
             marketClass = 'bg-blue-100 text-blue-700';
         }
         
-        // 🆕 快取標示
         const cacheIndicator = stock.from_cache 
             ? `<span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-500" title="資料來自快取，點擊刷新按鈕取得最新">
                    <i class="fas fa-database mr-1"></i>快取
                </span>` 
             : '';
+        
+        // 🆕 MA 進階分析
+        const maAdvanced = renderMAAdvanced(ma, stock.price?.current);
         
         const html = `
             <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -215,7 +210,7 @@
                         </div>
                         <div class="flex items-center gap-2">
                             ${cacheIndicator}
-                            <button onclick="searchSymbol('${stock.symbol}', true)" class="p-2 text-gray-400 hover:text-blue-600 transition" title="重新整理（從伺服器取得最新資料）">
+                            <button onclick="searchSymbol('${stock.symbol}', true)" class="p-2 text-gray-400 hover:text-blue-600 transition" title="重新整理">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
                             <span class="px-2 py-1 rounded text-xs ${marketClass}">${marketLabel}</span>
@@ -251,6 +246,9 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- 🆕 MA 進階分析 -->
+                ${maAdvanced}
                 
                 <!-- 年化報酬率 (CAGR) -->
                 ${stock.cagr ? `
@@ -288,12 +286,15 @@
                                     const val = ma[key];
                                     const vsKey = `price_vs_${key}`;
                                     const isAbove = ma[vsKey] === 'above';
+                                    const distKey = `dist_${key}`;
+                                    const dist = ma[distKey];
+                                    const distText = dist !== undefined ? `${dist >= 0 ? '+' : ''}${dist.toFixed(1)}%` : '';
                                     return `
                                         <div class="p-3 rounded-lg ${isAbove ? 'bg-green-50' : 'bg-red-50'}">
                                             <p class="text-gray-500 text-xs">${key.toUpperCase()}</p>
                                             <p class="font-semibold">${val?.toFixed(2) || '--'}</p>
                                             <p class="text-xs ${isAbove ? 'text-green-600' : 'text-red-600'}">
-                                                ${isAbove ? '價格在上 ✓' : '價格在下'}
+                                                ${isAbove ? '價格在上 ✓' : '價格在下'} ${distText ? `(${distText})` : ''}
                                             </p>
                                         </div>
                                     `;
@@ -336,6 +337,76 @@
         container.innerHTML = html;
     }
     
+    /**
+     * 🆕 渲染 MA 進階分析區塊
+     */
+    function renderMAAdvanced(ma, currentPrice) {
+        if (!ma || !currentPrice) return '';
+        
+        // 交叉訊號
+        const crossSignals = [];
+        if (ma.golden_cross_20_50) crossSignals.push({ type: 'golden', label: 'MA20↗MA50 黃金交叉', days: ma.golden_cross_20_50_days });
+        if (ma.death_cross_20_50) crossSignals.push({ type: 'death', label: 'MA20↘MA50 死亡交叉', days: ma.death_cross_20_50_days });
+        if (ma.golden_cross_50_200) crossSignals.push({ type: 'golden', label: 'MA50↗MA200 黃金交叉', days: ma.golden_cross_50_200_days });
+        if (ma.death_cross_50_200) crossSignals.push({ type: 'death', label: 'MA50↘MA200 死亡交叉', days: ma.death_cross_50_200_days });
+        
+        // 距離均線百分比
+        const distances = [];
+        if (ma.dist_ma20 !== undefined) distances.push({ label: 'MA20', value: ma.dist_ma20 });
+        if (ma.dist_ma50 !== undefined) distances.push({ label: 'MA50', value: ma.dist_ma50 });
+        if (ma.dist_ma200 !== undefined) distances.push({ label: 'MA200', value: ma.dist_ma200 });
+        
+        // 如果沒有任何資料，返回空
+        if (crossSignals.length === 0 && distances.length === 0) return '';
+        
+        let html = `
+            <div class="p-4 md:p-6 border-b">
+                <h4 class="font-semibold text-gray-700 mb-3 text-sm">📐 均線進階分析</h4>
+        `;
+        
+        // 交叉訊號
+        if (crossSignals.length > 0) {
+            html += `<div class="mb-3">`;
+            crossSignals.forEach(signal => {
+                const bgClass = signal.type === 'golden' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                const icon = signal.type === 'golden' ? '🔺' : '🔻';
+                const daysText = signal.days ? `(${signal.days}天前)` : '';
+                html += `
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${bgClass} mr-2 mb-2">
+                        ${icon} ${signal.label} ${daysText}
+                    </span>
+                `;
+            });
+            html += `</div>`;
+        }
+        
+        // 距離均線
+        if (distances.length > 0) {
+            html += `
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    ${distances.map(d => {
+                        const isPositive = d.value >= 0;
+                        const bgClass = isPositive ? 'bg-green-50' : 'bg-red-50';
+                        const textClass = isPositive ? 'text-green-600' : 'text-red-600';
+                        const arrow = isPositive ? '↑' : '↓';
+                        return `
+                            <div class="p-2 rounded-lg ${bgClass}">
+                                <p class="text-gray-500 text-xs">距 ${d.label}</p>
+                                <p class="font-bold ${textClass}">
+                                    ${arrow} ${Math.abs(d.value).toFixed(1)}%
+                                </p>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <p class="text-xs text-gray-400 mt-2 text-center">正值表示價格高於均線，負值表示低於均線</p>
+            `;
+        }
+        
+        html += `</div>`;
+        return html;
+    }
+    
     function toggleCollapsible(btn) {
         const content = btn.nextElementSibling;
         const icon = btn.querySelector('i');
@@ -372,6 +443,10 @@
             fullscreenChartInstance.destroy();
             fullscreenChartInstance = null;
         }
+        if (volumeChartInstance) {
+            volumeChartInstance.destroy();
+            volumeChartInstance = null;
+        }
     }
     
     function setChartRange(days, btn) {
@@ -396,6 +471,10 @@
         
         if (fullscreenChartInstance) {
             fullscreenChartInstance.destroy();
+        }
+        if (volumeChartInstance) {
+            volumeChartInstance.destroy();
+            volumeChartInstance = null;
         }
         
         const ctx = canvas.getContext('2d');
@@ -486,6 +565,119 @@
                         ticks: { maxTicksLimit: days <= 60 ? 8 : 10, maxRotation: 0 }
                     },
                     y: { grid: { color: 'rgba(0,0,0,0.05)' } }
+                }
+            }
+        });
+        
+        // 🆕 渲染成交量圖表
+        if (chartData.volumes && chartData.volumes.length > 0) {
+            renderVolumeChart(chartData, days, labels);
+        }
+    }
+    
+    /**
+     * 🆕 渲染成交量圖表
+     */
+    function renderVolumeChart(chartData, days, labels) {
+        const volumeCanvas = document.getElementById('volumeChart');
+        if (!volumeCanvas) return;
+        
+        // 顯示成交量容器
+        const volumeContainer = document.getElementById('volumeChartContainer');
+        if (volumeContainer) {
+            volumeContainer.classList.remove('hidden');
+        }
+        
+        if (volumeChartInstance) {
+            volumeChartInstance.destroy();
+        }
+        
+        const ctx = volumeCanvas.getContext('2d');
+        const dataLength = chartData.dates.length;
+        const startIdx = Math.max(0, dataLength - days);
+        
+        const volumes = chartData.volumes.slice(startIdx);
+        const prices = chartData.prices.slice(startIdx);
+        
+        // 計算每根柱子的顏色（漲綠跌紅）
+        const barColors = prices.map((price, i) => {
+            if (i === 0) return 'rgba(156, 163, 175, 0.6)';
+            return price >= prices[i - 1] ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
+        });
+        
+        // 計算 20 日均量
+        const avgVolumes = [];
+        for (let i = 0; i < volumes.length; i++) {
+            if (i < 19) {
+                avgVolumes.push(null);
+            } else {
+                const sum = volumes.slice(i - 19, i + 1).reduce((a, b) => a + b, 0);
+                avgVolumes.push(sum / 20);
+            }
+        }
+        
+        volumeChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '成交量',
+                        data: volumes,
+                        backgroundColor: barColors,
+                        borderWidth: 0,
+                        barPercentage: 0.8,
+                    },
+                    {
+                        label: '20日均量',
+                        data: avgVolumes,
+                        type: 'line',
+                        borderColor: '#F59E0B',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { usePointStyle: true, padding: 10, boxWidth: 8 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                if (ctx.raw === null) return null;
+                                const val = ctx.raw;
+                                if (val >= 1e9) return `${ctx.dataset.label}: ${(val / 1e9).toFixed(2)}B`;
+                                if (val >= 1e6) return `${ctx.dataset.label}: ${(val / 1e6).toFixed(2)}M`;
+                                if (val >= 1e3) return `${ctx.dataset.label}: ${(val / 1e3).toFixed(2)}K`;
+                                return `${ctx.dataset.label}: ${val.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { 
+                        grid: { display: false },
+                        ticks: { display: false }
+                    },
+                    y: { 
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: {
+                            callback: function(value) {
+                                if (value >= 1e9) return (value / 1e9).toFixed(1) + 'B';
+                                if (value >= 1e6) return (value / 1e6).toFixed(1) + 'M';
+                                if (value >= 1e3) return (value / 1e3).toFixed(1) + 'K';
+                                return value;
+                            }
+                        }
+                    }
                 }
             }
         });
@@ -660,18 +852,12 @@
     // 快取管理
     // ============================================================
     
-    /**
-     * 清除所有股票快取
-     */
     function clearStockCache() {
         stockCache.clear();
         console.log('🗑️ 股票快取已清除');
         showToast('快取已清除');
     }
     
-    /**
-     * 取得快取統計
-     */
     function getStockCacheStats() {
         return {
             count: stockCache.size,
@@ -691,11 +877,12 @@
     window.closeChartFullscreen = closeChartFullscreen;
     window.setChartRange = setChartRange;
     window.renderFullscreenChart = renderFullscreenChart;
+    window.renderVolumeChart = renderVolumeChart;
     window.quickAddToWatchlist = quickAddToWatchlist;
     window.loadReturnsModal = loadReturnsModal;
     window.closeReturnsModal = closeReturnsModal;
     window.clearStockCache = clearStockCache;
     window.getStockCacheStats = getStockCacheStats;
     
-    console.log('🔍 search.js 模組已載入');
+    console.log('🔍 search.js 模組已載入 (P2 含成交量圖表+MA進階分析)');
 })();

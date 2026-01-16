@@ -54,6 +54,61 @@ class WatchlistImportRequest(BaseModel):
 
 
 # ============================================================
+# 🆕 熱門追蹤統計 API
+# ============================================================
+
+@router.get("/popular", summary="熱門追蹤統計")
+async def get_popular_watchlist(
+    limit: int = 10,
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    取得最多人追蹤的股票排行
+    
+    - 不需要登入
+    - 返回前 N 個最多人追蹤的標的
+    - 包含追蹤人數統計
+    """
+    logger.info(f"API: 熱門追蹤統計 - limit={limit}")
+
+    try:
+        from sqlalchemy import func
+        
+        # 按 symbol 分組，計算追蹤人數
+        stmt = (
+            select(
+                Watchlist.symbol,
+                Watchlist.asset_type,
+                func.count(Watchlist.user_id.distinct()).label('count')
+            )
+            .group_by(Watchlist.symbol, Watchlist.asset_type)
+            .order_by(func.count(Watchlist.user_id.distinct()).desc())
+            .limit(limit)
+        )
+        
+        result = await db.execute(stmt)
+        rows = result.all()
+        
+        popular = []
+        for row in rows:
+            popular.append({
+                "symbol": row.symbol,
+                "asset_type": row.asset_type or "stock",
+                "count": row.count,
+            })
+        
+        return {
+            "success": True,
+            "popular": popular,
+            "total": len(popular),
+        }
+
+    except Exception as e:
+        logger.error(f"取得熱門追蹤統計失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
 # 匯出匯入 API
 # ============================================================
 
