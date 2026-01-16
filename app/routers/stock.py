@@ -3,7 +3,7 @@
 
 🚀 效能優化版 - 2026-01-16
 - 歷史資料存入 PostgreSQL
-- 新增 /returns 路由計算年化報酬率
+- 修正路由順序（具體路由在前）
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -71,6 +71,237 @@ def _get_stock_df(symbol: str, years: int = 10, force_refresh: bool = False):
     
     return df, symbol, data_source
 
+
+# ============================================================
+# 🔴 重要：靜態路由必須放在動態路由之前！
+# ============================================================
+
+@router.get("/cache/stats", summary="快取統計")
+async def get_cache_stats(symbol: str = Query(None)):
+    """取得歷史資料快取統計"""
+    from app.services.stock_history_service import StockHistoryService
+    from app.database import SyncSessionLocal
+    
+    try:
+        db = SyncSessionLocal()
+        try:
+            stats = StockHistoryService(db).get_cache_stats(symbol)
+        finally:
+            db.close()
+        return {"success": True, "data": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/compare/history", summary="走勢比較")
+async def compare_stocks(
+    symbols: str = Query(..., description="股票代號，逗號分隔，最多 5 個"),
+    days: int = Query(90, ge=7, le=365, description="比較天數"),
+):
+    """取得多支股票的正規化走勢資料"""
+    from app.data_sources.yahoo_finance import yahoo_finance
+    import math
+    
+    symbol_list = [normalize_tw_symbol(s.strip()) for s in symbols.split(",") if s.strip()]
+    
+    if len(symbol_list) < 1:
+        raise HTTPException(status_code=400, detail="請至少輸入一個代號")
+    if len(symbol_list) > 5:
+        raise HTTPException(status_code=400, detail="最多比較 5 個標的")
+    
+    result = {}
+    
+    for symbol in symbol_list:
+        try:
+            if symbol.startswith("^"):
+                df = yahoo_finance.get_index_data(symbol, period="2y")
+            else:
+                df, symbol, _ = _get_stock_df(symbol, years=2)
+            
+            if df is None or df.empty:
+                continue
+            
+            df.columns = [c.lower() for c in df.columns]
+            if 'date' not in df.columns:
+                df['date'] = df.index
+            
+            df = df.tail(days).copy()
+            if len(df) < 5:
+                continue
+            
+            price_col = "adj_close" if "adj_close" in df.columns else "close"
+            start_price = df.iloc[0][price_col]
+            if start_price == 0 or pd.isna(start_price):
+                continue
+            
+            df["normalized"] = (df[price_col] / start_price) * 100
+            df = df.dropna(subset=["normalized"])
+            
+            if symbol.startswith("^"):
+                from app.models.index_price import INDEX_SYMBOLS
+                info = INDEX_SYMBOLS.get(symbol, {})
+                name = info.get("name_zh", symbol)
+            else:
+                info = yahoo_finance.get_stock_info(symbol)
+                name = info.get("name", symbol) if info else symbol
+            
+            history = []
+            for _, row in df.iterrows():
+                val = row["normalized"]
+                if not (math.isnan(val) or math.isinf(val)):
+                    history.append({"date": str(row["date"]), "value": round(val, 2)})
+            
+            if history:
+                result[symbol] = {"name": name, "history": history}
+                
+        except Exception as e:
+            logger.error(f"處理 {symbol} 錯誤: {e}")
+    
+    if not result:
+        raise HTTPException(status_code=404, detail="找不到任何有效資料")
+    
+    return {"success": True, "days": days, "data": result}
+
+
+# ============================================================
+# 🔴 帶路徑參數的子路由（必須在 /{symbol} 之前）
+# ============================================================
+
+@router.get("/{symbol}/returns", summary="年化報酬率")
+async def get_stock_returns(symbol: str):
+    """
+    計算股票的年化報酬率 (CAGR)
+    
+    Returns:
+        - returns: 累積報酬率 (1m, 3m, 6m, 1y)
+        - cagr: 年化報酬率 (cagr_1y, cagr_3y, cagr_5y, cagr_10y)
+    """
+    symbol = normalize_tw_symbol(symbol)
+    logger.info(f"計算年化報酬率: {symbol}")
+    
+    df, symbol, _ = _get_stock_df(symbol, years=10, force_refresh=False)
+    
+    if df is None or df.empty:
+        raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
+    
+    try:
+        df.columns = [c.lower() for c in df.columns]
+        
+        # 使用調整後價格計算報酬
+        price_col = 'adj_close' if 'adj_close' in df.columns else 'close'
+        
+        current_price = float(df.iloc[-1][price_col])
+        
+        # 累積報酬率
+        def calc_return(days):
+            if len(df) > days:
+                old_price = float(df.iloc[-days-1][price_col])
+                if old_price > 0:
+                    return round((current_price - old_price) / old_price * 100, 2)
+            return None
+        
+        returns = {
+            "1m": calc_return(22),
+            "3m": calc_return(65),
+            "6m": calc_return(130),
+            "1y": calc_return(252),
+        }
+        
+        # CAGR 計算
+        def calc_cagr(years):
+            days = years * 252
+            if len(df) > days:
+                start_price = float(df.iloc[-days-1][price_col])
+                if start_price > 0:
+                    cagr = ((current_price / start_price) ** (1 / years) - 1) * 100
+                    return round(cagr, 2)
+            return None
+        
+        cagr = {
+            "cagr_1y": calc_cagr(1),
+            "cagr_3y": calc_cagr(3),
+            "cagr_5y": calc_cagr(5),
+            "cagr_10y": calc_cagr(10),
+        }
+        
+        return {
+            "success": True,
+            "symbol": symbol,
+            "returns": returns,
+            "cagr": cagr,
+            "note": "CAGR 已包含分割調整及配息再投入效果",
+        }
+        
+    except Exception as e:
+        logger.error(f"計算 {symbol} 年化報酬率失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"計算失敗: {str(e)}")
+
+
+@router.get("/{symbol}/chart", summary="取得股票圖表")
+async def get_stock_chart(
+    symbol: str,
+    days: int = Query(120, ge=30, le=365, description="顯示天數"),
+):
+    """生成股票技術分析圖表"""
+    from app.data_sources.yahoo_finance import yahoo_finance
+    from app.services.indicator_service import indicator_service
+    from app.services.chart_service import chart_service
+    
+    symbol = normalize_tw_symbol(symbol)
+    logger.info(f"生成圖表: {symbol}, days={days}")
+    
+    df, symbol, _ = _get_stock_df(symbol, years=2, force_refresh=False)
+    
+    if df is None or df.empty:
+        raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
+    
+    df.columns = [c.lower() for c in df.columns]
+    
+    if 'adj_close' in df.columns:
+        df['close'] = df['adj_close']
+    
+    if 'date' not in df.columns:
+        df['date'] = df.index
+    
+    # 計算技術指標
+    df = indicator_service.calculate_all_indicators(df)
+    
+    info = yahoo_finance.get_stock_info(symbol)
+    name = info.get("name", "") if info else ""
+    
+    chart_path = chart_service.plot_stock_analysis(
+        df,
+        symbol=symbol,
+        name=name,
+        days=days,
+        show_kd=False,
+    )
+    
+    logger.info(f"圖表生成完成: {chart_path}")
+    
+    return FileResponse(chart_path, media_type="image/png", filename=f"{symbol}_chart.png")
+
+
+@router.delete("/cache/{symbol}", summary="清除快取")
+async def clear_cache(symbol: str):
+    """清除指定股票的快取"""
+    from app.services.stock_history_service import StockHistoryService
+    from app.database import SyncSessionLocal
+    
+    try:
+        db = SyncSessionLocal()
+        try:
+            count = StockHistoryService(db).clear_cache(symbol)
+        finally:
+            db.close()
+        return {"success": True, "deleted_count": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# 🔴 最通用的路由放最後
+# ============================================================
 
 @router.get("/{symbol}", summary="查詢股票")
 async def get_stock_analysis(
@@ -234,218 +465,3 @@ async def get_stock_analysis(
     except Exception as e:
         logger.error(f"處理 {symbol} 時發生錯誤: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"查詢失敗: {str(e)}")
-
-
-@router.get("/{symbol}/returns", summary="年化報酬率")
-async def get_stock_returns(symbol: str):
-    """
-    計算股票的年化報酬率 (CAGR)
-    
-    Returns:
-        - returns: 累積報酬率 (1m, 3m, 6m, 1y)
-        - cagr: 年化報酬率 (cagr_1y, cagr_3y, cagr_5y, cagr_10y)
-    """
-    symbol = normalize_tw_symbol(symbol)
-    logger.info(f"計算年化報酬率: {symbol}")
-    
-    df, symbol, _ = _get_stock_df(symbol, years=10, force_refresh=False)
-    
-    if df is None or df.empty:
-        raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
-    
-    try:
-        df.columns = [c.lower() for c in df.columns]
-        
-        # 使用調整後價格計算報酬
-        price_col = 'adj_close' if 'adj_close' in df.columns else 'close'
-        
-        current_price = float(df.iloc[-1][price_col])
-        
-        # 累積報酬率
-        def calc_return(days):
-            if len(df) > days:
-                old_price = float(df.iloc[-days-1][price_col])
-                if old_price > 0:
-                    return round((current_price - old_price) / old_price * 100, 2)
-            return None
-        
-        returns = {
-            "1m": calc_return(22),
-            "3m": calc_return(65),
-            "6m": calc_return(130),
-            "1y": calc_return(252),
-        }
-        
-        # CAGR 計算
-        def calc_cagr(years):
-            days = years * 252
-            if len(df) > days:
-                start_price = float(df.iloc[-days-1][price_col])
-                if start_price > 0:
-                    cagr = ((current_price / start_price) ** (1 / years) - 1) * 100
-                    return round(cagr, 2)
-            return None
-        
-        cagr = {
-            "cagr_1y": calc_cagr(1),
-            "cagr_3y": calc_cagr(3),
-            "cagr_5y": calc_cagr(5),
-            "cagr_10y": calc_cagr(10),
-        }
-        
-        return {
-            "success": True,
-            "symbol": symbol,
-            "returns": returns,
-            "cagr": cagr,
-            "note": "CAGR 已包含分割調整及配息再投入效果",
-        }
-        
-    except Exception as e:
-        logger.error(f"計算 {symbol} 年化報酬率失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"計算失敗: {str(e)}")
-
-
-@router.get("/{symbol}/chart", summary="取得股票圖表")
-async def get_stock_chart(
-    symbol: str,
-    days: int = Query(120, ge=30, le=365, description="顯示天數"),
-):
-    """生成股票技術分析圖表"""
-    from app.data_sources.yahoo_finance import yahoo_finance
-    from app.services.indicator_service import indicator_service
-    from app.services.chart_service import chart_service
-    
-    symbol = normalize_tw_symbol(symbol)
-    
-    df, symbol, _ = _get_stock_df(symbol, years=2, force_refresh=False)
-    
-    if df is None or df.empty:
-        raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
-    
-    df.columns = [c.lower() for c in df.columns]
-    
-    if 'adj_close' in df.columns:
-        df['close'] = df['adj_close']
-    
-    if 'date' not in df.columns:
-        df['date'] = df.index
-    
-    df = indicator_service.calculate_all_indicators(df)
-    
-    info = yahoo_finance.get_stock_info(symbol)
-    name = info.get("name", "") if info else ""
-    
-    chart_path = chart_service.plot_stock_analysis(
-        df,
-        symbol=symbol,
-        name=name,
-        days=days,
-        show_kd=False,
-    )
-    
-    return FileResponse(chart_path, media_type="image/png", filename=f"{symbol}_chart.png")
-
-
-@router.get("/compare/history", summary="走勢比較")
-async def compare_stocks(
-    symbols: str = Query(..., description="股票代號，逗號分隔，最多 5 個"),
-    days: int = Query(90, ge=7, le=365, description="比較天數"),
-):
-    """取得多支股票的正規化走勢資料"""
-    from app.data_sources.yahoo_finance import yahoo_finance
-    import math
-    
-    symbol_list = [normalize_tw_symbol(s.strip()) for s in symbols.split(",") if s.strip()]
-    
-    if len(symbol_list) < 1:
-        raise HTTPException(status_code=400, detail="請至少輸入一個代號")
-    if len(symbol_list) > 5:
-        raise HTTPException(status_code=400, detail="最多比較 5 個標的")
-    
-    result = {}
-    
-    for symbol in symbol_list:
-        try:
-            if symbol.startswith("^"):
-                df = yahoo_finance.get_index_data(symbol, period="2y")
-            else:
-                df, symbol, _ = _get_stock_df(symbol, years=2)
-            
-            if df is None or df.empty:
-                continue
-            
-            df.columns = [c.lower() for c in df.columns]
-            if 'date' not in df.columns:
-                df['date'] = df.index
-            
-            df = df.tail(days).copy()
-            if len(df) < 5:
-                continue
-            
-            price_col = "adj_close" if "adj_close" in df.columns else "close"
-            start_price = df.iloc[0][price_col]
-            if start_price == 0 or pd.isna(start_price):
-                continue
-            
-            df["normalized"] = (df[price_col] / start_price) * 100
-            df = df.dropna(subset=["normalized"])
-            
-            if symbol.startswith("^"):
-                from app.models.index_price import INDEX_SYMBOLS
-                info = INDEX_SYMBOLS.get(symbol, {})
-                name = info.get("name_zh", symbol)
-            else:
-                info = yahoo_finance.get_stock_info(symbol)
-                name = info.get("name", symbol) if info else symbol
-            
-            history = []
-            for _, row in df.iterrows():
-                val = row["normalized"]
-                if not (math.isnan(val) or math.isinf(val)):
-                    history.append({"date": str(row["date"]), "value": round(val, 2)})
-            
-            if history:
-                result[symbol] = {"name": name, "history": history}
-                
-        except Exception as e:
-            logger.error(f"處理 {symbol} 錯誤: {e}")
-    
-    if not result:
-        raise HTTPException(status_code=404, detail="找不到任何有效資料")
-    
-    return {"success": True, "days": days, "data": result}
-
-
-@router.get("/cache/stats", summary="快取統計")
-async def get_cache_stats(symbol: str = Query(None)):
-    """取得歷史資料快取統計"""
-    from app.services.stock_history_service import StockHistoryService
-    from app.database import SyncSessionLocal
-    
-    try:
-        db = SyncSessionLocal()
-        try:
-            stats = StockHistoryService(db).get_cache_stats(symbol)
-        finally:
-            db.close()
-        return {"success": True, "data": stats}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.delete("/cache/{symbol}", summary="清除快取")
-async def clear_cache(symbol: str):
-    """清除指定股票的快取"""
-    from app.services.stock_history_service import StockHistoryService
-    from app.database import SyncSessionLocal
-    
-    try:
-        db = SyncSessionLocal()
-        try:
-            count = StockHistoryService(db).clear_cache(symbol)
-        finally:
-            db.close()
-        return {"success": True, "deleted_count": count}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
