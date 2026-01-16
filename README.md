@@ -1,52 +1,59 @@
-# 🔧 P1 功能修復包
+# 導航修復 - 報酬率比較與管理後台整合
 
-## 問題修復
+## 問題
+原本「報酬率比較」和「管理後台」是指向外部頁面 (`/static/compare.html`, `/static/admin.html`)，導致 UI 不一致。
 
-1. **`/api/tags` 404** - tags_router 沒有註冊到 main.py
-2. **stock_info 種子表** - 現在包含在 p1_migrations.py 中
-3. **前端標籤功能** - 確保 tags.js 在 watchlist.js 之前載入
+## 修復內容
 
-## 🚀 快速部署
+### 1. dashboard.html 修改
+- 新增 `section-cagr`（報酬率比較區塊）
+- 新增 `section-admin`（管理後台區塊）
+- 修正導航連結改為內部 section 切換
+- 加入 `cagr.js` 和 `admin.js` 載入
+- 加入 Tag Modal（標籤編輯和指派）
+
+### 2. 新增 JS 檔案
+- `static/js/cagr.js` - 報酬率比較功能
+- `static/js/admin.js` - 管理後台功能
+
+## 部署步驟
 
 ```powershell
-.\p1_fix\deploy.ps1
-git add . && git commit -m "fix: P1 tags + stock_info 修復" && git push
+# 1. 解壓 nav_fix.zip
+Expand-Archive nav_fix.zip -DestinationPath nav_fix
+
+# 2. 複製檔案
+Copy-Item "nav_fix\static\dashboard.html" "static\dashboard.html" -Force
+Copy-Item "nav_fix\static\js\cagr.js" "static\js\cagr.js" -Force
+Copy-Item "nav_fix\static\js\admin.js" "static\js\admin.js" -Force
+
+# 3. 提交部署
+git add .
+git commit -m "fix: 整合報酬率比較和管理後台到 dashboard"
+git push
 ```
 
-## 📦 檔案清單
+## 修改摘要
 
-```
-p1_fix/
-├── app/utils/
-│   └── p1_migrations.py    # 完整版（含 33 筆種子資料）
-├── static/js/
-│   ├── tags.js             # 標籤管理模組
-│   └── watchlist.js        # 追蹤清單（含標籤整合）
-├── deploy.ps1              # 自動部署腳本
-└── README.md
-```
+| 修改項目 | 原本 | 修正後 |
+|---------|------|--------|
+| 手機版報酬率比較 | `href="/static/compare.html"` | `onclick="mobileNavTo('cagr')"` |
+| 電腦版報酬率比較 | `href="/static/compare.html"` | `onclick="showSection('cagr', event)"` |
+| 頂部管理後台 | `href="/static/admin.html"` | `onclick="showSection('admin', event)"` |
+| 側邊欄管理後台 | `href="/static/admin.html"` | `onclick="showSection('admin', event)"` |
 
-## 部署腳本會自動處理
+## 新增的 Section
 
-| 項目 | 動作 |
-|------|------|
-| static/js/tags.js | ✅ 複製 |
-| static/js/watchlist.js | ✅ 複製 |
-| app/utils/p1_migrations.py | ✅ 複製（含種子資料）|
-| app/main.py 加入 tags_router | ✅ 自動 |
-| app/main.py 加入 stock_info_router | ✅ 自動 |
-| dashboard.html 加入 tags.js | ✅ 自動 |
+### section-cagr（報酬率比較）
+- 快速比較預設組合（科技七雄、三大指數、台股ETF、加密貨幣）
+- 自訂標的選擇
+- 年化報酬率計算
+- 基準指數對比
+- 儲存我的組合
 
-## ✅ API 端點
-
-部署後可用：
-
-### 🏷️ 標籤 API
-- `GET /api/tags` - 用戶標籤列表
-- `POST /api/tags` - 建立標籤
-- `GET /api/tags/watchlist/{id}` - 取得追蹤項目標籤
-- `PUT /api/tags/watchlist/{id}` - 設定追蹤項目標籤
-
-### 📊 股票資訊 API
-- `GET /api/stock-info/search?q=台積` - 搜尋
-- `GET /api/stock-info/popular` - 熱門 33 筆
+### section-admin（管理後台）
+- 用戶統計
+- 市場資料管理
+- 訊號檢查與推播
+- 訂閱源管理
+- 用戶管理

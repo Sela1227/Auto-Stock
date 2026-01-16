@@ -88,10 +88,14 @@ async function adminLoadUsers() {
         if (data && data.success) {
             adminRenderUsers(data.users);
             adminTotalPages = data.pagination.total_pages;
-            document.getElementById('adminPageInfo').textContent = 
-                `第 ${data.pagination.page} / ${adminTotalPages} 頁，共 ${data.pagination.total} 筆`;
-            document.getElementById('adminPrevPage').disabled = adminCurrentPage <= 1;
-            document.getElementById('adminNextPage').disabled = adminCurrentPage >= adminTotalPages;
+            const pageInfo = document.getElementById('adminPageInfo');
+            if (pageInfo) {
+                pageInfo.textContent = `第 ${data.pagination.page} / ${adminTotalPages} 頁，共 ${data.pagination.total} 筆`;
+            }
+            const prevBtn = document.getElementById('adminPrevPage');
+            const nextBtn = document.getElementById('adminNextPage');
+            if (prevBtn) prevBtn.disabled = adminCurrentPage <= 1;
+            if (nextBtn) nextBtn.disabled = adminCurrentPage >= adminTotalPages;
         }
     } catch (e) {
         showToast('載入用戶失敗', 'error');
@@ -132,9 +136,6 @@ function adminRenderUsers(users) {
             </td>
             <td class="px-3 py-2 text-center">
                 <span class="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-700">${u.login_count || 0}</span>
-            </td>
-            <td class="px-3 py-2 text-xs text-gray-500 hidden md:table-cell">
-                ${adminFormatDate(u.last_login)}
             </td>
             <td class="px-3 py-2">
                 <div class="flex gap-1 flex-wrap">
@@ -209,15 +210,15 @@ async function adminKickUser(userId) {
         if (data && data.success) {
             showToast('用戶已踢出', 'success');
         } else {
-            showToast('踢出失敗', 'error');
+            showToast('操作失敗', 'error');
         }
     } catch (e) {
-        showToast('踢出失敗：' + e.message, 'error');
+        showToast('操作失敗：' + e.message, 'error');
     }
 }
 
 async function adminKickAllUsers() {
-    if (!confirm('確定要踢出所有用戶？這會讓所有人重新登入。')) return;
+    if (!confirm('確定要踢出所有用戶？此操作將使所有用戶重新登入。')) return;
     
     try {
         const data = await adminApiRequest('/api/admin/users/kick-all', {
@@ -225,7 +226,7 @@ async function adminKickAllUsers() {
         });
         
         if (data && data.success) {
-            showToast('已踢出所有用戶', 'success');
+            showToast(`已踢出 ${data.kicked_count} 個用戶`, 'success');
         } else {
             showToast('操作失敗', 'error');
         }
@@ -403,6 +404,48 @@ async function adminTestLineNotify() {
         }
     } catch (e) {
         adminShowSignalMessage(`❌ 發送失敗: ${e.message}`, true);
+    }
+}
+
+// ==================== 訂閱源管理 ====================
+function adminShowSubscriptionMessage(msg, isError = false) {
+    const el = document.getElementById('adminSubscriptionMessage');
+    if (el) {
+        el.textContent = msg;
+        el.className = isError ? 'mt-3 text-sm text-red-500' : 'mt-3 text-sm text-green-600';
+    }
+}
+
+async function adminFetchSubscriptions() {
+    adminShowSubscriptionMessage('正在抓取訂閱精選...');
+    
+    try {
+        const data = await adminApiRequest('/api/subscription/admin/fetch', { method: 'POST' });
+        if (data && data.success) {
+            adminShowSubscriptionMessage(`✅ 抓取完成！新增 ${data.new_articles || 0} 篇文章，${data.new_mentions || 0} 個提及`);
+        } else {
+            adminShowSubscriptionMessage(`❌ 抓取失敗: ${data?.detail || '未知錯誤'}`, true);
+        }
+    } catch (e) {
+        adminShowSubscriptionMessage(`❌ 抓取失敗: ${e.message}`, true);
+    }
+}
+
+async function adminBackfillSubscriptions() {
+    const days = prompt('回補幾天的文章？', '7');
+    if (!days) return;
+    
+    adminShowSubscriptionMessage('正在回補歷史文章...');
+    
+    try {
+        const data = await adminApiRequest(`/api/subscription/admin/backfill?days=${days}`, { method: 'POST' });
+        if (data && data.success) {
+            adminShowSubscriptionMessage(`✅ 回補完成！新增 ${data.new_articles || 0} 篇文章，${data.new_mentions || 0} 個提及`);
+        } else {
+            adminShowSubscriptionMessage(`❌ 回補失敗: ${data?.detail || '未知錯誤'}`, true);
+        }
+    } catch (e) {
+        adminShowSubscriptionMessage(`❌ 回補失敗: ${e.message}`, true);
     }
 }
 
