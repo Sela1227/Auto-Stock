@@ -5,6 +5,7 @@
 - 歷史資料存入 PostgreSQL
 - 修正路由順序（具體路由在前）
 - 修正 returns API 格式符合前端期望
+- 修正 CAGR 計算使用實際天數
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -195,8 +196,11 @@ async def get_stock_returns(symbol: str):
         if 'date' not in df.columns:
             df['date'] = df.index
         
+        total_records = len(df)
         current_price = float(df.iloc[-1][price_col])
         current_date = str(df.iloc[-1]['date'])
+        
+        logger.info(f"{symbol} 資料筆數: {total_records}, 當前價格: {current_price}")
         
         # 取得股票名稱
         info = yahoo_finance.get_stock_info(symbol)
@@ -207,12 +211,21 @@ async def get_stock_returns(symbol: str):
             stock_name = TAIWAN_STOCK_NAMES.get(stock_code, symbol)
         
         # 計算各期間報酬率（符合前端期望格式）
-        def calc_period_return(years):
-            days = years * 252
-            if len(df) <= days:
+        # 使用實際天數計算，不假設每年 252 天
+        def calc_period_return(target_years):
+            # 每年約 252 個交易日
+            target_days = target_years * 252
+            
+            # 如果資料不足目標天數的 80%，則返回 None
+            min_required = int(target_days * 0.8)
+            if total_records < min_required:
+                logger.info(f"{symbol} {target_years}Y: 資料不足 ({total_records} < {min_required})")
                 return None
             
-            start_idx = -days - 1
+            # 取實際可用的天數（最多是目標天數）
+            actual_days = min(target_days, total_records - 1)
+            start_idx = -actual_days - 1
+            
             start_row = df.iloc[start_idx]
             start_price = float(start_row[price_col])
             start_date = str(start_row['date'])
@@ -220,16 +233,32 @@ async def get_stock_returns(symbol: str):
             if start_price <= 0:
                 return None
             
+            # 計算實際年數
+            try:
+                if isinstance(df.iloc[-1]['date'], str):
+                    end_dt = datetime.strptime(str(df.iloc[-1]['date'])[:10], '%Y-%m-%d')
+                    start_dt = datetime.strptime(str(start_row['date'])[:10], '%Y-%m-%d')
+                else:
+                    end_dt = pd.to_datetime(df.iloc[-1]['date'])
+                    start_dt = pd.to_datetime(start_row['date'])
+                actual_years = (end_dt - start_dt).days / 365.25
+            except:
+                actual_years = actual_days / 252  # 回退方案
+            
+            if actual_years < 0.5:  # 至少需要半年
+                return None
+            
             # 計算 CAGR
-            cagr = ((current_price / start_price) ** (1 / years) - 1) * 100
+            cagr = ((current_price / start_price) ** (1 / actual_years) - 1) * 100
             
             return {
                 "cagr": round(cagr, 2),
-                "start_date": start_date,
+                "start_date": start_date[:10] if len(start_date) > 10 else start_date,
                 "start_price": round(start_price, 2),
                 "end_price": round(current_price, 2),
                 "dividend_count": 0,  # 配息次數（adj_close 已包含）
                 "total_dividends": 0.0,  # 總配息（已反映在價格中）
+                "actual_years": round(actual_years, 2),
             }
         
         returns = {}
@@ -244,7 +273,8 @@ async def get_stock_returns(symbol: str):
                 "symbol": symbol,
                 "name": stock_name,
                 "current_price": round(current_price, 2),
-                "current_date": current_date,
+                "current_date": current_date[:10] if len(current_date) > 10 else current_date,
+                "total_records": total_records,
                 "returns": returns,
             }
         }
@@ -429,8 +459,22 @@ async def get_stock_analysis(
         except Exception as e:
             logger.warning(f"價格快取更新失敗: {e}")
         
-        # 圖表資料
+        # 圖表資料 - 確保有足夠資料
         df_chart = df.tail(1500)
+        
+        # 確保 chart_data 有效
+        chart_data = None
+        if len(df_chart) > 0:
+            chart_data = {
+                "dates": [str(d) for d in df_chart['date'].tolist()],
+                "prices": [float(p) if pd.notna(p) else None for p in df_chart['close'].tolist()],
+                "ma20": [float(v) if pd.notna(v) else None for v in df_chart['ma20'].tolist()] if 'ma20' in df_chart.columns else [],
+                "ma50": [float(v) if pd.notna(v) else None for v in df_chart['ma50'].tolist()] if 'ma50' in df_chart.columns else [],
+                "ma200": [float(v) if pd.notna(v) else None for v in df_chart['ma200'].tolist()] if 'ma200' in df_chart.columns else [],
+                "ma250": [float(v) if pd.notna(v) else None for v in df_chart['ma250'].tolist()] if 'ma250' in df_chart.columns else [],
+                "volume": [int(v) if pd.notna(v) else 0 for v in df_chart['volume'].tolist()] if 'volume' in df_chart.columns else [],
+            }
+            logger.info(f"chart_data 準備完成: {len(chart_data['dates'])} 筆")
         
         return {
             "success": True,
@@ -464,17 +508,10 @@ async def get_stock_analysis(
                 "macd": {"dif": macd_dif, "macd": macd_dea, "histogram": macd_hist, "status": macd_status},
             },
             "score": {"buy": buy_score, "sell": sell_score, "rating": rating},
-            "chart_data": {
-                "dates": [str(d) for d in df_chart['date'].tolist()],
-                "prices": [float(p) if pd.notna(p) else None for p in df_chart['close'].tolist()],
-                "ma20": [float(v) if pd.notna(v) else None for v in df_chart['ma20'].tolist()] if 'ma20' in df_chart.columns else [],
-                "ma50": [float(v) if pd.notna(v) else None for v in df_chart['ma50'].tolist()] if 'ma50' in df_chart.columns else [],
-                "ma200": [float(v) if pd.notna(v) else None for v in df_chart['ma200'].tolist()] if 'ma200' in df_chart.columns else [],
-                "ma250": [float(v) if pd.notna(v) else None for v in df_chart['ma250'].tolist()] if 'ma250' in df_chart.columns else [],
-                "volume": [int(v) if pd.notna(v) else 0 for v in df_chart['volume'].tolist()] if 'volume' in df_chart.columns else [],
-            },
+            "chart_data": chart_data,
             "from_cache": data_source in ('cache', 'partial'),
             "data_source": data_source,
+            "total_records": len(df),
         }
         
     except HTTPException:
