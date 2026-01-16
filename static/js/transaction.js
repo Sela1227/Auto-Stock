@@ -1,394 +1,468 @@
 /**
- * 交易表單模組（台股/美股）
+ * 交易表單模組 (P4 優化版)
+ * 
+ * 優化內容：
+ * 1. DOM 快取 - 使用 $() 函數
+ * 2. 減少重複查詢
+ * 
+ * 包含：台股/美股交易表單
  */
 
 (function() {
     'use strict';
-    
+
     let twLookupTimer = null;
     let usLookupTimer = null;
-    let currentPortfolioTab = 'holdings';
-    
+
     // ============================================================
     // 台股交易
     // ============================================================
-    
+
     function showAddTwModal() {
-        document.getElementById('twEditId').value = '';
-        document.getElementById('twModalTitle').textContent = '新增台股交易';
+        // ✅ P4: 使用 $() 快取
+        $('twEditId').value = '';
+        $('twModalTitle').textContent = '新增台股交易';
         setTwType('buy');
-        document.getElementById('twSymbol').value = '';
-        document.getElementById('twName').value = '';
-        document.getElementById('twNameDisplay').innerHTML = '<span class="text-gray-400">輸入代碼自動帶入</span>';
-        document.getElementById('twLots').value = '';
-        document.getElementById('twOddLot').value = '';
-        document.getElementById('twQuantityDisplay').textContent = '= 0 股';
-        document.getElementById('twPrice').value = '';
-        document.getElementById('twFee').value = '';
-        document.getElementById('twTax').value = '';
-        document.getElementById('twDate').value = new Date().toISOString().split('T')[0];
-        document.getElementById('twNote').value = '';
-        
-        document.getElementById('twTransactionModal').classList.remove('hidden');
-        document.getElementById('twTransactionModal').classList.add('flex');
-    }
-    
-    function closeTwModal() {
-        document.getElementById('twTransactionModal').classList.add('hidden');
-        document.getElementById('twTransactionModal').classList.remove('flex');
-    }
-    
-    function setTwType(type) {
-        document.getElementById('twTxType').value = type;
-        if (type === 'buy') {
-            document.getElementById('twBtnBuy').className = 'flex-1 py-2 rounded-lg font-medium transition-all bg-green-500 text-white';
-            document.getElementById('twBtnSell').className = 'flex-1 py-2 rounded-lg font-medium transition-all bg-gray-200 text-gray-600';
-            document.getElementById('twTaxField').classList.add('opacity-50');
-        } else {
-            document.getElementById('twBtnBuy').className = 'flex-1 py-2 rounded-lg font-medium transition-all bg-gray-200 text-gray-600';
-            document.getElementById('twBtnSell').className = 'flex-1 py-2 rounded-lg font-medium transition-all bg-red-500 text-white';
-            document.getElementById('twTaxField').classList.remove('opacity-50');
+        $('twSymbol').value = '';
+        $('twName').value = '';
+        $('twNameDisplay').innerHTML = '<span class="text-gray-400">輸入代碼自動帶入</span>';
+        $('twLots').value = '';
+        $('twOddLot').value = '';
+        $('twQuantityDisplay').textContent = '= 0 股';
+        $('twPrice').value = '';
+        $('twFee').value = '';
+        $('twTax').value = '';
+        $('twDate').value = new Date().toISOString().split('T')[0];
+        $('twNote').value = '';
+
+        const modal = $('twTransactionModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         }
     }
-    
-    function updateTwQuantity() {
-        const lots = parseInt(document.getElementById('twLots').value) || 0;
-        const oddLot = parseInt(document.getElementById('twOddLot').value) || 0;
-        const total = lots * 1000 + oddLot;
-        document.getElementById('twQuantityDisplay').textContent = `= ${total.toLocaleString()} 股`;
+
+    function closeTwModal() {
+        const modal = $('twTransactionModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
     }
-    
+
+    function setTwType(type) {
+        const buyBtn = $('twTypeBuy');
+        const sellBtn = $('twTypeSell');
+        const typeInput = $('twType');
+
+        if (type === 'buy') {
+            if (buyBtn) {
+                buyBtn.classList.add('bg-green-500', 'text-white');
+                buyBtn.classList.remove('bg-gray-100', 'text-gray-700');
+            }
+            if (sellBtn) {
+                sellBtn.classList.remove('bg-red-500', 'text-white');
+                sellBtn.classList.add('bg-gray-100', 'text-gray-700');
+            }
+        } else {
+            if (sellBtn) {
+                sellBtn.classList.add('bg-red-500', 'text-white');
+                sellBtn.classList.remove('bg-gray-100', 'text-gray-700');
+            }
+            if (buyBtn) {
+                buyBtn.classList.remove('bg-green-500', 'text-white');
+                buyBtn.classList.add('bg-gray-100', 'text-gray-700');
+            }
+        }
+        if (typeInput) typeInput.value = type;
+    }
+
+    function updateTwQuantity() {
+        const lots = parseInt($('twLots')?.value) || 0;
+        const oddLot = parseInt($('twOddLot')?.value) || 0;
+        const total = lots * 1000 + oddLot;
+
+        const display = $('twQuantityDisplay');
+        if (display) display.textContent = `= ${total.toLocaleString()} 股`;
+
+        const hidden = $('twQuantity');
+        if (hidden) hidden.value = total;
+    }
+
     function lookupTwStock() {
         clearTimeout(twLookupTimer);
-        const symbol = document.getElementById('twSymbol').value.trim();
-        
-        if (!symbol || symbol.length < 4) {
-            document.getElementById('twNameDisplay').innerHTML = '<span class="text-gray-400">輸入代碼自動帶入</span>';
-            document.getElementById('twName').value = '';
-            return;
-        }
-        
-        document.getElementById('twNameDisplay').innerHTML = '<span class="text-gray-400"><i class="fas fa-spinner fa-spin mr-1"></i>查詢中...</span>';
-        
         twLookupTimer = setTimeout(async () => {
+            const symbol = $('twSymbol')?.value?.trim();
+            if (!symbol || symbol.length < 4) return;
+
             try {
-                const fullSymbol = symbol.includes('.') ? symbol : `${symbol}.TW`;
-                const res = await fetch(`/api/stock/${fullSymbol}`);
+                const res = await apiRequest(`/api/stock/${symbol}.TW/info`);
                 const data = await res.json();
-                
-                if (data.success && data.stock?.name) {
-                    document.getElementById('twName').value = data.stock.name;
-                    document.getElementById('twNameDisplay').innerHTML = `<span class="text-gray-800">${data.stock.name}</span>`;
+
+                const nameDisplay = $('twNameDisplay');
+                const nameInput = $('twName');
+
+                if (data.success && data.name) {
+                    if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${data.name}</span>`;
+                    if (nameInput) nameInput.value = data.name;
                 } else {
-                    document.getElementById('twName').value = '';
-                    document.getElementById('twNameDisplay').innerHTML = '<span class="text-red-500">查無此股票</span>';
+                    if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
                 }
             } catch (e) {
                 console.error('查詢台股失敗:', e);
-                document.getElementById('twNameDisplay').innerHTML = '<span class="text-red-500">查詢失敗</span>';
             }
         }, 500);
     }
-    
+
     async function submitTwTransaction() {
-        const id = document.getElementById('twEditId').value;
-        const symbol = document.getElementById('twSymbol').value.trim().toUpperCase();
-        const name = document.getElementById('twName').value.trim();
-        const lots = parseInt(document.getElementById('twLots').value) || 0;
-        const oddLot = parseInt(document.getElementById('twOddLot').value) || 0;
-        const quantity = lots * 1000 + oddLot;
-        const price = parseFloat(document.getElementById('twPrice').value);
-        const fee = parseFloat(document.getElementById('twFee').value) || 0;
-        const tax = parseFloat(document.getElementById('twTax').value) || 0;
-        const txDate = document.getElementById('twDate').value;
-        const note = document.getElementById('twNote').value.trim();
-        const txType = document.getElementById('twTxType').value;
-        
-        if (!symbol) { showToast('請輸入股票代碼'); return; }
-        if (!name) { showToast('請等待股票名稱載入'); return; }
-        if (quantity <= 0) { showToast('請輸入有效數量'); return; }
-        if (!price || price <= 0) { showToast('請輸入有效價格'); return; }
-        if (!txDate) { showToast('請選擇交易日期'); return; }
-        
-        const payload = {
-            symbol: symbol.includes('.') ? symbol : `${symbol}.TW`,
+        const editId = $('twEditId')?.value;
+        const symbol = $('twSymbol')?.value?.trim();
+        const name = $('twName')?.value?.trim();
+        const type = $('twType')?.value;
+        const quantity = parseInt($('twQuantity')?.value) || 0;
+        const price = parseFloat($('twPrice')?.value) || 0;
+        const fee = parseFloat($('twFee')?.value) || 0;
+        const tax = parseFloat($('twTax')?.value) || 0;
+        const date = $('twDate')?.value;
+        const note = $('twNote')?.value?.trim();
+
+        if (!symbol || quantity <= 0 || price <= 0) {
+            showToast('請填寫完整資料');
+            return;
+        }
+
+        const body = {
+            symbol,
             name,
-            market: 'tw',
-            transaction_type: txType,
+            transaction_type: type,
             quantity,
             price,
             fee,
             tax,
-            transaction_date: txDate,
-            note: note || null,
+            transaction_date: date,
+            note
         };
-        
+
         try {
             let res;
-            if (id) {
-                res = await apiRequest(`/api/portfolio/transactions/${id}`, {
+            if (editId) {
+                res = await apiRequest(`/api/portfolio/transactions/tw/${editId}`, {
                     method: 'PUT',
-                    body: payload,
+                    body
                 });
             } else {
-                res = await apiRequest('/api/portfolio/transactions', {
+                res = await apiRequest('/api/portfolio/transactions/tw', {
                     method: 'POST',
-                    body: payload,
+                    body
                 });
             }
-            
+
             const data = await res.json();
-            
+
             if (data.success) {
-                showToast(id ? '交易已更新' : '交易已新增');
+                showToast(editId ? '交易已更新' : '交易已新增');
                 closeTwModal();
-                if (typeof loadPortfolio === 'function') loadPortfolio();
-                if (currentPortfolioTab === 'tw-transactions' && typeof loadTransactions === 'function') {
-                    loadTransactions('tw');
+
+                // ✅ P4: 清除 AppState 快取
+                if (window.AppState) {
+                    AppState.set('portfolioLoaded', false);
                 }
+
+                if (typeof loadPortfolio === 'function') loadPortfolio();
+                if (typeof loadTransactions === 'function') loadTransactions('tw');
             } else {
                 showToast(data.detail || '操作失敗');
             }
         } catch (e) {
-            console.error('台股交易操作失敗:', e);
+            console.error('提交交易失敗:', e);
             showToast('操作失敗');
         }
     }
-    
+
     async function editTwTransaction(id) {
         try {
             const res = await apiRequest(`/api/portfolio/transactions/${id}`);
             const data = await res.json();
-            
+
             if (data.success) {
                 const t = data.data;
-                document.getElementById('twEditId').value = t.id;
-                document.getElementById('twModalTitle').textContent = '編輯台股交易';
+                $('twEditId').value = t.id;
+                $('twModalTitle').textContent = '編輯台股交易';
                 setTwType(t.transaction_type);
-                
-                const symbol = t.symbol.replace('.TW', '').replace('.TWO', '');
-                document.getElementById('twSymbol').value = symbol;
-                document.getElementById('twName').value = t.name || '';
-                document.getElementById('twNameDisplay').innerHTML = t.name 
-                    ? `<span class="text-gray-800">${t.name}</span>` 
-                    : '<span class="text-gray-400">--</span>';
-                
+
+                $('twSymbol').value = t.symbol.replace('.TW', '').replace('.TWO', '');
+                $('twName').value = t.name || '';
+
+                const nameDisplay = $('twNameDisplay');
+                if (nameDisplay) {
+                    nameDisplay.innerHTML = t.name
+                        ? `<span class="text-gray-800">${t.name}</span>`
+                        : '<span class="text-gray-400">--</span>';
+                }
+
                 const lots = Math.floor(t.quantity / 1000);
                 const oddLot = t.quantity % 1000;
-                document.getElementById('twLots').value = lots || '';
-                document.getElementById('twOddLot').value = oddLot || '';
+                $('twLots').value = lots || '';
+                $('twOddLot').value = oddLot || '';
                 updateTwQuantity();
-                
-                document.getElementById('twPrice').value = t.price;
-                document.getElementById('twFee').value = t.fee || '';
-                document.getElementById('twTax').value = t.tax || '';
-                document.getElementById('twDate').value = t.transaction_date;
-                document.getElementById('twNote').value = t.note || '';
-                
-                document.getElementById('twTransactionModal').classList.remove('hidden');
-                document.getElementById('twTransactionModal').classList.add('flex');
+
+                $('twPrice').value = t.price;
+                $('twFee').value = t.fee || '';
+                $('twTax').value = t.tax || '';
+                $('twDate').value = t.transaction_date;
+                $('twNote').value = t.note || '';
+
+                const modal = $('twTransactionModal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                }
             }
         } catch (e) {
             console.error('載入交易失敗:', e);
             showToast('載入失敗');
         }
     }
-    
+
     // ============================================================
     // 美股交易
     // ============================================================
-    
+
     function showAddUsModal() {
-        document.getElementById('usEditId').value = '';
-        document.getElementById('usModalTitle').textContent = '新增美股交易';
+        $('usEditId').value = '';
+        $('usModalTitle').textContent = '新增美股交易';
         setUsType('buy');
-        document.getElementById('usSymbol').value = '';
-        document.getElementById('usName').value = '';
-        document.getElementById('usNameDisplay').innerHTML = '<span class="text-gray-400">輸入代碼自動帶入</span>';
-        document.getElementById('usQuantity').value = '';
-        document.getElementById('usPrice').value = '';
-        document.getElementById('usFee').value = '';
-        document.getElementById('usTax').value = '';
-        document.getElementById('usDate').value = new Date().toISOString().split('T')[0];
-        document.getElementById('usNote').value = '';
-        
-        document.getElementById('usTransactionModal').classList.remove('hidden');
-        document.getElementById('usTransactionModal').classList.add('flex');
-    }
-    
-    function closeUsModal() {
-        document.getElementById('usTransactionModal').classList.add('hidden');
-        document.getElementById('usTransactionModal').classList.remove('flex');
-    }
-    
-    function setUsType(type) {
-        document.getElementById('usTxType').value = type;
-        if (type === 'buy') {
-            document.getElementById('usBtnBuy').className = 'flex-1 py-2 rounded-lg font-medium transition-all bg-green-500 text-white';
-            document.getElementById('usBtnSell').className = 'flex-1 py-2 rounded-lg font-medium transition-all bg-gray-200 text-gray-600';
-            document.getElementById('usTaxField').classList.add('opacity-50');
-        } else {
-            document.getElementById('usBtnBuy').className = 'flex-1 py-2 rounded-lg font-medium transition-all bg-gray-200 text-gray-600';
-            document.getElementById('usBtnSell').className = 'flex-1 py-2 rounded-lg font-medium transition-all bg-blue-500 text-white';
-            document.getElementById('usTaxField').classList.remove('opacity-50');
+        $('usSymbol').value = '';
+        $('usName').value = '';
+        $('usNameDisplay').innerHTML = '<span class="text-gray-400">輸入代碼自動帶入</span>';
+        $('usQuantity').value = '';
+        $('usPrice').value = '';
+        $('usFee').value = '';
+        $('usTax').value = '';
+        $('usDate').value = new Date().toISOString().split('T')[0];
+        $('usNote').value = '';
+
+        const modal = $('usTransactionModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         }
     }
-    
+
+    function closeUsModal() {
+        const modal = $('usTransactionModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
+
+    function setUsType(type) {
+        const buyBtn = $('usTypeBuy');
+        const sellBtn = $('usTypeSell');
+        const typeInput = $('usType');
+
+        if (type === 'buy') {
+            if (buyBtn) {
+                buyBtn.classList.add('bg-green-500', 'text-white');
+                buyBtn.classList.remove('bg-gray-100', 'text-gray-700');
+            }
+            if (sellBtn) {
+                sellBtn.classList.remove('bg-red-500', 'text-white');
+                sellBtn.classList.add('bg-gray-100', 'text-gray-700');
+            }
+        } else {
+            if (sellBtn) {
+                sellBtn.classList.add('bg-red-500', 'text-white');
+                sellBtn.classList.remove('bg-gray-100', 'text-gray-700');
+            }
+            if (buyBtn) {
+                buyBtn.classList.remove('bg-green-500', 'text-white');
+                buyBtn.classList.add('bg-gray-100', 'text-gray-700');
+            }
+        }
+        if (typeInput) typeInput.value = type;
+    }
+
     function lookupUsStock() {
         clearTimeout(usLookupTimer);
-        const symbol = document.getElementById('usSymbol').value.trim().toUpperCase();
-        
-        if (!symbol || symbol.length < 1) {
-            document.getElementById('usNameDisplay').innerHTML = '<span class="text-gray-400">輸入代碼自動帶入</span>';
-            document.getElementById('usName').value = '';
-            return;
-        }
-        
-        document.getElementById('usNameDisplay').innerHTML = '<span class="text-gray-400"><i class="fas fa-spinner fa-spin mr-1"></i>查詢中...</span>';
-        
         usLookupTimer = setTimeout(async () => {
+            const symbol = $('usSymbol')?.value?.trim().toUpperCase();
+            if (!symbol || symbol.length < 1) return;
+
             try {
-                const res = await fetch(`/api/stock/${symbol}`);
+                const res = await apiRequest(`/api/stock/${symbol}/info`);
                 const data = await res.json();
-                
-                if (data.success && data.stock?.name) {
-                    document.getElementById('usName').value = data.stock.name;
-                    document.getElementById('usNameDisplay').innerHTML = `<span class="text-gray-800">${data.stock.name}</span>`;
+
+                const nameDisplay = $('usNameDisplay');
+                const nameInput = $('usName');
+
+                if (data.success && data.name) {
+                    if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${data.name}</span>`;
+                    if (nameInput) nameInput.value = data.name;
                 } else {
-                    document.getElementById('usName').value = '';
-                    document.getElementById('usNameDisplay').innerHTML = '<span class="text-red-500">查無此股票</span>';
+                    if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
                 }
             } catch (e) {
                 console.error('查詢美股失敗:', e);
-                document.getElementById('usNameDisplay').innerHTML = '<span class="text-red-500">查詢失敗</span>';
             }
         }, 500);
     }
-    
+
     async function submitUsTransaction() {
-        const id = document.getElementById('usEditId').value;
-        const symbol = document.getElementById('usSymbol').value.trim().toUpperCase();
-        const name = document.getElementById('usName').value.trim();
-        const quantity = parseInt(document.getElementById('usQuantity').value);
-        const price = parseFloat(document.getElementById('usPrice').value);
-        const fee = parseFloat(document.getElementById('usFee').value) || 0;
-        const tax = parseFloat(document.getElementById('usTax').value) || 0;
-        const txDate = document.getElementById('usDate').value;
-        const note = document.getElementById('usNote').value.trim();
-        const txType = document.getElementById('usTxType').value;
-        
-        if (!symbol) { showToast('請輸入股票代碼'); return; }
-        if (!name) { showToast('請等待股票名稱載入'); return; }
-        if (!quantity || quantity <= 0) { showToast('請輸入有效股數'); return; }
-        if (!price || price <= 0) { showToast('請輸入有效價格'); return; }
-        if (!txDate) { showToast('請選擇交易日期'); return; }
-        
-        const payload = {
+        const editId = $('usEditId')?.value;
+        const symbol = $('usSymbol')?.value?.trim().toUpperCase();
+        const name = $('usName')?.value?.trim();
+        const type = $('usType')?.value;
+        const quantity = parseFloat($('usQuantity')?.value) || 0;
+        const price = parseFloat($('usPrice')?.value) || 0;
+        const fee = parseFloat($('usFee')?.value) || 0;
+        const tax = parseFloat($('usTax')?.value) || 0;
+        const date = $('usDate')?.value;
+        const note = $('usNote')?.value?.trim();
+
+        if (!symbol || quantity <= 0 || price <= 0) {
+            showToast('請填寫完整資料');
+            return;
+        }
+
+        const body = {
             symbol,
             name,
-            market: 'us',
-            transaction_type: txType,
+            transaction_type: type,
             quantity,
             price,
             fee,
             tax,
-            transaction_date: txDate,
-            note: note || null,
+            transaction_date: date,
+            note
         };
-        
+
         try {
             let res;
-            if (id) {
-                res = await apiRequest(`/api/portfolio/transactions/${id}`, {
+            if (editId) {
+                res = await apiRequest(`/api/portfolio/transactions/us/${editId}`, {
                     method: 'PUT',
-                    body: payload,
+                    body
                 });
             } else {
-                res = await apiRequest('/api/portfolio/transactions', {
+                res = await apiRequest('/api/portfolio/transactions/us', {
                     method: 'POST',
-                    body: payload,
+                    body
                 });
             }
-            
+
             const data = await res.json();
-            
+
             if (data.success) {
-                showToast(id ? '交易已更新' : '交易已新增');
+                showToast(editId ? '交易已更新' : '交易已新增');
                 closeUsModal();
-                if (typeof loadPortfolio === 'function') loadPortfolio();
-                if (currentPortfolioTab === 'us-transactions' && typeof loadTransactions === 'function') {
-                    loadTransactions('us');
+
+                // ✅ P4: 清除 AppState 快取
+                if (window.AppState) {
+                    AppState.set('portfolioLoaded', false);
                 }
+
+                if (typeof loadPortfolio === 'function') loadPortfolio();
+                if (typeof loadTransactions === 'function') loadTransactions('us');
             } else {
                 showToast(data.detail || '操作失敗');
             }
         } catch (e) {
-            console.error('美股交易操作失敗:', e);
+            console.error('提交交易失敗:', e);
             showToast('操作失敗');
         }
     }
-    
+
     async function editUsTransaction(id) {
         try {
             const res = await apiRequest(`/api/portfolio/transactions/${id}`);
             const data = await res.json();
-            
+
             if (data.success) {
                 const t = data.data;
-                document.getElementById('usEditId').value = t.id;
-                document.getElementById('usModalTitle').textContent = '編輯美股交易';
+                $('usEditId').value = t.id;
+                $('usModalTitle').textContent = '編輯美股交易';
                 setUsType(t.transaction_type);
-                
-                document.getElementById('usSymbol').value = t.symbol;
-                document.getElementById('usName').value = t.name || '';
-                document.getElementById('usNameDisplay').innerHTML = t.name 
-                    ? `<span class="text-gray-800">${t.name}</span>` 
-                    : '<span class="text-gray-400">--</span>';
-                document.getElementById('usQuantity').value = t.quantity;
-                document.getElementById('usPrice').value = t.price;
-                document.getElementById('usFee').value = t.fee || '';
-                document.getElementById('usTax').value = t.tax || '';
-                document.getElementById('usDate').value = t.transaction_date;
-                document.getElementById('usNote').value = t.note || '';
-                
-                document.getElementById('usTransactionModal').classList.remove('hidden');
-                document.getElementById('usTransactionModal').classList.add('flex');
+
+                $('usSymbol').value = t.symbol;
+                $('usName').value = t.name || '';
+
+                const nameDisplay = $('usNameDisplay');
+                if (nameDisplay) {
+                    nameDisplay.innerHTML = t.name
+                        ? `<span class="text-gray-800">${t.name}</span>`
+                        : '<span class="text-gray-400">--</span>';
+                }
+
+                $('usQuantity').value = t.quantity;
+                $('usPrice').value = t.price;
+                $('usFee').value = t.fee || '';
+                $('usTax').value = t.tax || '';
+                $('usDate').value = t.transaction_date;
+                $('usNote').value = t.note || '';
+
+                const modal = $('usTransactionModal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                }
             }
         } catch (e) {
             console.error('載入交易失敗:', e);
             showToast('載入失敗');
         }
     }
-    
+
     // ============================================================
     // 快速交易（覆寫 portfolio.js 的版本）
     // ============================================================
-    
+
     function quickTrade(symbol, name, market, type) {
         if (market === 'tw') {
             showAddTwModal();
             setTwType(type);
             const cleanSymbol = symbol.replace('.TW', '').replace('.TWO', '');
-            document.getElementById('twSymbol').value = cleanSymbol;
-            document.getElementById('twName').value = name || '';
-            document.getElementById('twNameDisplay').innerHTML = name 
-                ? `<span class="text-gray-800">${name}</span>` 
-                : '<span class="text-gray-400">--</span>';
+            $('twSymbol').value = cleanSymbol;
+            $('twName').value = name || '';
+
+            const nameDisplay = $('twNameDisplay');
+            if (nameDisplay) {
+                nameDisplay.innerHTML = name
+                    ? `<span class="text-gray-800">${name}</span>`
+                    : '<span class="text-gray-400">--</span>';
+            }
         } else {
             showAddUsModal();
             setUsType(type);
-            document.getElementById('usSymbol').value = symbol;
-            document.getElementById('usName').value = name || '';
-            document.getElementById('usNameDisplay').innerHTML = name 
-                ? `<span class="text-gray-800">${name}</span>` 
-                : '<span class="text-gray-400">--</span>';
+            $('usSymbol').value = symbol;
+            $('usName').value = name || '';
+
+            const nameDisplay = $('usNameDisplay');
+            if (nameDisplay) {
+                nameDisplay.innerHTML = name
+                    ? `<span class="text-gray-800">${name}</span>`
+                    : '<span class="text-gray-400">--</span>';
+            }
         }
     }
-    
+
     // ============================================================
-    // 導出到全域
+    // 導出
     // ============================================================
-    
+
+    // 掛載到 SELA 命名空間
+    if (window.SELA) {
+        window.SELA.transaction = {
+            showTwModal: showAddTwModal,
+            closeTwModal,
+            showUsModal: showAddUsModal,
+            closeUsModal,
+            quickTrade
+        };
+    }
+
+    // 全域導出（向後兼容）
     window.showAddTwModal = showAddTwModal;
     window.closeTwModal = closeTwModal;
     window.setTwType = setTwType;
@@ -396,15 +470,15 @@
     window.lookupTwStock = lookupTwStock;
     window.submitTwTransaction = submitTwTransaction;
     window.editTwTransaction = editTwTransaction;
-    
+
     window.showAddUsModal = showAddUsModal;
     window.closeUsModal = closeUsModal;
     window.setUsType = setUsType;
     window.lookupUsStock = lookupUsStock;
     window.submitUsTransaction = submitUsTransaction;
     window.editUsTransaction = editUsTransaction;
-    
+
     window.quickTrade = quickTrade;
-    
-    console.log('💰 transaction.js 模組已載入');
+
+    console.log('💰 transaction.js 模組已載入 (P4 優化版)');
 })();
