@@ -1,26 +1,25 @@
 /**
- * 股票查詢模組
- * 包含：搜尋、結果顯示、全螢幕圖表、成交量圖表、MA進階分析
+ * 搜尋核心模組 (P2 拆分)
+ * 
+ * 職責：
+ * - 搜尋邏輯
+ * - API 請求
+ * - 快取管理
+ * 
+ * 依賴：core.js, state.js
+ * 被依賴：search-render.js
  */
 
 (function() {
     'use strict';
-    
+
     // ============================================================
-    // 私有變數
+    // 快取系統
     // ============================================================
     
-    let currentChartData = null;
-    let fullscreenChartInstance = null;
-    let volumeChartInstance = null;  // 🆕 成交量圖表實例
-    
-    // 前端快取（5分鐘有效）
     const stockCache = new Map();
     const CACHE_TTL = 5 * 60 * 1000; // 5 分鐘
-    
-    /**
-     * 從快取取得資料
-     */
+
     function getFromCache(symbol) {
         const cached = stockCache.get(symbol.toUpperCase());
         if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
@@ -29,10 +28,7 @@
         }
         return null;
     }
-    
-    /**
-     * 存入快取
-     */
+
     function saveToCache(symbol, data) {
         stockCache.set(symbol.toUpperCase(), {
             data: data,
@@ -40,13 +36,27 @@
         });
         console.log(`💾 已快取: ${symbol}`);
     }
-    
+
+    function clearStockCache() {
+        stockCache.clear();
+        console.log('🗑️ 股票快取已清除');
+        showToast('快取已清除');
+    }
+
+    function getStockCacheStats() {
+        return {
+            count: stockCache.size,
+            symbols: Array.from(stockCache.keys())
+        };
+    }
+
     // ============================================================
     // 搜尋功能
     // ============================================================
-    
+
     function searchStock() {
-        let symbol = document.getElementById('searchSymbol').value.trim().toUpperCase();
+        const input = $('searchSymbol');
+        let symbol = input?.value?.trim().toUpperCase();
         if (!symbol) {
             showToast('請輸入股票代號');
             return;
@@ -55,40 +65,43 @@
     }
 
     async function searchSymbol(symbol, forceRefresh = false) {
-        const container = document.getElementById('searchResult');
+        const container = $('searchResult');
         
         if (typeof showSection === 'function') {
             showSection('search');
         }
-        document.getElementById('searchSymbol').value = symbol;
         
-        // 檢查前端快取（除非強制刷新）
+        const input = $('searchSymbol');
+        if (input) input.value = symbol;
+
+        // 檢查前端快取
         if (!forceRefresh) {
             const cached = getFromCache(symbol);
             if (cached) {
                 container.classList.remove('hidden');
+                // 觸發渲染（由 search-render.js 處理）
                 renderSearchResult(cached, symbol);
                 return;
             }
         }
-        
+
         // 顯示載入中
         container.classList.remove('hidden');
-        container.innerHTML = `
+        setHtml('searchResult', `
             <div class="bg-white rounded-xl shadow p-6 text-center">
                 <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
                 <p class="mt-2 text-gray-500 text-sm">查詢中...（首次查詢可能需要 10-30 秒）</p>
             </div>
-        `;
+        `);
 
         try {
             const upperSymbol = symbol.toUpperCase();
             const isCrypto = ['BTC', 'ETH', 'BITCOIN', 'ETHEREUM'].includes(upperSymbol);
             const isTaiwan = /^\d{4,6}$/.test(symbol) || upperSymbol.endsWith('.TW');
-            
+
             let endpoint;
             let querySymbol = upperSymbol;
-            
+
             if (isCrypto) {
                 endpoint = `/api/crypto/${upperSymbol}`;
             } else if (isTaiwan) {
@@ -97,87 +110,206 @@
             } else {
                 endpoint = `/api/stock/${upperSymbol}`;
             }
-            
+
             if (forceRefresh) {
                 endpoint += '?refresh=true';
             }
-            
-            console.log(`查詢: ${endpoint}, 類型: ${isCrypto ? '加密貨幣' : isTaiwan ? '台股' : '美股'}, 強制刷新: ${forceRefresh}`);
-            
+
+            console.log(`查詢: ${endpoint}, 類型: ${isCrypto ? '加密貨幣' : isTaiwan ? '台股' : '美股'}`);
+
+            // 設置載入狀態
+            if (window.AppState) {
+                AppState.setLoading(true);
+            }
+
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 60000);
-            
+
             const res = await fetch(endpoint, { signal: controller.signal });
             clearTimeout(timeoutId);
-            
+
             const data = await res.json();
             console.log('API 回應:', data);
-            
-            if (data.from_cache) {
-                console.log(`📦 後端快取命中: ${symbol} (快取時間: ${data.cache_time})`);
+
+            if (window.AppState) {
+                AppState.setLoading(false);
             }
-            
+
             if (!res.ok) {
-                container.innerHTML = `
+                setHtml('searchResult', `
                     <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
                         <p class="font-medium">查詢失敗</p>
                         <p class="text-sm mt-2">${data.detail || 'HTTP ' + res.status}</p>
                         ${isCrypto ? '<p class="text-xs mt-2 text-gray-500">注意：加密貨幣查詢可能因 API 限制暫時無法使用</p>' : ''}
                     </div>
-                `;
-                return;
-            }
-            
-            if (!data.success) {
-                container.innerHTML = `<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">${data.detail || '查詢失敗'}</div>`;
+                `);
                 return;
             }
 
+            if (!data.success) {
+                setHtml('searchResult', `
+                    <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
+                        ${data.detail || '查詢失敗'}
+                    </div>
+                `);
+                return;
+            }
+
+            // 存入快取
             saveToCache(symbol, data);
-            renderSearchResult(data, symbol);
             
+            // 同步到 AppState
+            if (window.AppState) {
+                AppState.setCurrentStock({
+                    symbol: data.symbol,
+                    name: data.name,
+                    price: data.price,
+                    isCrypto,
+                    isTaiwan
+                });
+            }
+
+            // 渲染結果（由 search-render.js 處理）
+            renderSearchResult(data, symbol);
+
         } catch (e) {
             console.error('Search error:', e);
+            
+            if (window.AppState) {
+                AppState.setLoading(false);
+            }
+
             if (e.name === 'AbortError') {
-                container.innerHTML = '<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">查詢超時，請稍後再試</div>';
+                setHtml('searchResult', `
+                    <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
+                        查詢超時，請稍後再試
+                    </div>
+                `);
             } else {
-                container.innerHTML = `<div class="bg-white rounded-xl shadow p-6 text-center text-red-500">查詢失敗: ${e.message}</div>`;
+                setHtml('searchResult', `
+                    <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
+                        查詢失敗: ${e.message}
+                    </div>
+                `);
             }
         }
     }
 
     // ============================================================
-    // 結果渲染
+    // 快速加入追蹤清單
     // ============================================================
-    
+
+    async function quickAddToWatchlist(symbol, type = 'stock') {
+        try {
+            const res = await apiRequest('/api/watchlist', {
+                method: 'POST',
+                body: { symbol: symbol.toUpperCase(), type }
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                showToast(`已加入追蹤: ${symbol}`);
+                
+                // 樂觀更新 AppState
+                if (window.AppState) {
+                    AppState.addToWatchlist({
+                        symbol: symbol.toUpperCase(),
+                        type,
+                        added_at: new Date().toISOString()
+                    });
+                }
+            } else {
+                showToast(data.detail || '加入失敗', 'error');
+            }
+        } catch (e) {
+            console.error('Add to watchlist error:', e);
+            showToast('加入失敗', 'error');
+        }
+    }
+
+    // ============================================================
+    // 導出
+    // ============================================================
+
+    // 掛載到 SELA 命名空間
+    if (window.SELA) {
+        window.SELA.search = {
+            searchStock,
+            searchSymbol,
+            quickAddToWatchlist,
+            clearCache: clearStockCache,
+            getCacheStats: getStockCacheStats
+        };
+    }
+
+    // 全域導出（向後兼容）
+    window.searchStock = searchStock;
+    window.searchSymbol = searchSymbol;
+    window.quickAddToWatchlist = quickAddToWatchlist;
+    window.clearStockCache = clearStockCache;
+    window.getStockCacheStats = getStockCacheStats;
+
+    console.log('🔍 search-core.js 搜尋核心模組已載入');
+})();
+/**
+ * 搜尋結果渲染模組 (P2 拆分)
+ * 
+ * 職責：
+ * - 搜尋結果渲染
+ * - MA 進階分析
+ * - 事件委託處理
+ * 
+ * 依賴：core.js, search-core.js
+ */
+
+(function() {
+    'use strict';
+
+    // ============================================================
+    // 私有變數
+    // ============================================================
+
+    let currentChartData = null;
+
+    // ============================================================
+    // 渲染入口
+    // ============================================================
+
     function renderSearchResult(data, symbol) {
         const upperSymbol = symbol.toUpperCase();
         const isCrypto = ['BTC', 'ETH', 'BITCOIN', 'ETHEREUM'].includes(upperSymbol);
         const isTaiwan = /^\d{4,6}$/.test(symbol) || upperSymbol.endsWith('.TW');
-        
+
         currentChartData = data.chart_data;
         window.currentChartData = currentChartData;
-        
+
         renderStockResult(data, isCrypto, isTaiwan);
     }
 
+    // ============================================================
+    // 股票結果渲染
+    // ============================================================
+
     function renderStockResult(stock, isCrypto, isTaiwan = false) {
-        const container = document.getElementById('searchResult');
+        const container = $('searchResult');
+        if (!container) return;
+
         const indicators = stock.indicators || {};
         const ma = indicators.ma || {};
         const rsi = indicators.rsi || {};
         const macd = indicators.macd || {};
-        
+
         const priceChange = stock.change?.day || 0;
         const priceChangeClass = priceChange >= 0 ? 'text-green-600' : 'text-red-600';
         const priceChangeIcon = priceChange >= 0 ? '📈' : '📉';
-        
+
         const alignmentClass = ma.alignment === 'bullish' ? 'text-green-600' : ma.alignment === 'bearish' ? 'text-red-600' : 'text-gray-600';
         const alignmentText = ma.alignment === 'bullish' ? '多頭 🟢' : ma.alignment === 'bearish' ? '空頭 🔴' : '中性';
-        
+
         const rsiStatus = rsi.status === 'overbought' ? '超買 ⚠️' : rsi.status === 'oversold' ? '超賣 🟢' : '中性';
         const macdStatus = macd.status === 'bullish' ? '偏多 🟢' : '偏空 🔴';
-        
+
         let marketLabel, marketClass;
         if (isCrypto) {
             marketLabel = '加密貨幣';
@@ -189,18 +321,17 @@
             marketLabel = '美股';
             marketClass = 'bg-blue-100 text-blue-700';
         }
-        
-        const cacheIndicator = stock.from_cache 
-            ? `<span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-500" title="資料來自快取，點擊刷新按鈕取得最新">
+
+        const cacheIndicator = stock.from_cache
+            ? `<span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-500" title="資料來自快取">
                    <i class="fas fa-database mr-1"></i>快取
-               </span>` 
+               </span>`
             : '';
-        
-        // 🆕 MA 進階分析
+
         const maAdvanced = renderMAAdvanced(ma, stock.price?.current);
-        
+
         const html = `
-            <div class="bg-white rounded-xl shadow overflow-hidden">
+            <div class="bg-white rounded-xl shadow overflow-hidden" id="searchResultCard" data-symbol="${stock.symbol}">
                 <!-- 價格區塊 -->
                 <div class="p-4 md:p-6 border-b">
                     <div class="flex items-start justify-between mb-2">
@@ -210,7 +341,7 @@
                         </div>
                         <div class="flex items-center gap-2">
                             ${cacheIndicator}
-                            <button onclick="searchSymbol('${stock.symbol}', true)" class="p-2 text-gray-400 hover:text-blue-600 transition" title="重新整理">
+                            <button data-action="refresh" data-symbol="${stock.symbol}" class="p-2 text-gray-400 hover:text-blue-600 transition" title="重新整理">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
                             <span class="px-2 py-1 rounded text-xs ${marketClass}">${marketLabel}</span>
@@ -223,7 +354,7 @@
                         </span>
                     </div>
                 </div>
-                
+
                 <!-- 快速總覽 -->
                 <div class="p-4 md:p-6 border-b bg-gray-50">
                     <h4 class="font-semibold text-gray-700 mb-3 text-sm">📊 快速總覽</h4>
@@ -246,124 +377,74 @@
                         </div>
                     </div>
                 </div>
-                
-                <!-- 🆕 MA 進階分析 -->
+
+                <!-- MA 進階分析 -->
                 ${maAdvanced}
-                
+
                 <!-- 年化報酬率 (CAGR) -->
-                ${stock.cagr ? `
-                <div class="p-4 md:p-6 border-b">
-                    <h4 class="font-semibold text-gray-700 mb-3 text-sm">📈 年化報酬率 (CAGR)</h4>
-                    <div class="grid grid-cols-4 gap-2 text-center">
-                        ${['1y', '3y', '5y', '10y'].map(period => {
-                            const val = stock.cagr[`cagr_${period}`];
-                            const bgClass = val > 0 ? 'bg-green-50' : val < 0 ? 'bg-red-50' : 'bg-gray-50';
-                            const textClass = val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-600';
-                            return `
-                                <div class="p-2 rounded-lg ${bgClass}">
-                                    <p class="text-gray-500 text-xs">${period.replace('y', ' 年')}</p>
-                                    <p class="font-bold ${textClass}">
-                                        ${val !== null ? (val > 0 ? '+' : '') + val + '%' : '--'}
-                                    </p>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                    <p class="text-xs text-gray-400 mt-2 text-center">年化複合成長率，反映長期投資回報</p>
-                </div>
-                ` : ''}
-                
+                ${stock.cagr ? renderCAGRSection(stock.cagr) : ''}
+
                 <!-- 詳細指標 (可摺疊) -->
                 <div class="border-b">
-                    <button onclick="toggleCollapsible(this)" class="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 touch-target">
+                    <button data-action="toggle-collapsible" class="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 touch-target">
                         <span class="font-medium text-gray-700">▼ 展開詳細指標</span>
                         <i class="fas fa-chevron-down text-gray-400 transition-transform"></i>
                     </button>
-                    <div class="collapsible-content">
-                        <div class="px-4 pb-4 space-y-3">
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                ${['ma20', 'ma50', 'ma200'].map(key => {
-                                    const val = ma[key];
-                                    const vsKey = `price_vs_${key}`;
-                                    const isAbove = ma[vsKey] === 'above';
-                                    const distKey = `dist_${key}`;
-                                    const dist = ma[distKey];
-                                    const distText = dist !== undefined ? `${dist >= 0 ? '+' : ''}${dist.toFixed(1)}%` : '';
-                                    return `
-                                        <div class="p-3 rounded-lg ${isAbove ? 'bg-green-50' : 'bg-red-50'}">
-                                            <p class="text-gray-500 text-xs">${key.toUpperCase()}</p>
-                                            <p class="font-semibold">${val?.toFixed(2) || '--'}</p>
-                                            <p class="text-xs ${isAbove ? 'text-green-600' : 'text-red-600'}">
-                                                ${isAbove ? '價格在上 ✓' : '價格在下'} ${distText ? `(${distText})` : ''}
-                                            </p>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 text-sm">
-                                <div class="p-3 bg-gray-50 rounded-lg">
-                                    <p class="text-gray-500 text-xs">RSI (${rsi.period || 14})</p>
-                                    <p class="font-semibold">${rsi.value?.toFixed(2) || '--'}</p>
-                                </div>
-                                <div class="p-3 bg-gray-50 rounded-lg">
-                                    <p class="text-gray-500 text-xs">MACD DIF</p>
-                                    <p class="font-semibold">${macd.dif?.toFixed(2) || '--'}</p>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="collapsible-content" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease;">
+                        ${renderDetailedIndicators(ma, rsi, macd)}
                     </div>
                 </div>
-                
+
                 <!-- 操作按鈕 -->
                 <div class="p-4 pb-28 md:pb-4 space-y-3">
                     ${stock.chart_data ? `
-                    <button onclick="openChartFullscreen('${stock.symbol}', ${stock.price?.current || 0})" 
+                    <button data-action="open-chart" data-symbol="${stock.symbol}" data-price="${stock.price?.current || 0}"
                         class="w-full py-3 bg-blue-600 text-white rounded-lg font-medium flex items-center justify-center touch-target hover:bg-blue-700">
                         <i class="fas fa-chart-line mr-2"></i>查看完整圖表
                     </button>
                     ` : ''}
-                    <button onclick="loadReturnsModal('${stock.symbol}')" 
+                    <button data-action="load-returns" data-symbol="${stock.symbol}"
                         class="w-full py-3 bg-green-600 text-white rounded-lg font-medium flex items-center justify-center touch-target hover:bg-green-700">
                         <i class="fas fa-percentage mr-2"></i>年化報酬率
                     </button>
-                    <button onclick="quickAddToWatchlist('${stock.symbol}', '${isCrypto ? 'crypto' : 'stock'}')" 
+                    <button data-action="add-watchlist" data-symbol="${stock.symbol}" data-type="${isCrypto ? 'crypto' : 'stock'}"
                         class="w-full py-3 border-2 border-orange-500 text-orange-600 rounded-lg font-medium flex items-center justify-center touch-target hover:bg-orange-50">
                         <i class="fas fa-star mr-2"></i>加入追蹤清單
                     </button>
                 </div>
             </div>
         `;
-        
+
         container.innerHTML = html;
     }
-    
-    /**
-     * 🆕 渲染 MA 進階分析區塊
-     */
+
+    // ============================================================
+    // MA 進階分析渲染
+    // ============================================================
+
     function renderMAAdvanced(ma, currentPrice) {
         if (!ma || !currentPrice) return '';
-        
+
         // 交叉訊號
         const crossSignals = [];
         if (ma.golden_cross_20_50) crossSignals.push({ type: 'golden', label: 'MA20↗MA50 黃金交叉', days: ma.golden_cross_20_50_days });
         if (ma.death_cross_20_50) crossSignals.push({ type: 'death', label: 'MA20↘MA50 死亡交叉', days: ma.death_cross_20_50_days });
         if (ma.golden_cross_50_200) crossSignals.push({ type: 'golden', label: 'MA50↗MA200 黃金交叉', days: ma.golden_cross_50_200_days });
         if (ma.death_cross_50_200) crossSignals.push({ type: 'death', label: 'MA50↘MA200 死亡交叉', days: ma.death_cross_50_200_days });
-        
+
         // 距離均線百分比
         const distances = [];
         if (ma.dist_ma20 !== undefined) distances.push({ label: 'MA20', value: ma.dist_ma20 });
         if (ma.dist_ma50 !== undefined) distances.push({ label: 'MA50', value: ma.dist_ma50 });
         if (ma.dist_ma200 !== undefined) distances.push({ label: 'MA200', value: ma.dist_ma200 });
-        
-        // 如果沒有任何資料，返回空
+
         if (crossSignals.length === 0 && distances.length === 0) return '';
-        
+
         let html = `
             <div class="p-4 md:p-6 border-b">
-                <h4 class="font-semibold text-gray-700 mb-3 text-sm">📐 均線進階分析</h4>
+                <h4 class="font-semibold text-gray-700 mb-3 text-sm">🔍 均線進階分析</h4>
         `;
-        
+
         // 交叉訊號
         if (crossSignals.length > 0) {
             html += `<div class="mb-3">`;
@@ -379,66 +460,260 @@
             });
             html += `</div>`;
         }
-        
+
         // 距離均線
         if (distances.length > 0) {
             html += `
                 <div class="grid grid-cols-3 gap-2 text-center">
                     ${distances.map(d => {
-                        const isPositive = d.value >= 0;
-                        const bgClass = isPositive ? 'bg-green-50' : 'bg-red-50';
-                        const textClass = isPositive ? 'text-green-600' : 'text-red-600';
-                        const arrow = isPositive ? '↑' : '↓';
+                        const isAbove = d.value >= 0;
+                        const bgClass = isAbove ? 'bg-green-50' : 'bg-red-50';
+                        const textClass = isAbove ? 'text-green-600' : 'text-red-600';
                         return `
                             <div class="p-2 rounded-lg ${bgClass}">
                                 <p class="text-gray-500 text-xs">距 ${d.label}</p>
+                                <p class="font-bold ${textClass}">${d.value >= 0 ? '+' : ''}${d.value.toFixed(1)}%</p>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        html += `</div>`;
+        return html;
+    }
+
+    // ============================================================
+    // CAGR 區塊渲染
+    // ============================================================
+
+    function renderCAGRSection(cagr) {
+        return `
+            <div class="p-4 md:p-6 border-b">
+                <h4 class="font-semibold text-gray-700 mb-3 text-sm">📈 年化報酬率 (CAGR)</h4>
+                <div class="grid grid-cols-4 gap-2 text-center">
+                    ${['1y', '3y', '5y', '10y'].map(period => {
+                        const val = cagr[`cagr_${period}`];
+                        const bgClass = val > 0 ? 'bg-green-50' : val < 0 ? 'bg-red-50' : 'bg-gray-50';
+                        const textClass = val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-600';
+                        return `
+                            <div class="p-2 rounded-lg ${bgClass}">
+                                <p class="text-gray-500 text-xs">${period.replace('y', ' 年')}</p>
                                 <p class="font-bold ${textClass}">
-                                    ${arrow} ${Math.abs(d.value).toFixed(1)}%
+                                    ${val !== null ? (val > 0 ? '+' : '') + val + '%' : '--'}
                                 </p>
                             </div>
                         `;
                     }).join('')}
                 </div>
-                <p class="text-xs text-gray-400 mt-2 text-center">正值表示價格高於均線，負值表示低於均線</p>
-            `;
+                <p class="text-xs text-gray-400 mt-2 text-center">年化複合成長率，反映長期投資回報</p>
+            </div>
+        `;
+    }
+
+    // ============================================================
+    // 詳細指標渲染
+    // ============================================================
+
+    function renderDetailedIndicators(ma, rsi, macd) {
+        return `
+            <div class="px-4 pb-4 space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    ${['ma20', 'ma50', 'ma200'].map(key => {
+                        const val = ma[key];
+                        const vsKey = `price_vs_${key}`;
+                        const isAbove = ma[vsKey] === 'above';
+                        const distKey = `dist_${key}`;
+                        const dist = ma[distKey];
+                        const distText = dist !== undefined ? `${dist >= 0 ? '+' : ''}${dist.toFixed(1)}%` : '';
+                        return `
+                            <div class="p-3 rounded-lg ${isAbove ? 'bg-green-50' : 'bg-red-50'}">
+                                <p class="text-gray-500 text-xs">${key.toUpperCase()}</p>
+                                <p class="font-semibold">${val?.toFixed(2) || '--'}</p>
+                                <p class="text-xs ${isAbove ? 'text-green-600' : 'text-red-600'}">
+                                    ${isAbove ? '價格在上 ✔' : '價格在下'} ${distText ? `(${distText})` : ''}
+                                </p>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-gray-500 text-xs">RSI (${rsi.period || 14})</p>
+                        <p class="font-semibold">${rsi.value?.toFixed(2) || '--'}</p>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-gray-500 text-xs">MACD DIF</p>
+                        <p class="font-semibold">${macd.dif?.toFixed(2) || '--'}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // ============================================================
+    // 事件委託 (P2 核心優化)
+    // ============================================================
+
+    function initSearchEventDelegation() {
+        const container = $('searchResult');
+        if (!container) return;
+
+        // 使用事件委託，只綁定一個監聽器
+        container.addEventListener('click', handleSearchResultClick);
+        console.log('📌 搜尋結果事件委託已初始化');
+    }
+
+    function handleSearchResultClick(e) {
+        const target = e.target.closest('[data-action]');
+        if (!target) return;
+
+        const action = target.dataset.action;
+        const symbol = target.dataset.symbol;
+
+        switch (action) {
+            case 'refresh':
+                e.preventDefault();
+                if (typeof searchSymbol === 'function') {
+                    searchSymbol(symbol, true);
+                }
+                break;
+
+            case 'toggle-collapsible':
+                e.preventDefault();
+                toggleCollapsible(target);
+                break;
+
+            case 'open-chart':
+                e.preventDefault();
+                const price = parseFloat(target.dataset.price) || 0;
+                if (typeof openChartFullscreen === 'function') {
+                    openChartFullscreen(symbol, price);
+                }
+                break;
+
+            case 'load-returns':
+                e.preventDefault();
+                if (typeof loadReturnsModal === 'function') {
+                    loadReturnsModal(symbol);
+                }
+                break;
+
+            case 'add-watchlist':
+                e.preventDefault();
+                const type = target.dataset.type || 'stock';
+                if (typeof quickAddToWatchlist === 'function') {
+                    quickAddToWatchlist(symbol, type);
+                }
+                break;
         }
-        
-        html += `</div>`;
-        return html;
     }
-    
-    function toggleCollapsible(btn) {
-        const content = btn.nextElementSibling;
-        const icon = btn.querySelector('i');
-        content.classList.toggle('open');
-        icon.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : '';
-        btn.querySelector('span').textContent = content.classList.contains('open') ? '▲ 收合詳細指標' : '▼ 展開詳細指標';
+
+    // 摺疊面板切換
+    function toggleCollapsible(button) {
+        const content = button.nextElementSibling;
+        const icon = button.querySelector('i');
+
+        if (content.style.maxHeight && content.style.maxHeight !== '0px') {
+            content.style.maxHeight = '0px';
+            if (icon) icon.style.transform = '';
+        } else {
+            content.style.maxHeight = content.scrollHeight + 'px';
+            if (icon) icon.style.transform = 'rotate(180deg)';
+        }
     }
+
+    // ============================================================
+    // 初始化
+    // ============================================================
+
+    function init() {
+        // DOM 載入後初始化事件委託
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initSearchEventDelegation);
+        } else {
+            initSearchEventDelegation();
+        }
+    }
+
+    init();
+
+    // ============================================================
+    // 導出
+    // ============================================================
+
+    // 掛載到 SELA 命名空間
+    if (window.SELA && window.SELA.search) {
+        Object.assign(window.SELA.search, {
+            renderSearchResult,
+            renderStockResult
+        });
+    }
+
+    // 全域導出（向後兼容）
+    window.renderSearchResult = renderSearchResult;
+    window.renderStockResult = renderStockResult;
+    window.toggleCollapsible = toggleCollapsible;
+
+    console.log('🎨 search-render.js 渲染模組已載入');
+})();
+/**
+ * 搜尋圖表模組 (P2 拆分)
+ * 
+ * 職責：
+ * - 全螢幕圖表
+ * - 成交量圖表
+ * - 圖表互動
+ * 
+ * 依賴：core.js, Chart.js
+ */
+
+(function() {
+    'use strict';
+
+    // ============================================================
+    // 私有變數
+    // ============================================================
+
+    let fullscreenChartInstance = null;
+    let volumeChartInstance = null;
 
     // ============================================================
     // 全螢幕圖表
     // ============================================================
 
-    function openChartFullscreen(symbol, price) {
-        const chartData = currentChartData || window.currentChartData;
+    function openChartFullscreen(symbol, currentPrice) {
+        const chartData = window.currentChartData;
         if (!chartData) {
-            showToast('沒有圖表資料');
+            showToast('無圖表資料');
             return;
         }
-        
-        document.getElementById('chartFullscreenTitle').textContent = `${symbol}  $${price.toLocaleString()}`;
-        document.getElementById('chartFullscreen').classList.add('open');
-        document.body.style.overflow = 'hidden';
-        
-        setTimeout(() => {
-            renderFullscreenChart(chartData, 65);
-        }, 100);
+
+        const modal = $('chartFullscreenModal');
+        if (!modal) return;
+
+        // 更新標題
+        const title = $('chartModalTitle');
+        if (title) title.textContent = `${symbol} 技術分析`;
+
+        const priceEl = $('chartModalPrice');
+        if (priceEl) priceEl.textContent = `$${currentPrice?.toLocaleString() || '--'}`;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // 預設顯示 60 天
+        setTimeout(() => renderFullscreenChart(chartData, 60), 100);
     }
-    
+
     function closeChartFullscreen() {
-        document.getElementById('chartFullscreen').classList.remove('open');
-        document.body.style.overflow = '';
-        
+        const modal = $('chartFullscreenModal');
+        if (!modal) return;
+
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+
         if (fullscreenChartInstance) {
             fullscreenChartInstance.destroy();
             fullscreenChartInstance = null;
@@ -448,49 +723,49 @@
             volumeChartInstance = null;
         }
     }
-    
-    function setChartRange(days, btn) {
-        document.querySelectorAll('.chart-range-btn').forEach(b => {
-            b.classList.remove('bg-blue-50', 'border-blue-500', 'text-blue-600', 'active');
-            b.classList.add('border-gray-300');
+
+    function setChartRange(days) {
+        const chartData = window.currentChartData;
+        if (!chartData) return;
+
+        // 更新按鈕狀態
+        document.querySelectorAll('.chart-range-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-700');
+            if (parseInt(btn.dataset.days) === days) {
+                btn.classList.add('bg-blue-600', 'text-white');
+                btn.classList.remove('bg-gray-100', 'text-gray-700');
+            }
         });
-        if (btn) {
-            btn.classList.remove('border-gray-300');
-            btn.classList.add('bg-blue-50', 'border-blue-500', 'text-blue-600', 'active');
-        }
-        
-        const chartData = currentChartData || window.currentChartData;
-        if (chartData && chartData.dates && chartData.dates.length > 0) {
-            renderFullscreenChart(chartData, days);
-        }
+
+        renderFullscreenChart(chartData, days);
     }
-    
-    function renderFullscreenChart(chartData, days) {
-        const canvas = document.getElementById('fullscreenChart');
+
+    // ============================================================
+    // 渲染全螢幕圖表
+    // ============================================================
+
+    function renderFullscreenChart(chartData, days = 60) {
+        const canvas = $('fullscreenChart');
         if (!canvas) return;
-        
+
         if (fullscreenChartInstance) {
             fullscreenChartInstance.destroy();
         }
-        if (volumeChartInstance) {
-            volumeChartInstance.destroy();
-            volumeChartInstance = null;
-        }
-        
+
         const ctx = canvas.getContext('2d');
         const dataLength = chartData.dates.length;
         const startIdx = Math.max(0, dataLength - days);
-        
+
+        // 日期格式化
         const formatDate = (d) => {
-            if (days <= 130) {
-                return d.slice(5);
-            } else {
-                return d.slice(2, 7).replace('-', '/');
-            }
+            if (days <= 30) return d.slice(5);
+            if (days <= 130) return d.slice(5);
+            return d.slice(2, 7).replace('-', '/');
         };
-        
-        const labels = chartData.dates.slice(startIdx).map(d => formatDate(d));
-        
+
+        const labels = chartData.dates.slice(startIdx).map(formatDate);
+
         fullscreenChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
@@ -560,7 +835,7 @@
                     }
                 },
                 scales: {
-                    x: { 
+                    x: {
                         grid: { display: false },
                         ticks: { maxTicksLimit: days <= 60 ? 8 : 10, maxRotation: 0 }
                     },
@@ -568,43 +843,44 @@
                 }
             }
         });
-        
-        // 🆕 渲染成交量圖表
+
+        // 渲染成交量圖表
         if (chartData.volumes && chartData.volumes.length > 0) {
             renderVolumeChart(chartData, days, labels);
         }
     }
-    
-    /**
-     * 🆕 渲染成交量圖表
-     */
+
+    // ============================================================
+    // 渲染成交量圖表
+    // ============================================================
+
     function renderVolumeChart(chartData, days, labels) {
-        const volumeCanvas = document.getElementById('volumeChart');
+        const volumeCanvas = $('volumeChart');
         if (!volumeCanvas) return;
-        
+
         // 顯示成交量容器
-        const volumeContainer = document.getElementById('volumeChartContainer');
+        const volumeContainer = $('volumeChartContainer');
         if (volumeContainer) {
             volumeContainer.classList.remove('hidden');
         }
-        
+
         if (volumeChartInstance) {
             volumeChartInstance.destroy();
         }
-        
+
         const ctx = volumeCanvas.getContext('2d');
         const dataLength = chartData.dates.length;
         const startIdx = Math.max(0, dataLength - days);
-        
+
         const volumes = chartData.volumes.slice(startIdx);
         const prices = chartData.prices.slice(startIdx);
-        
+
         // 計算每根柱子的顏色（漲綠跌紅）
         const barColors = prices.map((price, i) => {
             if (i === 0) return 'rgba(156, 163, 175, 0.6)';
             return price >= prices[i - 1] ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
         });
-        
+
         // 計算 20 日均量
         const avgVolumes = [];
         for (let i = 0; i < volumes.length; i++) {
@@ -615,7 +891,7 @@
                 avgVolumes.push(sum / 20);
             }
         }
-        
+
         volumeChartInstance = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -663,11 +939,11 @@
                     }
                 },
                 scales: {
-                    x: { 
+                    x: {
                         grid: { display: false },
                         ticks: { display: false }
                     },
-                    y: { 
+                    y: {
                         grid: { color: 'rgba(0,0,0,0.05)' },
                         ticks: {
                             callback: function(value) {
@@ -684,164 +960,96 @@
     }
 
     // ============================================================
-    // 快速加入追蹤清單
-    // ============================================================
-
-    async function quickAddToWatchlist(symbol, assetType) {
-        try {
-            const res = await apiRequest('/api/watchlist', {
-                method: 'POST',
-                body: { symbol, asset_type: assetType }
-            });
-            
-            const data = await res.json();
-            
-            if (data.success) {
-                showToast('已加入追蹤清單');
-            } else {
-                showToast(data.detail || '新增失敗');
-            }
-        } catch (e) {
-            console.error('新增追蹤失敗:', e);
-            showToast('新增失敗');
-        }
-    }
-
-    // ============================================================
-    // 事件監聽
-    // ============================================================
-
-    function initChartRangeButtons() {
-        document.addEventListener('click', (e) => {
-            const btn = e.target.closest('.chart-range-btn');
-            if (btn && btn.dataset.days) {
-                e.preventDefault();
-                e.stopPropagation();
-                const days = parseInt(btn.dataset.days, 10);
-                setChartRange(days, btn);
-            }
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', initChartRangeButtons);
-    
-    window.addEventListener('orientationchange', () => {
-        setTimeout(initChartRangeButtons, 100);
-    });
-
-    // ============================================================
     // 年化報酬率 Modal
     // ============================================================
 
     async function loadReturnsModal(symbol) {
-        const modal = document.getElementById('returnsModal');
-        const content = document.getElementById('returnsModalContent');
-        const title = document.getElementById('returnsModalTitle');
-        
+        const modal = $('returnsModal');
+        const content = $('returnsModalContent');
         if (!modal || !content) return;
-        
-        if (title) title.textContent = `${symbol} 年化報酬率`;
+
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-        
+
         content.innerHTML = `
             <div class="text-center py-8">
-                <i class="fas fa-spinner fa-spin text-2xl text-green-600"></i>
-                <p class="mt-2 text-gray-500">計算中...（含配息再投入）</p>
+                <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
+                <p class="mt-2 text-gray-500">載入中...</p>
             </div>
         `;
-        
+
         try {
             const res = await apiRequest(`/api/stock/${symbol}/returns`);
             const data = await res.json();
-            
+
             if (!data.success) {
-                throw new Error(data.detail || '計算失敗');
+                content.innerHTML = `<p class="text-center text-red-500">${data.detail || '載入失敗'}</p>`;
+                return;
             }
-            
-            renderReturnsModal(data.data);
-            
+
+            renderReturnsContent(content, data);
+
         } catch (e) {
-            console.error('載入年化報酬率失敗:', e);
-            content.innerHTML = `
-                <div class="text-center py-8 text-red-500">
-                    <i class="fas fa-exclamation-circle text-3xl mb-2"></i>
-                    <p>${e.message || '載入失敗'}</p>
-                </div>
-            `;
+            console.error('Returns error:', e);
+            content.innerHTML = `<p class="text-center text-red-500">載入失敗: ${e.message}</p>`;
         }
     }
-    
-    function renderReturnsModal(data) {
-        const content = document.getElementById('returnsModalContent');
-        if (!content) return;
-        
-        const periods = ['1Y', '3Y', '5Y', '10Y'];
-        
-        let html = `
-            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-                <p class="text-gray-600 text-sm">${data.name}</p>
-                <p class="text-2xl font-bold text-gray-800">$${data.current_price.toLocaleString()}</p>
-                <p class="text-xs text-gray-400">${data.current_date}</p>
-            </div>
-            <div class="space-y-3">
-        `;
-        
-        for (const period of periods) {
-            const ret = data.returns[period];
+
+    function renderReturnsContent(content, data) {
+        const returns = data.returns || {};
+        const cagr = data.cagr || {};
+
+        const html = `
+            <h4 class="font-semibold text-lg mb-4">${data.symbol} 歷史報酬率</h4>
             
-            if (!ret) {
-                html += `
-                    <div class="p-3 bg-gray-100 rounded-lg opacity-50">
-                        <div class="flex justify-between items-center">
-                            <span class="font-medium text-gray-600">${period}</span>
-                            <span class="text-gray-400 text-sm">資料不足</span>
-                        </div>
-                    </div>
-                `;
-                continue;
-            }
-            
-            const cagr = ret.cagr;
-            const cagrClass = cagr >= 0 ? 'text-green-600' : 'text-red-600';
-            const cagrIcon = cagr >= 0 ? '▲' : '▼';
-            const cagrBg = cagr >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
-            
-            html += `
-                <div class="p-4 bg-white border rounded-lg shadow-sm">
-                    <div class="flex justify-between items-center mb-3">
-                        <span class="font-bold text-lg text-gray-800">${period}</span>
-                        <span class="text-xs text-gray-400">${ret.start_date} ~ 今</span>
-                    </div>
-                    <div class="p-4 ${cagrBg} rounded-lg border text-center mb-3">
-                        <p class="text-xs text-gray-500 mb-1">年化報酬率 (CAGR)</p>
-                        <p class="text-3xl font-bold ${cagrClass}">${cagrIcon} ${cagr !== null ? Math.abs(cagr).toFixed(2) + '%' : '--'}</p>
-                    </div>
-                    <div class="flex justify-between text-xs text-gray-500 border-t pt-2">
-                        <span>起始價: $${ret.start_price.toLocaleString()}</span>
-                        <span>配息 ${ret.dividend_count} 次</span>
-                        <span>總配息: $${ret.total_dividends.toFixed(2)}</span>
+            <div class="space-y-4">
+                <div>
+                    <p class="text-sm text-gray-500 mb-2">累積報酬率</p>
+                    <div class="grid grid-cols-4 gap-2 text-center">
+                        ${['1m', '3m', '6m', '1y'].map(period => {
+                            const val = returns[period];
+                            const bgClass = val > 0 ? 'bg-green-50' : val < 0 ? 'bg-red-50' : 'bg-gray-50';
+                            const textClass = val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-600';
+                            const label = period === '1m' ? '1月' : period === '3m' ? '3月' : period === '6m' ? '6月' : '1年';
+                            return `
+                                <div class="p-2 rounded ${bgClass}">
+                                    <p class="text-xs text-gray-500">${label}</p>
+                                    <p class="font-bold ${textClass}">${val !== null && val !== undefined ? (val > 0 ? '+' : '') + val.toFixed(1) + '%' : '--'}</p>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 </div>
-            `;
-        }
-        
-        html += `
-            </div>
-            <div class="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p class="text-xs text-blue-600">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    CAGR 基於 Yahoo Finance 除權息調整後價格計算，<br>
-                    已包含配息再投入的複利效果
+                
+                <div>
+                    <p class="text-sm text-gray-500 mb-2">年化報酬率 (CAGR)</p>
+                    <div class="grid grid-cols-4 gap-2 text-center">
+                        ${['1y', '3y', '5y', '10y'].map(period => {
+                            const val = cagr[`cagr_${period}`];
+                            const bgClass = val > 0 ? 'bg-green-50' : val < 0 ? 'bg-red-50' : 'bg-gray-50';
+                            const textClass = val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-600';
+                            const label = period.replace('y', '年');
+                            return `
+                                <div class="p-2 rounded ${bgClass}">
+                                    <p class="text-xs text-gray-500">${label}</p>
+                                    <p class="font-bold ${textClass}">${val !== null && val !== undefined ? (val > 0 ? '+' : '') + val + '%' : '--'}</p>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                
+                <p class="text-xs text-gray-400 text-center">
+                    CAGR = 年化複合成長率，已包含配息再投入的複利效果
                 </p>
             </div>
         `;
-        
+
         content.innerHTML = html;
     }
-    
+
     function closeReturnsModal() {
-        const modal = document.getElementById('returnsModal');
+        const modal = $('returnsModal');
         if (modal) {
             modal.classList.add('hidden');
             modal.classList.remove('flex');
@@ -849,40 +1057,28 @@
     }
 
     // ============================================================
-    // 快取管理
+    // 導出
     // ============================================================
-    
-    function clearStockCache() {
-        stockCache.clear();
-        console.log('🗑️ 股票快取已清除');
-        showToast('快取已清除');
-    }
-    
-    function getStockCacheStats() {
-        return {
-            count: stockCache.size,
-            symbols: Array.from(stockCache.keys())
-        };
+
+    // 掛載到 SELA 命名空間
+    if (window.SELA && window.SELA.search) {
+        Object.assign(window.SELA.search, {
+            openChartFullscreen,
+            closeChartFullscreen,
+            setChartRange,
+            loadReturnsModal,
+            closeReturnsModal
+        });
     }
 
-    // ============================================================
-    // 導出到全域
-    // ============================================================
-    
-    window.searchStock = searchStock;
-    window.searchSymbol = searchSymbol;
-    window.renderStockResult = renderStockResult;
-    window.toggleCollapsible = toggleCollapsible;
+    // 全域導出（向後兼容）
     window.openChartFullscreen = openChartFullscreen;
     window.closeChartFullscreen = closeChartFullscreen;
     window.setChartRange = setChartRange;
     window.renderFullscreenChart = renderFullscreenChart;
     window.renderVolumeChart = renderVolumeChart;
-    window.quickAddToWatchlist = quickAddToWatchlist;
     window.loadReturnsModal = loadReturnsModal;
     window.closeReturnsModal = closeReturnsModal;
-    window.clearStockCache = clearStockCache;
-    window.getStockCacheStats = getStockCacheStats;
-    
-    console.log('🔍 search.js 模組已載入 (P2 含成交量圖表+MA進階分析)');
+
+    console.log('📊 search-chart.js 圖表模組已載入');
 })();
