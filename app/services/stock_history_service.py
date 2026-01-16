@@ -49,13 +49,17 @@ class StockHistoryService:
             
         Returns:
             (DataFrame, source) - source 為 'cache', 'partial', 'yahoo'
+            DataFrame 格式與 yahoo_finance.get_stock_history() 相同
         """
         symbol = symbol.upper()
         
         # 強制刷新時，直接從 Yahoo 抓取
         if force_refresh:
             logger.info(f"🔄 強制刷新: {symbol}")
-            return self._fetch_and_save(symbol, years), "yahoo"
+            df = self._fetch_from_yahoo(symbol, years)
+            if df is not None and not df.empty:
+                self._save_to_db(symbol, df)
+            return df, "yahoo"
         
         # 檢查本地快取
         cache_info = self._get_cache_info(symbol)
@@ -63,7 +67,10 @@ class StockHistoryService:
         if cache_info is None:
             # 無快取，首次查詢
             logger.info(f"📥 首次查詢: {symbol}")
-            return self._fetch_and_save(symbol, years), "yahoo"
+            df = self._fetch_from_yahoo(symbol, years)
+            if df is not None and not df.empty:
+                self._save_to_db(symbol, df)
+            return df, "yahoo"
         
         latest_date, record_count = cache_info
         today = date.today()
@@ -132,20 +139,13 @@ class StockHistoryService:
         
         return False
     
-    def _fetch_and_save(self, symbol: str, years: int) -> Optional[pd.DataFrame]:
+    def _fetch_from_yahoo(self, symbol: str, years: int) -> Optional[pd.DataFrame]:
         """
-        從 Yahoo Finance 抓取完整資料並存入 DB
+        從 Yahoo Finance 抓取完整資料
+        返回格式與 yahoo_finance.get_stock_history() 相同
         """
         period = f"{years}y"
         df = yahoo_finance.get_stock_history(symbol, period=period)
-        
-        if df is None or df.empty:
-            return None
-        
-        # 存入資料庫
-        saved = self._save_to_db(symbol, df)
-        logger.info(f"💾 已存入 DB: {symbol} ({saved} 筆)")
-        
         return df
     
     def _fetch_incremental(
@@ -155,7 +155,7 @@ class StockHistoryService:
         years: int
     ) -> Optional[pd.DataFrame]:
         """
-        增量抓取：只抓取缺失的日期
+        增量抓取：只抓取缺失的日期，然後合併現有資料
         """
         # 計算需要抓取的天數
         today = date.today()
@@ -178,74 +178,74 @@ class StockHistoryService:
             logger.warning(f"⚠️ 增量抓取失敗: {symbol}")
             return None
         
-        # 只保留新的資料
-        df_new = df_new[df_new.index.date > last_date]
+        # 只保留新的資料來存入 DB
+        df_to_save = df_new[df_new['date'] > last_date]
         
-        if not df_new.empty:
+        if not df_to_save.empty:
             # 存入資料庫
-            saved = self._save_to_db(symbol, df_new)
+            saved = self._save_to_db(symbol, df_to_save)
             logger.info(f"💾 增量存入: {symbol} ({saved} 筆新資料)")
         
-        # 返回完整資料
+        # 返回完整資料（從 DB 讀取以確保格式一致）
         return self._load_from_db(symbol, years)
     
     def _save_to_db(self, symbol: str, df: pd.DataFrame) -> int:
         """
         存入資料庫（使用 upsert）
+        
+        Args:
+            symbol: 股票代號
+            df: yahoo_finance 格式的 DataFrame（有 date 欄位）
         """
         if df is None or df.empty:
             return 0
         
         count = 0
-        rows_to_insert = []
         
-        for idx, row in df.iterrows():
+        for _, row in df.iterrows():
             # 處理日期
-            if hasattr(idx, 'date'):
-                row_date = idx.date()
-            elif isinstance(idx, date):
-                row_date = idx
-            else:
-                row_date = pd.to_datetime(idx).date()
+            row_date = row['date']
+            if hasattr(row_date, 'date'):
+                row_date = row_date.date() if callable(row_date.date) else row_date.date
+            elif not isinstance(row_date, date):
+                row_date = pd.to_datetime(row_date).date()
             
-            rows_to_insert.append({
+            row_data = {
                 "symbol": symbol,
                 "date": row_date,
-                "open": float(row.get("open", row.get("Open", 0))) if pd.notna(row.get("open", row.get("Open"))) else None,
-                "high": float(row.get("high", row.get("High", 0))) if pd.notna(row.get("high", row.get("High"))) else None,
-                "low": float(row.get("low", row.get("Low", 0))) if pd.notna(row.get("low", row.get("Low"))) else None,
-                "close": float(row.get("close", row.get("Close", 0))) if pd.notna(row.get("close", row.get("Close"))) else None,
-                "volume": int(row.get("volume", row.get("Volume", 0))) if pd.notna(row.get("volume", row.get("Volume"))) else 0,
-            })
-        
-        # 批量 upsert
-        if rows_to_insert:
-            for row in rows_to_insert:
-                stmt = insert(StockPrice).values(**row)
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=['symbol', 'date'],
-                    set_={
-                        'open': stmt.excluded.open,
-                        'high': stmt.excluded.high,
-                        'low': stmt.excluded.low,
-                        'close': stmt.excluded.close,
-                        'volume': stmt.excluded.volume,
-                        'updated_at': func.now(),
-                    }
-                )
-                try:
-                    self.db.execute(stmt)
-                    count += 1
-                except Exception as e:
-                    logger.warning(f"存入失敗 {symbol} {row['date']}: {e}")
+                "open": float(row['open']) if pd.notna(row.get('open')) else None,
+                "high": float(row['high']) if pd.notna(row.get('high')) else None,
+                "low": float(row['low']) if pd.notna(row.get('low')) else None,
+                "close": float(row['close']) if pd.notna(row.get('close')) else None,
+                "volume": int(row['volume']) if pd.notna(row.get('volume')) else 0,
+            }
             
-            self.db.commit()
+            stmt = insert(StockPrice).values(**row_data)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=['symbol', 'date'],
+                set_={
+                    'open': stmt.excluded.open,
+                    'high': stmt.excluded.high,
+                    'low': stmt.excluded.low,
+                    'close': stmt.excluded.close,
+                    'volume': stmt.excluded.volume,
+                    'updated_at': func.now(),
+                }
+            )
+            try:
+                self.db.execute(stmt)
+                count += 1
+            except Exception as e:
+                logger.warning(f"存入失敗 {symbol} {row_date}: {e}")
         
+        self.db.commit()
+        logger.info(f"💾 已存入 DB: {symbol} ({count} 筆)")
         return count
     
     def _load_from_db(self, symbol: str, years: int) -> Optional[pd.DataFrame]:
         """
         從資料庫載入歷史資料
+        返回格式與 yahoo_finance.get_stock_history() 相同
         """
         start_date = date.today() - timedelta(days=years * 365)
         
@@ -265,20 +265,23 @@ class StockHistoryService:
         if not results:
             return None
         
+        # 建立與 yahoo_finance 相同格式的 DataFrame
         data = []
         for r in results:
             data.append({
-                "date": r.date,
+                "date": r.date,  # date 是欄位，不是 index
                 "open": float(r.open) if r.open else None,
                 "high": float(r.high) if r.high else None,
                 "low": float(r.low) if r.low else None,
                 "close": float(r.close) if r.close else None,
-                "volume": r.volume,
+                "volume": int(r.volume) if r.volume else 0,
+                "symbol": symbol,
             })
         
         df = pd.DataFrame(data)
-        df.set_index('date', inplace=True)
-        df.index = pd.to_datetime(df.index)
+        
+        # 計算 adj_close（使用 yahoo_finance 的分割檢測邏輯）
+        df = yahoo_finance._detect_and_adjust_splits(df, symbol)
         
         return df
     
