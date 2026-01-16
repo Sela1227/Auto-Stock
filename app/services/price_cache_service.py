@@ -447,6 +447,51 @@ class PriceCacheService:
             )
             self.db.add(cache)
     
+    # ============================================================
+    # 🆕 查詢快取（供 stock.py API 使用）
+    # ============================================================
+    
+    def get_cached_price(self, symbol: str, max_age_minutes: int = 5) -> dict:
+        """
+        從快取取得股票價格（5 分鐘有效）
+        
+        Args:
+            symbol: 股票代號
+            max_age_minutes: 快取有效期（分鐘），預設 5 分鐘
+            
+        Returns:
+            快取資料 dict 或 None（無快取或已過期）
+        """
+        from datetime import timedelta
+        
+        cache = self.db.query(StockPriceCache).filter(
+            StockPriceCache.symbol == symbol.upper()
+        ).first()
+        
+        if not cache:
+            logger.debug(f"快取未命中: {symbol}")
+            return None
+        
+        # 檢查是否過期
+        if cache.updated_at:
+            age = datetime.now() - cache.updated_at
+            if age > timedelta(minutes=max_age_minutes):
+                logger.info(f"快取過期: {symbol} (已 {age.total_seconds()/60:.1f} 分鐘)")
+                return None
+        
+        logger.info(f"📦 快取命中: {symbol}")
+        return {
+            "symbol": cache.symbol,
+            "name": cache.name,
+            "price": float(cache.price) if cache.price else None,
+            "prev_close": float(cache.prev_close) if cache.prev_close else None,
+            "change": float(cache.change) if cache.change else None,
+            "change_pct": float(cache.change_pct) if cache.change_pct else None,
+            "volume": int(cache.volume) if cache.volume else None,
+            "ma20": float(cache.ma20) if cache.ma20 else None,
+            "updated_at": cache.updated_at.isoformat() if cache.updated_at else None,
+        }
+    
     def update_all(self, force: bool = False) -> Dict[str, Any]:
         """
         更新所有追蹤的價格

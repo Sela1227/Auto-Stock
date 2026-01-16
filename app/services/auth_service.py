@@ -324,21 +324,35 @@ class AuthService:
             
         Returns:
             JWT Token 字串
+        
+        🆕 過期時間：
+        - 一般用戶：10 分鐘
+        - 管理員：1 小時
         """
-        expire = datetime.utcnow() + timedelta(days=settings.JWT_EXPIRE_DAYS)
+        is_admin = getattr(user, 'is_admin', False)
+        
+        # 根據用戶角色設定過期時間
+        if is_admin:
+            expire_minutes = settings.JWT_EXPIRE_MINUTES_ADMIN  # 60 分鐘
+        else:
+            expire_minutes = settings.JWT_EXPIRE_MINUTES_USER   # 10 分鐘
+        
+        expire = datetime.utcnow() + timedelta(minutes=expire_minutes)
         issued_at = datetime.utcnow()
         
         payload = {
             "sub": str(user.id),
             "line_user_id": user.line_user_id,
             "display_name": user.display_name,
-            "is_admin": getattr(user, 'is_admin', False),
+            "is_admin": is_admin,
             "exp": expire,
             "iat": issued_at,
             "jti": str(uuid.uuid4()),  # 唯一 Token ID
+            "expire_minutes": expire_minutes,  # 🆕 告訴前端過期時間
         }
         
         token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        logger.info(f"JWT Token 建立: user_id={user.id}, is_admin={is_admin}, expire={expire_minutes}分鐘")
         return token
     
     def verify_jwt_token(self, token: str) -> Optional[Dict[str, Any]]:

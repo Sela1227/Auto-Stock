@@ -1,6 +1,9 @@
 """
 資料庫連線與 Session 管理
 支援 SQLite (開發) 和 PostgreSQL (生產)
+
+🔧 修復版本 - 2026-01-16
+新增 get_sync_db 別名
 """
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
@@ -90,6 +93,65 @@ def run_auto_migrations():
             "check_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='stock_price_cache' AND column_name='ma20'",
             "migrate_sql": "ALTER TABLE stock_price_cache ADD COLUMN ma20 NUMERIC(12, 4)",
         },
+        # 2026-01-14: 訂閱精選功能 - 訂閱源表
+        {
+            "name": "create_subscription_sources",
+            "check_sql": "SELECT table_name FROM information_schema.tables WHERE table_name='subscription_sources'",
+            "migrate_sql": """
+                CREATE TABLE subscription_sources (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    slug VARCHAR(50) UNIQUE NOT NULL,
+                    url VARCHAR(500) NOT NULL,
+                    type VARCHAR(20) DEFAULT 'substack',
+                    description TEXT,
+                    enabled BOOLEAN DEFAULT true,
+                    last_fetched_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """,
+        },
+        # 2026-01-14: 訂閱精選功能 - 自動精選表
+        {
+            "name": "create_auto_picks",
+            "check_sql": "SELECT table_name FROM information_schema.tables WHERE table_name='auto_picks'",
+            "migrate_sql": """
+                CREATE TABLE auto_picks (
+                    id SERIAL PRIMARY KEY,
+                    source_id INTEGER REFERENCES subscription_sources(id),
+                    symbol VARCHAR(20) NOT NULL,
+                    article_url VARCHAR(500),
+                    article_title VARCHAR(300),
+                    article_date DATE,
+                    first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP,
+                    mention_count INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(source_id, symbol)
+                )
+            """,
+        },
+        # 2026-01-14: 訂閱精選功能 - 用戶訂閱表
+        {
+            "name": "create_user_subscriptions",
+            "check_sql": "SELECT table_name FROM information_schema.tables WHERE table_name='user_subscriptions'",
+            "migrate_sql": """
+                CREATE TABLE user_subscriptions (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id),
+                    source_id INTEGER REFERENCES subscription_sources(id),
+                    subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, source_id)
+                )
+            """,
+        },
+        # 2026-01-15: P1 目標價功能
+        {
+            "name": "add_target_price_to_watchlists",
+            "check_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='watchlists' AND column_name='target_price'",
+            "migrate_sql": "ALTER TABLE watchlists ADD COLUMN target_price NUMERIC(12, 4) DEFAULT NULL",
+        },
     ]
     
     try:
@@ -162,3 +224,9 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# ============================================================
+# 🆕 新增別名 - 修復 stock.py ImportError
+# ============================================================
+get_sync_db = get_db

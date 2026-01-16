@@ -28,7 +28,11 @@ class Settings(BaseSettings):
     
     # JWT (階段四)
     JWT_SECRET_KEY: str = "your-secret-key-change-in-production"
-    JWT_EXPIRE_DAYS: int = 7
+    JWT_EXPIRE_DAYS: int = 7  # 保留向後相容
+    
+    # 🆕 Token 過期時間（分鐘）
+    JWT_EXPIRE_MINUTES_USER: int = 10      # 一般用戶 10 分鐘
+    JWT_EXPIRE_MINUTES_ADMIN: int = 60     # 管理員 1 小時
     
     # 管理員設定
     # 初始管理員的 LINE User ID（用逗號分隔多個）

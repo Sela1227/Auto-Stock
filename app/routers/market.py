@@ -1,6 +1,6 @@
 """
 市場資料 API 路由
-三大指數、市場情緒、排程任務
+🔧 P0修復：使用統一認證模組
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
@@ -10,52 +10,15 @@ import logging
 
 from app.database import get_db, get_async_session
 from app.services.market_service import MarketService
-from app.services.auth_service import AuthService
 from app.tasks.scheduler import scheduler_service
 from app.models.index_price import INDEX_SYMBOLS
+
+# 🔧 使用統一認證模組
+from app.dependencies import get_optional_user, get_admin_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/market", tags=["market"])
-
-
-# ==================== 認證依賴 ====================
-
-async def get_current_user_optional(
-    request: Request,
-    db: AsyncSession = Depends(get_async_session),
-):
-    """取得當前用戶（選擇性，未登入返回 None）"""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return None
-    
-    token = auth_header.split(" ")[1]
-    auth_service = AuthService(db)
-    user = await auth_service.get_user_from_token(token)
-    return user
-
-
-async def get_current_admin(
-    request: Request,
-    db: AsyncSession = Depends(get_async_session),
-):
-    """取得當前管理員（必須是管理員）"""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="未提供認證 Token")
-    
-    token = auth_header.split(" ")[1]
-    auth_service = AuthService(db)
-    user = await auth_service.get_user_from_token(token)
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="無效的 Token")
-    
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="需要管理員權限")
-    
-    return user
 
 
 # ==================== 三大指數 ====================
@@ -191,7 +154,7 @@ async def get_sentiment_history(
 
 @router.post("/admin/update")
 async def trigger_daily_update(
-    current_user = Depends(get_current_admin),
+    current_user = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -212,7 +175,7 @@ async def trigger_daily_update(
 @router.post("/admin/initialize")
 async def initialize_historical_data(
     years: int = Query(default=10, ge=1, le=10),
-    current_user = Depends(get_current_admin),
+    current_user = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -237,7 +200,7 @@ async def initialize_historical_data(
 @router.post("/admin/update-indices")
 async def update_indices(
     period: str = Query(default="5d", pattern="^(5d|1mo|3mo|1y|5y|10y)$"),
-    current_user = Depends(get_current_admin),
+    current_user = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -261,7 +224,7 @@ async def update_indices(
 
 @router.post("/admin/update-sentiment")
 async def update_sentiment(
-    current_user = Depends(get_current_admin),
+    current_user = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -283,7 +246,7 @@ async def update_sentiment(
 @router.post("/admin/init-crypto-sentiment")
 async def init_crypto_sentiment(
     days: int = Query(default=365, ge=1, le=365),
-    current_user = Depends(get_current_admin),
+    current_user = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -307,7 +270,7 @@ async def init_crypto_sentiment(
 
 @router.get("/admin/scheduler-status")
 async def get_scheduler_status(
-    current_user = Depends(get_current_admin),
+    current_user = Depends(get_admin_user),
 ):
     """
     [管理員] 取得排程狀態

@@ -1,19 +1,26 @@
 """
 個人投資記錄 API 路由
+🔧 P0修復：使用統一認證模組
 """
-from datetime import date
+from datetime import date, datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
 import logging
+import json
+import csv
+import io
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_async_session
-from app.services.auth_service import AuthService
 from app.services.portfolio_service import PortfolioService
 from app.services.exchange_rate_service import get_exchange_rate, set_exchange_rate
 from app.models.user import User
+
+# 🔧 使用統一認證模組
+from app.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -57,27 +64,176 @@ class ExchangeRateUpdate(BaseModel):
     rate: float = Field(..., gt=0, description="USD/TWD 匯率")
 
 
+class TransactionImportItem(BaseModel):
+    symbol: str
+    name: Optional[str] = None
+    market: str = "tw"
+    transaction_type: str = "buy"
+    quantity: int
+    price: float
+    fee: Optional[float] = 0
+    tax: Optional[float] = 0
+    transaction_date: str  # YYYY-MM-DD format
+    note: Optional[str] = None
+
+
+class TransactionImportRequest(BaseModel):
+    items: List[TransactionImportItem]
+
+
 # ============================================================
-# 依賴注入
+# 匯出匯入 API
 # ============================================================
 
-async def get_current_user(
-    request: Request,
+@router.get("/export", summary="匯出交易記錄")
+async def export_transactions(
+    format: str = "json",
+    market: Optional[str] = Query(None, pattern="^(tw|us)$"),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
-) -> User:
-    """驗證用戶身份"""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="未提供認證 Token")
+):
+    """
+    匯出用戶的交易記錄
     
-    token = auth_header.split(" ")[1]
-    auth_service = AuthService(db)
-    user = await auth_service.get_user_from_token(token)
+    - format: json 或 csv
+    - market: 選擇性篩選市場 (tw/us)
+    """
+    logger.info(f"API: 匯出交易記錄 - user_id={user.id}, format={format}, market={market}")
+
+    try:
+        service = PortfolioService(db)
+        transactions = await service.get_transactions(
+            user_id=user.id,
+            market=market,
+            limit=9999,
+            offset=0,
+        )
+
+        if not transactions:
+            raise HTTPException(status_code=404, detail="交易記錄為空")
+
+        # 準備匯出資料
+        export_data = []
+        for t in transactions:
+            export_data.append({
+                "symbol": t.symbol,
+                "name": t.name or "",
+                "market": t.market,
+                "transaction_type": t.transaction_type,
+                "quantity": t.quantity,
+                "price": float(t.price),
+                "fee": float(t.fee) if t.fee else 0,
+                "tax": float(t.tax) if t.tax else 0,
+                "transaction_date": t.transaction_date.isoformat() if t.transaction_date else "",
+                "note": t.note or "",
+            })
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        market_suffix = f"_{market}" if market else ""
+
+        if format.lower() == "csv":
+            # CSV 格式
+            output = io.StringIO()
+            fieldnames = ["symbol", "name", "market", "transaction_type", "quantity", 
+                         "price", "fee", "tax", "transaction_date", "note"]
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(export_data)
+            
+            return StreamingResponse(
+                iter([output.getvalue()]),
+                media_type="text/csv",
+                headers={
+                    "Content-Disposition": f"attachment; filename=portfolio{market_suffix}_{timestamp}.csv"
+                }
+            )
+        else:
+            # JSON 格式
+            json_str = json.dumps({
+                "export_time": datetime.now().isoformat(),
+                "market": market,
+                "total": len(export_data),
+                "items": export_data
+            }, ensure_ascii=False, indent=2)
+            
+            return StreamingResponse(
+                iter([json_str]),
+                media_type="application/json",
+                headers={
+                    "Content-Disposition": f"attachment; filename=portfolio{market_suffix}_{timestamp}.json"
+                }
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"匯出交易記錄失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/import", summary="匯入交易記錄")
+async def import_transactions(
+    data: TransactionImportRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    匯入交易記錄
     
-    if not user:
-        raise HTTPException(status_code=401, detail="無效的 Token")
-    
-    return user
+    - 逐筆新增交易記錄
+    - 返回成功/失敗的統計
+    """
+    logger.info(f"API: 匯入交易記錄 - user_id={user.id}, items={len(data.items)}")
+
+    try:
+        service = PortfolioService(db)
+        added = []
+        errors = []
+
+        for item in data.items:
+            try:
+                # 解析日期
+                trans_date = datetime.strptime(item.transaction_date, "%Y-%m-%d").date()
+                
+                transaction = await service.create_transaction(
+                    user_id=user.id,
+                    symbol=item.symbol.upper().strip(),
+                    name=item.name,
+                    market=item.market,
+                    transaction_type=item.transaction_type,
+                    quantity=item.quantity,
+                    price=item.price,
+                    fee=item.fee or 0,
+                    tax=item.tax or 0,
+                    transaction_date=trans_date,
+                    note=item.note,
+                )
+                added.append({
+                    "id": transaction.id,
+                    "symbol": transaction.symbol,
+                    "transaction_type": transaction.transaction_type,
+                })
+            except Exception as e:
+                errors.append({
+                    "symbol": item.symbol,
+                    "date": item.transaction_date,
+                    "error": str(e)
+                })
+
+        return {
+            "success": True,
+            "message": f"匯入完成：成功 {len(added)} 筆，失敗 {len(errors)} 筆",
+            "data": {
+                "added": added,
+                "errors": errors,
+                "total_added": len(added),
+                "total_errors": len(errors),
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"匯入交易記錄失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================
