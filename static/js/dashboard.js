@@ -1,6 +1,6 @@
 /**
  * 儀表板模組
- * 包含：BTC 價格、三大指數、市場情緒
+ * 包含：BTC 價格、三大指數、市場情緒、熱門追蹤統計
  */
 
 (function() {
@@ -395,6 +395,74 @@
     }
     
     // ============================================================
+    // 🆕 熱門追蹤統計
+    // ============================================================
+    
+    async function loadPopularStocks() {
+        const container = document.getElementById('popularStocksContainer');
+        if (!container) return;
+        
+        try {
+            const res = await fetch('/api/watchlist/popular?limit=10');
+            const data = await res.json();
+            
+            if (data.success && data.data && data.data.length > 0) {
+                renderPopularStocks(data.data);
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-4 text-gray-400 text-sm">
+                        <i class="fas fa-chart-line mb-2"></i>
+                        <p>尚無追蹤統計</p>
+                    </div>
+                `;
+            }
+        } catch (e) {
+            console.error('載入熱門追蹤失敗:', e);
+            container.innerHTML = `
+                <div class="text-center py-4 text-gray-400 text-sm">
+                    <p>載入失敗</p>
+                </div>
+            `;
+        }
+    }
+    
+    function renderPopularStocks(stocks) {
+        const container = document.getElementById('popularStocksContainer');
+        if (!container) return;
+        
+        const maxCount = stocks[0]?.count || 1;
+        
+        let html = `
+            <div class="space-y-2">
+                ${stocks.map((stock, index) => {
+                    const barWidth = Math.max(20, (stock.count / maxCount) * 100);
+                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+                    const bgClass = index < 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50' : 'bg-gray-50';
+                    
+                    return `
+                        <div class="flex items-center p-2 rounded-lg ${bgClass} hover:shadow-sm transition cursor-pointer" 
+                             onclick="searchSymbol('${stock.symbol}')">
+                            <span class="w-6 text-center text-sm">${medal || (index + 1)}</span>
+                            <div class="flex-1 ml-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-medium text-gray-800 text-sm">${stock.symbol}</span>
+                                    <span class="text-xs text-gray-500">${stock.count} 人追蹤</span>
+                                </div>
+                                <div class="mt-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all" 
+                                         style="width: ${barWidth}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    }
+    
+    // ============================================================
     // 主載入函數
     // ============================================================
     
@@ -402,6 +470,7 @@
         await loadIndices();
         await loadSentiment();
         await loadBtcPrice();
+        await loadPopularStocks();  // 🆕 載入熱門追蹤
         if (typeof loadWatchlistOverview === 'function') {
             await loadWatchlistOverview();
         }
@@ -572,6 +641,7 @@
     window.loadIndices = loadIndices;
     window.loadSentiment = loadSentiment;
     window.loadSentimentDetail = loadSentimentDetail;
+    window.loadPopularStocks = loadPopularStocks;  // 🆕
     window.openIndexModal = openIndexModal;
     window.closeIndexModal = closeIndexModal;
     window.loadIndexModalChart = loadIndexModalChart;
@@ -580,5 +650,5 @@
     window.loadSentimentModalChart = loadSentimentModalChart;
     window.triggerAdminUpdates = triggerAdminUpdates;
     
-    console.log('📊 dashboard.js 模組已載入');
+    console.log('📊 dashboard.js 模組已載入 (P2 含熱門追蹤統計)');
 })();
