@@ -36,6 +36,9 @@ from app.models import (
     Comparison,
     StockPriceCache,
     PortfolioTransaction, PortfolioHolding, ExchangeRate,
+    # P1: 標籤和股票資訊
+    UserTag, watchlist_tags,
+    StockInfo,
 )
 from app.models.user import LoginLog, TokenBlacklist, SystemConfig
 
