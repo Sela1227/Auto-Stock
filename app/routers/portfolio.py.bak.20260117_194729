@@ -43,7 +43,6 @@ class TransactionCreate(BaseModel):
     tax: Optional[float] = Field(0, ge=0, description="交易稅")
     transaction_date: date = Field(..., description="交易日期")
     note: Optional[str] = Field(None, max_length=500, description="備註")
-    broker_id: Optional[int] = Field(None, description="券商 ID")
 
 
 class TransactionUpdate(BaseModel):
@@ -58,7 +57,6 @@ class TransactionUpdate(BaseModel):
     tax: Optional[float] = Field(None, ge=0)
     transaction_date: Optional[date] = None
     note: Optional[str] = Field(None, max_length=500)
-    broker_id: Optional[int] = None
 
 
 class ExchangeRateUpdate(BaseModel):

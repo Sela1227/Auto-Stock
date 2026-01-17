@@ -4,6 +4,7 @@
  * 優化內容：
  * 1. DOM 快取 - 使用 $() 函數
  * 2. 減少重複查詢
+ * 3. 券商選擇功能
  * 
  * 包含：台股/美股交易表單
  */
@@ -13,6 +14,73 @@
 
     let twLookupTimer = null;
     let usLookupTimer = null;
+    let userBrokers = [];  // 🔧 券商列表快取
+
+    // ============================================================
+    // 券商管理
+    // ============================================================
+
+    async function loadBrokers() {
+        try {
+            const res = await apiRequest('/api/brokers');
+            const data = await res.json();
+            if (data.success) {
+                userBrokers = data.data || [];
+                renderBrokerSelect('twBroker');
+                renderBrokerSelect('usBroker');
+            }
+        } catch (e) {
+            console.error('載入券商失敗:', e);
+        }
+    }
+
+    function renderBrokerSelect(selectId) {
+        const select = $(selectId);
+        if (!select) return;
+
+        let html = '<option value="">不指定券商</option>';
+        userBrokers.forEach(b => {
+            const defaultMark = b.is_default ? ' ⭐' : '';
+            html += `<option value="${b.id}" ${b.is_default ? 'selected' : ''}>${b.name}${defaultMark}</option>`;
+        });
+        html += '<option value="__new__">+ 新增券商...</option>';
+        select.innerHTML = html;
+    }
+
+    async function handleBrokerChange(selectId) {
+        const select = $(selectId);
+        if (!select) return;
+
+        if (select.value === '__new__') {
+            const name = prompt('請輸入券商名稱：');
+            if (name && name.trim()) {
+                try {
+                    const res = await apiRequest('/api/brokers', {
+                        method: 'POST',
+                        body: { name: name.trim() }
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast('券商已新增');
+                        await loadBrokers();
+                        // 選中新增的券商
+                        if (data.data?.id) {
+                            select.value = data.data.id;
+                        }
+                    } else {
+                        showToast(data.detail || '新增失敗');
+                        select.value = '';
+                    }
+                } catch (e) {
+                    console.error('新增券商失敗:', e);
+                    showToast('新增失敗');
+                    select.value = '';
+                }
+            } else {
+                select.value = '';
+            }
+        }
+    }
 
     // ============================================================
     // 台股交易
@@ -30,10 +98,13 @@
         $('twOddLot').value = '';
         $('twQuantityDisplay').textContent = '= 0 股';
         $('twPrice').value = '';
-        $('twFee').value = '';
-        $('twTax').value = '';
+        $('twFee').value = '0';
+        $('twTax').value = '0';
         $('twDate').value = new Date().toISOString().split('T')[0];
         $('twNote').value = '';
+
+        // 🔧 載入券商列表
+        loadBrokers();
 
         const modal = $('twTransactionModal');
         if (modal) {
@@ -96,20 +167,25 @@
             if (!symbol || symbol.length < 4) return;
 
             try {
-                const res = await apiRequest(`/api/stock/${symbol}.TW/info`);
+                // 🔧 修正：使用正確的 API 路徑
+                const res = await apiRequest(`/api/stock/${symbol}.TW`);
                 const data = await res.json();
 
                 const nameDisplay = $('twNameDisplay');
                 const nameInput = $('twName');
 
-                if (data.success && data.name) {
-                    if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${data.name}</span>`;
-                    if (nameInput) nameInput.value = data.name;
+                // 🔧 修正：從回傳資料取得名稱
+                const stockName = data.name || data.data?.name;
+                if (data.success && stockName) {
+                    if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${stockName}</span>`;
+                    if (nameInput) nameInput.value = stockName;
                 } else {
                     if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
                 }
             } catch (e) {
                 console.error('查詢台股失敗:', e);
+                const nameDisplay = $('twNameDisplay');
+                if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
             }
         }, 500);
     }
@@ -121,10 +197,11 @@
         const type = $('twType')?.value;
         const quantity = parseInt($('twQuantity')?.value) || 0;
         const price = parseFloat($('twPrice')?.value) || 0;
-        const fee = parseFloat($('twFee')?.value) || 0;
-        const tax = parseFloat($('twTax')?.value) || 0;
+        const fee = 0;  // 🔧 忽略手續費
+        const tax = 0;  // 🔧 忽略交易稅
         const date = $('twDate')?.value;
         const note = $('twNote')?.value?.trim();
+        const brokerId = $('twBroker')?.value;  // 🔧 券商 ID
 
         if (!symbol || quantity <= 0 || price <= 0) {
             showToast('請填寫完整資料');
@@ -140,7 +217,8 @@
             fee,
             tax,
             transaction_date: date,
-            note
+            note,
+            broker_id: brokerId && brokerId !== '__new__' ? parseInt(brokerId) : null  // 🔧 加入券商
         };
 
         try {
@@ -237,10 +315,13 @@
         $('usNameDisplay').innerHTML = '<span class="text-gray-400">輸入代碼自動帶入</span>';
         $('usQuantity').value = '';
         $('usPrice').value = '';
-        $('usFee').value = '';
-        $('usTax').value = '';
+        $('usFee').value = '0';
+        $('usTax').value = '0';
         $('usDate').value = new Date().toISOString().split('T')[0];
         $('usNote').value = '';
+
+        // 🔧 載入券商列表
+        loadBrokers();
 
         const modal = $('usTransactionModal');
         if (modal) {
@@ -291,20 +372,25 @@
             if (!symbol || symbol.length < 1) return;
 
             try {
-                const res = await apiRequest(`/api/stock/${symbol}/info`);
+                // 🔧 修正：使用正確的 API 路徑
+                const res = await apiRequest(`/api/stock/${symbol}`);
                 const data = await res.json();
 
                 const nameDisplay = $('usNameDisplay');
                 const nameInput = $('usName');
 
-                if (data.success && data.name) {
-                    if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${data.name}</span>`;
-                    if (nameInput) nameInput.value = data.name;
+                // 🔧 修正：從回傳資料取得名稱
+                const stockName = data.name || data.data?.name;
+                if (data.success && stockName) {
+                    if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${stockName}</span>`;
+                    if (nameInput) nameInput.value = stockName;
                 } else {
                     if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
                 }
             } catch (e) {
                 console.error('查詢美股失敗:', e);
+                const nameDisplay = $('usNameDisplay');
+                if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
             }
         }, 500);
     }
@@ -316,10 +402,11 @@
         const type = $('usType')?.value;
         const quantity = parseFloat($('usQuantity')?.value) || 0;
         const price = parseFloat($('usPrice')?.value) || 0;
-        const fee = parseFloat($('usFee')?.value) || 0;
-        const tax = parseFloat($('usTax')?.value) || 0;
+        const fee = 0;  // 🔧 忽略手續費
+        const tax = 0;  // 🔧 忽略交易稅
         const date = $('usDate')?.value;
         const note = $('usNote')?.value?.trim();
+        const brokerId = $('usBroker')?.value;  // 🔧 券商 ID
 
         if (!symbol || quantity <= 0 || price <= 0) {
             showToast('請填寫完整資料');
@@ -335,7 +422,8 @@
             fee,
             tax,
             transaction_date: date,
-            note
+            note,
+            broker_id: brokerId && brokerId !== '__new__' ? parseInt(brokerId) : null  // 🔧 加入券商
         };
 
         try {
@@ -479,6 +567,10 @@
     window.editUsTransaction = editUsTransaction;
 
     window.quickTrade = quickTrade;
+
+    // 🔧 券商相關函數
+    window.loadBrokers = loadBrokers;
+    window.handleBrokerChange = handleBrokerChange;
 
     console.log('💰 transaction.js 模組已載入 (P4 優化版)');
 })();

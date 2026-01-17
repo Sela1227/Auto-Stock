@@ -55,8 +55,7 @@ from app.routers import (
 from app.routers.market import router as market_router
 from app.routers.subscription import router as subscription_router  # 📡 訂閱精選
 from app.routers.tags import router as tags_router  # 🏷️ 標籤管理
-from app.routers.stock_info import router as stock_info_router
-from app.routers.broker import router as broker_router  # 📊 股票資訊
+from app.routers.stock_info import router as stock_info_router  # 📊 股票資訊
 
 # 排程器
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -435,7 +434,6 @@ app.include_router(portfolio_router)
 app.include_router(subscription_router)  # 📡 訂閱精選
 app.include_router(tags_router)  # 🏷️ 標籤管理
 app.include_router(stock_info_router)  # 📊 股票資訊
-app.include_router(broker_router)  # 券商管理
 
 # 掛載靜態檔案
 static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")

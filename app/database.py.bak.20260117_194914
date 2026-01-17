@@ -191,32 +191,7 @@ def run_auto_migrations():
             "check_sql": "SELECT indexname FROM pg_indexes WHERE indexname='idx_stock_prices_date'",
             "migrate_sql": "CREATE INDEX idx_stock_prices_date ON stock_prices(date)",
         },
-
-        # 2026-01-17: 券商功能
-        {
-            "name": "create_brokers",
-            "check_sql": "SELECT table_name FROM information_schema.tables WHERE table_name='brokers'",
-            "migrate_sql": """
-                CREATE TABLE brokers (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    name VARCHAR(50) NOT NULL,
-                    color VARCHAR(20) DEFAULT '#6B7280',
-                    is_default BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """,
-        },
-        {
-            "name": "create_brokers_user_index",
-            "check_sql": "SELECT indexname FROM pg_indexes WHERE indexname='idx_broker_user'",
-            "migrate_sql": "CREATE INDEX idx_broker_user ON brokers(user_id)",
-        },
-        {
-            "name": "add_broker_id_to_transactions",
-            "check_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='portfolio_transactions' AND column_name='broker_id'",
-            "migrate_sql": "ALTER TABLE portfolio_transactions ADD COLUMN broker_id INTEGER REFERENCES brokers(id) ON DELETE SET NULL",
-        },    ]
+    ]
     
     try:
         with sync_engine.connect() as conn:

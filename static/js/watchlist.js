@@ -753,7 +753,10 @@
             if (data.success) {
                 showToast('目標價已設定');
                 hideTargetPriceModal();
-                // 🔧 強制重新載入追蹤清單
+                // 🔧 清除 AppState 快取，強制重新載入
+                if (window.AppState) {
+                    AppState.watchlistLoaded = false;
+                }
                 await loadWatchlist();
             } else {
                 showToast(data.detail || '設定失敗');
@@ -779,7 +782,10 @@
             if (data.success) {
                 showToast('已清除目標價');
                 hideTargetPriceModal();
-                // 🔧 強制重新載入追蹤清單
+                // 🔧 清除 AppState 快取，強制重新載入
+                if (window.AppState) {
+                    AppState.watchlistLoaded = false;
+                }
                 await loadWatchlist();
             } else {
                 showToast(data.detail || '清除失敗');

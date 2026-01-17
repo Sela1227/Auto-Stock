@@ -36,9 +36,6 @@ class PortfolioTransaction(Base):
     # 備註
     note = Column(Text)
     
-    # 券商
-    broker_id = Column(Integer, ForeignKey("brokers.id", ondelete="SET NULL"), nullable=True)
-    
     # 時間戳
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
