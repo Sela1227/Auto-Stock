@@ -45,7 +45,6 @@ router = APIRouter(prefix="/api/watchlist", tags=["追蹤清單"])
 # Schemas
 class TargetPriceUpdate(BaseModel):
     target_price: Optional[float] = None
-    target_direction: Optional[str] = "above"  # above=高於, below=低於
 
 
 class WatchlistImportItem(BaseModel):
@@ -53,7 +52,6 @@ class WatchlistImportItem(BaseModel):
     asset_type: Optional[str] = "stock"
     note: Optional[str] = None
     target_price: Optional[float] = None
-    target_direction: Optional[str] = "above"  # above=高於, below=低於
 
 
 class WatchlistImportRequest(BaseModel):
@@ -154,7 +152,6 @@ async def export_watchlist(
                 "asset_type": item.asset_type,
                 "note": item.note or "",
                 "target_price": float(item.target_price) if item.target_price else None,
-                "target_direction": getattr(item, 'target_direction', 'above') or 'above',
                 "added_at": item.added_at.isoformat() if item.added_at else None,
             })
 
@@ -367,8 +364,7 @@ async def get_watchlist_with_prices(
             target_reached = False
             
             if current_price and target_price:
-                direction = getattr(item, 'target_direction', 'above') or 'above'
-            target_reached = (current_price <= target_price) if direction == 'below' else (current_price >= target_price)
+                target_reached = current_price >= target_price
 
             data.append({
                 "id": item.id,
@@ -475,7 +471,6 @@ async def set_target_price(
 
         # 更新目標價
         item.target_price = data.target_price
-        item.target_direction = getattr(data, 'target_direction', 'above') or 'above'
         await db.commit()
 
         return {
@@ -485,7 +480,6 @@ async def set_target_price(
                 "id": item.id,
                 "symbol": item.symbol,
                 "target_price": float(item.target_price) if item.target_price else None,
-                "target_direction": getattr(item, 'target_direction', 'above') or 'above',
             }
         }
 
@@ -638,7 +632,6 @@ async def get_watchlist_overview(
                 "asset_type": item.asset_type,
                 "note": item.note,
                 "target_price": float(item.target_price) if item.target_price else None,
-                "target_direction": getattr(item, 'target_direction', 'above') or 'above',
                 "added_at": item.added_at.isoformat() if item.added_at else None,
             }
             for item in items

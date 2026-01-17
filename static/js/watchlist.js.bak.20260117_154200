@@ -248,7 +248,7 @@
                                 title="設定標籤">
                             <i class="fas fa-tags"></i>
                         </button>
-                        <button data-action="target-price" data-id="${item.id}" data-symbol="${item.symbol}" data-target="${item.target_price || ''}" data-direction="${item.target_direction || 'above'}"
+                        <button data-action="target-price" data-id="${item.id}" data-symbol="${item.symbol}" data-target="${item.target_price || ''}"
                                 class="px-3 py-2 ${hasTarget ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'} rounded-lg text-sm hover:bg-yellow-200 touch-target mr-2"
                                 title="${hasTarget ? '修改目標價' : '設定目標價'}">
                             <i class="fas fa-crosshairs"></i>
@@ -680,7 +680,7 @@
     // 目標價設定
     // ============================================================
 
-    function showTargetPriceModal(itemId, symbol, currentTarget, direction) {
+    function showTargetPriceModal(itemId, symbol, currentTarget) {
         currentTargetItemId = itemId;
 
         const modal = $('targetPriceModal');
@@ -694,13 +694,6 @@
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             if (input) input.focus();
-        
-        // 設定方向
-        const dir = direction || 'above';
-        const radioAbove = document.getElementById('directionAbove');
-        const radioBelow = document.getElementById('directionBelow');
-        if (radioAbove) radioAbove.checked = (dir === 'above');
-        if (radioBelow) radioBelow.checked = (dir === 'below');
         }
     }
 
@@ -725,12 +718,9 @@
         }
 
         try {
-            const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target-price`, {
+            const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target`, {
                 method: 'PUT',
-                body: { 
-                target_price: targetPrice,
-                target_direction: document.querySelector('input[name="targetDirection"]:checked')?.value || 'above'
-            }
+                body: { target_price: targetPrice }
             });
 
             const data = await res.json();
@@ -752,7 +742,7 @@
         if (!currentTargetItemId) return;
 
         try {
-            const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target-price`, {
+            const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target`, {
                 method: 'DELETE'
             });
 
