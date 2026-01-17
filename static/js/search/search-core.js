@@ -1,10 +1,15 @@
 /**
- * 搜尋核心模組 (P2 拆分)
+ * 搜尋核心模組 (P2 拆分 + 效能優化版)
  * 
  * 職責：
  * - 搜尋邏輯
  * - API 請求
  * - 快取管理
+ * 
+ * ⭐ 效能優化：
+ * - 快取時間延長到 30 分鐘
+ * - 使用 sessionStorage 持久化（頁面刷新後保留）
+ * - 當日有效期判斷
  * 
  * 依賴：core.js, state.js
  * 被依賴：search-render.js
@@ -14,16 +19,84 @@
     'use strict';
 
     // ============================================================
-    // 快取系統
+    // 快取系統（優化版）
     // ============================================================
     
     const stockCache = new Map();
-    const CACHE_TTL = 5 * 60 * 1000; // 5 分鐘
+    const CACHE_TTL = 30 * 60 * 1000; // ⭐ 延長到 30 分鐘
+    const STORAGE_KEY = 'sela_stock_cache';
+
+    /**
+     * 取得今日日期字串 (用於判斷快取是否當日有效)
+     */
+    function getTodayStr() {
+        return new Date().toISOString().split('T')[0];
+    }
+
+    /**
+     * 啟動時從 sessionStorage 恢復快取
+     */
+    function restoreCacheFromStorage() {
+        try {
+            const stored = sessionStorage.getItem(STORAGE_KEY);
+            if (!stored) return;
+
+            const parsed = JSON.parse(stored);
+            const today = getTodayStr();
+
+            // 只恢復當日的快取
+            if (parsed.date !== today) {
+                sessionStorage.removeItem(STORAGE_KEY);
+                console.log('📦 快取已過期（非當日），已清除');
+                return;
+            }
+
+            // 恢復快取
+            let restored = 0;
+            for (const [symbol, entry] of Object.entries(parsed.data)) {
+                // 檢查 TTL 是否過期
+                if (Date.now() - entry.timestamp < CACHE_TTL) {
+                    stockCache.set(symbol, entry);
+                    restored++;
+                }
+            }
+
+            if (restored > 0) {
+                console.log(`📦 已從 sessionStorage 恢復 ${restored} 筆快取`);
+            }
+        } catch (e) {
+            console.warn('恢復快取失敗:', e);
+            sessionStorage.removeItem(STORAGE_KEY);
+        }
+    }
+
+    /**
+     * 將快取同步到 sessionStorage
+     */
+    function syncCacheToStorage() {
+        try {
+            const data = {};
+            stockCache.forEach((value, key) => {
+                data[key] = value;
+            });
+
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+                date: getTodayStr(),
+                data: data
+            }));
+        } catch (e) {
+            // sessionStorage 可能已滿，忽略錯誤
+            console.warn('同步快取到 storage 失敗:', e);
+        }
+    }
+
+    // 啟動時恢復快取
+    restoreCacheFromStorage();
 
     function getFromCache(symbol) {
         const cached = stockCache.get(symbol.toUpperCase());
         if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-            console.log(`📦 快取命中: ${symbol}`);
+            console.log(`📦 快取命中: ${symbol} (剩餘 ${Math.round((CACHE_TTL - (Date.now() - cached.timestamp)) / 1000)}秒)`);
             return cached.data;
         }
         return null;
@@ -35,18 +108,28 @@
             timestamp: Date.now()
         });
         console.log(`💾 已快取: ${symbol}`);
+        
+        // 同步到 sessionStorage
+        syncCacheToStorage();
     }
 
     function clearStockCache() {
         stockCache.clear();
+        sessionStorage.removeItem(STORAGE_KEY);
         console.log('🗑️ 股票快取已清除');
         showToast('快取已清除');
     }
 
     function getStockCacheStats() {
+        const now = Date.now();
+        const validCount = Array.from(stockCache.values())
+            .filter(c => now - c.timestamp < CACHE_TTL).length;
+        
         return {
             count: stockCache.size,
-            symbols: Array.from(stockCache.keys())
+            validCount: validCount,
+            symbols: Array.from(stockCache.keys()),
+            ttlMinutes: CACHE_TTL / 60000
         };
     }
 
@@ -250,5 +333,5 @@
     window.clearStockCache = clearStockCache;
     window.getStockCacheStats = getStockCacheStats;
 
-    console.log('🔍 search-core.js 搜尋核心模組已載入');
+    console.log('🔍 search-core.js 搜尋核心模組已載入 (優化版: 30分鐘快取 + sessionStorage 持久化)');
 })();
