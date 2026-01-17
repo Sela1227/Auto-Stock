@@ -13,11 +13,13 @@ import io
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.database import get_async_session
 from app.services.portfolio_service import PortfolioService
 from app.services.exchange_rate_service import get_exchange_rate, set_exchange_rate
 from app.models.user import User
+from app.models.portfolio import PortfolioTransaction
 
 # 🔧 使用統一認證模組
 from app.dependencies import get_current_user
