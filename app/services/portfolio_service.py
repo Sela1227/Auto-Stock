@@ -4,6 +4,7 @@
 """
 from datetime import date, datetime
 from decimal import Decimal
+import yfinance as yf
 from typing import List, Optional, Dict, Any
 import logging
 
@@ -310,11 +311,36 @@ class PortfolioService:
         cache_result = await self.db.execute(cache_stmt)
         price_cache = {r.symbol: r for r in cache_result.scalars().all()}
         
+        # 找出快取中沒有的 symbols
+        missing_symbols = [h.symbol for h in holdings if h.symbol not in price_cache]
+        
+        # 即時從 Yahoo Finance 取得缺失的價格
+        realtime_prices = {}
+        if missing_symbols:
+            try:
+                for symbol in missing_symbols:
+                    try:
+                        ticker = yf.Ticker(symbol)
+                        info = ticker.info
+                        price = info.get('regularMarketPrice') or info.get('currentPrice')
+                        if price:
+                            realtime_prices[symbol] = float(price)
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.warning(f"即時價格查詢失敗: {e}")
+        
         # 組合資料
         result = []
         for h in holdings:
             cache = price_cache.get(h.symbol)
-            current_price = float(cache.price) if cache and cache.price else None
+            # 優先用快取，沒有則用即時價格
+            if cache and cache.price:
+                current_price = float(cache.price)
+            elif h.symbol in realtime_prices:
+                current_price = realtime_prices[h.symbol]
+            else:
+                current_price = None
             
             # 計算未實現損益
             unrealized_profit = None
