@@ -1,7 +1,9 @@
 """
 股票查詢 API 路由
 
-🚀 效能優化版 - 2026-01-16
+🚀 效能優化版 - 2026-01-17
+- 非開盤時間直接使用永久資料（不再呼叫 API）
+- 優先返回永久資料，體感速度大幅提升
 - 歷史資料存入 PostgreSQL
 - 修正路由順序（具體路由在前）
 - 修正 returns API 格式符合前端期望
@@ -74,6 +76,85 @@ def _get_stock_df(symbol: str, years: int = 10, force_refresh: bool = False):
     return df, symbol, data_source
 
 
+def _get_stock_df_smart(symbol: str, years: int = 10, force_refresh: bool = False):
+    """
+    🆕 智慧取得股票 DataFrame（效能優化版）
+    
+    邏輯：
+    1. 非開盤時間 + 有永久資料 → 直接用永久資料，不呼叫 API
+    2. 開盤時間 + 永久資料 < 1天 → 直接用
+    3. 開盤時間 + 永久資料 > 1天 → 更新
+    4. 無資料 → 呼叫 API
+    
+    Returns:
+        (df, symbol, data_source, needs_update)
+    """
+    from app.data_sources.yahoo_finance import yahoo_finance
+    from app.services.stock_history_service import StockHistoryService
+    from app.services.price_cache_service import is_market_open_for_symbol
+    from app.database import SyncSessionLocal
+    
+    df = None
+    data_source = "yahoo"
+    needs_update = False
+    
+    # 判斷市場是否開盤
+    market_open = is_market_open_for_symbol(symbol)
+    
+    try:
+        db = SyncSessionLocal()
+        try:
+            history_service = StockHistoryService(db)
+            
+            # 🆕 非開盤時間，嘗試只讀取永久資料（不強制更新）
+            if not market_open and not force_refresh:
+                df, data_source = history_service.get_stock_history(
+                    symbol, years=years, force_refresh=False
+                )
+                
+                if df is not None and not df.empty:
+                    logger.info(f"⚡ 非開盤時間，使用永久資料: {symbol} ({len(df)} 筆)")
+                    return df, symbol, data_source, False
+                
+                # 嘗試上櫃
+                if symbol.endswith('.TW'):
+                    two_symbol = symbol.replace('.TW', '.TWO')
+                    df, data_source = history_service.get_stock_history(
+                        two_symbol, years=years, force_refresh=False
+                    )
+                    if df is not None and not df.empty:
+                        logger.info(f"⚡ 非開盤時間，使用永久資料: {two_symbol} ({len(df)} 筆)")
+                        return df, two_symbol, data_source, False
+            
+            # 開盤時間或無資料，正常流程
+            df, data_source = history_service.get_stock_history(
+                symbol, years=years, force_refresh=force_refresh
+            )
+            
+            if (df is None or df.empty) and symbol.endswith('.TW'):
+                two_symbol = symbol.replace('.TW', '.TWO')
+                df, data_source = history_service.get_stock_history(
+                    two_symbol, years=years, force_refresh=force_refresh
+                )
+                if df is not None and not df.empty:
+                    symbol = two_symbol
+                    
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.warning(f"快取服務異常: {e}")
+        df = yahoo_finance.get_stock_history(symbol, period=f"{years}y")
+        if (df is None or df.empty) and symbol.endswith('.TW'):
+            two_symbol = symbol.replace('.TW', '.TWO')
+            df = yahoo_finance.get_stock_history(two_symbol, period=f"{years}y")
+            if df is not None and not df.empty:
+                symbol = two_symbol
+        data_source = "yahoo"
+    
+    return df, symbol, data_source, needs_update
+
+
 # ============================================================
 # 🔴 重要：靜態路由必須放在動態路由之前！
 # ============================================================
@@ -118,7 +199,8 @@ async def compare_stocks(
             if symbol.startswith("^"):
                 df = yahoo_finance.get_index_data(symbol, period="2y")
             else:
-                df, symbol, _ = _get_stock_df(symbol, years=2)
+                # 🆕 使用智慧版本
+                df, symbol, _, _ = _get_stock_df_smart(symbol, years=2)
             
             if df is None or df.empty:
                 continue
@@ -181,7 +263,8 @@ async def get_stock_returns(symbol: str):
     symbol = normalize_tw_symbol(symbol)
     logger.info(f"計算年化報酬率: {symbol}")
     
-    df, symbol, _ = _get_stock_df(symbol, years=10, force_refresh=False)
+    # 🆕 使用智慧版本
+    df, symbol, _, _ = _get_stock_df_smart(symbol, years=10, force_refresh=False)
     
     if df is None or df.empty:
         raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
@@ -205,82 +288,69 @@ async def get_stock_returns(symbol: str):
         # 取得股票名稱
         info = yahoo_finance.get_stock_info(symbol)
         stock_name = info.get("name", symbol) if info else symbol
-        if not stock_name:
-            from app.data_sources.yahoo_finance import TAIWAN_STOCK_NAMES
-            stock_code = symbol.replace(".TW", "").replace(".TWO", "")
-            stock_name = TAIWAN_STOCK_NAMES.get(stock_code, symbol)
         
-        # 計算各期間報酬率（符合前端期望格式）
-        # 使用實際天數計算，不假設每年 252 天
-        def calc_period_return(target_years):
-            # 每年約 252 個交易日
-            target_days = target_years * 252
-            
-            # 如果資料不足目標天數的 80%，則返回 None
-            min_required = int(target_days * 0.8)
-            if total_records < min_required:
-                logger.info(f"{symbol} {target_years}Y: 資料不足 ({total_records} < {min_required})")
-                return None
-            
-            # 取實際可用的天數（最多是目標天數）
-            actual_days = min(target_days, total_records - 1)
-            start_idx = -actual_days - 1
-            
-            start_row = df.iloc[start_idx]
-            start_price = float(start_row[price_col])
-            start_date = str(start_row['date'])
-            
-            if start_price <= 0:
-                return None
-            
-            # 計算實際年數
-            try:
-                if isinstance(df.iloc[-1]['date'], str):
-                    end_dt = datetime.strptime(str(df.iloc[-1]['date'])[:10], '%Y-%m-%d')
-                    start_dt = datetime.strptime(str(start_row['date'])[:10], '%Y-%m-%d')
-                else:
-                    end_dt = pd.to_datetime(df.iloc[-1]['date'])
-                    start_dt = pd.to_datetime(start_row['date'])
-                actual_years = (end_dt - start_dt).days / 365.25
-            except:
-                actual_years = actual_days / 252  # 回退方案
-            
-            if actual_years < 0.5:  # 至少需要半年
-                return None
-            
-            # 計算 CAGR
-            cagr = ((current_price / start_price) ** (1 / actual_years) - 1) * 100
-            
-            return {
-                "cagr": round(cagr, 2),
-                "start_date": start_date[:10] if len(start_date) > 10 else start_date,
-                "start_price": round(start_price, 2),
-                "end_price": round(current_price, 2),
-                "dividend_count": 0,  # 配息次數（adj_close 已包含）
-                "total_dividends": 0.0,  # 總配息（已反映在價格中）
-                "actual_years": round(actual_years, 2),
-            }
+        # 計算各期間報酬
+        periods = []
         
-        returns = {}
-        for period_name, years in [("1Y", 1), ("3Y", 3), ("5Y", 5), ("10Y", 10)]:
-            result = calc_period_return(years)
-            if result:
-                returns[period_name] = result
+        # 定義計算期間
+        period_configs = [
+            {"label": "1年", "days": 252, "years": 1},
+            {"label": "3年", "days": 756, "years": 3},
+            {"label": "5年", "days": 1260, "years": 5},
+            {"label": "10年", "days": 2520, "years": 10},
+        ]
+        
+        for config in period_configs:
+            if len(df) >= config["days"]:
+                # 取得該期間的起始價格
+                start_idx = -config["days"]
+                start_price = float(df.iloc[start_idx][price_col])
+                start_date = str(df.iloc[start_idx]['date'])
+                
+                if start_price > 0:
+                    # 計算實際天數
+                    try:
+                        start_dt = pd.to_datetime(start_date)
+                        end_dt = pd.to_datetime(current_date)
+                        actual_days = (end_dt - start_dt).days
+                        actual_years = actual_days / 365.25
+                    except:
+                        actual_years = config["years"]
+                    
+                    # 計算總報酬率
+                    total_return = (current_price - start_price) / start_price
+                    
+                    # 計算 CAGR
+                    if actual_years > 0:
+                        cagr = (pow(1 + total_return, 1 / actual_years) - 1) * 100
+                    else:
+                        cagr = 0
+                    
+                    periods.append({
+                        "label": config["label"],
+                        "years": config["years"],
+                        "actual_years": round(actual_years, 2),
+                        "start_price": round(start_price, 2),
+                        "end_price": round(current_price, 2),
+                        "start_date": start_date,
+                        "end_date": current_date,
+                        "total_return": round(total_return * 100, 2),
+                        "cagr": round(cagr, 2),
+                    })
         
         return {
             "success": True,
-            "data": {
-                "symbol": symbol,
-                "name": stock_name,
-                "current_price": round(current_price, 2),
-                "current_date": current_date[:10] if len(current_date) > 10 else current_date,
-                "total_records": total_records,
-                "returns": returns,
-            }
+            "symbol": symbol,
+            "name": stock_name,
+            "current_price": round(current_price, 2),
+            "total_records": total_records,
+            "periods": periods,
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"計算 {symbol} 年化報酬率失敗: {e}", exc_info=True)
+        logger.error(f"計算 {symbol} 報酬率時發生錯誤: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"計算失敗: {str(e)}")
 
 
@@ -289,29 +359,25 @@ async def get_stock_chart(
     symbol: str,
     days: int = Query(120, ge=30, le=365, description="顯示天數"),
 ):
-    """生成股票技術分析圖表"""
+    """
+    生成股票技術分析圖表
+    
+    回傳 PNG 圖片
+    """
     from app.data_sources.yahoo_finance import yahoo_finance
-    from app.services.indicator_service import indicator_service
     from app.services.chart_service import chart_service
     
     symbol = normalize_tw_symbol(symbol)
-    logger.info(f"生成圖表: {symbol}, days={days}")
     
-    df, symbol, _ = _get_stock_df(symbol, years=2, force_refresh=False)
+    # 🆕 使用智慧版本
+    df, symbol, _, _ = _get_stock_df_smart(symbol, years=2)
     
     if df is None or df.empty:
         raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
     
     df.columns = [c.lower() for c in df.columns]
-    
-    if 'adj_close' in df.columns:
-        df['close'] = df['adj_close']
-    
     if 'date' not in df.columns:
         df['date'] = df.index
-    
-    # 計算技術指標
-    df = indicator_service.calculate_all_indicators(df)
     
     info = yahoo_finance.get_stock_info(symbol)
     name = info.get("name", "") if info else ""
@@ -355,17 +421,26 @@ async def get_stock_analysis(
     symbol: str,
     refresh: bool = Query(False, description="是否強制更新資料"),
 ):
-    """查詢單一股票的技術分析報告"""
+    """
+    查詢單一股票的技術分析報告
+    
+    🆕 效能優化：非開盤時間直接使用永久資料
+    """
     from app.data_sources.yahoo_finance import yahoo_finance
     from app.services.indicator_service import indicator_service
-    from app.services.price_cache_service import PriceCacheService
+    from app.services.price_cache_service import PriceCacheService, is_market_open_for_symbol
     from app.database import SyncSessionLocal
     
     symbol = normalize_tw_symbol(symbol)
     original_symbol = symbol
     logger.info(f"開始查詢股票: {symbol}, refresh={refresh}")
     
-    df, symbol, data_source = _get_stock_df(symbol, years=10, force_refresh=refresh)
+    # 🆕 判斷市場狀態
+    market_open = is_market_open_for_symbol(symbol)
+    logger.info(f"市場狀態: {'開盤' if market_open else '收盤'}")
+    
+    # 🆕 使用智慧版本取得資料
+    df, symbol, data_source, _ = _get_stock_df_smart(symbol, years=10, force_refresh=refresh)
     
     if df is None or df.empty:
         raise HTTPException(status_code=404, detail=f"找不到股票: {original_symbol}")
@@ -387,7 +462,10 @@ async def get_stock_analysis(
         latest = df.iloc[-1]
         current_price = float(latest.get('close_raw', latest['close']))
         
-        info = yahoo_finance.get_stock_info(symbol)
+        # 🆕 非開盤時間，不呼叫 get_stock_info（避免 API 呼叫）
+        info = None
+        if market_open or refresh:
+            info = yahoo_finance.get_stock_info(symbol)
         
         close_col = 'close_raw' if 'close_raw' in df.columns else 'close'
         high_52w = float(df[close_col].tail(252).max()) if len(df) >= 252 else float(df[close_col].max())
@@ -433,31 +511,37 @@ async def get_stock_analysis(
         else: sell_score += 1
         rating = "bullish" if buy_score > sell_score else "bearish" if sell_score > buy_score else "neutral"
         
-        stock_name = info.get("name", "") if info else ""
+        # 🆕 取得名稱（優先從 info，其次從快取或對照表）
+        stock_name = ""
+        if info:
+            stock_name = info.get("name", "")
+        
         if not stock_name:
-            from app.data_sources.yahoo_finance import TAIWAN_STOCK_NAMES
+            from app.services.price_cache_service import TAIWAN_STOCK_NAMES
             stock_code = symbol.replace(".TW", "").replace(".TWO", "")
             stock_name = TAIWAN_STOCK_NAMES.get(stock_code, symbol)
         
-        # 更新價格快取
-        try:
-            db = SyncSessionLocal()
+        # 更新價格快取（只在開盤時間或強制更新時）
+        if market_open or refresh:
             try:
-                day_change = calc_change(1)
-                prev_close = float(df.iloc[-2][close_col]) if len(df) > 1 else None
-                change_amount = current_price - prev_close if prev_close else None
-                
-                cache_service = PriceCacheService(db)
-                cache_service._upsert_cache(
-                    symbol=symbol, name=stock_name, price=current_price,
-                    prev_close=prev_close, change=change_amount, change_pct=day_change,
-                    volume=volume_today, asset_type="stock", ma20=ma20,
-                )
-                db.commit()
-            finally:
-                db.close()
-        except Exception as e:
-            logger.warning(f"價格快取更新失敗: {e}")
+                db = SyncSessionLocal()
+                try:
+                    day_change = calc_change(1)
+                    prev_close = float(df.iloc[-2][close_col]) if len(df) > 1 else None
+                    change_amount = current_price - prev_close if prev_close else None
+                    
+                    cache_service = PriceCacheService(db)
+                    cache_service._upsert_cache(
+                        symbol=symbol, name=stock_name, price=current_price,
+                        prev_close=prev_close, change=change_amount, change_pct=day_change,
+                        volume=volume_today, asset_type="stock", ma20=ma20,
+                    )
+                    db.commit()
+                    logger.info(f"📦 價格快取已更新: {symbol}")
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.warning(f"價格快取更新失敗: {e}")
         
         # 圖表資料 - 確保有足夠資料
         df_chart = df.tail(1500)
@@ -512,6 +596,7 @@ async def get_stock_analysis(
             "from_cache": data_source in ('cache', 'partial'),
             "data_source": data_source,
             "total_records": len(df),
+            "market_open": market_open,  # 🆕 回傳市場狀態
         }
         
     except HTTPException:

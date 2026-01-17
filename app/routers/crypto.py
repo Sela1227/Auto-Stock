@@ -1,5 +1,8 @@
 """
 加密貨幣和市場情緒 API 路由
+
+🆕 2026-01-17 更新：
+- 加入查詢結果快取功能，查詢過的加密貨幣會儲存到本地資料庫
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -165,10 +168,31 @@ async def get_crypto_analysis(
         
         rating = "bullish" if buy_score > sell_score else "bearish" if sell_score > buy_score else "neutral"
         
+        # 取得名稱和成交量
+        crypto_name = info.get("name", symbol) if info else symbol
+        volume_24h = info.get("total_volume") if info else None
+        day_change = calc_change(1)
+        
+        # 🆕 將查詢結果寫入快取
+        try:
+            from app.services.cache_helper import cache_crypto_price
+            
+            cache_crypto_price(
+                symbol=symbol,
+                name=crypto_name,
+                price=current_price,
+                change_pct=day_change,
+                volume=int(volume_24h) if volume_24h else None
+            )
+            logger.info(f"📦 加密貨幣快取已更新: {symbol} = ${current_price}")
+        except Exception as e:
+            # 快取失敗不影響主流程
+            logger.warning(f"加密貨幣快取更新失敗（不影響查詢）: {e}")
+        
         return {
             "success": True,
             "symbol": symbol,
-            "name": info.get("name", symbol) if info else symbol,
+            "name": crypto_name,
             "asset_type": "crypto",
             "price": {
                 "current": current_price,
@@ -176,7 +200,7 @@ async def get_crypto_analysis(
                 "from_ath_pct": info.get("ath_change_percentage") if info else None,
             },
             "change": {
-                "day": calc_change(1),
+                "day": day_change,
                 "week": calc_change(7),
                 "month": calc_change(30),
                 "year": calc_change(365),
@@ -184,7 +208,7 @@ async def get_crypto_analysis(
             "market": {
                 "market_cap": info.get("market_cap") if info else None,
                 "market_cap_rank": info.get("market_cap_rank") if info else None,
-                "volume_24h": info.get("total_volume") if info else None,
+                "volume_24h": volume_24h,
             },
             "indicators": {
                 "ma": {
