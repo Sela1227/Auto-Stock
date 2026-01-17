@@ -5,10 +5,6 @@
 - 非開盤時間直接使用快取（體感速度大幅提升）
 - 回傳市場狀態，讓前端知道是否為開盤時間
 - 批量載入標籤，消除 N+1 問題
-
-🆕 目標價強化 - 2026-01-17
-- 新增 target_direction 欄位（above/below）
-- 支援「高於時提醒」和「低於時提醒」兩種模式
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
@@ -49,7 +45,7 @@ router = APIRouter(prefix="/api/watchlist", tags=["追蹤清單"])
 # Schemas
 class TargetPriceUpdate(BaseModel):
     target_price: Optional[float] = None
-    target_direction: Optional[str] = "above"  # 🆕 above=高於時提醒, below=低於時提醒
+    target_direction: Optional[str] = "above"  # above=高於, below=低於
 
 
 class WatchlistImportItem(BaseModel):
@@ -57,7 +53,7 @@ class WatchlistImportItem(BaseModel):
     asset_type: Optional[str] = "stock"
     note: Optional[str] = None
     target_price: Optional[float] = None
-    target_direction: Optional[str] = "above"  # 🆕
+    target_direction: Optional[str] = "above"  # above=高於, below=低於
 
 
 class WatchlistImportRequest(BaseModel):
@@ -133,7 +129,7 @@ async def export_watchlist(
     匯出用戶的追蹤清單
     
     - format: json 或 csv
-    - 包含 symbol, asset_type, note, target_price, target_direction
+    - 包含 symbol, asset_type, note, target_price
     """
     logger.info(f"API: 匯出追蹤清單 - user_id={user.id}, format={format}")
 
@@ -158,7 +154,7 @@ async def export_watchlist(
                 "asset_type": item.asset_type,
                 "note": item.note or "",
                 "target_price": float(item.target_price) if item.target_price else None,
-                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # 🆕
+                "target_direction": getattr(item, 'target_direction', 'above') or 'above',
                 "added_at": item.added_at.isoformat() if item.added_at else None,
             })
 
@@ -167,7 +163,7 @@ async def export_watchlist(
         if format.lower() == "csv":
             # CSV 格式
             output = io.StringIO()
-            writer = csv.DictWriter(output, fieldnames=["symbol", "asset_type", "note", "target_price", "target_direction", "added_at"])  # 🆕
+            writer = csv.DictWriter(output, fieldnames=["symbol", "asset_type", "note", "target_price", "added_at"])
             writer.writeheader()
             writer.writerows(export_data)
             
@@ -244,9 +240,6 @@ async def import_watchlist(
                     note=item.note,
                     target_price=item.target_price,
                 )
-                # 🆕 設定 target_direction（如果模型支援）
-                if hasattr(new_item, 'target_direction'):
-                    new_item.target_direction = item.target_direction or "above"
                 db.add(new_item)
                 added.append(symbol)
                 existing_symbols.add(symbol)
@@ -373,15 +366,9 @@ async def get_watchlist_with_prices(
             current_price = float(cache.price) if cache and cache.price else None
             target_reached = False
             
-            # 🆕 取得 target_direction，預設為 above
-            target_direction = getattr(item, 'target_direction', 'above') or 'above'
-            
             if current_price and target_price:
-                # 🆕 根據方向判斷是否達標
-                if target_direction == 'below':
-                    target_reached = current_price <= target_price
-                else:
-                    target_reached = current_price >= target_price
+                direction = getattr(item, 'target_direction', 'above') or 'above'
+            target_reached = (current_price <= target_price) if direction == 'below' else (current_price >= target_price)
 
             data.append({
                 "id": item.id,
@@ -389,7 +376,6 @@ async def get_watchlist_with_prices(
                 "asset_type": item.asset_type,
                 "note": item.note,
                 "target_price": target_price,
-                "target_direction": target_direction,  # 🆕
                 "target_reached": target_reached,
                 "added_at": item.added_at.isoformat() if item.added_at else None,
                 # 價格資訊（從快取）
@@ -470,11 +456,10 @@ async def set_target_price(
     """
     設定追蹤標的的目標價格
     
-    - 設定後，當現價達到目標價會變色提醒
-    - target_direction: "above" (高於時提醒) 或 "below" (低於時提醒)
+    - 設定後，當現價達到或超過目標價會變色提醒
     - 傳入 null 可清除目標價
     """
-    logger.info(f"API: 設定目標價 - user_id={user.id}, item_id={item_id}, target={data.target_price}, direction={data.target_direction}")
+    logger.info(f"API: 設定目標價 - user_id={user.id}, item_id={item_id}, target={data.target_price}")
 
     try:
         # 查詢該追蹤項目
@@ -490,9 +475,7 @@ async def set_target_price(
 
         # 更新目標價
         item.target_price = data.target_price
-        # 🆕 更新方向（如果模型支援）
-        if hasattr(item, 'target_direction'):
-            item.target_direction = data.target_direction or "above"
+        item.target_direction = getattr(data, 'target_direction', 'above') or 'above'
         await db.commit()
 
         return {
@@ -502,7 +485,7 @@ async def set_target_price(
                 "id": item.id,
                 "symbol": item.symbol,
                 "target_price": float(item.target_price) if item.target_price else None,
-                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # 🆕
+                "target_direction": getattr(item, 'target_direction', 'above') or 'above',
             }
         }
 
@@ -655,7 +638,7 @@ async def get_watchlist_overview(
                 "asset_type": item.asset_type,
                 "note": item.note,
                 "target_price": float(item.target_price) if item.target_price else None,
-                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # 🆕
+                "target_direction": getattr(item, 'target_direction', 'above') or 'above',
                 "added_at": item.added_at.isoformat() if item.added_at else None,
             }
             for item in items

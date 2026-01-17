@@ -175,14 +175,23 @@
 
             let targetBadge = '';
             if (hasTarget) {
+                const isAbove = item.target_direction !== 'below';
+                const dirIcon = isAbove ? 'fa-arrow-up' : 'fa-arrow-down';
+                const dirText = isAbove ? '↑' : '↓';
+                
                 if (targetReached) {
-                    targetBadge = `<span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700 animate-pulse">
-                        <i class="fas fa-bell mr-1"></i>已達標 $${item.target_price.toLocaleString()}
+                    // 已達標：黃色閃爍，更大更明顯
+                    targetBadge = `<span class="ml-2 px-3 py-1 text-sm font-bold rounded-full bg-yellow-400 text-yellow-900 animate-pulse shadow">
+                        <i class="fas fa-bell mr-1"></i>${dirText} 已達標 $${item.target_price.toLocaleString()}
                     </span>`;
                 } else {
+                    // 未達標：帶邊框，更明顯
                     const diff = ((item.target_price - item.price) / item.price * 100).toFixed(1);
-                    targetBadge = `<span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">
-                        <i class="fas fa-crosshairs mr-1"></i>目標 $${item.target_price.toLocaleString()} (${diff > 0 ? '+' : ''}${diff}%)
+                    const badgeStyle = isAbove 
+                        ? 'bg-green-100 text-green-700 border border-green-400' 
+                        : 'bg-red-100 text-red-700 border border-red-400';
+                    targetBadge = `<span class="ml-2 px-3 py-1 text-sm font-medium rounded-full ${badgeStyle}">
+                        <i class="fas ${dirIcon} mr-1"></i>目標 $${item.target_price.toLocaleString()} (${diff > 0 ? '+' : ''}${diff}%)
                     </span>`;
                 }
             }
@@ -248,7 +257,7 @@
                                 title="設定標籤">
                             <i class="fas fa-tags"></i>
                         </button>
-                        <button data-action="target-price" data-id="${item.id}" data-symbol="${item.symbol}" data-target="${item.target_price || ''}"
+                        <button data-action="target-price" data-id="${item.id}" data-symbol="${item.symbol}" data-target="${item.target_price || ''}" data-direction="${item.target_direction || 'above'}"
                                 class="px-3 py-2 ${hasTarget ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'} rounded-lg text-sm hover:bg-yellow-200 touch-target mr-2"
                                 title="${hasTarget ? '修改目標價' : '設定目標價'}">
                             <i class="fas fa-crosshairs"></i>
@@ -315,7 +324,8 @@
                 showTargetPriceModal(
                     parseInt(target.dataset.id),
                     target.dataset.symbol,
-                    target.dataset.target ? parseFloat(target.dataset.target) : null
+                    target.dataset.target ? parseFloat(target.dataset.target) : null,
+                    target.dataset.direction || 'above'  // 🔧 修正：加入 direction 參數
                 );
                 break;
 
@@ -680,7 +690,7 @@
     // 目標價設定
     // ============================================================
 
-    function showTargetPriceModal(itemId, symbol, currentTarget) {
+    function showTargetPriceModal(itemId, symbol, currentTarget, direction) {
         currentTargetItemId = itemId;
 
         const modal = $('targetPriceModal');
@@ -690,10 +700,22 @@
         if (symbolEl) symbolEl.textContent = symbol;
         if (input) input.value = currentTarget || '';
 
+        // 設定方向
+        const dir = direction || 'above';
+        const radioAbove = document.getElementById('directionAbove');
+        const radioBelow = document.getElementById('directionBelow');
+        if (radioAbove) radioAbove.checked = (dir === 'above');
+        if (radioBelow) radioBelow.checked = (dir === 'below');
+        
+        // 更新方向選擇樣式
+        if (typeof updateDirectionStyle === 'function') {
+            updateDirectionStyle();
+        }
+
         if (modal) {
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-            if (input) input.focus();
+            if (input) setTimeout(() => input.focus(), 100);
         }
     }
 
@@ -718,9 +740,12 @@
         }
 
         try {
-            const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target`, {
+            const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target-price`, {
                 method: 'PUT',
-                body: { target_price: targetPrice }
+                body: { 
+                    target_price: targetPrice,
+                    target_direction: document.querySelector('input[name="targetDirection"]:checked')?.value || 'above'
+                }
             });
 
             const data = await res.json();
@@ -728,7 +753,8 @@
             if (data.success) {
                 showToast('目標價已設定');
                 hideTargetPriceModal();
-                loadWatchlist();
+                // 🔧 強制重新載入追蹤清單
+                await loadWatchlist();
             } else {
                 showToast(data.detail || '設定失敗');
             }
@@ -742,8 +768,10 @@
         if (!currentTargetItemId) return;
 
         try {
-            const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target`, {
-                method: 'DELETE'
+            // 🔧 使用 PUT 方法，傳入 null 來清除目標價
+            const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target-price`, {
+                method: 'PUT',
+                body: { target_price: null, target_direction: null }
             });
 
             const data = await res.json();
@@ -751,7 +779,8 @@
             if (data.success) {
                 showToast('已清除目標價');
                 hideTargetPriceModal();
-                loadWatchlist();
+                // 🔧 強制重新載入追蹤清單
+                await loadWatchlist();
             } else {
                 showToast(data.detail || '清除失敗');
             }

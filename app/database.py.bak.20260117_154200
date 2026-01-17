@@ -155,11 +155,6 @@ def run_auto_migrations():
             "check_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='watchlists' AND column_name='target_price'",
             "migrate_sql": "ALTER TABLE watchlists ADD COLUMN target_price NUMERIC(12, 4) DEFAULT NULL",
         },
-            {
-                "name": "add_target_direction_to_watchlists",
-                "check_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='watchlists' AND column_name='target_direction'",
-                "migrate_sql": "ALTER TABLE watchlists ADD COLUMN target_direction VARCHAR(10) DEFAULT 'above'",
-            },
         # ============================================================
         # 🚀 2026-01-16: 股票歷史資料快取表（效能優化）
         # ============================================================

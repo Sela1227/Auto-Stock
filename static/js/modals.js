@@ -432,10 +432,27 @@
                             <input type="number" id="targetPriceInput" step="0.01" placeholder="輸入目標價格" 
                                 class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-yellow-500 text-base text-center text-lg">
                         </div>
-                        <p class="text-xs text-gray-500 text-center">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            當現價達到或超過目標價時，會以黃色高亮提醒
-                        </p>
+                        <div>
+                            <label class="block text-gray-700 mb-2 text-sm">提醒方向</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label id="labelAbove" class="flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer hover:bg-green-50 border-gray-200">
+                                    <input type="radio" name="targetDirection" id="directionAbove" value="above" checked class="sr-only" onchange="updateDirectionStyle()">
+                                    <span class="text-center">
+                                        <i class="fas fa-arrow-up text-green-500 text-lg"></i>
+                                        <div class="text-sm font-medium mt-1">高於時提醒</div>
+                                        <div class="text-xs text-gray-500">突破買入</div>
+                                    </span>
+                                </label>
+                                <label id="labelBelow" class="flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer hover:bg-red-50 border-gray-200">
+                                    <input type="radio" name="targetDirection" id="directionBelow" value="below" class="sr-only" onchange="updateDirectionStyle()">
+                                    <span class="text-center">
+                                        <i class="fas fa-arrow-down text-red-500 text-lg"></i>
+                                        <div class="text-sm font-medium mt-1">低於時提醒</div>
+                                        <div class="text-xs text-gray-500">跌破停損</div>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <div class="flex gap-3 mt-6">
                         <button onclick="hideTargetPriceModal()" class="flex-1 px-4 py-3 border rounded-lg hover:bg-gray-50 touch-target">取消</button>
@@ -609,6 +626,40 @@
         
         return modal;
     }
+
+    // ============================================================
+    // 目標價方向選擇樣式更新
+    // ============================================================
+    
+    function updateDirectionStyle() {
+        const labelAbove = document.getElementById('labelAbove');
+        const labelBelow = document.getElementById('labelBelow');
+        const radioAbove = document.getElementById('directionAbove');
+        const radioBelow = document.getElementById('directionBelow');
+        
+        if (labelAbove && radioAbove) {
+            if (radioAbove.checked) {
+                labelAbove.classList.remove('border-gray-200');
+                labelAbove.classList.add('border-green-500', 'bg-green-50');
+            } else {
+                labelAbove.classList.add('border-gray-200');
+                labelAbove.classList.remove('border-green-500', 'bg-green-50');
+            }
+        }
+        
+        if (labelBelow && radioBelow) {
+            if (radioBelow.checked) {
+                labelBelow.classList.remove('border-gray-200');
+                labelBelow.classList.add('border-red-500', 'bg-red-50');
+            } else {
+                labelBelow.classList.add('border-gray-200');
+                labelBelow.classList.remove('border-red-500', 'bg-red-50');
+            }
+        }
+    }
+    
+    // 導出到全域
+    window.updateDirectionStyle = updateDirectionStyle;
 
     // ============================================================
     // 導出到全域
