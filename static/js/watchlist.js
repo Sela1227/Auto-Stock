@@ -180,14 +180,18 @@
                 const dirText = isAbove ? '↑' : '↓';
                 
                 if (targetReached) {
-                    targetBadge = `<span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700 animate-pulse">
+                    // 已達標：黃色閃爍，更大更明顯
+                    targetBadge = `<span class="ml-2 px-3 py-1 text-sm font-bold rounded-full bg-yellow-400 text-yellow-900 animate-pulse shadow">
                         <i class="fas fa-bell mr-1"></i>${dirText} 已達標 $${item.target_price.toLocaleString()}
                     </span>`;
                 } else {
+                    // 未達標：帶邊框，更明顯
                     const diff = ((item.target_price - item.price) / item.price * 100).toFixed(1);
-                    const badgeColor = isAbove ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700';
-                    targetBadge = `<span class="ml-2 px-2 py-0.5 text-xs rounded-full ${badgeColor}">
-                        <i class="fas ${dirIcon} mr-1"></i>$${item.target_price.toLocaleString()} (${diff > 0 ? '+' : ''}${diff}%)
+                    const badgeStyle = isAbove 
+                        ? 'bg-green-100 text-green-700 border border-green-400' 
+                        : 'bg-red-100 text-red-700 border border-red-400';
+                    targetBadge = `<span class="ml-2 px-3 py-1 text-sm font-medium rounded-full ${badgeStyle}">
+                        <i class="fas ${dirIcon} mr-1"></i>目標 $${item.target_price.toLocaleString()} (${diff > 0 ? '+' : ''}${diff}%)
                     </span>`;
                 }
             }
@@ -739,9 +743,9 @@
             const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target-price`, {
                 method: 'PUT',
                 body: { 
-                target_price: targetPrice,
-                target_direction: document.querySelector('input[name="targetDirection"]:checked')?.value || 'above'
-            }
+                    target_price: targetPrice,
+                    target_direction: document.querySelector('input[name="targetDirection"]:checked')?.value || 'above'
+                }
             });
 
             const data = await res.json();
@@ -749,7 +753,8 @@
             if (data.success) {
                 showToast('目標價已設定');
                 hideTargetPriceModal();
-                loadWatchlist();
+                // 🔧 強制重新載入追蹤清單
+                await loadWatchlist();
             } else {
                 showToast(data.detail || '設定失敗');
             }
@@ -763,7 +768,7 @@
         if (!currentTargetItemId) return;
 
         try {
-            // 🔧 修正：使用 PUT 方法，傳入 null 來清除目標價
+            // 🔧 使用 PUT 方法，傳入 null 來清除目標價
             const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target-price`, {
                 method: 'PUT',
                 body: { target_price: null, target_direction: null }
@@ -774,7 +779,8 @@
             if (data.success) {
                 showToast('已清除目標價');
                 hideTargetPriceModal();
-                loadWatchlist();
+                // 🔧 強制重新載入追蹤清單
+                await loadWatchlist();
             } else {
                 showToast(data.detail || '清除失敗');
             }
