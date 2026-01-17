@@ -247,12 +247,12 @@
         try {
             let res;
             if (editId) {
-                res = await apiRequest(`/api/portfolio/transactions/tw/${editId}`, {
+                res = await apiRequest(`/api/portfolio/transactions/${editId}`, {
                     method: 'PUT',
                     body
                 });
             } else {
-                res = await apiRequest('/api/portfolio/transactions/tw', {
+                res = await apiRequest('/api/portfolio/transactions', {
                     method: 'POST',
                     body
                 });
@@ -455,12 +455,12 @@
         try {
             let res;
             if (editId) {
-                res = await apiRequest(`/api/portfolio/transactions/us/${editId}`, {
+                res = await apiRequest(`/api/portfolio/transactions/${editId}`, {
                     method: 'PUT',
                     body
                 });
             } else {
-                res = await apiRequest('/api/portfolio/transactions/us', {
+                res = await apiRequest('/api/portfolio/transactions', {
                     method: 'POST',
                     body
                 });
