@@ -11,6 +11,7 @@ import logging
 
 from app.database import get_async_session
 from app.models.broker import Broker
+from app.models.user import User
 from app.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -40,11 +41,11 @@ class BrokerUpdate(BaseModel):
 
 @router.get("", summary="取得券商列表")
 async def get_brokers(
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """取得用戶的所有券商"""
-    stmt = select(Broker).where(Broker.user_id == current_user["id"]).order_by(Broker.name)
+    stmt = select(Broker).where(Broker.user_id == current_user.id).order_by(Broker.name)
     result = await db.execute(stmt)
     brokers = result.scalars().all()
     
@@ -57,13 +58,13 @@ async def get_brokers(
 @router.post("", summary="新增券商")
 async def create_broker(
     data: BrokerCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """新增券商"""
     # 檢查是否已存在同名券商
     stmt = select(Broker).where(
-        Broker.user_id == current_user["id"],
+        Broker.user_id == current_user.id,
         Broker.name == data.name
     )
     result = await db.execute(stmt)
@@ -74,12 +75,12 @@ async def create_broker(
     if data.is_default:
         await db.execute(
             update(Broker)
-            .where(Broker.user_id == current_user["id"])
+            .where(Broker.user_id == current_user.id)
             .values(is_default=False)
         )
     
     broker = Broker(
-        user_id=current_user["id"],
+        user_id=current_user.id,
         name=data.name,
         color=data.color,
         is_default=data.is_default,
@@ -99,13 +100,13 @@ async def create_broker(
 async def update_broker(
     broker_id: int,
     data: BrokerUpdate,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """更新券商"""
     stmt = select(Broker).where(
         Broker.id == broker_id,
-        Broker.user_id == current_user["id"]
+        Broker.user_id == current_user.id
     )
     result = await db.execute(stmt)
     broker = result.scalar_one_or_none()
@@ -116,7 +117,7 @@ async def update_broker(
     # 檢查名稱是否重複
     if data.name and data.name != broker.name:
         check_stmt = select(Broker).where(
-            Broker.user_id == current_user["id"],
+            Broker.user_id == current_user.id,
             Broker.name == data.name,
             Broker.id != broker_id
         )
@@ -128,7 +129,7 @@ async def update_broker(
     if data.is_default:
         await db.execute(
             update(Broker)
-            .where(Broker.user_id == current_user["id"], Broker.id != broker_id)
+            .where(Broker.user_id == current_user.id, Broker.id != broker_id)
             .values(is_default=False)
         )
     
@@ -153,13 +154,13 @@ async def update_broker(
 @router.delete("/{broker_id}", summary="刪除券商")
 async def delete_broker(
     broker_id: int,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """刪除券商（交易記錄中的 broker_id 會變成 NULL）"""
     stmt = select(Broker).where(
         Broker.id == broker_id,
-        Broker.user_id == current_user["id"]
+        Broker.user_id == current_user.id
     )
     result = await db.execute(stmt)
     broker = result.scalar_one_or_none()
