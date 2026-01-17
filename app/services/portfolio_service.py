@@ -40,6 +40,7 @@ class PortfolioService:
         fee: float = 0,
         tax: float = 0,
         note: Optional[str] = None,
+        broker_id: Optional[int] = None,  # ✅ 新增：券商 ID
     ) -> PortfolioTransaction:
         """新增交易紀錄"""
         
@@ -69,6 +70,7 @@ class PortfolioService:
             tax=Decimal(str(tax)) if tax else Decimal("0"),
             transaction_date=transaction_date,
             note=note,
+            broker_id=broker_id,  # ✅ 新增：券商 ID
         )
         
         self.db.add(transaction)

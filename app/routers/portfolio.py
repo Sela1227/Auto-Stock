@@ -13,11 +13,13 @@ import io
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.database import get_async_session
 from app.services.portfolio_service import PortfolioService
 from app.services.exchange_rate_service import get_exchange_rate, set_exchange_rate
 from app.models.user import User
+from app.models.portfolio import PortfolioTransaction
 
 # 🔧 使用統一認證模組
 from app.dependencies import get_current_user
@@ -306,6 +308,7 @@ async def create_transaction(
             tax=data.tax or 0,
             transaction_date=data.transaction_date,
             note=data.note,
+            broker_id=getattr(data, "broker_id", None),
         )
         
         return {
@@ -320,6 +323,46 @@ async def create_transaction(
         logger.error(f"新增交易失敗: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="新增交易失敗")
 
+
+
+
+@router.get("/transactions/last-price/{symbol}", summary="取得股票最後交易價格")
+async def get_last_transaction_price(
+    symbol: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    取得用戶對該股票的最後一筆交易價格
+    用於新增交易時自動帶入預設價格
+    """
+    try:
+        stmt = select(PortfolioTransaction).where(
+            PortfolioTransaction.user_id == user.id,
+            PortfolioTransaction.symbol == symbol
+        ).order_by(PortfolioTransaction.transaction_date.desc(), PortfolioTransaction.id.desc()).limit(1)
+        
+        result = await db.execute(stmt)
+        transaction = result.scalar_one_or_none()
+        
+        if transaction:
+            return {
+                "success": True,
+                "price": float(transaction.price),
+                "date": str(transaction.transaction_date),
+                "type": transaction.transaction_type,
+            }
+        else:
+            return {
+                "success": False,
+                "message": "無歷史交易記錄"
+            }
+    except Exception as e:
+        logger.error(f"查詢最後交易價格失敗: {e}")
+        return {
+            "success": False,
+            "message": str(e)
+        }
 
 @router.get("/transactions", summary="取得交易紀錄")
 async def get_transactions(

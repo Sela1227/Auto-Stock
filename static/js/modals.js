@@ -140,14 +140,14 @@
                         
                         <!-- 交易類型 -->
                         <div class="flex gap-2 mb-4">
-                            <button type="button" onclick="setTwType('buy')" id="twBtnBuy" class="flex-1 py-2 rounded-lg font-medium transition-all bg-green-500 text-white">
+                            <button type="button" onclick="setTwType('buy')" id="twTypeBuy" class="flex-1 py-2 rounded-lg font-medium transition-all bg-green-500 text-white">
                                 <i class="fas fa-arrow-down mr-1"></i>買入
                             </button>
-                            <button type="button" onclick="setTwType('sell')" id="twBtnSell" class="flex-1 py-2 rounded-lg font-medium transition-all bg-gray-200 text-gray-600">
+                            <button type="button" onclick="setTwType('sell')" id="twTypeSell" class="flex-1 py-2 rounded-lg font-medium transition-all bg-gray-200 text-gray-600">
                                 <i class="fas fa-arrow-up mr-1"></i>賣出
                             </button>
                         </div>
-                        <input type="hidden" id="twTxType" value="buy">
+                        <input type="hidden" id="twType" value="buy">
                         
                         <!-- 股票代碼 -->
                         <div class="mb-4">
@@ -184,6 +184,7 @@
                                 </div>
                             </div>
                             <p id="twQuantityDisplay" class="text-xs text-gray-500 mt-1">= 0 股</p>
+                            <input type="hidden" id="twQuantity" value="0">
                         </div>
                         
                         <!-- 成交價 -->
@@ -246,14 +247,14 @@
                         
                         <!-- 交易類型 -->
                         <div class="flex gap-2 mb-4">
-                            <button type="button" onclick="setUsType('buy')" id="usBtnBuy" class="flex-1 py-2 rounded-lg font-medium transition-all bg-green-500 text-white">
+                            <button type="button" onclick="setUsType('buy')" id="usTypeBuy" class="flex-1 py-2 rounded-lg font-medium transition-all bg-green-500 text-white">
                                 <i class="fas fa-arrow-down mr-1"></i>買入
                             </button>
-                            <button type="button" onclick="setUsType('sell')" id="usBtnSell" class="flex-1 py-2 rounded-lg font-medium transition-all bg-gray-200 text-gray-600">
+                            <button type="button" onclick="setUsType('sell')" id="usTypeSell" class="flex-1 py-2 rounded-lg font-medium transition-all bg-gray-200 text-gray-600">
                                 <i class="fas fa-arrow-up mr-1"></i>賣出
                             </button>
                         </div>
-                        <input type="hidden" id="usTxType" value="buy">
+                        <input type="hidden" id="usType" value="buy">
                         
                         <!-- 股票代碼 -->
                         <div class="mb-4">

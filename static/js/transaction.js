@@ -179,6 +179,9 @@
                 if (data.success && stockName) {
                     if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${stockName}</span>`;
                     if (nameInput) nameInput.value = stockName;
+                    
+                    // 🔧 查詢該股票最後一筆交易價格
+                    fetchLastTransactionPrice(`${symbol}.TW`, 'tw');
                 } else {
                     if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
                 }
@@ -190,9 +193,29 @@
         }, 500);
     }
 
+    // 🔧 新增：獲取最後一筆交易價格
+    async function fetchLastTransactionPrice(symbol, market) {
+        try {
+            const res = await apiRequest(`/api/portfolio/transactions/last-price/${symbol}`);
+            const data = await res.json();
+            
+            if (data.success && data.price) {
+                const priceInput = $(market === 'tw' ? 'twPrice' : 'usPrice');
+                if (priceInput && !priceInput.value) {
+                    priceInput.value = data.price;
+                    priceInput.classList.add('bg-yellow-50');
+                    setTimeout(() => priceInput.classList.remove('bg-yellow-50'), 1000);
+                }
+            }
+        } catch (e) {
+            // 沒有歷史交易，不處理
+        }
+    }
+
     async function submitTwTransaction() {
         const editId = $('twEditId')?.value;
-        const symbol = $('twSymbol')?.value?.trim();
+        const rawSymbol = $('twSymbol')?.value?.trim();
+        const symbol = rawSymbol ? `${rawSymbol}.TW` : '';  // 🔧 加上 .TW 後綴
         const name = $('twName')?.value?.trim();
         const type = $('twType')?.value;
         const quantity = parseInt($('twQuantity')?.value) || 0;
@@ -211,6 +234,7 @@
         const body = {
             symbol,
             name,
+            market: 'tw',  // ✅ 必填：市場類型
             transaction_type: type,
             quantity,
             price,
@@ -224,12 +248,12 @@
         try {
             let res;
             if (editId) {
-                res = await apiRequest(`/api/portfolio/transactions/tw/${editId}`, {
+                res = await apiRequest(`/api/portfolio/transactions/${editId}`, {
                     method: 'PUT',
                     body
                 });
             } else {
-                res = await apiRequest('/api/portfolio/transactions/tw', {
+                res = await apiRequest('/api/portfolio/transactions', {
                     method: 'POST',
                     body
                 });
@@ -384,6 +408,9 @@
                 if (data.success && stockName) {
                     if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${stockName}</span>`;
                     if (nameInput) nameInput.value = stockName;
+                    
+                    // 🔧 查詢該股票最後一筆交易價格
+                    fetchLastTransactionPrice(symbol, 'us');
                 } else {
                     if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
                 }
@@ -416,6 +443,7 @@
         const body = {
             symbol,
             name,
+            market: 'us',  // ✅ 必填：市場類型
             transaction_type: type,
             quantity,
             price,
@@ -429,12 +457,12 @@
         try {
             let res;
             if (editId) {
-                res = await apiRequest(`/api/portfolio/transactions/us/${editId}`, {
+                res = await apiRequest(`/api/portfolio/transactions/${editId}`, {
                     method: 'PUT',
                     body
                 });
             } else {
-                res = await apiRequest('/api/portfolio/transactions/us', {
+                res = await apiRequest('/api/portfolio/transactions', {
                     method: 'POST',
                     body
                 });
