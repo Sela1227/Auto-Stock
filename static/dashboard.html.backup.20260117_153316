@@ -1305,6 +1305,5 @@
 
     <!-- 圖表修復 (自動加入) -->
     <script src="/static/js/chart-fix-final.js"></script>
-    <script src="/static/js/search-ma-advanced.js"></script>
 </body>
 </html>
