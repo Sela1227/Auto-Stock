@@ -96,20 +96,25 @@
             if (!symbol || symbol.length < 4) return;
 
             try {
-                const res = await apiRequest(`/api/stock/${symbol}.TW/info`);
+                // 🔧 修正：使用正確的 API 路徑
+                const res = await apiRequest(`/api/stock/${symbol}.TW`);
                 const data = await res.json();
 
                 const nameDisplay = $('twNameDisplay');
                 const nameInput = $('twName');
 
-                if (data.success && data.name) {
-                    if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${data.name}</span>`;
-                    if (nameInput) nameInput.value = data.name;
+                // 🔧 修正：從回傳資料取得名稱
+                const stockName = data.name || data.data?.name;
+                if (data.success && stockName) {
+                    if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${stockName}</span>`;
+                    if (nameInput) nameInput.value = stockName;
                 } else {
                     if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
                 }
             } catch (e) {
                 console.error('查詢台股失敗:', e);
+                const nameDisplay = $('twNameDisplay');
+                if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
             }
         }, 500);
     }
@@ -291,20 +296,25 @@
             if (!symbol || symbol.length < 1) return;
 
             try {
-                const res = await apiRequest(`/api/stock/${symbol}/info`);
+                // 🔧 修正：使用正確的 API 路徑
+                const res = await apiRequest(`/api/stock/${symbol}`);
                 const data = await res.json();
 
                 const nameDisplay = $('usNameDisplay');
                 const nameInput = $('usName');
 
-                if (data.success && data.name) {
-                    if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${data.name}</span>`;
-                    if (nameInput) nameInput.value = data.name;
+                // 🔧 修正：從回傳資料取得名稱
+                const stockName = data.name || data.data?.name;
+                if (data.success && stockName) {
+                    if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${stockName}</span>`;
+                    if (nameInput) nameInput.value = stockName;
                 } else {
                     if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
                 }
             } catch (e) {
                 console.error('查詢美股失敗:', e);
+                const nameDisplay = $('usNameDisplay');
+                if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
             }
         }, 500);
     }
