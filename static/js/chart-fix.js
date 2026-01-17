@@ -1,6 +1,6 @@
 /**
- * Chart Fullscreen 修復
- * 修正 openChartFullscreen 使用錯誤的 DOM ID
+ * Chart Fullscreen Fix
+ * Fixes openChartFullscreen using wrong DOM IDs
  */
 (function() {
     'use strict';
@@ -9,18 +9,18 @@
         const chartData = window.currentChartData;
         if (!chartData) {
             if (typeof showToast === 'function') {
-                showToast('無圖表資料');
+                showToast('No chart data');
             }
             return;
         }
         
-        // 正確的 ID: chartFullscreen (不是 chartFullscreenModal)
+        // Correct ID: chartFullscreen (not chartFullscreenModal)
         const modal = document.getElementById('chartFullscreen');
         if (!modal) return;
         
-        // 正確的 ID: chartFullscreenTitle (不是 chartModalTitle)
+        // Correct ID: chartFullscreenTitle (not chartModalTitle)
         const title = document.getElementById('chartFullscreenTitle');
-        if (title) title.textContent = symbol + ' 技術分析';
+        if (title) title.textContent = symbol + ' Technical Analysis';
         
         modal.style.display = 'block';
         modal.classList.add('active');
@@ -45,5 +45,5 @@
         }
     };
 
-    console.log('✅ chart-fix.js 已載入');
+    console.log('chart-fix.js loaded');
 })();
