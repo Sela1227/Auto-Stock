@@ -234,6 +234,7 @@
         const body = {
             symbol,
             name,
+            market: 'tw',  // ✅ 必填：市場類型
             transaction_type: type,
             quantity,
             price,
@@ -442,6 +443,7 @@
         const body = {
             symbol,
             name,
+            market: 'us',  // ✅ 必填：市場類型
             transaction_type: type,
             quantity,
             price,
