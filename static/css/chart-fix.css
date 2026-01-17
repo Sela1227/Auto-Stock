@@ -1,0 +1,85 @@
+/**
+ * 圖表樣式修復 (chart-fix.css)
+ * 
+ * 🔧 修復問題：
+ * 1. 圖表右邊空白太小
+ * 2. 圖例游標樣式
+ * 
+ * 📍 載入方式：
+ * <link rel="stylesheet" href="/static/css/chart-fix.css">
+ */
+
+/* ============================================================
+   圖表容器右邊空白
+   ============================================================ */
+
+/* 全螢幕圖表容器增加右邊 padding */
+#chartFullscreen .flex-1.p-4 {
+    padding-right: 24px !important;
+}
+
+/* Canvas 容器 */
+#fullscreenChart {
+    padding-right: 10px;
+}
+
+/* ============================================================
+   圖例樣式優化
+   ============================================================ */
+
+/* 圖例容器可點擊提示 */
+.chartjs-legend {
+    cursor: pointer;
+}
+
+/* 圖例項目 hover 效果 */
+.chartjs-legend li:hover {
+    opacity: 0.8;
+}
+
+/* ============================================================
+   時間範圍按鈕樣式
+   ============================================================ */
+
+/* 按鈕基礎樣式 */
+.chart-range-btn {
+    cursor: pointer !important;
+    user-select: none;
+    transition: all 0.2s ease;
+    min-width: 44px;
+    min-height: 44px;
+}
+
+/* 按鈕 hover 效果 */
+.chart-range-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 按鈕 active 效果 */
+.chart-range-btn:active {
+    transform: scale(0.98);
+}
+
+/* 選中狀態 */
+.chart-range-btn.active {
+    background-color: #2563EB !important;
+    color: white !important;
+    border-color: #2563EB !important;
+}
+
+/* 未選中狀態 */
+.chart-range-btn:not(.active) {
+    background-color: #F3F4F6 !important;
+    color: #374151 !important;
+    border-color: #D1D5DB !important;
+}
+
+/* ============================================================
+   Y 軸標籤空間
+   ============================================================ */
+
+/* 確保 Y 軸標籤有足夠空間 */
+.chart-fullscreen canvas {
+    max-width: calc(100% - 20px) !important;
+}

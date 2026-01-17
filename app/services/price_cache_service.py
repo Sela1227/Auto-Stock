@@ -1,6 +1,10 @@
 """
 價格快取服務
-負責批次更新追蹤股票的即時價格
+
+🚀 效能優化版 - 2026-01-17
+- 非開盤時間直接使用快取（不再呼叫 API）
+- 優先返回舊資料，標記是否需要更新
+- 智慧快取判斷：根據市場狀態決定快取有效期
 
 排程邏輯：
 - 台股開盤 (09:00-13:30)：每 10 分鐘更新台股
@@ -9,8 +13,8 @@
 - 加密貨幣：24 小時每 10 分鐘更新
 """
 import logging
-from datetime import datetime, time
-from typing import Dict, List, Any
+from datetime import datetime, time, timedelta
+from typing import Dict, List, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import select, distinct
 import yfinance as yf
@@ -253,6 +257,39 @@ def get_market_status() -> Dict[str, bool]:
     }
 
 
+def get_symbol_market(symbol: str) -> str:
+    """
+    判斷 symbol 屬於哪個市場
+    
+    Returns:
+        "tw" | "us" | "crypto"
+    """
+    symbol = symbol.upper()
+    
+    # 加密貨幣
+    if symbol in ("BTC", "ETH", "BITCOIN", "ETHEREUM") or symbol.endswith("-USD"):
+        return "crypto"
+    
+    # 台股
+    if symbol.endswith((".TW", ".TWO")):
+        return "tw"
+    
+    # 預設美股
+    return "us"
+
+
+def is_market_open_for_symbol(symbol: str) -> bool:
+    """判斷該 symbol 的市場是否開盤"""
+    market = get_symbol_market(symbol)
+    
+    if market == "crypto":
+        return True  # 24/7
+    elif market == "tw":
+        return is_tw_market_open()
+    else:
+        return is_us_market_open()
+
+
 # ============================================================
 # 價格快取服務
 # ============================================================
@@ -265,15 +302,16 @@ class PriceCacheService:
     
     def get_all_tracked_symbols(self) -> Dict[str, List[str]]:
         """取得所有被追蹤的 symbol（去重，按市場分類）"""
-        stmt = select(distinct(Watchlist.symbol), Watchlist.asset_type)
-        results = self.db.execute(stmt).all()
+        stmt = select(distinct(Watchlist.symbol))
+        result = self.db.execute(stmt)
+        symbols = [row[0] for row in result.all()]
         
         tw_stocks = []
         us_stocks = []
         crypto = []
         
-        for symbol, asset_type in results:
-            if asset_type == "crypto":
+        for symbol in symbols:
+            if symbol.upper() in ("BTC", "ETH"):
                 crypto.append(symbol)
             elif symbol.endswith((".TW", ".TWO")):
                 tw_stocks.append(symbol)
@@ -448,12 +486,12 @@ class PriceCacheService:
             self.db.add(cache)
     
     # ============================================================
-    # 🆕 查詢快取（供 stock.py API 使用）
+    # 🆕 智慧快取查詢（效能優化核心）
     # ============================================================
     
-    def get_cached_price(self, symbol: str, max_age_minutes: int = 5) -> dict:
+    def get_cached_price(self, symbol: str, max_age_minutes: int = 5) -> Optional[dict]:
         """
-        從快取取得股票價格（5 分鐘有效）
+        從快取取得股票價格（舊版本，保持相容性）
         
         Args:
             symbol: 股票代號
@@ -462,8 +500,6 @@ class PriceCacheService:
         Returns:
             快取資料 dict 或 None（無快取或已過期）
         """
-        from datetime import timedelta
-        
         cache = self.db.query(StockPriceCache).filter(
             StockPriceCache.symbol == symbol.upper()
         ).first()
@@ -480,6 +516,87 @@ class PriceCacheService:
                 return None
         
         logger.info(f"📦 快取命中: {symbol}")
+        return self._cache_to_dict(cache)
+    
+    def get_cached_price_smart(self, symbol: str) -> Tuple[Optional[dict], bool]:
+        """
+        🆕 智慧取得快取價格（效能優化版）
+        
+        邏輯：
+        1. 無資料 → (None, True) 需要從 API 取得
+        2. 有資料 + 非開盤 → (資料, False) 直接用，不需更新
+        3. 有資料 + 開盤中 + < 5分鐘 → (資料, False) 直接用
+        4. 有資料 + 開盤中 + > 5分鐘 → (資料, True) 返回舊資料，標記需要更新
+        
+        Args:
+            symbol: 股票代號
+            
+        Returns:
+            (快取資料 dict 或 None, 是否需要更新)
+        """
+        symbol = symbol.upper()
+        
+        cache = self.db.query(StockPriceCache).filter(
+            StockPriceCache.symbol == symbol
+        ).first()
+        
+        # 情況 1: 無資料
+        if not cache:
+            logger.debug(f"⚡ 快取未命中: {symbol}")
+            return None, True
+        
+        cache_data = self._cache_to_dict(cache)
+        
+        # 判斷市場是否開盤
+        market_open = is_market_open_for_symbol(symbol)
+        
+        # 情況 2: 非開盤時間 → 直接使用快取
+        if not market_open:
+            logger.info(f"⚡ 非開盤時間，直接使用快取: {symbol}")
+            return cache_data, False
+        
+        # 開盤時間，檢查快取年齡
+        if cache.updated_at:
+            age = datetime.now() - cache.updated_at
+            age_minutes = age.total_seconds() / 60
+            
+            # 情況 3: 開盤中 + 快取 < 5 分鐘
+            if age_minutes < 5:
+                logger.info(f"⚡ 快取有效 ({age_minutes:.1f}分鐘): {symbol}")
+                return cache_data, False
+            
+            # 情況 4: 開盤中 + 快取過期
+            logger.info(f"⚡ 快取過期但先返回 ({age_minutes:.1f}分鐘): {symbol}")
+            return cache_data, True
+        
+        # 無更新時間記錄，標記需要更新
+        return cache_data, True
+    
+    def get_cached_prices_batch(self, symbols: List[str]) -> Dict[str, dict]:
+        """
+        🆕 批量取得快取價格
+        
+        Args:
+            symbols: 股票代號列表
+            
+        Returns:
+            {symbol: cache_data} 字典
+        """
+        if not symbols:
+            return {}
+        
+        # 批量查詢
+        caches = self.db.query(StockPriceCache).filter(
+            StockPriceCache.symbol.in_([s.upper() for s in symbols])
+        ).all()
+        
+        return {
+            cache.symbol: self._cache_to_dict(cache)
+            for cache in caches
+        }
+    
+    def _cache_to_dict(self, cache: StockPriceCache) -> dict:
+        """將快取物件轉換為 dict"""
         return {
             "symbol": cache.symbol,
             "name": cache.name,
@@ -490,6 +607,7 @@ class PriceCacheService:
             "volume": int(cache.volume) if cache.volume else None,
             "ma20": float(cache.ma20) if cache.ma20 else None,
             "updated_at": cache.updated_at.isoformat() if cache.updated_at else None,
+            "asset_type": cache.asset_type,
         }
     
     def update_all(self, force: bool = False) -> Dict[str, Any]:

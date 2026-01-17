@@ -1302,8 +1302,5 @@
     <script src="/static/js/settings.js"></script>
     <script src="/static/js/cagr.js"></script>
     <script src="/static/js/admin.js"></script>
-
-    <!-- 圖表修復 (自動加入) -->
-    <script src="/static/js/chart-fix-final.js"></script>
 </body>
 </html>

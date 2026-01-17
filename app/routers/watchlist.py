@@ -1,7 +1,10 @@
 """
 追蹤清單 API 路由
-🔧 P0修復：使用統一認證模組
-⚡ 效能優化：批量載入標籤，消除 N+1 問題
+
+🚀 效能優化版 - 2026-01-17
+- 非開盤時間直接使用快取（體感速度大幅提升）
+- 回傳市場狀態，讓前端知道是否為開盤時間
+- 批量載入標籤，消除 N+1 問題
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
@@ -261,7 +264,7 @@ async def import_watchlist(
 
 
 # ============================================================
-# 價格快取 API（⭐ 優化版：包含標籤）
+# 價格快取 API（⭐ 優化版：包含標籤 + 市場狀態）
 # ============================================================
 
 @router.get("/with-prices", summary="追蹤清單（含即時價格）")
@@ -272,7 +275,10 @@ async def get_watchlist_with_prices(
     """
     取得用戶追蹤清單，包含即時價格（從快取讀取）
     
-    ⭐ 效能優化：一次性載入所有標籤，消除 N+1 問題
+    🚀 效能優化版 2026-01-17：
+    - 非開盤時間直接使用快取（毫秒級回應）
+    - 回傳市場狀態，讓前端知道資料的時效性
+    - 一次性載入所有標籤，消除 N+1 問題
     
     - 價格來自 stock_price_cache 表
     - 每 10 分鐘由排程更新
@@ -283,6 +289,10 @@ async def get_watchlist_with_prices(
     logger.info(f"API: 追蹤清單(含價格) - user_id={user.id}")
 
     try:
+        # 🆕 取得市場狀態
+        from app.services.price_cache_service import get_market_status
+        market_status = get_market_status()
+        
         # 1. 取得用戶的追蹤清單
         stmt = (
             select(Watchlist)
@@ -297,6 +307,7 @@ async def get_watchlist_with_prices(
                 "success": True,
                 "data": [],
                 "total": 0,
+                "market_status": market_status,  # 🆕
             }
 
         # 2. 取得所有 symbol 和 watchlist_id
@@ -378,6 +389,7 @@ async def get_watchlist_with_prices(
             "success": True,
             "data": data,
             "total": len(data),
+            "market_status": market_status,  # 🆕 回傳市場狀態
         }
 
     except Exception as e:
