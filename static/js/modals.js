@@ -196,6 +196,15 @@
                         <input type="hidden" id="twFee" value="0">
                         <input type="hidden" id="twTax" value="0">
                         
+                        <!-- 券商選擇 -->
+                        <div class="mb-4">
+                            <label class="block text-gray-700 mb-2 text-sm">券商（選填）</label>
+                            <select id="twBroker" onchange="handleBrokerChange('twBroker')"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500">
+                                <option value="">不指定券商</option>
+                            </select>
+                        </div>
+                        
                         <!-- 交易日期 -->
                         <div class="mb-4">
                             <label class="block text-gray-700 mb-2 text-sm">交易日期 <span class="text-red-500">*</span></label>
@@ -279,6 +288,15 @@
                         <!-- 手續費和交易稅（隱藏） -->
                         <input type="hidden" id="usFee" value="0">
                         <input type="hidden" id="usTax" value="0">
+                        
+                        <!-- 券商選擇 -->
+                        <div class="mb-4">
+                            <label class="block text-gray-700 mb-2 text-sm">券商（選填）</label>
+                            <select id="usBroker" onchange="handleBrokerChange('usBroker')"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="">不指定券商</option>
+                            </select>
+                        </div>
                         
                         <!-- 交易日期 -->
                         <div class="mb-4">
