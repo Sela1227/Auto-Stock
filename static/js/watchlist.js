@@ -691,17 +691,22 @@
         if (symbolEl) symbolEl.textContent = symbol;
         if (input) input.value = currentTarget || '';
 
-        if (modal) {
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            if (input) input.focus();
-        
         // 設定方向
         const dir = direction || 'above';
         const radioAbove = document.getElementById('directionAbove');
         const radioBelow = document.getElementById('directionBelow');
         if (radioAbove) radioAbove.checked = (dir === 'above');
         if (radioBelow) radioBelow.checked = (dir === 'below');
+        
+        // 更新方向選擇樣式
+        if (typeof updateDirectionStyle === 'function') {
+            updateDirectionStyle();
+        }
+
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            if (input) setTimeout(() => input.focus(), 100);
         }
     }
 
