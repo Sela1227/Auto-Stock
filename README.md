@@ -21,15 +21,10 @@ sela_update/
 │       ├── modals.js          # Modal 模板（修改）
 │       ├── watchlist.js       # 追蹤清單（修改）
 │       └── portfolio.js       # 投資記錄（修改）
-└── patch_broker_feature.py    # 一鍵補丁腳本
+├── patch_broker_feature.py    # main.py + dashboard.html 補丁
+├── patch_database_broker.py   # database.py 遷移補丁
+└── patch_portfolio.py         # portfolio.py 補丁（含最後價格 API）
 ```
-
-### 一鍵補丁會修改
-- `app/main.py` - 加入 broker router
-- `app/database.py` - 加入資料庫遷移
-- `app/routers/portfolio.py` - 加入 broker_id 支援
-- `templates/dashboard.html` - 加入 broker.js 引用
-- 交易模型 - 加入 broker_id 欄位
 
 ---
 
@@ -45,13 +40,16 @@ cp -r sela_update/app/* app/
 cp -r sela_update/static/* static/
 ```
 
-### 2. 執行補丁腳本
+### 2. 執行補丁腳本（依序執行）
 ```bash
-# 複製補丁到根目錄
-cp sela_update/patch_broker_feature.py ./
+# 1. main.py + dashboard.html 補丁
+python sela_update/patch_broker_feature.py
 
-# 執行補丁
-python patch_broker_feature.py
+# 2. database.py 遷移補丁
+python sela_update/patch_database_broker.py
+
+# 3. portfolio.py 補丁
+python sela_update/patch_portfolio.py
 ```
 
 ### 3. 重新部署
@@ -66,33 +64,34 @@ git push
 ## ✨ 本次更新內容
 
 ### 新功能
-- **券商管理**：可建立、編輯、刪除券商
+- **券商管理**：在投資記錄頁面（美股記錄下方）管理券商
 - **交易關聯券商**：新增交易時可選擇券商
 - **快速新增券商**：在交易表單中可直接建立新券商
+- **自動帶入價格**：輸入股票代碼後自動帶入最後一筆交易價格
 
 ### Bug 修復
+- ✅ **台股現值計算**：修正 symbol 未加 `.TW` 導致 price_cache 查不到
 - ✅ 目標價功能 - 支援「高於/低於」方向
 - ✅ 目標價即時更新 - 修復 AppState 快取問題
 - ✅ 股票名稱查詢 - 修正 API 路徑
 - ✅ 持股載入失敗 - 修正 return_rate undefined 錯誤
-- ✅ numpy 類型序列化 - 修正 MA 進階分析
 
 ### UI 優化
 - 移除手續費/交易稅欄位（簡化介面）
 - 目標價標記更明顯（綠色高於/紅色低於）
 - 券商選擇下拉選單
+- 價格自動帶入時欄位閃爍提示
 
 ---
 
 ## 📝 測試檢查清單
 
+- [ ] 台股現值正確顯示
 - [ ] 新增券商
 - [ ] 新增交易時選擇券商
 - [ ] 新增交易時快速建立券商
+- [ ] 輸入股票代碼後自動帶入最後價格
 - [ ] 目標價設定（高於/低於）
-- [ ] 目標價即時更新
-- [ ] 股票名稱自動帶入
-- [ ] 持股記錄正常載入
 
 ---
 
@@ -100,4 +99,4 @@ git push
 
 1. 補丁腳本會自動備份修改的檔案（.bak 結尾）
 2. 首次部署會自動建立 brokers 資料表
-3. 如果補丁執行失敗，請參考 `SELA_券商功能部署指南.md` 手動修改
+3. 券商管理區塊會自動插入到投資記錄頁面的美股記錄下方
