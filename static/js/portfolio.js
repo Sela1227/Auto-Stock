@@ -199,6 +199,11 @@
         const profitClass = (h.unrealized_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600';
         const profitPrefix = (h.unrealized_profit || 0) >= 0 ? '+' : '';
         const currency = market === 'tw' ? 'NT$' : '$';
+        
+        // 🔧 安全處理 return_rate（可能是 null 或 undefined）
+        const returnRateDisplay = (h.return_rate != null) 
+            ? `${h.return_rate >= 0 ? '+' : ''}${h.return_rate.toFixed(2)}%` 
+            : '--';
 
         // ✅ P3: 使用 data-action 替代 onclick
         return `
@@ -210,7 +215,7 @@
                         <span class="text-gray-500 text-sm ml-2 truncate">${h.name || ''}</span>
                     </div>
                     <div class="text-xs text-gray-500">
-                        ${h.quantity_display} @ ${currency}${h.avg_cost?.toFixed(2) || '--'}
+                        ${h.quantity_display || h.quantity || 0} @ ${currency}${h.avg_cost?.toFixed(2) || '--'}
                     </div>
                 </div>
                 <div class="text-right">
@@ -218,7 +223,7 @@
                         ${profitPrefix}${currency}${Math.round(Math.abs(h.unrealized_profit || 0)).toLocaleString()}
                     </div>
                     <div class="text-xs ${profitClass}">
-                        ${h.return_rate !== null ? `${h.return_rate >= 0 ? '+' : ''}${h.return_rate.toFixed(2)}%` : '--'}
+                        ${returnRateDisplay}
                     </div>
                 </div>
             </div>
