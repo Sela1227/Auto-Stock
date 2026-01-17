@@ -175,14 +175,19 @@
 
             let targetBadge = '';
             if (hasTarget) {
+                const isAbove = item.target_direction !== 'below';
+                const dirIcon = isAbove ? 'fa-arrow-up' : 'fa-arrow-down';
+                const dirText = isAbove ? '↑' : '↓';
+                
                 if (targetReached) {
                     targetBadge = `<span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700 animate-pulse">
-                        <i class="fas fa-bell mr-1"></i>已達標 $${item.target_price.toLocaleString()}
+                        <i class="fas fa-bell mr-1"></i>${dirText} 已達標 $${item.target_price.toLocaleString()}
                     </span>`;
                 } else {
                     const diff = ((item.target_price - item.price) / item.price * 100).toFixed(1);
-                    targetBadge = `<span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">
-                        <i class="fas fa-crosshairs mr-1"></i>目標 $${item.target_price.toLocaleString()} (${diff > 0 ? '+' : ''}${diff}%)
+                    const badgeColor = isAbove ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700';
+                    targetBadge = `<span class="ml-2 px-2 py-0.5 text-xs rounded-full ${badgeColor}">
+                        <i class="fas ${dirIcon} mr-1"></i>$${item.target_price.toLocaleString()} (${diff > 0 ? '+' : ''}${diff}%)
                     </span>`;
                 }
             }
