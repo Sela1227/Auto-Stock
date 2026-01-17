@@ -367,11 +367,8 @@ async def get_watchlist_with_prices(
             target_reached = False
             
             if current_price and target_price:
-                if current_price and target_price:
                 direction = getattr(item, 'target_direction', 'above') or 'above'
-                if current_price and target_price:
-                direction = getattr(item, 'target_direction', 'above') or 'above'
-                target_reached = (current_price <= target_price) if direction == 'below' else (current_price >= target_price)
+            target_reached = (current_price <= target_price) if direction == 'below' else (current_price >= target_price)
 
             data.append({
                 "id": item.id,

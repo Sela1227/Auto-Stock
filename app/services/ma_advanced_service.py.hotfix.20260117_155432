@@ -8,20 +8,6 @@ import numpy as np
 from typing import Dict, Any, Optional
 import logging
 
-def _to_python_type(value):
-    """將 numpy 類型轉換為 Python 原生類型"""
-    if value is None:
-        return None
-    if hasattr(value, 'item'):  # numpy scalar
-        return value.item()
-    if isinstance(value, (list, tuple)):
-        return [_to_python_type(v) for v in value]
-    if isinstance(value, dict):
-        return {k: _to_python_type(v) for k, v in value.items()}
-    return value
-
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -35,7 +21,7 @@ def analyze_ma_advanced(df: pd.DataFrame, current_price: float, lookback_days: i
             if ma_col in df.columns and len(df) > 0:
                 ma_value = df[ma_col].iloc[-1]
                 if pd.notna(ma_value) and ma_value > 0:
-                    result[dist_key] = float(round((current_price - ma_value) / ma_value * 100, 2))
+                    result[dist_key] = round((current_price - ma_value) / ma_value * 100, 2)
         
         # 2. 交叉偵測
         for short_ma, long_ma, prefix in [('ma20', 'ma50', '20_50'), ('ma50', 'ma200', '50_200'), ('ma20', 'ma200', '20_200')]:
@@ -57,7 +43,7 @@ def analyze_ma_advanced(df: pd.DataFrame, current_price: float, lookback_days: i
     except Exception as e:
         logger.error(f"MA 進階分析錯誤: {e}")
     
-    return _to_python_type(result)
+    return result
 
 
 def _find_cross(df: pd.DataFrame, short_ma: str, long_ma: str, lookback_days: int):
@@ -91,14 +77,14 @@ def _analyze_alignment(df: pd.DataFrame, current_price: float) -> Dict[str, Any]
     result = {'alignment_status': 'neutral', 'alignment_detail': '盤整', 'alignment_score': 2}
     
     if len(df) == 0:
-        return _to_python_type(result)
+        return result
     
     ma20 = df['ma20'].iloc[-1] if 'ma20' in df.columns else None
     ma50 = df['ma50'].iloc[-1] if 'ma50' in df.columns else None
     ma200 = df['ma200'].iloc[-1] if 'ma200' in df.columns else None
     
     if any(x is None or pd.isna(x) for x in [ma20, ma50, ma200]):
-        return _to_python_type(result)
+        return result
     
     score = sum([current_price > ma20, ma20 > ma50, ma50 > ma200, current_price > ma200])
     result['alignment_score'] = score
@@ -112,7 +98,7 @@ def _analyze_alignment(df: pd.DataFrame, current_price: float) -> Dict[str, Any]
     elif score <= 1:
         result.update({'alignment_status': 'bearish', 'alignment_detail': '空頭排列'})
     
-    return _to_python_type(result)
+    return result
 
 
 def _analyze_support_resistance(df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
@@ -120,7 +106,7 @@ def _analyze_support_resistance(df: pd.DataFrame, current_price: float) -> Dict[
     result = {'support_levels': [], 'resistance_levels': [], 'nearest_support': None, 'nearest_resistance': None}
     
     if len(df) == 0:
-        return _to_python_type(result)
+        return result
     
     supports, resistances = [], []
     
@@ -131,7 +117,7 @@ def _analyze_support_resistance(df: pd.DataFrame, current_price: float) -> Dict[
         if pd.isna(ma_value):
             continue
         
-        info = {'ma': ma_name, 'price': round(float(ma_value), 2), 'distance_pct': float(round((current_price - ma_value) / ma_value * 100, 2))}
+        info = {'ma': ma_name, 'price': round(float(ma_value), 2), 'distance_pct': round((current_price - ma_value) / ma_value * 100, 2)}
         (supports if ma_value < current_price else resistances).append(info)
     
     supports.sort(key=lambda x: x['price'], reverse=True)
@@ -144,4 +130,4 @@ def _analyze_support_resistance(df: pd.DataFrame, current_price: float) -> Dict[
     if resistances:
         result['nearest_resistance'] = resistances[0]
     
-    return _to_python_type(result)
+    return result
