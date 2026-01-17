@@ -30,8 +30,8 @@
         $('twOddLot').value = '';
         $('twQuantityDisplay').textContent = '= 0 股';
         $('twPrice').value = '';
-        $('twFee').value = '';
-        $('twTax').value = '';
+        $('twFee').value = '0';
+        $('twTax').value = '0';
         $('twDate').value = new Date().toISOString().split('T')[0];
         $('twNote').value = '';
 
@@ -126,8 +126,8 @@
         const type = $('twType')?.value;
         const quantity = parseInt($('twQuantity')?.value) || 0;
         const price = parseFloat($('twPrice')?.value) || 0;
-        const fee = parseFloat($('twFee')?.value) || 0;
-        const tax = parseFloat($('twTax')?.value) || 0;
+        const fee = 0;  // 🔧 忽略手續費
+        const tax = 0;  // 🔧 忽略交易稅
         const date = $('twDate')?.value;
         const note = $('twNote')?.value?.trim();
 
@@ -242,8 +242,8 @@
         $('usNameDisplay').innerHTML = '<span class="text-gray-400">輸入代碼自動帶入</span>';
         $('usQuantity').value = '';
         $('usPrice').value = '';
-        $('usFee').value = '';
-        $('usTax').value = '';
+        $('usFee').value = '0';
+        $('usTax').value = '0';
         $('usDate').value = new Date().toISOString().split('T')[0];
         $('usNote').value = '';
 
@@ -326,8 +326,8 @@
         const type = $('usType')?.value;
         const quantity = parseFloat($('usQuantity')?.value) || 0;
         const price = parseFloat($('usPrice')?.value) || 0;
-        const fee = parseFloat($('usFee')?.value) || 0;
-        const tax = parseFloat($('usTax')?.value) || 0;
+        const fee = 0;  // 🔧 忽略手續費
+        const tax = 0;  // 🔧 忽略交易稅
         const date = $('usDate')?.value;
         const note = $('usNote')?.value?.trim();
 

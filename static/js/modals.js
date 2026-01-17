@@ -186,26 +186,15 @@
                             <p id="twQuantityDisplay" class="text-xs text-gray-500 mt-1">= 0 股</p>
                         </div>
                         
-                        <!-- 成交價和手續費 -->
-                        <div class="grid grid-cols-2 gap-3 mb-4">
-                            <div>
-                                <label class="block text-gray-700 mb-2 text-sm">成交價 <span class="text-red-500">*</span></label>
-                                <input type="number" id="twPrice" placeholder="850" step="0.01" min="0.01"
-                                       class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500">
-                            </div>
-                            <div>
-                                <label class="block text-gray-700 mb-2 text-sm">手續費</label>
-                                <input type="number" id="twFee" placeholder="0" step="1" min="0"
-                                       class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500">
-                            </div>
-                        </div>
-                        
-                        <!-- 交易稅 -->
-                        <div class="mb-4" id="twTaxField">
-                            <label class="block text-gray-700 mb-2 text-sm">交易稅（賣出）</label>
-                            <input type="number" id="twTax" placeholder="0" step="1" min="0"
+                        <!-- 成交價 -->
+                        <div class="mb-4">
+                            <label class="block text-gray-700 mb-2 text-sm">成交價 <span class="text-red-500">*</span></label>
+                            <input type="number" id="twPrice" placeholder="850" step="0.01" min="0.01"
                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500">
                         </div>
+                        <!-- 手續費和交易稅（隱藏） -->
+                        <input type="hidden" id="twFee" value="0">
+                        <input type="hidden" id="twTax" value="0">
                         
                         <!-- 交易日期 -->
                         <div class="mb-4">
@@ -281,26 +270,15 @@
                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
                         </div>
                         
-                        <!-- 成交價和手續費 -->
-                        <div class="grid grid-cols-2 gap-3 mb-4">
-                            <div>
-                                <label class="block text-gray-700 mb-2 text-sm">成交價 (USD) <span class="text-red-500">*</span></label>
-                                <input type="number" id="usPrice" placeholder="185.50" step="0.01" min="0.01"
-                                       class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                            </div>
-                            <div>
-                                <label class="block text-gray-700 mb-2 text-sm">手續費</label>
-                                <input type="number" id="usFee" placeholder="0" step="0.01" min="0"
-                                       class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                            </div>
-                        </div>
-                        
-                        <!-- 交易稅 -->
-                        <div class="mb-4" id="usTaxField">
-                            <label class="block text-gray-700 mb-2 text-sm">交易稅（賣出）</label>
-                            <input type="number" id="usTax" placeholder="0" step="0.01" min="0"
+                        <!-- 成交價 -->
+                        <div class="mb-4">
+                            <label class="block text-gray-700 mb-2 text-sm">成交價 (USD) <span class="text-red-500">*</span></label>
+                            <input type="number" id="usPrice" placeholder="185.50" step="0.01" min="0.01"
                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
                         </div>
+                        <!-- 手續費和交易稅（隱藏） -->
+                        <input type="hidden" id="usFee" value="0">
+                        <input type="hidden" id="usTax" value="0">
                         
                         <!-- 交易日期 -->
                         <div class="mb-4">
