@@ -315,7 +315,8 @@
                 showTargetPriceModal(
                     parseInt(target.dataset.id),
                     target.dataset.symbol,
-                    target.dataset.target ? parseFloat(target.dataset.target) : null
+                    target.dataset.target ? parseFloat(target.dataset.target) : null,
+                    target.dataset.direction || 'above'  // 🔧 修正：加入 direction 參數
                 );
                 break;
 
@@ -752,8 +753,10 @@
         if (!currentTargetItemId) return;
 
         try {
+            // 🔧 修正：使用 PUT 方法，傳入 null 來清除目標價
             const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target-price`, {
-                method: 'DELETE'
+                method: 'PUT',
+                body: { target_price: null, target_direction: null }
             });
 
             const data = await res.json();
