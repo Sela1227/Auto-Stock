@@ -1,72 +1,118 @@
-# SELA 效能優化包 v2
+# SELA 修復包 2026-01-17
 
-## 🚀 效能改善總覽
+## 📦 包含修復
 
-### 1. 追蹤清單載入（N+1 問題修復）
-| 項目 | 優化前 | 優化後 | 改善 |
-|------|--------|--------|------|
-| API 請求數 | 1 + N 次 | 1 次 | -95% |
-| 載入時間 | 2-5 秒 | < 200ms | -90%+ |
+### 🚀 效能優化
+- 非開盤時間直接使用本地資料（不呼叫 API）
+- 優先顯示永久資料，體感速度大幅提升
+- 查詢過的加密貨幣自動快取
 
-### 2. 詳細分析（前端快取優化）
-| 項目 | 優化前 | 優化後 | 改善 |
-|------|--------|--------|------|
-| 快取時間 | 5 分鐘 | 30 分鐘 | +500% |
-| 頁面刷新 | 快取消失 | 保留 | ✅ |
+### 🔧 圖表修復
+- 時間範圍按鈕無法點擊 ✅
+- 圖例無法點擊切換顯示/隱藏 ✅
+- 圖表右邊空白太小 ✅
 
-### 3. 詳細分析（後端歷史資料快取）⭐ 新增
-| 項目 | 優化前 | 優化後 | 改善 |
-|------|--------|--------|------|
-| 首次查詢 | 10-30 秒 | 10-30 秒 | 相同 |
-| **同日重查** | 10-30 秒 | **< 500ms** | **-98%** |
-| **隔日查詢** | 10-30 秒 | **1-3 秒** | **-90%** |
+---
 
-## 📁 檔案說明
+## 📁 檔案結構
 
 ```
-sela_update/
+sela-fix-20260117/
 ├── app/
-│   ├── database.py                   # 資料庫連線（含遷移）⭐
 │   ├── routers/
-│   │   ├── watchlist.py              # 追蹤清單 API
-│   │   └── stock.py                  # 股票查詢 API ⭐
+│   │   ├── crypto.py          # 加密貨幣快取修復
+│   │   ├── stock.py           # 效能優化（非開盤不呼叫 API）
+│   │   └── watchlist.py       # 回傳市場狀態
 │   └── services/
-│       └── stock_history_service.py  # 歷史快取服務 ⭐
+│       └── price_cache_service.py  # 智慧快取判斷
 ├── static/
+│   ├── css/
+│   │   └── chart-fix.css      # 圖表樣式修復
 │   └── js/
-│       ├── watchlist.js              # 追蹤清單前端
+│       ├── chart-buttons-fix.js    # 按鈕修復 Patch
 │       └── search/
-│           └── search-core.js        # 搜尋核心
+│           └── search-render.js    # 完整圖表修復
 └── README.md
 ```
 
-## 📝 部署步驟
+---
 
-### 直接覆蓋原檔案，重新部署即可！
+## 🔧 部署步驟
 
-系統啟動時會自動建立 `stock_prices` 表（遷移已整合在 database.py）
+### 1. 後端檔案（必須）
+```bash
+cp app/routers/crypto.py /path/to/project/app/routers/
+cp app/routers/stock.py /path/to/project/app/routers/
+cp app/routers/watchlist.py /path/to/project/app/routers/
+cp app/services/price_cache_service.py /path/to/project/app/services/
+```
 
-## 🔧 技術細節
+### 2. 前端檔案（圖表修復）
 
-### 歷史資料快取策略
-1. **首次查詢**：從 Yahoo Finance 抓取 10 年資料，存入 PostgreSQL
-2. **同日重查**：直接從資料庫讀取，不調用外部 API
-3. **隔日查詢**：只補抓缺失的日期（1-N 天），合併返回
+**方式 A：完整替換**
+```bash
+cp static/js/search/search-render.js /path/to/project/static/js/search/
+```
 
-### 新增 API
-- `GET /api/stock/cache/stats` - 查看快取統計
-- `DELETE /api/stock/cache/{symbol}` - 清除指定股票快取
+**方式 B：Patch 模式（推薦）**
+```bash
+cp static/js/chart-buttons-fix.js /path/to/project/static/js/
+cp static/css/chart-fix.css /path/to/project/static/css/
+```
 
-### 資料庫變更
-新增 `stock_prices` 表：
-- `symbol` - 股票代號
-- `date` - 日期
-- `open/high/low/close` - OHLC 價格
-- `volume` - 成交量
-- 唯一索引：`(symbol, date)`
+然後在 `dashboard.html` 的 `</body>` 前加入：
+```html
+<link rel="stylesheet" href="/static/css/chart-fix.css">
+<script src="/static/js/chart-buttons-fix.js"></script>
+```
 
-## ⚠️ 注意事項
+### 3. 重啟服務
+```bash
+# Railway 會自動重啟
+# 或手動：
+railway up
+```
 
-1. 首次查詢每支股票仍需 10-30 秒（建立快取）
-2. 快取會持續累積，長期使用後資料庫會增大
-3. 可透過 `DELETE /api/stock/cache/{symbol}` 清除特定股票快取
+---
+
+## ⚡ 效能提升預期
+
+| 場景 | 舊版 | 新版 |
+|-----|------|------|
+| 非開盤查詢股票（有資料） | 1-3 秒 | < 100ms ⚡ |
+| 非開盤追蹤清單載入 | 500ms-2s | < 50ms ⚡ |
+| 開盤中查詢 | 不變 | 不變 |
+
+---
+
+## 🧪 測試檢查清單
+
+- [ ] 非開盤時間查詢台股，應該毫秒級回應
+- [ ] 查詢 BTC/ETH 後，檢查 `stock_price_cache` 表有記錄
+- [ ] 圖表按鈕 (1M/3M/6M...) 可以點擊切換
+- [ ] 圖例可以點擊隱藏/顯示線條
+- [ ] 圖表右邊有足夠空白
+
+---
+
+## 📝 API 變更
+
+### `/api/stock/{symbol}`
+新增欄位：
+```json
+{
+  "market_open": false  // 市場是否開盤
+}
+```
+
+### `/api/watchlist/with-prices`
+新增欄位：
+```json
+{
+  "market_status": {
+    "tw_open": false,
+    "us_open": true,
+    "crypto_open": true
+  }
+}
+```

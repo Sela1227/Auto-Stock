@@ -1,9 +1,12 @@
 /**
- * 搜尋結果渲染模組 (修正版)
+ * 搜尋結果渲染模組 (修復版 2026-01-17)
  * 
- * 修正：
- * - chartFullscreenModal → chartFullscreen
- * - chartModalTitle → chartFullscreenTitle
+ * 🔧 修復：
+ * 1. 時間範圍按鈕無法點擊 - 使用 onclick 直接綁定
+ * 2. 圖例無法點擊切換 - 啟用 Chart.js legend onClick
+ * 3. 圖表右邊空白太小 - 增加 layout.padding
+ * 4. chartFullscreenModal → chartFullscreen (正確 ID)
+ * 5. chartModalTitle → chartFullscreenTitle (正確 ID)
  */
 
 (function() {
@@ -118,11 +121,11 @@
                                 class="flex-1 min-w-[100px] py-2 px-3 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
                             <i class="fas fa-plus mr-1"></i>追蹤
                         </button>
-                        <button data-action="open-chart" data-symbol="${symbol}" data-price="${price}"
+                        <button onclick="openChartFullscreen('${symbol}', ${price})"
                                 class="flex-1 min-w-[100px] py-2 px-3 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors">
                             <i class="fas fa-chart-line mr-1"></i>圖表
                         </button>
-                        <button data-action="load-returns" data-symbol="${symbol}"
+                        <button onclick="loadReturnsModal('${symbol}')"
                                 class="flex-1 min-w-[100px] py-2 px-3 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
                             <i class="fas fa-percentage mr-1"></i>報酬率
                         </button>
@@ -175,9 +178,6 @@
         `;
 
         setHtml('searchResult', html);
-
-        // 綁定事件
-        bindResultEvents();
     }
 
     function renderChangeTag(label, value) {
@@ -202,47 +202,7 @@
     }
 
     // ============================================================
-    // 事件綁定
-    // ============================================================
-
-    function bindResultEvents() {
-        const container = $('searchResult');
-        if (!container) return;
-
-        container.addEventListener('click', (e) => {
-            const target = e.target.closest('[data-action]');
-            if (!target) return;
-
-            const action = target.dataset.action;
-            const symbol = target.dataset.symbol;
-
-            switch (action) {
-                case 'open-chart':
-                    e.preventDefault();
-                    const price = parseFloat(target.dataset.price) || 0;
-                    openChartFullscreen(symbol, price);
-                    break;
-
-                case 'load-returns':
-                    e.preventDefault();
-                    if (typeof loadReturnsModal === 'function') {
-                        loadReturnsModal(symbol);
-                    }
-                    break;
-
-                case 'add-watchlist':
-                    e.preventDefault();
-                    const type = target.dataset.type || 'stock';
-                    if (typeof quickAddToWatchlist === 'function') {
-                        quickAddToWatchlist(symbol, type);
-                    }
-                    break;
-            }
-        });
-    }
-
-    // ============================================================
-    // 🔴 修正：使用正確的 ID
+    // 🔧 修復：全螢幕圖表（使用正確的 ID）
     // ============================================================
 
     function openChartFullscreen(symbol, currentPrice) {
@@ -254,31 +214,32 @@
             return;
         }
 
-        // 🔴 修正：chartFullscreenModal → chartFullscreen
+        // 🔧 使用正確的 ID: chartFullscreen
         const modal = $('chartFullscreen');
         if (!modal) {
             console.error('找不到 chartFullscreen 元素');
             return;
         }
 
-        // 🔴 修正：chartModalTitle → chartFullscreenTitle
+        // 🔧 使用正確的 ID: chartFullscreenTitle
         const title = $('chartFullscreenTitle');
-        if (title) title.textContent = `${symbol} 技術分析`;
+        if (title) title.textContent = `${symbol} Technical Analysis`;
 
-        // 🔴 修正：直接設定 display 而非依賴 CSS class
+        // 顯示 Modal
         modal.style.display = 'block';
         modal.classList.add('active');
+
+        // 🔧 更新按鈕狀態（預設 3M = 65天）
+        updateRangeButtonState(65);
 
         // 預設顯示 65 天 (3M)
         setTimeout(() => renderFullscreenChart(chartData, 65), 100);
     }
 
     function closeChartFullscreen() {
-        // 🔴 修正：chartFullscreenModal → chartFullscreen
         const modal = $('chartFullscreen');
         if (!modal) return;
 
-        // 🔴 修正：直接設定 display
         modal.style.display = 'none';
         modal.classList.remove('active');
 
@@ -288,25 +249,31 @@
         }
     }
 
-    function setChartRange(days) {
-        const chartData = window.currentChartData;
-        if (!chartData) return;
-
-        // 更新按鈕狀態
+    // 🔧 新增：更新按鈕狀態
+    function updateRangeButtonState(days) {
         document.querySelectorAll('.chart-range-btn').forEach(btn => {
+            const btnDays = parseInt(btn.dataset.days);
             btn.classList.remove('bg-blue-600', 'text-white', 'active');
             btn.classList.add('bg-gray-100', 'text-gray-700');
-            if (parseInt(btn.dataset.days) === days) {
+            
+            if (btnDays === days) {
                 btn.classList.add('bg-blue-600', 'text-white', 'active');
                 btn.classList.remove('bg-gray-100', 'text-gray-700');
             }
         });
-
-        renderFullscreenChart(chartData, days);
     }
 
+    // 🔧 修復：設定圖表範圍（全域函數）
+    window.setChartRange = function(days) {
+        const chartData = window.currentChartData;
+        if (!chartData) return;
+
+        updateRangeButtonState(days);
+        renderFullscreenChart(chartData, days);
+    };
+
     // ============================================================
-    // 渲染全螢幕圖表
+    // 🔧 修復：渲染全螢幕圖表（增加右邊空白 + 圖例可點擊）
     // ============================================================
 
     function renderFullscreenChart(chartData, days = 65) {
@@ -322,14 +289,17 @@
 
         const ctx = canvas.getContext('2d');
         const dataLength = chartData.dates.length;
-        const startIdx = Math.max(0, dataLength - days);
+        
+        // 處理 MAX 選項
+        const actualDays = days === 99999 ? dataLength : days;
+        const startIdx = Math.max(0, dataLength - actualDays);
 
         // 日期格式化
         const formatDate = (d) => {
             if (!d) return '';
-            if (days <= 30) return d.slice(5);
-            if (days <= 130) return d.slice(5);
-            return d.slice(2, 7).replace('-', '/');
+            if (actualDays <= 30) return d.slice(5);      // MM-DD
+            if (actualDays <= 130) return d.slice(5);     // MM-DD
+            return d.slice(2, 7).replace('-', '/');       // YY/MM
         };
 
         const labels = chartData.dates.slice(startIdx).map(formatDate);
@@ -337,10 +307,11 @@
         const ma20 = chartData.ma20?.slice(startIdx) || [];
         const ma50 = chartData.ma50?.slice(startIdx) || [];
         const ma200 = chartData.ma200?.slice(startIdx) || [];
+        const ma250 = chartData.ma250?.slice(startIdx) || [];
 
         const datasets = [
             {
-                label: '股價',
+                label: '收盤價',
                 data: prices,
                 borderColor: '#3B82F6',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -348,14 +319,16 @@
                 fill: true,
                 tension: 0.1,
                 pointRadius: 0,
+                pointHoverRadius: 4,
             }
         ];
 
+        // MA20 - 紅色
         if (ma20.length > 0 && ma20.some(v => v != null)) {
             datasets.push({
                 label: 'MA20',
                 data: ma20,
-                borderColor: '#F59E0B',
+                borderColor: '#EF4444',
                 borderWidth: 1.5,
                 fill: false,
                 tension: 0.1,
@@ -363,6 +336,7 @@
             });
         }
 
+        // MA50 - 綠色
         if (ma50.length > 0 && ma50.some(v => v != null)) {
             datasets.push({
                 label: 'MA50',
@@ -375,11 +349,25 @@
             });
         }
 
+        // MA200 - 黃色
         if (ma200.length > 0 && ma200.some(v => v != null)) {
             datasets.push({
                 label: 'MA200',
                 data: ma200,
-                borderColor: '#EF4444',
+                borderColor: '#EAB308',
+                borderWidth: 1.5,
+                fill: false,
+                tension: 0.1,
+                pointRadius: 0,
+            });
+        }
+
+        // MA250 - 紫色
+        if (ma250.length > 0 && ma250.some(v => v != null)) {
+            datasets.push({
+                label: 'MA250',
+                data: ma250,
+                borderColor: '#A855F7',
                 borderWidth: 1.5,
                 fill: false,
                 tension: 0.1,
@@ -397,28 +385,85 @@
                     mode: 'index',
                     intersect: false,
                 },
+                // 🔧 增加右邊空白
+                layout: {
+                    padding: {
+                        right: 20,  // 🔧 增加右邊 padding
+                        top: 10,
+                        bottom: 10,
+                        left: 10,
+                    }
+                },
                 plugins: {
                     legend: {
                         display: true,
                         position: 'top',
+                        // 🔧 啟用圖例點擊切換顯示/隱藏
+                        onClick: function(e, legendItem, legend) {
+                            const index = legendItem.datasetIndex;
+                            const ci = legend.chart;
+                            const meta = ci.getDatasetMeta(index);
+                            
+                            // 切換顯示狀態
+                            meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                            ci.update();
+                        },
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15,
+                            font: {
+                                size: 12,
+                            },
+                            // 🔧 添加游標樣式提示可點擊
+                            generateLabels: function(chart) {
+                                const original = Chart.defaults.plugins.legend.labels.generateLabels;
+                                const labels = original.call(this, chart);
+                                labels.forEach(label => {
+                                    label.pointStyle = 'circle';
+                                });
+                                return labels;
+                            }
+                        },
+                        // 🔧 滑鼠移上去顯示手指游標
+                        onHover: function(e) {
+                            e.native.target.style.cursor = 'pointer';
+                        },
+                        onLeave: function(e) {
+                            e.native.target.style.cursor = 'default';
+                        },
                     },
                     tooltip: {
                         enabled: true,
+                        callbacks: {
+                            label: function(context) {
+                                if (context.raw === null || context.raw === undefined) return null;
+                                return `${context.dataset.label}: $${context.raw.toFixed(2)}`;
+                            }
+                        }
                     },
                 },
                 scales: {
                     x: {
                         display: true,
+                        grid: {
+                            display: false,
+                        },
                         ticks: {
-                            maxTicksLimit: 8,
+                            maxTicksLimit: actualDays <= 60 ? 8 : 10,
+                            maxRotation: 0,
                             font: { size: 10 },
                         },
                     },
                     y: {
                         display: true,
                         position: 'right',
+                        grid: {
+                            color: 'rgba(0,0,0,0.05)',
+                        },
                         ticks: {
                             font: { size: 10 },
+                            // 🔧 增加一些額外空間
+                            padding: 8,
                         },
                     },
                 },
@@ -427,28 +472,13 @@
     }
 
     // ============================================================
-    // 圖表範圍按鈕事件
-    // ============================================================
-
-    document.addEventListener('DOMContentLoaded', () => {
-        // 綁定圖表範圍按鈕
-        document.addEventListener('click', (e) => {
-            const btn = e.target.closest('.chart-range-btn');
-            if (btn) {
-                const days = parseInt(btn.dataset.days) || 65;
-                setChartRange(days);
-            }
-        });
-    });
-
-    // ============================================================
     // 導出
     // ============================================================
 
     window.renderSearchResult = renderSearchResult;
     window.openChartFullscreen = openChartFullscreen;
     window.closeChartFullscreen = closeChartFullscreen;
-    window.setChartRange = setChartRange;
+    window.renderFullscreenChart = renderFullscreenChart;
 
-    console.log('📊 search-render.js 模組已載入 (修正版: 正確的 Modal ID)');
+    console.log('📊 search-render.js 模組已載入 (修復版 2026-01-17: 按鈕點擊 + 圖例互動 + 右邊空白)');
 })();
