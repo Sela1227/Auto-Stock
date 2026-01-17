@@ -283,7 +283,7 @@ def is_market_open_for_symbol(symbol: str) -> bool:
     market = get_symbol_market(symbol)
     
     if market == "crypto":
-        return True  # 24/7
+        return False  # 🆕 加密貨幣改為定時更新（3小時），不需即時查詢
     elif market == "tw":
         return is_tw_market_open()
     else:
@@ -414,10 +414,33 @@ class PriceCacheService:
         
         return result
     
-    def batch_update_crypto_prices(self, symbols: List[str]) -> Dict[str, Any]:
-        """批次更新加密貨幣價格"""
+    def batch_update_crypto_prices(self, symbols: List[str], force: bool = False) -> Dict[str, Any]:
+        """批次更新加密貨幣價格（🆕 3小時快取）"""
         if not symbols:
-            return {"updated": 0, "failed": []}
+            return {"updated": 0, "failed": [], "skipped": 0}
+        
+        # 🆕 檢查快取時間（3小時 = 180分鐘）
+        CRYPTO_CACHE_MINUTES = 180
+        
+        if not force:
+            from datetime import datetime, timedelta
+            cutoff = datetime.now() - timedelta(minutes=CRYPTO_CACHE_MINUTES)
+            
+            # 檢查是否有任何需要更新的
+            needs_update = []
+            for symbol in symbols:
+                cache = self.db.query(StockPriceCache).filter(
+                    StockPriceCache.symbol == symbol
+                ).first()
+                if not cache or cache.updated_at < cutoff:
+                    needs_update.append(symbol)
+            
+            if not needs_update:
+                logger.info(f"💤 加密貨幣快取未過期（{CRYPTO_CACHE_MINUTES}分鐘內），跳過 {len(symbols)} 個")
+                return {"updated": 0, "failed": [], "skipped": len(symbols)}
+            
+            symbols = needs_update
+            logger.info(f"🔄 加密貨幣需更新: {len(symbols)} 個")
         
         result = {"updated": 0, "failed": []}
         
@@ -651,7 +674,7 @@ class PriceCacheService:
         
         # 加密貨幣（24小時）
         if tracked["crypto"]:
-            result["crypto"] = self.batch_update_crypto_prices(tracked["crypto"])
+            result["crypto"] = self.batch_update_crypto_prices(tracked["crypto"], force=force)
         
         result["total_updated"] = (
             result["tw_stocks"].get("updated", 0) +
