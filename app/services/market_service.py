@@ -28,7 +28,7 @@ class MarketService:
     # ==================== 三大指數 ====================
     
     def get_latest_indices(self) -> Dict[str, Any]:
-        """取得三大指數最新資料，回傳字典格式"""
+        """取得四大指數最新資料（只從資料庫讀取，排程才更新）"""
         result = {}
         
         for symbol, info in INDEX_SYMBOLS.items():
@@ -43,27 +43,30 @@ class MarketService:
                 
                 if latest:
                     result[symbol] = latest.to_dict()
-                    continue
-            except Exception as e:
-                logger.warning(f"從資料庫取得 {symbol} 失敗: {e}")
-            
-            # Fallback: 從 Yahoo Finance API 取得
-            try:
-                df = yahoo_finance.get_index_data(symbol, period="5d")
-                if df is not None and not df.empty:
-                    row = df.iloc[-1]
+                    logger.debug(f"📦 指數快取: {symbol} = {latest.close}")
+                else:
+                    # 沒有快取時回傳 None，不查 API
+                    logger.warning(f"⚠️ 指數 {symbol} 無快取資料，請執行更新")
                     result[symbol] = {
                         "symbol": symbol,
                         "name": info["name"],
                         "name_zh": info["name_zh"],
-                        "date": str(row["date"]),
-                        "close": float(row["close"]),
-                        "change": float(row["change"]) if pd.notna(row.get("change")) else None,
-                        "change_pct": float(row["change_pct"]) if pd.notna(row.get("change_pct")) else None,
+                        "date": None,
+                        "close": None,
+                        "change": None,
+                        "change_pct": None,
                     }
-                    logger.info(f"從 API 取得 {symbol}: {result[symbol]['close']}")
             except Exception as e:
-                logger.error(f"從 API 取得 {symbol} 失敗: {e}")
+                logger.error(f"讀取指數 {symbol} 失敗: {e}")
+                result[symbol] = {
+                    "symbol": symbol,
+                    "name": info["name"],
+                    "name_zh": info["name_zh"],
+                    "date": None,
+                    "close": None,
+                    "change": None,
+                    "change_pct": None,
+                }
         
         return result
     
@@ -184,61 +187,44 @@ class MarketService:
     
     def get_latest_sentiment(self) -> Dict[str, Any]:
         """
-        取得最新的市場情緒
+        取得最新的市場情緒（🆕 只從資料庫讀取，排程才更新）
         
-        🔧 修復版本：
-        - 優先從資料庫讀取（毫秒級）
-        - 檢查資料新鮮度（超過 1 天才重新抓取）
-        - 資料庫沒有時才呼叫外部 API
-        - 從 API 取得後會存入資料庫
+        - 只從資料庫讀取，不主動查外部 API
+        - 資料庫沒有或過期時回傳 None
+        - 排程或手動更新時才會查 API
         """
         result = {}
-        today = date.today()
         
         for market in ["stock", "crypto"]:
-            # 1. 先查資料庫
-            stmt = (
-                select(MarketSentiment)
-                .where(MarketSentiment.market == market)
-                .order_by(desc(MarketSentiment.date))
-                .limit(1)
-            )
-            latest = self.db.execute(stmt).scalar_one_or_none()
-            
-            if latest:
-                # 2. 檢查資料新鮮度（今天或昨天的資料都可接受）
-                if latest.date >= today - timedelta(days=1):
-                    result[market] = latest.to_dict()
-                    logger.debug(f"[Sentiment] {market} 從資料庫讀取: {latest.value}")
-                    continue
-                else:
-                    logger.info(f"[Sentiment] {market} 資料過期 (date={latest.date}), 嘗試更新...")
-            else:
-                logger.info(f"[Sentiment] {market} 資料庫無資料, 嘗試從 API 抓取...")
-            
-            # 3. 資料過期或不存在，從 API 抓取
             try:
-                if market == "crypto":
-                    data = fear_greed.get_crypto_fear_greed()
-                else:
-                    data = fear_greed.get_stock_fear_greed()
+                stmt = (
+                    select(MarketSentiment)
+                    .where(MarketSentiment.market == market)
+                    .order_by(desc(MarketSentiment.date))
+                    .limit(1)
+                )
+                latest = self.db.execute(stmt).scalar_one_or_none()
                 
-                if data and not data.get("is_fallback"):
-                    # 🆕 存入資料庫（下次就不用再抓了）
-                    self.save_sentiment(market, data["value"])
-                    result[market] = data
-                    logger.info(f"[Sentiment] {market} 從 API 更新成功: {data['value']}")
-                elif latest:
-                    # API 失敗但有舊資料，返回舊資料
-                    result[market] = latest.to_dict()
-                    logger.warning(f"[Sentiment] {market} API 失敗，使用舊資料")
-                elif data:
-                    # 完全沒資料，返回 API 結果（可能是 fallback）
-                    result[market] = data
-            except Exception as e:
-                logger.error(f"[Sentiment] {market} 抓取失敗: {e}")
                 if latest:
                     result[market] = latest.to_dict()
+                    logger.debug(f"📦 情緒快取: {market} = {latest.value}")
+                else:
+                    # 🆕 沒有快取時回傳 None，不查 API
+                    logger.warning(f"⚠️ 情緒 {market} 無快取資料，請執行更新")
+                    result[market] = {
+                        "market": market,
+                        "value": None,
+                        "label": "無資料",
+                        "date": None,
+                    }
+            except Exception as e:
+                logger.error(f"讀取情緒 {market} 失敗: {e}")
+                result[market] = {
+                    "market": market,
+                    "value": None,
+                    "label": "錯誤",
+                    "date": None,
+                }
         
         return result
 

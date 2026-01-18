@@ -274,6 +274,10 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="font-medium">${currency}${Math.round(t.total_amount).toLocaleString()}</span>
+                    <button data-action="edit-transaction" data-id="${t.id}" data-market="${market}"
+                            class="p-1.5 text-gray-400 hover:text-blue-500" title="編輯">
+                        <i class="fas fa-edit text-xs"></i>
+                    </button>
                     <button data-action="delete-transaction" data-id="${t.id}" data-market="${market}"
                             class="p-1.5 text-gray-400 hover:text-red-500">
                         <i class="fas fa-trash text-xs"></i>
@@ -287,7 +291,7 @@
         if (!confirm('確定要刪除此交易紀錄嗎？')) return;
 
         try {
-            const res = await apiRequest(`/api/portfolio/transactions/${market}/${id}`, {
+            const res = await apiRequest(`/api/portfolio/transactions/${id}`, {
                 method: 'DELETE'
             });
 

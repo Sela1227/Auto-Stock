@@ -31,27 +31,35 @@ AUTH_VERSION = "2.1.0-admin-update"
 
 async def trigger_admin_updates():
     """
-    管理員登入觸發的背景更新
-    - 更新所有追蹤股票價格
-    - 更新市場情緒指數
+    管理員登入觸發的背景更新（優化版）
+    - 🆕 只在股市開盤時間更新股票價格
+    - 更新市場情緒指數（不受時間限制）
     """
     from app.database import SessionLocal
+    from app.services.price_cache_service import is_tw_market_open, is_us_market_open
     
-    logger.info("🔄 管理員登入，觸發自動更新...")
+    tw_open = is_tw_market_open()
+    us_open = is_us_market_open()
+    
+    logger.info(f"🔄 管理員登入，檢查更新狀態...")
+    logger.info(f"   台股: {'開盤' if tw_open else '收盤'}, 美股: {'開盤' if us_open else '收盤'}")
     
     try:
         db = SessionLocal()
         
-        # 1. 更新股票價格快取
-        try:
-            from app.services.price_cache_service import PriceCacheService
-            cache_service = PriceCacheService(db)
-            result = cache_service.update_all_prices()
-            logger.info(f"✅ 股票價格更新完成: {result}")
-        except Exception as e:
-            logger.error(f"❌ 股票價格更新失敗: {e}")
+        # 1. 更新股票價格快取（🆕 只在開盤時）
+        if tw_open or us_open:
+            try:
+                from app.services.price_cache_service import PriceCacheService
+                cache_service = PriceCacheService(db)
+                result = cache_service.update_all_prices()
+                logger.info(f"✅ 股票價格更新完成: {result}")
+            except Exception as e:
+                logger.error(f"❌ 股票價格更新失敗: {e}")
+        else:
+            logger.info("💤 台股美股皆收盤，跳過股票價格更新")
         
-        # 2. 更新市場情緒
+        # 2. 更新市場情緒（總是更新）
         try:
             from app.services.market_service import market_service
             market_service.update_fear_greed()
@@ -69,7 +77,7 @@ async def trigger_admin_updates():
             logger.warning(f"⚠️ 訂閱精選更新跳過: {e}")
         
         db.close()
-        logger.info("🎉 管理員自動更新全部完成")
+        logger.info("🎉 管理員自動更新完成")
         
     except Exception as e:
         logger.error(f"❌ 管理員自動更新失敗: {e}")
