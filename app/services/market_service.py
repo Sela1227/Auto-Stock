@@ -28,7 +28,7 @@ class MarketService:
     # ==================== 三大指數 ====================
     
     def get_latest_indices(self) -> Dict[str, Any]:
-        """取得三大指數最新資料，回傳字典格式"""
+        """取得四大指數最新資料（只從資料庫讀取，排程才更新）"""
         result = {}
         
         for symbol, info in INDEX_SYMBOLS.items():
@@ -43,27 +43,30 @@ class MarketService:
                 
                 if latest:
                     result[symbol] = latest.to_dict()
-                    continue
-            except Exception as e:
-                logger.warning(f"從資料庫取得 {symbol} 失敗: {e}")
-            
-            # Fallback: 從 Yahoo Finance API 取得
-            try:
-                df = yahoo_finance.get_index_data(symbol, period="5d")
-                if df is not None and not df.empty:
-                    row = df.iloc[-1]
+                    logger.debug(f"📦 指數快取: {symbol} = {latest.close}")
+                else:
+                    # 沒有快取時回傳 None，不查 API
+                    logger.warning(f"⚠️ 指數 {symbol} 無快取資料，請執行更新")
                     result[symbol] = {
                         "symbol": symbol,
                         "name": info["name"],
                         "name_zh": info["name_zh"],
-                        "date": str(row["date"]),
-                        "close": float(row["close"]),
-                        "change": float(row["change"]) if pd.notna(row.get("change")) else None,
-                        "change_pct": float(row["change_pct"]) if pd.notna(row.get("change_pct")) else None,
+                        "date": None,
+                        "close": None,
+                        "change": None,
+                        "change_pct": None,
                     }
-                    logger.info(f"從 API 取得 {symbol}: {result[symbol]['close']}")
             except Exception as e:
-                logger.error(f"從 API 取得 {symbol} 失敗: {e}")
+                logger.error(f"讀取指數 {symbol} 失敗: {e}")
+                result[symbol] = {
+                    "symbol": symbol,
+                    "name": info["name"],
+                    "name_zh": info["name_zh"],
+                    "date": None,
+                    "close": None,
+                    "change": None,
+                    "change_pct": None,
+                }
         
         return result
     
