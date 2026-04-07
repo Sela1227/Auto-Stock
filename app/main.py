@@ -135,6 +135,7 @@ def daily_preload():
     - 更新情緒指數
     - 更新四大指數
     - 更新匯率
+    - 🆕 V1.05 預計算追蹤清單技術指標
     """
     logger.info("⏰ [排程] === 每日預載開始 ===")
     
@@ -142,9 +143,44 @@ def daily_preload():
         update_market_sentiment()
         update_indices()
         update_exchange_rate()
+        precompute_indicators()  # 🆕 V1.05
         logger.info("✅ [排程] === 每日預載完成 ===")
     except Exception as e:
         logger.error(f"❌ 每日預載錯誤: {e}")
+
+
+def precompute_indicators():
+    """🆕 V1.05 預計算追蹤清單股票的技術指標"""
+    from app.database import SyncSessionLocal
+    from app.services.analysis_cache_service import AnalysisCacheService
+    
+    logger.info("⏰ [排程] 預計算技術指標...")
+    db = SyncSessionLocal()
+    try:
+        service = AnalysisCacheService(db)
+        result = service.precompute_indicators_for_watchlist()
+        logger.info(f"✅ 指標預計算: 成功 {result['success']}, 失敗 {result['failed']}")
+    except Exception as e:
+        logger.error(f"❌ 指標預計算錯誤: {e}")
+    finally:
+        db.close()
+
+
+def clear_expired_caches():
+    """🆕 V1.05 清除過期快取"""
+    from app.database import SyncSessionLocal
+    from app.services.analysis_cache_service import AnalysisCacheService
+    
+    logger.info("⏰ [排程] 清除過期快取...")
+    db = SyncSessionLocal()
+    try:
+        service = AnalysisCacheService(db)
+        result = service.clear_expired_caches()
+        logger.info(f"✅ 快取清除: {result}")
+    except Exception as e:
+        logger.error(f"❌ 快取清除錯誤: {e}")
+    finally:
+        db.close()
 
 
 def fetch_subscription_sources():
@@ -228,9 +264,17 @@ async def lifespan(app: FastAPI):
         name='訂閱源(晚)',
     )
 
+    # 🆕 V1.05 每日清除過期快取（凌晨 3:00）
+    scheduler.add_job(
+        clear_expired_caches,
+        CronTrigger(hour=3, minute=0, timezone=TW_TZ),
+        id='clear_caches',
+        name='清除過期快取',
+    )
+
     # 啟動排程器
     scheduler.start()
-    logger.info("✅ 排程器已啟動（V1.02 極簡版：每日預載 21:00 + 情緒 2 次 + 匯率 1 次 + 訂閱 2 次）")
+    logger.info("✅ 排程器已啟動（V1.05：每日預載 + 指標預計算 + 快取清除）")
 
     # 🆕 啟動時不做任何自動更新，完全依賴排程和用戶查詢
     logger.info("🆕 V1.02: 啟動時不自動更新，節省資源")

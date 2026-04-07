@@ -362,10 +362,26 @@ async def get_stock_chart(
     """
     生成股票技術分析圖表
     
-    回傳 PNG 圖片
+    🆕 V1.05 快取優化：1 小時內相同請求直接返回快取
     """
     from app.data_sources.yahoo_finance import yahoo_finance
     from app.services.chart_service import chart_service
+    from app.services.analysis_cache_service import AnalysisCacheService
+    from app.database import SyncSessionLocal
+    from fastapi.responses import Response
+    
+    # 🆕 V1.05 圖表快取檢查
+    try:
+        sync_db = SyncSessionLocal()
+        cache_service = AnalysisCacheService(sync_db)
+        cached_chart = cache_service.get_chart_cache(symbol.upper(), days)
+        
+        if cached_chart:
+            sync_db.close()
+            logger.info(f"📦 使用圖表快取: {symbol}_{days}")
+            return Response(content=cached_chart, media_type="image/png")
+    except Exception as e:
+        logger.warning(f"圖表快取讀取失敗: {e}")
     
     symbol = normalize_tw_symbol(symbol)
     
@@ -391,6 +407,15 @@ async def get_stock_chart(
     )
     
     logger.info(f"圖表生成完成: {chart_path}")
+    
+    # 🆕 V1.05 儲存圖表到快取
+    try:
+        with open(chart_path, 'rb') as f:
+            chart_data = f.read()
+        cache_service.save_chart_cache(symbol.upper(), days, chart_data)
+        sync_db.close()
+    except Exception as e:
+        logger.warning(f"圖表快取儲存失敗: {e}")
     
     return FileResponse(chart_path, media_type="image/png", filename=f"{symbol}_chart.png")
 
@@ -424,10 +449,26 @@ async def get_stock_analysis(
     """
     查詢單一股票的技術分析報告
     
-    🆕 效能優化：非開盤時間直接使用永久資料
+    🆕 V1.05 快取優化：優先使用指標快取
     """
     from app.data_sources.yahoo_finance import yahoo_finance
     from app.services.indicator_service import indicator_service
+    from app.services.analysis_cache_service import AnalysisCacheService
+    from app.database import SyncSessionLocal
+    
+    # 🆕 V1.05 快取檢查
+    if not refresh:
+        try:
+            sync_db = SyncSessionLocal()
+            cache_service = AnalysisCacheService(sync_db)
+            cached = cache_service.get_indicator_cache(symbol.upper())
+            sync_db.close()
+            
+            if cached and cached.get("price"):
+                logger.info(f"📦 使用指標快取: {symbol}")
+                return {"success": True, "data": {"symbol": symbol, "cached": True, **cached}}
+        except Exception as e:
+            logger.warning(f"快取讀取失敗: {e}")
     from app.services.ma_advanced_service import analyze_ma_advanced
     from app.services.price_cache_service import PriceCacheService, is_market_open_for_symbol
     from app.database import SyncSessionLocal
