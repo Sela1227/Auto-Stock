@@ -1,0 +1,403 @@
+"""
+èªè­‰ API è·¯ç”±
+LINE Login æ•´åˆ
+"""
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks
+from fastapi.responses import RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+import secrets
+import hashlib
+import hmac
+import time
+import urllib.parse
+import logging
+
+from app.database import get_async_session
+from app.services.auth_service import AuthService
+from app.schemas.schemas import LoginResponse, UserResponse, ErrorResponse
+from app.config import settings
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/auth", tags=["èªè­‰"])
+
+# ç‰ˆæœ¬æ¨™è­˜
+AUTH_VERSION = "2.1.0-admin-update"
+
+
+# ============================================================
+# ðŸ†• ç®¡ç†å“¡ç™»å…¥è‡ªå‹•æ›´æ–°
+# ============================================================
+
+async def trigger_admin_updates():
+    """
+    ç®¡ç†å“¡ç™»å…¥è§¸ç™¼çš„èƒŒæ™¯æ›´æ–°
+    - æ›´æ–°æ‰€æœ‰è¿½è¹¤è‚¡ç¥¨åƒ¹æ ¼
+    - æ›´æ–°å¸‚å ´æƒ…ç·’æŒ‡æ•¸
+    """
+    from app.database import SessionLocal
+    
+    logger.info("ðŸ”„ ç®¡ç†å“¡ç™»å…¥ï¼Œè§¸ç™¼è‡ªå‹•æ›´æ–°...")
+    
+    try:
+        db = SessionLocal()
+        
+        # 1. æ›´æ–°è‚¡ç¥¨åƒ¹æ ¼å¿«å–
+        try:
+            from app.services.price_cache_service import PriceCacheService
+            cache_service = PriceCacheService(db)
+            result = cache_service.update_all_prices()
+            logger.info(f"âœ… è‚¡ç¥¨åƒ¹æ ¼æ›´æ–°å®Œæˆ: {result}")
+        except Exception as e:
+            logger.error(f"âŒ è‚¡ç¥¨åƒ¹æ ¼æ›´æ–°å¤±æ•—: {e}")
+        
+        # 2. æ›´æ–°å¸‚å ´æƒ…ç·’
+        try:
+            from app.services.market_service import market_service
+            market_service.update_fear_greed()
+            logger.info("âœ… å¸‚å ´æƒ…ç·’æ›´æ–°å®Œæˆ")
+        except Exception as e:
+            logger.error(f"âŒ å¸‚å ´æƒ…ç·’æ›´æ–°å¤±æ•—: {e}")
+        
+        # 3. æŠ“å–è¨‚é–±ç²¾é¸ï¼ˆå¦‚æžœæœ‰ï¼‰
+        try:
+            from app.services.subscription_service import SubscriptionService
+            sub_service = SubscriptionService(db)
+            sub_result = sub_service.fetch_all_sources(backfill=False)
+            logger.info(f"âœ… è¨‚é–±ç²¾é¸æ›´æ–°å®Œæˆ: {sub_result}")
+        except Exception as e:
+            logger.warning(f"âš ï¸ è¨‚é–±ç²¾é¸æ›´æ–°è·³éŽ: {e}")
+        
+        db.close()
+        logger.info("ðŸŽ‰ ç®¡ç†å“¡è‡ªå‹•æ›´æ–°å…¨éƒ¨å®Œæˆ")
+        
+    except Exception as e:
+        logger.error(f"âŒ ç®¡ç†å“¡è‡ªå‹•æ›´æ–°å¤±æ•—: {e}")
+
+
+@router.get("/version", summary="èªè­‰æ¨¡çµ„ç‰ˆæœ¬")
+async def auth_version():
+    """å›žå‚³èªè­‰æ¨¡çµ„ç‰ˆæœ¬ï¼Œç”¨æ–¼ç¢ºèªéƒ¨ç½²"""
+    return {
+        "auth_version": AUTH_VERSION,
+        "state_method": "HMAC",
+        "jwt_key_set": bool(settings.JWT_SECRET_KEY and settings.JWT_SECRET_KEY != "your-secret-key-change-in-production"),
+        "admin_auto_update": True,  # ðŸ†•
+    }
+
+
+def create_state_token() -> str:
+    """å»ºç«‹ state token (HMAC ç°½åï¼Œæœ‰æ•ˆæœŸ 10 åˆ†é˜)"""
+    # æ ¼å¼: timestamp.nonce.signature
+    timestamp = str(int(time.time()))
+    nonce = secrets.token_hex(8)  # 16 å­—å…ƒ
+
+    # ç°½å
+    message = f"{timestamp}.{nonce}"
+    signature = hmac.new(
+        settings.JWT_SECRET_KEY.encode(),
+        message.encode(),
+        hashlib.sha256
+    ).hexdigest()[:16]  # åªå–å‰ 16 å­—å…ƒ
+
+    state = f"{timestamp}.{nonce}.{signature}"
+    logger.info(f"Created state: {state}")
+    return state
+
+
+def verify_state_token(state: str) -> bool:
+    """é©—è­‰ state token"""
+    logger.info(f"Verifying state: {state}")
+    try:
+        parts = state.split(".")
+        logger.info(f"State parts count: {len(parts)}")
+
+        if len(parts) != 3:
+            logger.warning(f"Invalid state format, expected 3 parts, got {len(parts)}")
+            return False
+
+        timestamp, nonce, signature = parts
+        logger.info(f"timestamp={timestamp}, nonce={nonce}, signature={signature}")
+
+        # æª¢æŸ¥æ˜¯å¦éŽæœŸ (10 åˆ†é˜)
+        time_diff = int(time.time()) - int(timestamp)
+        logger.info(f"Time difference: {time_diff} seconds")
+        if time_diff > 600:
+            logger.warning(f"State expired, time_diff={time_diff}")
+            return False
+
+        # é©—è­‰ç°½å
+        message = f"{timestamp}.{nonce}"
+        expected_signature = hmac.new(
+            settings.JWT_SECRET_KEY.encode(),
+            message.encode(),
+            hashlib.sha256
+        ).hexdigest()[:16]
+
+        logger.info(f"Expected signature: {expected_signature}")
+        result = hmac.compare_digest(signature, expected_signature)
+        logger.info(f"Signature match: {result}")
+
+        return result
+    except Exception as e:
+        logger.error(f"State verification error: {e}")
+        return False
+
+
+@router.get("/line", summary="LINE ç™»å…¥")
+async def line_login():
+    """
+    å°Žå‘ LINE ç™»å…¥æŽˆæ¬Šé é¢
+    """
+    if not settings.LINE_LOGIN_CHANNEL_ID:
+        raise HTTPException(
+            status_code=500,
+            detail="LINE Login å°šæœªè¨­å®š"
+        )
+
+    # ç”¢ç”Ÿ state
+    state = create_state_token()
+
+    # URL encode callback URL
+    callback_url = urllib.parse.quote(settings.LINE_LOGIN_CALLBACK_URL, safe='')
+
+    # å»ºç«‹æŽˆæ¬Š URL
+    auth_url = (
+        "https://access.line.me/oauth2/v2.1/authorize"
+        f"?response_type=code"
+        f"&client_id={settings.LINE_LOGIN_CHANNEL_ID}"
+        f"&redirect_uri={callback_url}"
+        f"&state={state}"
+        f"&scope=profile%20openid%20email"
+    )
+
+    logger.info(f"Redirecting to LINE with state: {state}")
+
+    return RedirectResponse(url=auth_url)
+
+
+@router.get("/line/callback", summary="LINE ç™»å…¥å›žèª¿")
+async def line_callback(
+    request: Request,
+    background_tasks: BackgroundTasks,  # ðŸ†• åŠ å…¥ BackgroundTasks
+    code: str = Query(..., description="æŽˆæ¬Šç¢¼"),
+    state: str = Query(..., description="State"),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    LINE ç™»å…¥å›žèª¿è™•ç†
+    
+    - é©—è­‰ state
+    - ç”¨ code æ›å– access token
+    - å–å¾—ç”¨æˆ¶è³‡æ–™
+    - å»ºç«‹/æ›´æ–°ç”¨æˆ¶
+    - ðŸ†• ç®¡ç†å“¡ç™»å…¥æ™‚è§¸ç™¼èƒŒæ™¯æ›´æ–°
+    - å›žå‚³ HTML é é¢å„²å­˜ Token ä¸¦è·³è½‰
+    """
+    from fastapi.responses import HTMLResponse
+
+    # é©—è­‰ state (ä½¿ç”¨ JWT é©—è­‰)
+    if not verify_state_token(state):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid state"
+        )
+
+    # å–å¾—å®¢æˆ¶ç«¯è³‡è¨Š
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
+    # åŸ·è¡Œç™»å…¥æµç¨‹
+    auth_service = AuthService(db)
+    result = await auth_service.login_with_line(code, client_ip, user_agent)
+
+    if not result:
+        # å¯èƒ½æ˜¯è¢«å°éŽ–çš„ç”¨æˆ¶
+        html_content = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>SELA è‡ªå‹•é¸è‚¡ç³»çµ±</title>
+            <style>
+                body {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                }
+                .card {
+                    background: white;
+                    padding: 3rem;
+                    border-radius: 1rem;
+                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+                    text-align: center;
+                }
+                h2 { color: #dc2626; margin: 0 0 1rem; }
+                p { color: #64748b; margin: 0; }
+                a { color: #3b82f6; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h2>âš ï¸ ç™»å…¥å¤±æ•—</h2>
+                <p>æ‚¨çš„å¸³è™Ÿå·²è¢«åœç”¨æˆ–ç™»å…¥éŽç¨‹ç™¼ç”ŸéŒ¯èª¤</p>
+                <p style="margin-top: 1rem;"><a href="/static/index.html">è¿”å›žé¦–é </a></p>
+            </div>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html_content, status_code=403)
+
+    # å›žå‚³ HTML é é¢ï¼Œå°‡ Token å­˜å…¥ localStorage ä¸¦è·³è½‰åˆ°å„€è¡¨æ¿
+    token = result["token"]
+    user = result["user"]
+
+    # è¨˜éŒ„ç™»å…¥æˆåŠŸçš„ log
+    logger.info(f"=== ç™»å…¥æˆåŠŸï¼Œæº–å‚™è·³è½‰ ===")
+    logger.info(f"ç”¨æˆ¶ ID: {user.id}, LINE ID: {user.line_user_id}, åç¨±: {user.display_name}")
+
+    # ðŸ†• ç®¡ç†å“¡ç™»å…¥è§¸ç™¼è‡ªå‹•æ›´æ–°
+    is_admin = getattr(user, 'is_admin', False)
+    if is_admin:
+        logger.info(f"ðŸ”‘ ç®¡ç†å“¡ {user.display_name} ç™»å…¥ï¼Œè§¸ç™¼èƒŒæ™¯æ›´æ–°")
+        background_tasks.add_task(trigger_admin_updates)
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>SELA è‡ªå‹•é¸è‚¡ç³»çµ±</title>
+        <style>
+            body {{
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }}
+            .card {{
+                background: white;
+                padding: 3rem;
+                border-radius: 1rem;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+                text-align: center;
+            }}
+            .logo {{
+                background-color: #FA7A35;
+                color: white;
+                font-weight: bold;
+                font-size: 1.5rem;
+                padding: 0.5rem 1rem;
+                border-radius: 0.5rem;
+                display: inline-block;
+                margin-bottom: 1.5rem;
+            }}
+            .spinner {{
+                width: 50px;
+                height: 50px;
+                border: 4px solid #e2e8f0;
+                border-top: 4px solid #FA7A35;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 1.5rem;
+            }}
+            @keyframes spin {{
+                0% {{ transform: rotate(0deg); }}
+                100% {{ transform: rotate(360deg); }}
+            }}
+            h2 {{ color: #1e293b; margin: 0 0 0.5rem; }}
+            p {{ color: #64748b; margin: 0; }}
+            .admin-badge {{
+                background: #fef3c7;
+                color: #92400e;
+                padding: 0.25rem 0.75rem;
+                border-radius: 1rem;
+                font-size: 0.75rem;
+                margin-top: 0.5rem;
+                display: inline-block;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="logo">SELA</div>
+            <div class="spinner"></div>
+            <h2>ç™»å…¥æˆåŠŸï¼</h2>
+            <p>æ­¡è¿Žå›žä¾†ï¼Œ{user.display_name}</p>
+            {'<div class="admin-badge">ðŸ”„ ç®¡ç†å“¡æ¨¡å¼ - æ­£åœ¨èƒŒæ™¯æ›´æ–°æ•¸æ“š</div>' if is_admin else ''}
+        </div>
+        <script>
+            // â˜…â˜…â˜… é‡è¦ï¼šå…ˆæ¸…é™¤æ‰€æœ‰èˆŠè³‡æ–™ï¼Œé¿å… A ç”¨æˆ¶çœ‹åˆ° B ç”¨æˆ¶çš„è³‡æ–™ â˜…â˜…â˜…
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // è¨­å®šæ–°çš„ç”¨æˆ¶è³‡æ–™
+            localStorage.setItem('token', '{token}');
+            localStorage.setItem('user', JSON.stringify({{
+                id: {user.id},
+                display_name: "{user.display_name}",
+                picture_url: "{user.picture_url or ''}",
+                line_user_id: "{user.line_user_id}",
+                is_admin: {'true' if is_admin else 'false'}
+            }}));
+            localStorage.setItem('login_time', new Date().toISOString());
+            
+            console.log('ç™»å…¥æˆåŠŸ: ç”¨æˆ¶ ID = {user.id}, LINE ID = {user.line_user_id}, ç®¡ç†å“¡ = {str(is_admin).lower()}');
+            
+            setTimeout(function() {{
+                window.location.href = '/static/dashboard.html';
+            }}, 1500);
+        </script>
+    </body>
+    </html>
+    """
+
+    return HTMLResponse(content=html_content)
+
+
+@router.post("/logout", summary="ç™»å‡º")
+async def logout():
+    """
+    ç™»å‡ºï¼ˆå‰ç«¯æ¸…é™¤ Token å³å¯ï¼‰
+    """
+    return {"success": True, "message": "å·²ç™»å‡º"}
+
+
+@router.get("/me", summary="å–å¾—ç•¶å‰ç”¨æˆ¶", response_model=UserResponse)
+async def get_current_user(
+    request: Request,
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    å–å¾—ç•¶å‰ç™»å…¥ç”¨æˆ¶è³‡è¨Š
+    
+    éœ€è¦åœ¨ Header å¸¶å…¥ Authorization: Bearer {token}
+    """
+    # å¾ž Header å–å¾— Token
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="æœªæä¾›èªè­‰ Token"
+        )
+
+    token = auth_header.split(" ")[1]
+
+    # é©—è­‰ Token ä¸¦å–å¾—ç”¨æˆ¶
+    auth_service = AuthService(db)
+    user = await auth_service.get_user_from_token(token)
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="ç„¡æ•ˆçš„ Token"
+        )
+
+    return UserResponse.model_validate(user)

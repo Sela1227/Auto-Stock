@@ -1,0 +1,669 @@
+/**
+ * SELA æ ¸å¿ƒæ¨¡çµ„ (P0 å„ªåŒ–ç‰ˆ)
+ * 
+ * å„ªåŒ–å…§å®¹ï¼š
+ * 1. DOM å¿«å– - æ¸›å°‘é‡è¤‡æŸ¥è©¢
+ * 2. æ‰¹é‡æ›´æ–° - æ¸›å°‘ç€è¦½å™¨é‡æŽ’
+ * 3. çµ±ä¸€å‘½åç©ºé–“ - æ¸›å°‘å…¨åŸŸæ±¡æŸ“
+ * 
+ * å‘å¾Œå…¼å®¹ï¼šä¿ç•™æ‰€æœ‰ window.xxx å°Žå‡º
+ */
+
+(function() {
+    'use strict';
+    
+    // ============================================================
+    // DOM å¿«å–ç³»çµ± (P0 æ ¸å¿ƒå„ªåŒ–)
+    // ============================================================
+    
+    const _domCache = new Map();
+    const _querySelectorCache = new Map();
+    
+    /**
+     * å¿«å–ç‰ˆ getElementById
+     * ç¬¬ä¸€æ¬¡æŸ¥è©¢å¾Œå¿«å–ï¼Œå¾ŒçºŒç›´æŽ¥è¿”å›ž
+     * @param {string} id - å…ƒç´  ID
+     * @param {boolean} force - å¼·åˆ¶é‡æ–°æŸ¥è©¢
+     * @returns {HTMLElement|null}
+     */
+    function $(id, force = false) {
+        if (!force && _domCache.has(id)) {
+            return _domCache.get(id);
+        }
+        const el = document.getElementById(id);
+        if (el) {
+            _domCache.set(id, el);
+        }
+        return el;
+    }
+    
+    /**
+     * å¿«å–ç‰ˆ querySelector
+     * @param {string} selector - CSS é¸æ“‡å™¨
+     * @param {boolean} force - å¼·åˆ¶é‡æ–°æŸ¥è©¢
+     * @returns {HTMLElement|null}
+     */
+    function $q(selector, force = false) {
+        if (!force && _querySelectorCache.has(selector)) {
+            return _querySelectorCache.get(selector);
+        }
+        const el = document.querySelector(selector);
+        if (el) {
+            _querySelectorCache.set(selector, el);
+        }
+        return el;
+    }
+    
+    /**
+     * æ¸…é™¤ DOM å¿«å–
+     * ç•¶ DOM çµæ§‹è®ŠåŒ–æ™‚èª¿ç”¨ï¼ˆå¦‚å‹•æ…‹è¼‰å…¥å…§å®¹å¾Œï¼‰
+     */
+    function clearDomCache() {
+        _domCache.clear();
+        _querySelectorCache.clear();
+        console.log('ðŸ—‘ï¸ DOM å¿«å–å·²æ¸…é™¤');
+    }
+    
+    /**
+     * é è¼‰å…¥å¸¸ç”¨ DOM å…ƒç´ åˆ°å¿«å–
+     */
+    function preloadDomCache() {
+        const commonIds = [
+            'loading-screen', 'app-content',
+            'userName', 'userAvatar', 'sidebarUserName', 'sidebarAvatar',
+            'sessionTimer', 'sidebarTimer',
+            'mobileSidebar', 'sidebarOverlay',
+            'toast', 'toastMessage', 'toastContainer',
+            'searchSymbol', 'searchResult',
+            'adminLink', 'adminSidebarLink', 'adminMobileLink'
+        ];
+        commonIds.forEach(id => $(id));
+        console.log(`ðŸ“¦ å·²é è¼‰å…¥ ${_domCache.size} å€‹ DOM å…ƒç´ åˆ°å¿«å–`);
+    }
+    
+    // ============================================================
+    // æ‰¹é‡ DOM æ›´æ–° (P0 æ ¸å¿ƒå„ªåŒ–)
+    // ============================================================
+    
+    /**
+     * æ‰¹é‡æ›´æ–°å¤šå€‹å…ƒç´ 
+     * ä½¿ç”¨ requestAnimationFrame ç¢ºä¿åœ¨åŒä¸€å¹€å…§å®Œæˆ
+     * @param {Array} updates - [{id: 'xxx', prop: 'textContent', value: 'xxx'}, ...]
+     */
+    function batchUpdate(updates) {
+        requestAnimationFrame(() => {
+            updates.forEach(({ id, prop, value, html, className, classList }) => {
+                const el = $(id);
+                if (!el) return;
+                
+                if (prop && value !== undefined) {
+                    el[prop] = value;
+                }
+                if (html !== undefined) {
+                    el.innerHTML = html;
+                }
+                if (className !== undefined) {
+                    el.className = className;
+                }
+                if (classList) {
+                    if (classList.add) el.classList.add(...classList.add);
+                    if (classList.remove) el.classList.remove(...classList.remove);
+                    if (classList.toggle) {
+                        Object.entries(classList.toggle).forEach(([cls, force]) => {
+                            el.classList.toggle(cls, force);
+                        });
+                    }
+                }
+            });
+        });
+    }
+    
+    /**
+     * å®‰å…¨è¨­ç½® innerHTMLï¼ˆæ‰¹é‡ç‰ˆï¼‰
+     * å…ˆæ§‹å»ºå®Œæ•´ HTML å­—ä¸²ï¼Œå†ä¸€æ¬¡æ€§æ›´æ–°
+     * @param {string} id - å…ƒç´  ID
+     * @param {string|Array} html - HTML å­—ä¸²æˆ–å­—ä¸²é™£åˆ—
+     */
+    function setHtml(id, html) {
+        const el = $(id);
+        if (!el) return;
+        
+        requestAnimationFrame(() => {
+            el.innerHTML = Array.isArray(html) ? html.join('') : html;
+        });
+    }
+    
+    /**
+     * ä½¿ç”¨ DocumentFragment æ‰¹é‡æ·»åŠ å­å…ƒç´ 
+     * æ¯”å¤šæ¬¡ appendChild æ•ˆèƒ½å¥½ 10 å€
+     * @param {string} containerId - å®¹å™¨å…ƒç´  ID
+     * @param {Array} items - è¦æ·»åŠ çš„é …ç›®
+     * @param {Function} renderFn - æ¸²æŸ“å‡½æ•¸ (item) => HTMLElement
+     */
+    function appendBatch(containerId, items, renderFn) {
+        const container = $(containerId);
+        if (!container) return;
+        
+        const fragment = document.createDocumentFragment();
+        items.forEach(item => {
+            const el = renderFn(item);
+            if (el) fragment.appendChild(el);
+        });
+        
+        requestAnimationFrame(() => {
+            container.appendChild(fragment);
+        });
+    }
+    
+    // ============================================================
+    // å…¨åŸŸè®Šæ•¸
+    // ============================================================
+    
+    const API_BASE = '';
+    let token = localStorage.getItem('token');
+    let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+    let sessionTimer = null;
+    let lastActivity = Date.now();
+    
+    const deviceInfo = {
+        isMobile: window.innerWidth < 768,
+        isTouch: 'ontouchstart' in window,
+        isLineApp: /Line\//i.test(navigator.userAgent),
+        isIOS: /iPhone|iPad/i.test(navigator.userAgent),
+        isAndroid: /Android/i.test(navigator.userAgent),
+    };
+    
+    // ============================================================
+    // API è«‹æ±‚å°è£
+    // ============================================================
+    
+    async function apiRequest(endpoint, options = {}) {
+        if (!token) {
+            console.error('API è«‹æ±‚å¤±æ•—: ç„¡ token');
+            clearAllUserData();
+            window.location.href = '/static/index.html';
+            throw new Error('æœªç™»å…¥');
+        }
+        
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            ...options.headers
+        };
+        
+        if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+            options.body = JSON.stringify(options.body);
+        }
+        
+        try {
+            const res = await fetch(`${API_BASE}${endpoint}`, {
+                ...options,
+                headers
+            });
+            
+            if (res.status === 401) {
+                console.error('Token ç„¡æ•ˆï¼Œé‡æ–°ç™»å…¥');
+                clearAllUserData();
+                window.location.href = '/static/index.html';
+                throw new Error('Token ç„¡æ•ˆ');
+            }
+            
+            return res;
+        } catch (e) {
+            console.error(`API è«‹æ±‚å¤±æ•— ${endpoint}:`, e);
+            throw e;
+        }
+    }
+    
+    // ============================================================
+    // è‡ªå‹•ç™»å‡ºåŠŸèƒ½
+    // ============================================================
+    
+    function getSessionTimeout() {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const isAdmin = user.is_admin === true;
+        return isAdmin ? 60 * 60 * 1000 : 10 * 60 * 1000;
+    }
+    
+    function resetSessionTimer() {
+        lastActivity = Date.now();
+    }
+    
+    function checkSessionTimeout() {
+        const SESSION_TIMEOUT = getSessionTimeout();
+        const elapsed = Date.now() - lastActivity;
+        const remaining = SESSION_TIMEOUT - elapsed;
+        
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const isAdmin = user.is_admin === true;
+        const timeoutMinutes = isAdmin ? 60 : 10;
+        
+        if (remaining <= 0) {
+            showToast(`é–’ç½®è¶…éŽ ${timeoutMinutes} åˆ†é˜ï¼Œå·²è‡ªå‹•ç™»å‡º`);
+            setTimeout(() => logout(), 1500);
+        } else {
+            const mins = Math.floor(remaining / 60000);
+            const secs = Math.floor((remaining % 60000) / 1000);
+            const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+            
+            // âœ… ä½¿ç”¨å¿«å–ç‰ˆ DOM æŸ¥è©¢
+            const timerEl = $('sessionTimer');
+            const sidebarTimerEl = $('sidebarTimer');
+            if (timerEl) timerEl.textContent = `é–’ç½®ç™»å‡º: ${timeStr}`;
+            if (sidebarTimerEl) sidebarTimerEl.textContent = timeStr;
+        }
+    }
+    
+    function startSessionMonitor() {
+        ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'].forEach(event => {
+            document.addEventListener(event, resetSessionTimer, { passive: true });
+        });
+        sessionTimer = setInterval(checkSessionTimeout, 1000);
+    }
+    
+    function stopSessionMonitor() {
+        if (sessionTimer) {
+            clearInterval(sessionTimer);
+            sessionTimer = null;
+        }
+    }
+    
+    // ============================================================
+    // ç™»å…¥é©—è­‰
+    // ============================================================
+    
+    async function checkAuth() {
+        if (!token) {
+            console.log('ç„¡ tokenï¼Œè·³è½‰ç™»å…¥é ');
+            clearAllUserData();
+            window.location.href = '/static/index.html';
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/me`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!res.ok) {
+                console.error('Token é©—è­‰å¤±æ•—ï¼Œç‹€æ…‹ç¢¼:', res.status);
+                throw new Error('Unauthorized');
+            }
+            
+            const serverUser = await res.json();
+            
+            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+            if (storedUser.id && storedUser.id !== serverUser.id) {
+                console.error('ç”¨æˆ¶ ID ä¸ä¸€è‡´!');
+                clearAllUserData();
+                window.location.href = '/static/index.html';
+                return;
+            }
+            
+            if (storedUser.line_user_id && storedUser.line_user_id !== serverUser.line_user_id) {
+                console.error('LINE ID ä¸ä¸€è‡´!');
+                clearAllUserData();
+                window.location.href = '/static/index.html';
+                return;
+            }
+            
+            currentUser = serverUser;
+            
+            localStorage.setItem('user', JSON.stringify({
+                id: serverUser.id,
+                display_name: serverUser.display_name,
+                picture_url: serverUser.picture_url || '',
+                line_user_id: serverUser.line_user_id,
+                is_admin: serverUser.is_admin || false
+            }));
+            
+            console.log('ç™»å…¥é©—è­‰æˆåŠŸ: ç”¨æˆ¶ ID =', serverUser.id);
+            
+            // âœ… P1: åŒæ­¥åˆ° AppState
+            if (window.AppState) {
+                window.AppState.setUser(serverUser);
+            }
+            
+            updateUserUI();
+            
+            // âœ… ä½¿ç”¨å¿«å–ç‰ˆ DOM æŸ¥è©¢
+            const loadingScreen = $('loading-screen');
+            const appContent = $('app-content');
+            if (loadingScreen) loadingScreen.style.display = 'none';
+            if (appContent) appContent.style.display = 'block';
+            
+            startSessionMonitor();
+            
+            if (typeof loadDashboard === 'function') {
+                loadDashboard();
+            }
+            
+        } catch (e) {
+            console.error('é©—è­‰å¤±æ•—:', e);
+            clearAllUserData();
+            window.location.href = '/static/index.html';
+        }
+    }
+    
+    function updateUserUI() {
+        if (!currentUser) return;
+        
+        // âœ… ä½¿ç”¨æ‰¹é‡æ›´æ–°æ¸›å°‘é‡æŽ’
+        batchUpdate([
+            { id: 'userName', prop: 'textContent', value: currentUser.display_name },
+            { id: 'sidebarUserName', prop: 'textContent', value: currentUser.display_name },
+        ]);
+        
+        // é ­åƒå–®ç¨è™•ç†ï¼ˆsrc å±¬æ€§ï¼‰
+        const avatarUrl = currentUser.picture_url || 'https://via.placeholder.com/40';
+        const avatarEl = $('userAvatar');
+        const sidebarAvatarEl = $('sidebarAvatar');
+        if (avatarEl) avatarEl.src = avatarUrl;
+        if (sidebarAvatarEl) sidebarAvatarEl.src = avatarUrl;
+        
+        // ç®¡ç†å“¡å…¥å£
+        if (currentUser.is_admin) {
+            const adminLink = $('adminLink');
+            const adminSidebarLink = $('adminSidebarLink');
+            const adminMobileLink = $('adminMobileLink');
+            if (adminLink) adminLink.classList.remove('hidden');
+            if (adminSidebarLink) adminSidebarLink.classList.remove('hidden');
+            if (adminMobileLink) {
+                adminMobileLink.classList.remove('hidden');
+                adminMobileLink.classList.add('flex');
+            }
+            
+            if (typeof triggerAdminUpdates === 'function') {
+                triggerAdminUpdates();
+            }
+        }
+    }
+    
+    function clearAllUserData() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('login_time');
+        sessionStorage.clear();
+        currentUser = null;
+        token = null;
+    }
+
+    function logout() {
+        stopSessionMonitor();
+        clearAllUserData();
+        
+        // âœ… P1: é‡ç½® AppState
+        if (window.AppState) {
+            window.AppState.reset();
+        }
+        
+        window.location.href = '/static/index.html';
+    }
+    
+    function getCurrentUser() {
+        return currentUser;
+    }
+    
+    function getToken() {
+        return token;
+    }
+    
+    // ============================================================
+    // æ‰‹æ©Ÿç‰ˆé¸å–®
+    // ============================================================
+    
+    function openMobileSidebar() {
+        // âœ… ä½¿ç”¨å¿«å–ç‰ˆ DOM æŸ¥è©¢
+        const sidebar = $('mobileSidebar');
+        const overlay = $('sidebarOverlay');
+        if (sidebar) sidebar.classList.add('open');
+        if (overlay) overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function closeMobileSidebar() {
+        const sidebar = $('mobileSidebar');
+        const overlay = $('sidebarOverlay');
+        if (sidebar) sidebar.classList.remove('open');
+        if (overlay) overlay.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+    
+    function mobileNavTo(section) {
+        closeMobileSidebar();
+        showSection(section);
+        
+        // âœ… åªæŸ¥è©¢ä¸€æ¬¡ï¼Œä¸åœ¨è¿´åœˆä¸­é‡è¤‡æŸ¥è©¢
+        document.querySelectorAll('.bottom-nav-item, .mobile-nav-link').forEach(el => {
+            const isActive = el.dataset.section === section;
+            el.classList.remove('active', 'bg-blue-50', 'text-gray-700');
+            
+            if (isActive) {
+                el.classList.add('active');
+                if (el.classList.contains('mobile-nav-link')) {
+                    el.classList.add('bg-blue-50', 'text-gray-700');
+                }
+            } else if (el.classList.contains('mobile-nav-link')) {
+                el.classList.add('text-gray-600');
+            }
+        });
+    }
+    
+    // ============================================================
+    // é é¢åˆ‡æ› (å„ªåŒ–ç‰ˆ)
+    // ============================================================
+    
+    // å¿«å–æ‰€æœ‰ section å…ƒç´ 
+    let _sectionsCache = null;
+    function getAllSections() {
+        if (!_sectionsCache) {
+            _sectionsCache = document.querySelectorAll('.section');
+        }
+        return _sectionsCache;
+    }
+    
+    // å¿«å–æ‰€æœ‰å°Žèˆªé€£çµ
+    let _navLinksCache = null;
+    function getAllNavLinks() {
+        if (!_navLinksCache) {
+            _navLinksCache = document.querySelectorAll('.nav-link');
+        }
+        return _navLinksCache;
+    }
+    
+    // å¿«å–æ‰€æœ‰åº•éƒ¨å°Žèˆª
+    let _bottomNavCache = null;
+    function getAllBottomNav() {
+        if (!_bottomNavCache) {
+            _bottomNavCache = document.querySelectorAll('.bottom-nav-item');
+        }
+        return _bottomNavCache;
+    }
+    
+    function showSection(name, evt) {
+        // âœ… P1: åŒæ­¥åˆ° AppState
+        if (window.AppState) {
+            window.AppState.switchSection(name);
+        }
+        
+        // âœ… ä½¿ç”¨å¿«å–çš„ section åˆ—è¡¨
+        getAllSections().forEach(s => s.classList.add('hidden'));
+        
+        const section = $(`section-${name}`);
+        if (section) {
+            section.classList.remove('hidden');
+        }
+        
+        // âœ… ä½¿ç”¨å¿«å–çš„å°Žèˆªé€£çµ
+        getAllNavLinks().forEach(l => {
+            const isActive = l.dataset.section === name;
+            l.classList.toggle('bg-blue-50', isActive);
+            l.classList.toggle('text-gray-700', isActive);
+            l.classList.toggle('text-gray-600', !isActive);
+        });
+        
+        if (evt && evt.target) {
+            const navLink = evt.target.closest('.nav-link');
+            if (navLink) {
+                navLink.classList.add('bg-blue-50', 'text-gray-700');
+                navLink.classList.remove('text-gray-600');
+            }
+        }
+        
+        // âœ… ä½¿ç”¨å¿«å–çš„åº•éƒ¨å°Žèˆª
+        getAllBottomNav().forEach(el => {
+            el.classList.toggle('active', el.dataset.section === name);
+        });
+
+        // è¼‰å…¥å°æ‡‰è³‡æ–™
+        if (name === 'watchlist' && typeof loadWatchlist === 'function') loadWatchlist();
+        if (name === 'sentiment' && typeof loadSentimentDetail === 'function') loadSentimentDetail();
+        if (name === 'settings' && typeof loadSettings === 'function') loadSettings();
+        if (name === 'portfolio' && typeof loadPortfolio === 'function') loadPortfolio();
+        if (name === 'subscription' && typeof loadSubscriptionData === 'function') loadSubscriptionData();
+        if (name === 'cagr' && typeof initCagr === 'function') initCagr();
+        
+        if (name === 'admin') {
+            if (typeof adminLoadStats === 'function') adminLoadStats();
+            if (typeof adminLoadUsers === 'function') adminLoadUsers();
+        }
+    }
+    
+    // ============================================================
+    // Toast æç¤º (å„ªåŒ–ç‰ˆ)
+    // ============================================================
+    
+    function showToast(message, type = 'info', duration = 3000) {
+        // âœ… ä½¿ç”¨å¿«å–ç‰ˆ DOM æŸ¥è©¢
+        const container = $('toastContainer');
+        if (container) {
+            const toast = document.createElement('div');
+            toast.className = 'toast bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg mb-2 transform transition-all duration-300 translate-y-full opacity-0';
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-full', 'opacity-0');
+            });
+            
+            setTimeout(() => {
+                toast.classList.add('translate-y-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+            return;
+        }
+        
+        const toastEl = $('toast');
+        const toastMsg = $('toastMessage');
+        if (toastEl && toastMsg) {
+            toastMsg.textContent = message;
+            toastEl.classList.remove('hidden');
+            setTimeout(() => toastEl.classList.add('hidden'), duration);
+        }
+    }
+    
+    // ============================================================
+    // å·¥å…·å‡½æ•¸
+    // ============================================================
+    
+    /**
+     * æ‘ºç–Šé¢æ¿åˆ‡æ›
+     */
+    function toggleCollapsible(button) {
+        const content = button.nextElementSibling;
+        const icon = button.querySelector('i');
+        
+        if (content.style.maxHeight) {
+            content.style.maxHeight = null;
+            if (icon) icon.style.transform = '';
+        } else {
+            content.style.maxHeight = content.scrollHeight + 'px';
+            if (icon) icon.style.transform = 'rotate(180deg)';
+        }
+    }
+    
+    // ============================================================
+    // åˆå§‹åŒ–
+    // ============================================================
+    
+    function init() {
+        console.log('ðŸš€ SELA ç³»çµ±åˆå§‹åŒ–ä¸­... (P0 å„ªåŒ–ç‰ˆ)');
+        console.log('Device info:', deviceInfo);
+        
+        // âœ… é è¼‰å…¥å¸¸ç”¨ DOM å…ƒç´ 
+        preloadDomCache();
+        
+        checkAuth();
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+    
+    // ============================================================
+    // SELA å‘½åç©ºé–“ (P0+P1)
+    // ============================================================
+    
+    window.SELA = window.SELA || {};
+    Object.assign(window.SELA, {
+        // DOM å·¥å…·
+        $,
+        $q,
+        clearDomCache,
+        preloadDomCache,
+        
+        // æ‰¹é‡æ›´æ–°
+        batchUpdate,
+        setHtml,
+        appendBatch,
+        
+        // ç‹€æ…‹ (P1: AppState åœ¨ state.js ä¸­)
+        getCurrentUser,
+        getToken,
+        deviceInfo,
+        
+        // API
+        apiRequest,
+        
+        // UI
+        showSection,
+        showToast,
+        
+        // ç‰ˆæœ¬
+        version: '0.8.2-p1'
+    });
+    
+    // ============================================================
+    // å‘å¾Œå…¼å®¹ï¼šå°Žå‡ºåˆ°å…¨åŸŸ
+    // ============================================================
+    
+    window.API_BASE = API_BASE;
+    window.apiRequest = apiRequest;
+    window.getCurrentUser = getCurrentUser;
+    window.getToken = getToken;
+    window.checkAuth = checkAuth;
+    window.logout = logout;
+    window.clearAllUserData = clearAllUserData;
+    window.showSection = showSection;
+    window.openMobileSidebar = openMobileSidebar;
+    window.closeMobileSidebar = closeMobileSidebar;
+    window.mobileNavTo = mobileNavTo;
+    window.showToast = showToast;
+    window.deviceInfo = deviceInfo;
+    window.toggleCollapsible = toggleCollapsible;
+    
+    // å…¼å®¹èˆŠä»£ç¢¼
+    window.token = token;
+    window.currentUser = currentUser;
+    
+    // âœ… æ–°å¢žï¼šå°Žå‡º DOM å¿«å–å·¥å…·ä¾›å…¶ä»–æ¨¡çµ„ä½¿ç”¨
+    window.$ = $;
+    window.$q = $q;
+    window.clearDomCache = clearDomCache;
+    window.batchUpdate = batchUpdate;
+    window.setHtml = setHtml;
+    
+    console.log('ðŸŽ¯ core.js æ ¸å¿ƒæ¨¡çµ„å·²è¼‰å…¥ (P0 å„ªåŒ–ç‰ˆ)');
+})();

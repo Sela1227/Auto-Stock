@@ -1,0 +1,341 @@
+"""
+åŠ å¯†è²¨å¹£å’Œå¸‚å ´æƒ…ç·’ API è·¯ç”±
+
+ðŸ†• 2026-01-17 æ›´æ–°ï¼š
+- åŠ å…¥æŸ¥è©¢çµæžœå¿«å–åŠŸèƒ½ï¼ŒæŸ¥è©¢éŽçš„åŠ å¯†è²¨å¹£æœƒå„²å­˜åˆ°æœ¬åœ°è³‡æ–™åº«
+"""
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
+import pandas as pd
+import logging
+
+from app.schemas.schemas import MarketSentimentResponse
+
+router = APIRouter(tags=["åŠ å¯†è²¨å¹£"])
+logger = logging.getLogger(__name__)
+
+# åŠ å¯†è²¨å¹£å°æ‡‰çš„ Yahoo Finance ä»£è™Ÿ
+CRYPTO_YAHOO_MAP = {
+    "BTC": "BTC-USD",
+    "ETH": "ETH-USD",
+    "BITCOIN": "BTC-USD",
+    "ETHEREUM": "ETH-USD",
+}
+
+
+@router.get("/api/crypto/{symbol}", summary="æŸ¥è©¢åŠ å¯†è²¨å¹£")
+async def get_crypto_analysis(
+    symbol: str,
+    refresh: bool = Query(False, description="æ˜¯å¦å¼·åˆ¶æ›´æ–°è³‡æ–™"),
+):
+    """
+    æŸ¥è©¢å–®ä¸€åŠ å¯†è²¨å¹£çš„æŠ€è¡“åˆ†æžå ±å‘Š
+    
+    - **symbol**: åŠ å¯†è²¨å¹£ä»£è™Ÿ (BTC, ETH)
+    - **refresh**: æ˜¯å¦å¼·åˆ¶æ›´æ–°è³‡æ–™
+    """
+    from app.data_sources.coingecko import coingecko
+    from app.data_sources.yahoo_finance import yahoo_finance
+    from app.services.indicator_service import indicator_service
+    
+    symbol = symbol.upper()
+    logger.info(f"é–‹å§‹æŸ¥è©¢åŠ å¯†è²¨å¹£: {symbol}")
+    
+    # é©—è­‰ä»£è™Ÿ
+    yahoo_symbol = CRYPTO_YAHOO_MAP.get(symbol)
+    if not yahoo_symbol and not coingecko.validate_symbol(symbol):
+        logger.warning(f"ä¸æ”¯æ´çš„åŠ å¯†è²¨å¹£: {symbol}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"ä¸æ”¯æ´çš„åŠ å¯†è²¨å¹£: {symbol}ï¼Œç›®å‰åƒ…æ”¯æ´ BTC å’Œ ETH"
+        )
+    
+    df = None
+    info = None
+    data_source = None
+    
+    # å„ªå…ˆå˜—è©¦ CoinGecko
+    try:
+        logger.info(f"å˜—è©¦å¾ž CoinGecko å–å¾— {symbol} è³‡æ–™...")
+        df = coingecko.get_ohlc(symbol, days=365)
+        if df is not None and not df.empty:
+            info = coingecko.get_coin_info(symbol)
+            data_source = "CoinGecko"
+            logger.info(f"æˆåŠŸå¾ž CoinGecko å–å¾— {len(df)} ç­†è³‡æ–™")
+    except Exception as e:
+        logger.warning(f"CoinGecko API å¤±æ•—: {e}")
+    
+    # å¦‚æžœ CoinGecko å¤±æ•—ï¼Œä½¿ç”¨ Yahoo Finance å‚™ç”¨
+    if df is None or df.empty:
+        yahoo_symbol = CRYPTO_YAHOO_MAP.get(symbol, f"{symbol}-USD")
+        logger.info(f"CoinGecko å¤±æ•—ï¼Œå˜—è©¦ Yahoo Finance: {yahoo_symbol}")
+        
+        try:
+            df = yahoo_finance.get_stock_history(yahoo_symbol, period="1y")
+            if df is not None and not df.empty:
+                data_source = "Yahoo Finance"
+                logger.info(f"æˆåŠŸå¾ž Yahoo Finance å–å¾— {len(df)} ç­†è³‡æ–™")
+                # å¾ž Yahoo Finance å–å¾—åŸºæœ¬è³‡è¨Š
+                try:
+                    yf_info = yahoo_finance.get_stock_info(yahoo_symbol)
+                    if yf_info:
+                        info = {
+                            "name": yf_info.get("shortName") or yf_info.get("name") or symbol,
+                            "market_cap": yf_info.get("market_cap") or yf_info.get("marketCap"),
+                            "total_volume": yf_info.get("total_volume"),
+                        }
+                except Exception as e:
+                    logger.warning(f"å–å¾— Yahoo Finance info å¤±æ•—: {e}")
+                    info = {"name": symbol}
+        except Exception as e:
+            logger.error(f"Yahoo Finance ä¹Ÿå¤±æ•—: {e}")
+    
+    # å¦‚æžœå…©å€‹éƒ½å¤±æ•—
+    if df is None or df.empty:
+        raise HTTPException(
+            status_code=503,
+            detail=f"ç„¡æ³•å–å¾— {symbol} è³‡æ–™ã€‚CoinGecko å’Œ Yahoo Finance éƒ½ç„¡æ³•é€£æŽ¥ã€‚è«‹ç¨å¾Œå†è©¦ã€‚"
+        )
+    
+    logger.info(f"ä½¿ç”¨ {data_source} è³‡æ–™ï¼Œå…± {len(df)} ç­†")
+    
+    # ç¢ºä¿æœ‰å¿…è¦çš„æ¬„ä½ (åœ¨ try å¡Šå¤–é¢å…ˆè™•ç†)
+    if 'volume' not in df.columns:
+        df['volume'] = 0
+        logger.warning(f"{symbol} æ²’æœ‰ volume è³‡æ–™ï¼Œå·²å¡«å…¥ 0")
+    
+    # ç¢ºä¿ volume ä¸æ˜¯ None æˆ– NaN
+    df['volume'] = df['volume'].fillna(0).astype(float)
+    
+    try:
+        # è¨ˆç®—æŠ€è¡“æŒ‡æ¨™
+        df = indicator_service.calculate_all_indicators(df)
+        
+        # å–å¾—æœ€æ–°è³‡æ–™
+        latest = df.iloc[-1]
+        current_price = float(latest['close'])
+        
+        # æ¼²è·Œå¹…è¨ˆç®—
+        def calc_change(days):
+            try:
+                if len(df) > days:
+                    old_price = float(df.iloc[-days-1]['close'])
+                    return round((current_price - old_price) / old_price * 100, 2)
+            except:
+                pass
+            return None
+        
+        # å‡ç·šè³‡è¨Š (åŠ å¯†è²¨å¹£ç”¨ MA7/25/99)
+        ma7 = float(df['close'].tail(7).mean()) if len(df) >= 7 else None
+        ma25 = float(df['close'].tail(25).mean()) if len(df) >= 25 else None
+        ma99 = float(df['close'].tail(99).mean()) if len(df) >= 99 else None
+        
+        # åˆ¤æ–·å‡ç·šæŽ’åˆ—
+        alignment = "neutral"
+        if ma7 and ma25 and ma99:
+            if current_price > ma7 > ma25 > ma99:
+                alignment = "bullish"
+            elif current_price < ma7 < ma25 < ma99:
+                alignment = "bearish"
+        
+        # RSI (å°å¯«: rsi)
+        rsi_value = float(latest.get('rsi', 50)) if 'rsi' in latest else 50
+        rsi_status = "overbought" if rsi_value > 70 else "oversold" if rsi_value < 30 else "neutral"
+        
+        # MACD (å°å¯«: macd_dif, macd_dea)
+        macd_dif = float(latest.get('macd_dif', 0)) if 'macd_dif' in latest else 0
+        macd_dea = float(latest.get('macd_dea', 0)) if 'macd_dea' in latest else 0
+        macd_status = "bullish" if macd_dif > macd_dea else "bearish"
+        
+        # ç¶œåˆè©•åˆ†
+        buy_score = 0
+        sell_score = 0
+        
+        if alignment == "bullish":
+            buy_score += 1
+        elif alignment == "bearish":
+            sell_score += 1
+        
+        if rsi_value < 30:
+            buy_score += 1
+        elif rsi_value > 70:
+            sell_score += 1
+        
+        if macd_status == "bullish":
+            buy_score += 1
+        else:
+            sell_score += 1
+        
+        rating = "bullish" if buy_score > sell_score else "bearish" if sell_score > buy_score else "neutral"
+        
+        # å–å¾—åç¨±å’Œæˆäº¤é‡
+        crypto_name = info.get("name", symbol) if info else symbol
+        volume_24h = info.get("total_volume") if info else None
+        day_change = calc_change(1)
+        
+        # ðŸ†• å°‡æŸ¥è©¢çµæžœå¯«å…¥å¿«å–
+        try:
+            from app.services.cache_helper import cache_crypto_price
+            
+            cache_crypto_price(
+                symbol=symbol,
+                name=crypto_name,
+                price=current_price,
+                change_pct=day_change,
+                volume=int(volume_24h) if volume_24h else None
+            )
+            logger.info(f"ðŸ“¦ åŠ å¯†è²¨å¹£å¿«å–å·²æ›´æ–°: {symbol} = ${current_price}")
+        except Exception as e:
+            # å¿«å–å¤±æ•—ä¸å½±éŸ¿ä¸»æµç¨‹
+            logger.warning(f"åŠ å¯†è²¨å¹£å¿«å–æ›´æ–°å¤±æ•—ï¼ˆä¸å½±éŸ¿æŸ¥è©¢ï¼‰: {e}")
+        
+        return {
+            "success": True,
+            "symbol": symbol,
+            "name": crypto_name,
+            "asset_type": "crypto",
+            "price": {
+                "current": current_price,
+                "ath": info.get("ath") if info else None,
+                "from_ath_pct": info.get("ath_change_percentage") if info else None,
+            },
+            "change": {
+                "day": day_change,
+                "week": calc_change(7),
+                "month": calc_change(30),
+                "year": calc_change(365),
+            },
+            "market": {
+                "market_cap": info.get("market_cap") if info else None,
+                "market_cap_rank": info.get("market_cap_rank") if info else None,
+                "volume_24h": volume_24h,
+            },
+            "indicators": {
+                "ma": {
+                    "ma7": ma7,
+                    "ma25": ma25,
+                    "ma99": ma99,
+                    "alignment": alignment,
+                    "price_vs_ma7": "above" if ma7 and current_price > ma7 else "below",
+                    "price_vs_ma25": "above" if ma25 and current_price > ma25 else "below",
+                    "price_vs_ma99": "above" if ma99 and current_price > ma99 else "below",
+                },
+                "rsi": {
+                    "value": rsi_value,
+                    "period": 14,
+                    "status": rsi_status,
+                },
+                "macd": {
+                    "dif": macd_dif,
+                    "macd": macd_dea,
+                    "status": macd_status,
+                },
+            },
+            "score": {
+                "buy": buy_score,
+                "sell": sell_score,
+                "rating": rating,
+            },
+            "chart_data": {
+                "dates": [str(d) for d in df['date'].tail(365).tolist()] if 'date' in df.columns else [],
+                "prices": [float(p) for p in df['close'].tail(365).tolist()] if 'close' in df.columns else [],
+                "ma20": [float(v) if not pd.isna(v) else None for v in df['ma20'].tail(365).tolist()] if 'ma20' in df.columns else [],
+                "ma50": [float(v) if not pd.isna(v) else None for v in df['ma50'].tail(365).tolist()] if 'ma50' in df.columns else [],
+                "ma200": [float(v) if not pd.isna(v) else None for v in df['ma200'].tail(365).tolist()] if 'ma200' in df.columns else [],
+                "ma250": [float(v) if not pd.isna(v) else None for v in df['ma250'].tail(365).tolist()] if 'ma250' in df.columns else [],
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"æŸ¥è©¢ {symbol} æ™‚ç™¼ç”ŸéŒ¯èª¤: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"æŸ¥è©¢å¤±æ•—: {str(e)}"
+        )
+
+
+@router.get("/api/crypto/{symbol}/chart", summary="å–å¾—åŠ å¯†è²¨å¹£åœ–è¡¨")
+async def get_crypto_chart(
+    symbol: str,
+    days: int = Query(120, ge=30, le=365, description="é¡¯ç¤ºå¤©æ•¸"),
+):
+    """
+    ç”ŸæˆåŠ å¯†è²¨å¹£æŠ€è¡“åˆ†æžåœ–è¡¨
+    
+    - **symbol**: åŠ å¯†è²¨å¹£ä»£è™Ÿ (BTC, ETH)
+    - **days**: é¡¯ç¤ºå¤©æ•¸ (30-365)
+    
+    å›žå‚³ PNG åœ–ç‰‡
+    """
+    from app.data_sources.coingecko import coingecko
+    from app.services.chart_service import chart_service
+    
+    symbol = symbol.upper()
+    
+    df = coingecko.get_ohlc(symbol, days=days)
+    
+    if df is None or df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail=f"æ‰¾ä¸åˆ°åŠ å¯†è²¨å¹£: {symbol}"
+        )
+    
+    # å–å¾—åç¨±
+    info = coingecko.get_coin_info(symbol)
+    name = info.get("name", "") if info else ""
+    
+    # ç”Ÿæˆåœ–è¡¨
+    chart_path = chart_service.plot_stock_analysis(
+        df,
+        symbol=symbol,
+        name=name,
+        days=days,
+        show_kd=False,
+    )
+    
+    return FileResponse(
+        chart_path,
+        media_type="image/png",
+        filename=f"{symbol}_chart.png",
+    )
+
+
+@router.get("/api/market/sentiment", summary="å–å¾—å¸‚å ´æƒ…ç·’", response_model=MarketSentimentResponse)
+async def get_market_sentiment(
+    market: str = Query("all", description="å¸‚å ´é¡žåž‹ (stock, crypto, all)"),
+):
+    """
+    å–å¾—å¸‚å ´æƒ…ç·’æŒ‡æ•¸
+    
+    - **market**: å¸‚å ´é¡žåž‹
+      - `stock`: ç¾Žè‚¡ CNN Fear & Greed Index
+      - `crypto`: åŠ å¯†è²¨å¹£ Alternative.me
+      - `all`: å…©è€…éƒ½å–å¾—
+    
+    æƒ…ç·’æŒ‡æ•¸ç¯„åœ 0-100ï¼š
+    - 0-25: æ¥µåº¦ææ‡¼
+    - 26-45: ææ‡¼
+    - 46-55: ä¸­æ€§
+    - 56-75: è²ªå©ª
+    - 76-100: æ¥µåº¦è²ªå©ª
+    """
+    from app.data_sources.fear_greed import fear_greed
+    
+    result = {}
+    
+    if market in ("all", "stock"):
+        stock_sentiment = fear_greed.get_stock_fear_greed()
+        if stock_sentiment:
+            result["stock"] = stock_sentiment
+    
+    if market in ("all", "crypto"):
+        crypto_sentiment = fear_greed.get_crypto_fear_greed()
+        if crypto_sentiment:
+            result["crypto"] = crypto_sentiment
+    
+    return MarketSentimentResponse(
+        success=True,
+        stock=result.get("stock"),
+        crypto=result.get("crypto"),
+    )

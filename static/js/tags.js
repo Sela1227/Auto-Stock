@@ -1,0 +1,581 @@
+/**
+ * æ¨™ç±¤ç®¡ç†æ¨¡çµ„ (P4 å„ªåŒ–ç‰ˆ)
+ * 
+ * å„ªåŒ–å…§å®¹ï¼š
+ * 1. AppState æ•´åˆ - çµ±ä¸€ç‹€æ…‹ç®¡ç†
+ * 2. äº‹ä»¶å§”è¨— - æ¸›å°‘ç›£è½å™¨æ•¸é‡
+ * 3. DOM å¿«å– - ä½¿ç”¨ $() å‡½æ•¸
+ * 
+ * åŒ…å«ï¼šæ¨™ç±¤ CRUDã€è¿½è¹¤é …ç›®æ¨™ç±¤é—œè¯ã€ç¯©é¸åŠŸèƒ½
+ */
+
+(function() {
+    'use strict';
+
+    // ============================================================
+    // ç§æœ‰è®Šæ•¸
+    // ============================================================
+
+    let userTags = [];
+    let currentEditTagId = null;
+    let currentAssignWatchlistId = null;
+    let currentFilterTagId = null;
+
+    // ============================================================
+    // æ¨™ç±¤ CRUD
+    // ============================================================
+
+    async function loadTags() {
+        // âœ… P4: æª¢æŸ¥ AppState å¿«å–
+        if (window.AppState && AppState.tagsLoaded && AppState.tags.length > 0) {
+            userTags = AppState.tags;
+            return userTags;
+        }
+
+        try {
+            const res = await apiRequest('/api/tags');
+            const data = await res.json();
+            if (data.success) {
+                userTags = data.data || [];
+
+                // âœ… P4: åŒæ­¥åˆ° AppState
+                if (window.AppState) {
+                    AppState.setTags(userTags);
+                }
+            }
+            return userTags;
+        } catch (e) {
+            console.error('è¼‰å…¥æ¨™ç±¤å¤±æ•—:', e);
+            return [];
+        }
+    }
+
+    async function createTag(name, color = '#3B82F6', icon = 'fa-tag') {
+        try {
+            const res = await apiRequest('/api/tags', {
+                method: 'POST',
+                body: { name, color, icon }
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('æ¨™ç±¤å·²å»ºç«‹');
+
+                // âœ… P4: æ¨‚è§€æ›´æ–°
+                if (data.data) {
+                    userTags.push(data.data);
+                    if (window.AppState) {
+                        AppState.setTags([...userTags]);
+                    }
+                } else {
+                    await loadTags();
+                }
+
+                renderTagManager();
+                return data.data;
+            } else {
+                showToast(data.detail || 'å»ºç«‹å¤±æ•—');
+                return null;
+            }
+        } catch (e) {
+            console.error('å»ºç«‹æ¨™ç±¤å¤±æ•—:', e);
+            showToast('å»ºç«‹å¤±æ•—');
+            return null;
+        }
+    }
+
+    async function updateTag(tagId, updates) {
+        try {
+            const res = await apiRequest(`/api/tags/${tagId}`, {
+                method: 'PUT',
+                body: updates
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('æ¨™ç±¤å·²æ›´æ–°');
+
+                // âœ… P4: æ¨‚è§€æ›´æ–°
+                const idx = userTags.findIndex(t => t.id === tagId);
+                if (idx !== -1) {
+                    userTags[idx] = { ...userTags[idx], ...updates };
+                    if (window.AppState) {
+                        AppState.setTags([...userTags]);
+                    }
+                } else {
+                    await loadTags();
+                }
+
+                renderTagManager();
+            } else {
+                showToast(data.detail || 'æ›´æ–°å¤±æ•—');
+            }
+        } catch (e) {
+            console.error('æ›´æ–°æ¨™ç±¤å¤±æ•—:', e);
+            showToast('æ›´æ–°å¤±æ•—');
+        }
+    }
+
+    async function deleteTag(tagId) {
+        if (!confirm('ç¢ºå®šè¦åˆªé™¤æ­¤æ¨™ç±¤å—Žï¼Ÿ')) return;
+        try {
+            const res = await apiRequest(`/api/tags/${tagId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                showToast('æ¨™ç±¤å·²åˆªé™¤');
+
+                // âœ… P4: æ¨‚è§€æ›´æ–°
+                userTags = userTags.filter(t => t.id !== tagId);
+                if (window.AppState) {
+                    AppState.setTags([...userTags]);
+                }
+
+                renderTagManager();
+            } else {
+                showToast(data.detail || 'åˆªé™¤å¤±æ•—');
+            }
+        } catch (e) {
+            console.error('åˆªé™¤æ¨™ç±¤å¤±æ•—:', e);
+            showToast('åˆªé™¤å¤±æ•—');
+        }
+    }
+
+    async function initDefaultTags() {
+        try {
+            const res = await apiRequest('/api/tags/init-defaults', { method: 'POST' });
+            const data = await res.json();
+            showToast(data.message);
+            if (data.success) {
+                // æ¸…é™¤å¿«å–ï¼Œå¼·åˆ¶é‡æ–°è¼‰å…¥
+                if (window.AppState) {
+                    AppState.set('tagsLoaded', false);
+                }
+                await loadTags();
+                renderTagManager();
+            }
+        } catch (e) {
+            console.error('åˆå§‹åŒ–æ¨™ç±¤å¤±æ•—:', e);
+            showToast('åˆå§‹åŒ–å¤±æ•—');
+        }
+    }
+
+    // ============================================================
+    // è¿½è¹¤é …ç›®æ¨™ç±¤ç®¡ç†
+    // ============================================================
+
+    async function getWatchlistTags(watchlistId) {
+        try {
+            const res = await apiRequest(`/api/tags/watchlist/${watchlistId}`);
+            const data = await res.json();
+            return data.success ? data.tags : [];
+        } catch (e) {
+            console.error('å–å¾—æ¨™ç±¤å¤±æ•—:', e);
+            return [];
+        }
+    }
+
+    async function setWatchlistTags(watchlistId, tagIds) {
+        try {
+            const res = await apiRequest(`/api/tags/watchlist/${watchlistId}`, {
+                method: 'PUT',
+                body: { tag_ids: tagIds }
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('æ¨™ç±¤å·²æ›´æ–°');
+                if (typeof loadWatchlist === 'function') loadWatchlist();
+            } else {
+                showToast(data.detail || 'æ›´æ–°å¤±æ•—');
+            }
+        } catch (e) {
+            console.error('è¨­å®šæ¨™ç±¤å¤±æ•—:', e);
+            showToast('æ›´æ–°å¤±æ•—');
+        }
+    }
+
+    // ============================================================
+    // UI æ¸²æŸ“
+    // ============================================================
+
+    function renderTagManager() {
+        const container = $('tagManagerContent');
+        if (!container) return;
+
+        if (userTags.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-tags text-4xl text-gray-300 mb-3"></i>
+                    <p class="text-gray-500 mb-4">å°šç„¡è‡ªè¨‚æ¨™ç±¤</p>
+                    <button data-action="init-defaults" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                        <i class="fas fa-magic mr-2"></i>å»ºç«‹é è¨­æ¨™ç±¤
+                    </button>
+                </div>
+            `;
+            initTagEventDelegation();
+            return;
+        }
+
+        // âœ… P4: ä½¿ç”¨ data-action æ›¿ä»£ onclick
+        container.innerHTML = `
+            <div class="flex flex-wrap gap-2 mb-4" id="tagList">
+                ${userTags.map(tag => `
+                    <div class="flex items-center px-3 py-2 rounded-lg border" style="border-color: ${tag.color}" data-tag-id="${tag.id}">
+                        <i class="fas ${tag.icon} mr-2" style="color: ${tag.color}"></i>
+                        <span class="font-medium">${tag.name}</span>
+                        <button data-action="edit-tag" data-id="${tag.id}" class="ml-2 text-gray-400 hover:text-blue-500">
+                            <i class="fas fa-edit text-xs"></i>
+                        </button>
+                        <button data-action="delete-tag" data-id="${tag.id}" class="ml-1 text-gray-400 hover:text-red-500">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+            <button data-action="create-tag" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                <i class="fas fa-plus mr-2"></i>æ–°å¢žæ¨™ç±¤
+            </button>
+        `;
+
+        initTagEventDelegation();
+    }
+
+    function renderTagBadges(tags) {
+        if (!tags || tags.length === 0) return '';
+        return tags.map(tag => `
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs"
+                  style="background-color: ${tag.color}20; color: ${tag.color}">
+                <i class="fas ${tag.icon} mr-1 text-xs"></i>${tag.name}
+            </span>
+        `).join('');
+    }
+
+    function renderTagFilter(selectedTagId = null) {
+        if (userTags.length === 0) return '';
+        // âœ… P4: ä½¿ç”¨ data-action æ›¿ä»£ onclick
+        return `
+            <div class="flex items-center gap-2 mb-4 flex-wrap">
+                <span class="text-sm text-gray-500"><i class="fas fa-filter mr-1"></i>ç¯©é¸:</span>
+                <button data-action="filter-tag" data-tag-id="" class="px-3 py-1.5 text-xs rounded-full transition-all ${!selectedTagId ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">å…¨éƒ¨</button>
+                ${userTags.map(tag => `
+                    <button data-action="filter-tag" data-tag-id="${tag.id}"
+                            class="px-3 py-1.5 text-xs rounded-full transition-all ${selectedTagId === tag.id ? 'text-white' : 'hover:opacity-80'}"
+                            style="background-color: ${selectedTagId === tag.id ? tag.color : tag.color + '30'}; color: ${selectedTagId === tag.id ? 'white' : tag.color}">
+                        <i class="fas ${tag.icon} mr-1"></i>${tag.name}
+                    </button>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // ============================================================
+    // äº‹ä»¶å§”è¨— (P4 æ ¸å¿ƒå„ªåŒ–)
+    // ============================================================
+
+    let delegationInitialized = false;
+
+    function initTagEventDelegation() {
+        const container = $('tagManagerContent');
+        if (!container || delegationInitialized) return;
+
+        container.addEventListener('click', handleTagClick);
+        delegationInitialized = true;
+        console.log('ðŸ“Œ æ¨™ç±¤ç®¡ç†äº‹ä»¶å§”è¨—å·²åˆå§‹åŒ–');
+    }
+
+    function handleTagClick(e) {
+        const target = e.target.closest('[data-action]');
+        if (!target) return;
+
+        e.preventDefault();
+        const action = target.dataset.action;
+
+        switch (action) {
+            case 'create-tag':
+                showCreateTagModal();
+                break;
+
+            case 'edit-tag':
+                showEditTagModal(parseInt(target.dataset.id));
+                break;
+
+            case 'delete-tag':
+                deleteTag(parseInt(target.dataset.id));
+                break;
+
+            case 'init-defaults':
+                initDefaultTags();
+                break;
+
+            case 'filter-tag':
+                const tagId = target.dataset.tagId ? parseInt(target.dataset.tagId) : null;
+                filterByTag(tagId);
+                break;
+        }
+    }
+
+    // ============================================================
+    // é¡è‰²/åœ–ç¤ºé¸æ“‡å‡½æ•¸
+    // ============================================================
+
+    function selectTagColor(color) {
+        const input = $('tagColorInput');
+        if (input) input.value = color;
+
+        const buttons = document.querySelectorAll('#tagColorOptions button');
+        buttons.forEach(btn => btn.classList.remove('ring-2', 'ring-offset-2'));
+
+        const selectedBtn = Array.from(buttons).find(btn => {
+            const onclick = btn.getAttribute('onclick') || btn.getAttribute('data-color');
+            return onclick && onclick.includes(color);
+        });
+
+        if (!selectedBtn) {
+            buttons.forEach(btn => {
+                const style = btn.style.backgroundColor;
+                if (style) {
+                    const rgb = style.match(/\d+/g);
+                    if (rgb) {
+                        const hex = '#' + rgb.map(x => parseInt(x).toString(16).padStart(2, '0')).join('').toUpperCase();
+                        if (hex === color.toUpperCase()) {
+                            btn.classList.add('ring-2', 'ring-offset-2');
+                            btn.style.setProperty('--tw-ring-color', color);
+                        }
+                    }
+                }
+            });
+        } else {
+            selectedBtn.classList.add('ring-2', 'ring-offset-2');
+        }
+    }
+
+    function selectTagIcon(icon) {
+        const input = $('tagIconInput');
+        if (input) input.value = icon;
+
+        const buttons = document.querySelectorAll('#tagIconOptions button');
+        buttons.forEach(btn => {
+            btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-500', 'border-2');
+            btn.classList.add('border', 'border-gray-200', 'text-gray-400');
+        });
+
+        const selectedBtn = Array.from(buttons).find(btn => {
+            const i = btn.querySelector('i');
+            return i && i.classList.contains(icon);
+        });
+
+        if (selectedBtn) {
+            selectedBtn.classList.remove('border', 'border-gray-200', 'text-gray-400');
+            selectedBtn.classList.add('border-2', 'border-blue-500', 'bg-blue-50', 'text-blue-500');
+        }
+    }
+
+    // ============================================================
+    // Modal æŽ§åˆ¶
+    // ============================================================
+
+    function showCreateTagModal() {
+        currentEditTagId = null;
+
+        const title = $('tagModalTitle');
+        if (title) title.innerHTML = '<i class="fas fa-tag mr-2 text-blue-500"></i>æ–°å¢žæ¨™ç±¤';
+
+        const nameInput = $('tagNameInput');
+        if (nameInput) nameInput.value = '';
+
+        const colorInput = $('tagColorInput');
+        if (colorInput) colorInput.value = '#3B82F6';
+        selectTagColor('#3B82F6');
+
+        const iconInput = $('tagIconInput');
+        if (iconInput) iconInput.value = 'fa-tag';
+        selectTagIcon('fa-tag');
+
+        const modal = $('tagEditModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            if (nameInput) nameInput.focus();
+        }
+    }
+
+    function showEditTagModal(tagId) {
+        const tag = userTags.find(t => t.id === tagId);
+        if (!tag) return;
+
+        currentEditTagId = tagId;
+
+        const title = $('tagModalTitle');
+        if (title) title.innerHTML = '<i class="fas fa-tag mr-2 text-blue-500"></i>ç·¨è¼¯æ¨™ç±¤';
+
+        const nameInput = $('tagNameInput');
+        if (nameInput) nameInput.value = tag.name;
+
+        const colorInput = $('tagColorInput');
+        if (colorInput) colorInput.value = tag.color;
+        selectTagColor(tag.color);
+
+        const iconInput = $('tagIconInput');
+        if (iconInput) iconInput.value = tag.icon;
+        selectTagIcon(tag.icon);
+
+        const modal = $('tagEditModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    }
+
+    function hideTagEditModal() {
+        const modal = $('tagEditModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        currentEditTagId = null;
+    }
+
+    async function saveTagFromModal() {
+        const name = $('tagNameInput')?.value?.trim();
+        const color = $('tagColorInput')?.value || '#3B82F6';
+        const icon = $('tagIconInput')?.value || 'fa-tag';
+
+        if (!name) {
+            showToast('è«‹è¼¸å…¥æ¨™ç±¤åç¨±');
+            return;
+        }
+
+        if (currentEditTagId) {
+            await updateTag(currentEditTagId, { name, color, icon });
+        } else {
+            await createTag(name, color, icon);
+        }
+        hideTagEditModal();
+    }
+
+    // ============================================================
+    // æŒ‡æ´¾æ¨™ç±¤ Modal
+    // ============================================================
+
+    function showAssignTagModal(watchlistId, symbol) {
+        currentAssignWatchlistId = watchlistId;
+        const modal = $('assignTagModal');
+        const symbolEl = $('assignTagSymbol');
+        const container = $('assignTagList');
+
+        if (symbolEl) symbolEl.textContent = symbol;
+        if (container) container.innerHTML = '<p class="text-gray-400 text-center">è¼‰å…¥ä¸­...</p>';
+
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+        loadAssignTagList(watchlistId);
+    }
+
+    async function loadAssignTagList(watchlistId) {
+        const container = $('assignTagList');
+        if (!container) return;
+
+        const currentTags = await getWatchlistTags(watchlistId);
+        const currentTagIds = new Set(currentTags.map(t => t.id));
+
+        if (userTags.length === 0) {
+            container.innerHTML = `
+                <p class="text-gray-500 text-center py-4">å°šç„¡æ¨™ç±¤</p>
+                <button data-action="goto-create-tag" class="w-full py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200">
+                    <i class="fas fa-plus mr-2"></i>å»ºç«‹æ¨™ç±¤
+                </button>
+            `;
+            return;
+        }
+
+        container.innerHTML = userTags.map(tag => `
+            <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input type="checkbox" class="assign-tag-checkbox w-5 h-5 rounded" value="${tag.id}" ${currentTagIds.has(tag.id) ? 'checked' : ''}>
+                <i class="fas ${tag.icon} ml-3 mr-2" style="color: ${tag.color}"></i>
+                <span>${tag.name}</span>
+            </label>
+        `).join('');
+    }
+
+    function hideAssignTagModal() {
+        const modal = $('assignTagModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        currentAssignWatchlistId = null;
+    }
+
+    async function saveAssignedTags() {
+        if (!currentAssignWatchlistId) return;
+        const checkboxes = document.querySelectorAll('.assign-tag-checkbox:checked');
+        const tagIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+        await setWatchlistTags(currentAssignWatchlistId, tagIds);
+        hideAssignTagModal();
+    }
+
+    // ============================================================
+    // ç¯©é¸åŠŸèƒ½
+    // ============================================================
+
+    function filterByTag(tagId) {
+        currentFilterTagId = tagId;
+        if (typeof loadWatchlist === 'function') loadWatchlist();
+    }
+
+    function getFilterTagId() {
+        return currentFilterTagId;
+    }
+
+    function setFilterTagId(tagId) {
+        currentFilterTagId = tagId;
+    }
+
+    // ============================================================
+    // å°Žå‡º
+    // ============================================================
+
+    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    if (window.SELA) {
+        window.SELA.tags = {
+            load: loadTags,
+            create: createTag,
+            update: updateTag,
+            delete: deleteTag,
+            initDefaults: initDefaultTags,
+            getWatchlistTags,
+            setWatchlistTags,
+            renderBadges: renderTagBadges,
+            renderFilter: renderTagFilter,
+            renderManager: renderTagManager,
+            getFilterId: getFilterTagId,
+            setFilterId: setFilterTagId
+        };
+    }
+
+    // å…¨åŸŸå°Žå‡ºï¼ˆå‘å¾Œå…¼å®¹ï¼‰
+    window.loadTags = loadTags;
+    window.createTag = createTag;
+    window.updateTag = updateTag;
+    window.deleteTag = deleteTag;
+    window.initDefaultTags = initDefaultTags;
+    window.getWatchlistTags = getWatchlistTags;
+    window.setWatchlistTags = setWatchlistTags;
+    window.renderTagBadges = renderTagBadges;
+    window.renderTagFilter = renderTagFilter;
+    window.renderTagManager = renderTagManager;
+    window.showCreateTagModal = showCreateTagModal;
+    window.showEditTagModal = showEditTagModal;
+    window.hideTagEditModal = hideTagEditModal;
+    window.saveTagFromModal = saveTagFromModal;
+    window.showAssignTagModal = showAssignTagModal;
+    window.hideAssignTagModal = hideAssignTagModal;
+    window.saveAssignedTags = saveAssignedTags;
+    window.filterByTag = filterByTag;
+    window.getFilterTagId = getFilterTagId;
+    window.setFilterTagId = setFilterTagId;
+    window.userTags = userTags;
+    window.selectTagColor = selectTagColor;
+    window.selectTagIcon = selectTagIcon;
+
+    console.log('ðŸ·ï¸ tags.js æ¨¡çµ„å·²è¼‰å…¥ (P4 å„ªåŒ–ç‰ˆ)');
+})();

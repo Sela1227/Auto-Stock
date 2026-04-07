@@ -1,0 +1,602 @@
+/**
+ * äº¤æ˜“è¡¨å–®æ¨¡çµ„ (P4 å„ªåŒ–ç‰ˆ)
+ * 
+ * å„ªåŒ–å…§å®¹ï¼š
+ * 1. DOM å¿«å– - ä½¿ç”¨ $() å‡½æ•¸
+ * 2. æ¸›å°‘é‡è¤‡æŸ¥è©¢
+ * 3. åˆ¸å•†é¸æ“‡åŠŸèƒ½
+ * 
+ * åŒ…å«ï¼šå°è‚¡/ç¾Žè‚¡äº¤æ˜“è¡¨å–®
+ */
+
+(function() {
+    'use strict';
+
+    let twLookupTimer = null;
+    let usLookupTimer = null;
+    let userBrokers = [];  // ðŸ”§ åˆ¸å•†åˆ—è¡¨å¿«å–
+
+    // ============================================================
+    // åˆ¸å•†ç®¡ç†
+    // ============================================================
+
+    async function loadBrokers() {
+        try {
+            const res = await apiRequest('/api/brokers');
+            const data = await res.json();
+            if (data.success) {
+                userBrokers = data.data || [];
+                renderBrokerSelect('twBroker');
+                renderBrokerSelect('usBroker');
+            }
+        } catch (e) {
+            console.error('è¼‰å…¥åˆ¸å•†å¤±æ•—:', e);
+        }
+    }
+
+    function renderBrokerSelect(selectId) {
+        const select = $(selectId);
+        if (!select) return;
+
+        let html = '<option value="">ä¸æŒ‡å®šåˆ¸å•†</option>';
+        userBrokers.forEach(b => {
+            const defaultMark = b.is_default ? ' â­' : '';
+            html += `<option value="${b.id}" ${b.is_default ? 'selected' : ''}>${b.name}${defaultMark}</option>`;
+        });
+        html += '<option value="__new__">+ æ–°å¢žåˆ¸å•†...</option>';
+        select.innerHTML = html;
+    }
+
+    async function handleBrokerChange(selectId) {
+        const select = $(selectId);
+        if (!select) return;
+
+        if (select.value === '__new__') {
+            const name = prompt('è«‹è¼¸å…¥åˆ¸å•†åç¨±ï¼š');
+            if (name && name.trim()) {
+                try {
+                    const res = await apiRequest('/api/brokers', {
+                        method: 'POST',
+                        body: { name: name.trim() }
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast('åˆ¸å•†å·²æ–°å¢ž');
+                        await loadBrokers();
+                        // é¸ä¸­æ–°å¢žçš„åˆ¸å•†
+                        if (data.data?.id) {
+                            select.value = data.data.id;
+                        }
+                    } else {
+                        showToast(data.detail || 'æ–°å¢žå¤±æ•—');
+                        select.value = '';
+                    }
+                } catch (e) {
+                    console.error('æ–°å¢žåˆ¸å•†å¤±æ•—:', e);
+                    showToast('æ–°å¢žå¤±æ•—');
+                    select.value = '';
+                }
+            } else {
+                select.value = '';
+            }
+        }
+    }
+
+    // ============================================================
+    // å°è‚¡äº¤æ˜“
+    // ============================================================
+
+    function showAddTwModal() {
+        // âœ… P4: ä½¿ç”¨ $() å¿«å–
+        $('twEditId').value = '';
+        $('twModalTitle').textContent = 'æ–°å¢žå°è‚¡äº¤æ˜“';
+        setTwType('buy');
+        $('twSymbol').value = '';
+        $('twName').value = '';
+        $('twNameDisplay').innerHTML = '<span class="text-gray-400">è¼¸å…¥ä»£ç¢¼è‡ªå‹•å¸¶å…¥</span>';
+        $('twLots').value = '';
+        $('twOddLot').value = '';
+        $('twQuantityDisplay').textContent = '= 0 è‚¡';
+        $('twPrice').value = '';
+        $('twFee').value = '0';
+        $('twTax').value = '0';
+        $('twDate').value = new Date().toISOString().split('T')[0];
+        $('twNote').value = '';
+
+        // ðŸ”§ è¼‰å…¥åˆ¸å•†åˆ—è¡¨
+        loadBrokers();
+
+        const modal = $('twTransactionModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    }
+
+    function closeTwModal() {
+        const modal = $('twTransactionModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
+
+    function setTwType(type) {
+        const buyBtn = $('twTypeBuy');
+        const sellBtn = $('twTypeSell');
+        const typeInput = $('twType');
+
+        if (type === 'buy') {
+            if (buyBtn) {
+                buyBtn.classList.add('bg-green-500', 'text-white');
+                buyBtn.classList.remove('bg-gray-100', 'text-gray-700');
+            }
+            if (sellBtn) {
+                sellBtn.classList.remove('bg-red-500', 'text-white');
+                sellBtn.classList.add('bg-gray-100', 'text-gray-700');
+            }
+        } else {
+            if (sellBtn) {
+                sellBtn.classList.add('bg-red-500', 'text-white');
+                sellBtn.classList.remove('bg-gray-100', 'text-gray-700');
+            }
+            if (buyBtn) {
+                buyBtn.classList.remove('bg-green-500', 'text-white');
+                buyBtn.classList.add('bg-gray-100', 'text-gray-700');
+            }
+        }
+        if (typeInput) typeInput.value = type;
+    }
+
+    function updateTwQuantity() {
+        const lots = parseInt($('twLots')?.value) || 0;
+        const oddLot = parseInt($('twOddLot')?.value) || 0;
+        const total = lots * 1000 + oddLot;
+
+        const display = $('twQuantityDisplay');
+        if (display) display.textContent = `= ${total.toLocaleString()} è‚¡`;
+
+        const hidden = $('twQuantity');
+        if (hidden) hidden.value = total;
+    }
+
+    function lookupTwStock() {
+        clearTimeout(twLookupTimer);
+        twLookupTimer = setTimeout(async () => {
+            const symbol = $('twSymbol')?.value?.trim();
+            if (!symbol || symbol.length < 4) return;
+
+            try {
+                // ðŸ”§ ä¿®æ­£ï¼šä½¿ç”¨æ­£ç¢ºçš„ API è·¯å¾‘
+                const res = await apiRequest(`/api/stock/${symbol}.TW`);
+                const data = await res.json();
+
+                const nameDisplay = $('twNameDisplay');
+                const nameInput = $('twName');
+
+                // ðŸ”§ ä¿®æ­£ï¼šå¾žå›žå‚³è³‡æ–™å–å¾—åç¨±
+                const stockName = data.name || data.data?.name;
+                if (data.success && stockName) {
+                    if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${stockName}</span>`;
+                    if (nameInput) nameInput.value = stockName;
+                    
+                    // ðŸ”§ æŸ¥è©¢è©²è‚¡ç¥¨æœ€å¾Œä¸€ç­†äº¤æ˜“åƒ¹æ ¼
+                    fetchLastTransactionPrice(`${symbol}.TW`, 'tw');
+                } else {
+                    if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">æŸ¥ç„¡è³‡æ–™</span>';
+                }
+            } catch (e) {
+                console.error('æŸ¥è©¢å°è‚¡å¤±æ•—:', e);
+                const nameDisplay = $('twNameDisplay');
+                if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">æŸ¥ç„¡è³‡æ–™</span>';
+            }
+        }, 500);
+    }
+
+    // ðŸ”§ æ–°å¢žï¼šç²å–æœ€å¾Œä¸€ç­†äº¤æ˜“åƒ¹æ ¼
+    async function fetchLastTransactionPrice(symbol, market) {
+        try {
+            const res = await apiRequest(`/api/portfolio/transactions/last-price/${symbol}`);
+            const data = await res.json();
+            
+            if (data.success && data.price) {
+                const priceInput = $(market === 'tw' ? 'twPrice' : 'usPrice');
+                if (priceInput && !priceInput.value) {
+                    priceInput.value = data.price;
+                    priceInput.classList.add('bg-yellow-50');
+                    setTimeout(() => priceInput.classList.remove('bg-yellow-50'), 1000);
+                }
+            }
+        } catch (e) {
+            // æ²’æœ‰æ­·å²äº¤æ˜“ï¼Œä¸è™•ç†
+        }
+    }
+
+    async function submitTwTransaction() {
+        const editId = $('twEditId')?.value;
+        const rawSymbol = $('twSymbol')?.value?.trim();
+        const symbol = rawSymbol ? `${rawSymbol}.TW` : '';  // ðŸ”§ åŠ ä¸Š .TW å¾Œç¶´
+        const name = $('twName')?.value?.trim();
+        const type = $('twType')?.value;
+        const quantity = parseInt($('twQuantity')?.value) || 0;
+        const price = parseFloat($('twPrice')?.value) || 0;
+        const fee = 0;  // ðŸ”§ å¿½ç•¥æ‰‹çºŒè²»
+        const tax = 0;  // ðŸ”§ å¿½ç•¥äº¤æ˜“ç¨…
+        const date = $('twDate')?.value;
+        const note = $('twNote')?.value?.trim();
+        const brokerId = $('twBroker')?.value;  // ðŸ”§ åˆ¸å•† ID
+
+        if (!symbol || quantity <= 0 || price <= 0) {
+            showToast('è«‹å¡«å¯«å®Œæ•´è³‡æ–™');
+            return;
+        }
+
+        const body = {
+            symbol,
+            name,
+            transaction_type: type,
+            quantity,
+            price,
+            fee,
+            tax,
+            transaction_date: date,
+            note,
+            broker_id: brokerId && brokerId !== '__new__' ? parseInt(brokerId) : null  // ðŸ”§ åŠ å…¥åˆ¸å•†
+        };
+
+        try {
+            let res;
+            if (editId) {
+                res = await apiRequest(`/api/portfolio/transactions/tw/${editId}`, {
+                    method: 'PUT',
+                    body
+                });
+            } else {
+                res = await apiRequest('/api/portfolio/transactions/tw', {
+                    method: 'POST',
+                    body
+                });
+            }
+
+            const data = await res.json();
+
+            if (data.success) {
+                showToast(editId ? 'äº¤æ˜“å·²æ›´æ–°' : 'äº¤æ˜“å·²æ–°å¢ž');
+                closeTwModal();
+
+                // âœ… P4: æ¸…é™¤ AppState å¿«å–
+                if (window.AppState) {
+                    AppState.set('portfolioLoaded', false);
+                }
+
+                if (typeof loadPortfolio === 'function') loadPortfolio();
+                if (typeof loadTransactions === 'function') loadTransactions('tw');
+            } else {
+                showToast(data.detail || 'æ“ä½œå¤±æ•—');
+            }
+        } catch (e) {
+            console.error('æäº¤äº¤æ˜“å¤±æ•—:', e);
+            showToast('æ“ä½œå¤±æ•—');
+        }
+    }
+
+    async function editTwTransaction(id) {
+        try {
+            const res = await apiRequest(`/api/portfolio/transactions/${id}`);
+            const data = await res.json();
+
+            if (data.success) {
+                const t = data.data;
+                $('twEditId').value = t.id;
+                $('twModalTitle').textContent = 'ç·¨è¼¯å°è‚¡äº¤æ˜“';
+                setTwType(t.transaction_type);
+
+                $('twSymbol').value = t.symbol.replace('.TW', '').replace('.TWO', '');
+                $('twName').value = t.name || '';
+
+                const nameDisplay = $('twNameDisplay');
+                if (nameDisplay) {
+                    nameDisplay.innerHTML = t.name
+                        ? `<span class="text-gray-800">${t.name}</span>`
+                        : '<span class="text-gray-400">--</span>';
+                }
+
+                const lots = Math.floor(t.quantity / 1000);
+                const oddLot = t.quantity % 1000;
+                $('twLots').value = lots || '';
+                $('twOddLot').value = oddLot || '';
+                updateTwQuantity();
+
+                $('twPrice').value = t.price;
+                $('twFee').value = t.fee || '';
+                $('twTax').value = t.tax || '';
+                $('twDate').value = t.transaction_date;
+                $('twNote').value = t.note || '';
+
+                const modal = $('twTransactionModal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                }
+            }
+        } catch (e) {
+            console.error('è¼‰å…¥äº¤æ˜“å¤±æ•—:', e);
+            showToast('è¼‰å…¥å¤±æ•—');
+        }
+    }
+
+    // ============================================================
+    // ç¾Žè‚¡äº¤æ˜“
+    // ============================================================
+
+    function showAddUsModal() {
+        $('usEditId').value = '';
+        $('usModalTitle').textContent = 'æ–°å¢žç¾Žè‚¡äº¤æ˜“';
+        setUsType('buy');
+        $('usSymbol').value = '';
+        $('usName').value = '';
+        $('usNameDisplay').innerHTML = '<span class="text-gray-400">è¼¸å…¥ä»£ç¢¼è‡ªå‹•å¸¶å…¥</span>';
+        $('usQuantity').value = '';
+        $('usPrice').value = '';
+        $('usFee').value = '0';
+        $('usTax').value = '0';
+        $('usDate').value = new Date().toISOString().split('T')[0];
+        $('usNote').value = '';
+
+        // ðŸ”§ è¼‰å…¥åˆ¸å•†åˆ—è¡¨
+        loadBrokers();
+
+        const modal = $('usTransactionModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    }
+
+    function closeUsModal() {
+        const modal = $('usTransactionModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
+
+    function setUsType(type) {
+        const buyBtn = $('usTypeBuy');
+        const sellBtn = $('usTypeSell');
+        const typeInput = $('usType');
+
+        if (type === 'buy') {
+            if (buyBtn) {
+                buyBtn.classList.add('bg-green-500', 'text-white');
+                buyBtn.classList.remove('bg-gray-100', 'text-gray-700');
+            }
+            if (sellBtn) {
+                sellBtn.classList.remove('bg-red-500', 'text-white');
+                sellBtn.classList.add('bg-gray-100', 'text-gray-700');
+            }
+        } else {
+            if (sellBtn) {
+                sellBtn.classList.add('bg-red-500', 'text-white');
+                sellBtn.classList.remove('bg-gray-100', 'text-gray-700');
+            }
+            if (buyBtn) {
+                buyBtn.classList.remove('bg-green-500', 'text-white');
+                buyBtn.classList.add('bg-gray-100', 'text-gray-700');
+            }
+        }
+        if (typeInput) typeInput.value = type;
+    }
+
+    function lookupUsStock() {
+        clearTimeout(usLookupTimer);
+        usLookupTimer = setTimeout(async () => {
+            const symbol = $('usSymbol')?.value?.trim().toUpperCase();
+            if (!symbol || symbol.length < 1) return;
+
+            try {
+                // ðŸ”§ ä¿®æ­£ï¼šä½¿ç”¨æ­£ç¢ºçš„ API è·¯å¾‘
+                const res = await apiRequest(`/api/stock/${symbol}`);
+                const data = await res.json();
+
+                const nameDisplay = $('usNameDisplay');
+                const nameInput = $('usName');
+
+                // ðŸ”§ ä¿®æ­£ï¼šå¾žå›žå‚³è³‡æ–™å–å¾—åç¨±
+                const stockName = data.name || data.data?.name;
+                if (data.success && stockName) {
+                    if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${stockName}</span>`;
+                    if (nameInput) nameInput.value = stockName;
+                    
+                    // ðŸ”§ æŸ¥è©¢è©²è‚¡ç¥¨æœ€å¾Œä¸€ç­†äº¤æ˜“åƒ¹æ ¼
+                    fetchLastTransactionPrice(symbol, 'us');
+                } else {
+                    if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">æŸ¥ç„¡è³‡æ–™</span>';
+                }
+            } catch (e) {
+                console.error('æŸ¥è©¢ç¾Žè‚¡å¤±æ•—:', e);
+                const nameDisplay = $('usNameDisplay');
+                if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">æŸ¥ç„¡è³‡æ–™</span>';
+            }
+        }, 500);
+    }
+
+    async function submitUsTransaction() {
+        const editId = $('usEditId')?.value;
+        const symbol = $('usSymbol')?.value?.trim().toUpperCase();
+        const name = $('usName')?.value?.trim();
+        const type = $('usType')?.value;
+        const quantity = parseFloat($('usQuantity')?.value) || 0;
+        const price = parseFloat($('usPrice')?.value) || 0;
+        const fee = 0;  // ðŸ”§ å¿½ç•¥æ‰‹çºŒè²»
+        const tax = 0;  // ðŸ”§ å¿½ç•¥äº¤æ˜“ç¨…
+        const date = $('usDate')?.value;
+        const note = $('usNote')?.value?.trim();
+        const brokerId = $('usBroker')?.value;  // ðŸ”§ åˆ¸å•† ID
+
+        if (!symbol || quantity <= 0 || price <= 0) {
+            showToast('è«‹å¡«å¯«å®Œæ•´è³‡æ–™');
+            return;
+        }
+
+        const body = {
+            symbol,
+            name,
+            transaction_type: type,
+            quantity,
+            price,
+            fee,
+            tax,
+            transaction_date: date,
+            note,
+            broker_id: brokerId && brokerId !== '__new__' ? parseInt(brokerId) : null  // ðŸ”§ åŠ å…¥åˆ¸å•†
+        };
+
+        try {
+            let res;
+            if (editId) {
+                res = await apiRequest(`/api/portfolio/transactions/us/${editId}`, {
+                    method: 'PUT',
+                    body
+                });
+            } else {
+                res = await apiRequest('/api/portfolio/transactions/us', {
+                    method: 'POST',
+                    body
+                });
+            }
+
+            const data = await res.json();
+
+            if (data.success) {
+                showToast(editId ? 'äº¤æ˜“å·²æ›´æ–°' : 'äº¤æ˜“å·²æ–°å¢ž');
+                closeUsModal();
+
+                // âœ… P4: æ¸…é™¤ AppState å¿«å–
+                if (window.AppState) {
+                    AppState.set('portfolioLoaded', false);
+                }
+
+                if (typeof loadPortfolio === 'function') loadPortfolio();
+                if (typeof loadTransactions === 'function') loadTransactions('us');
+            } else {
+                showToast(data.detail || 'æ“ä½œå¤±æ•—');
+            }
+        } catch (e) {
+            console.error('æäº¤äº¤æ˜“å¤±æ•—:', e);
+            showToast('æ“ä½œå¤±æ•—');
+        }
+    }
+
+    async function editUsTransaction(id) {
+        try {
+            const res = await apiRequest(`/api/portfolio/transactions/${id}`);
+            const data = await res.json();
+
+            if (data.success) {
+                const t = data.data;
+                $('usEditId').value = t.id;
+                $('usModalTitle').textContent = 'ç·¨è¼¯ç¾Žè‚¡äº¤æ˜“';
+                setUsType(t.transaction_type);
+
+                $('usSymbol').value = t.symbol;
+                $('usName').value = t.name || '';
+
+                const nameDisplay = $('usNameDisplay');
+                if (nameDisplay) {
+                    nameDisplay.innerHTML = t.name
+                        ? `<span class="text-gray-800">${t.name}</span>`
+                        : '<span class="text-gray-400">--</span>';
+                }
+
+                $('usQuantity').value = t.quantity;
+                $('usPrice').value = t.price;
+                $('usFee').value = t.fee || '';
+                $('usTax').value = t.tax || '';
+                $('usDate').value = t.transaction_date;
+                $('usNote').value = t.note || '';
+
+                const modal = $('usTransactionModal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                }
+            }
+        } catch (e) {
+            console.error('è¼‰å…¥äº¤æ˜“å¤±æ•—:', e);
+            showToast('è¼‰å…¥å¤±æ•—');
+        }
+    }
+
+    // ============================================================
+    // å¿«é€Ÿäº¤æ˜“ï¼ˆè¦†å¯« portfolio.js çš„ç‰ˆæœ¬ï¼‰
+    // ============================================================
+
+    function quickTrade(symbol, name, market, type) {
+        if (market === 'tw') {
+            showAddTwModal();
+            setTwType(type);
+            const cleanSymbol = symbol.replace('.TW', '').replace('.TWO', '');
+            $('twSymbol').value = cleanSymbol;
+            $('twName').value = name || '';
+
+            const nameDisplay = $('twNameDisplay');
+            if (nameDisplay) {
+                nameDisplay.innerHTML = name
+                    ? `<span class="text-gray-800">${name}</span>`
+                    : '<span class="text-gray-400">--</span>';
+            }
+        } else {
+            showAddUsModal();
+            setUsType(type);
+            $('usSymbol').value = symbol;
+            $('usName').value = name || '';
+
+            const nameDisplay = $('usNameDisplay');
+            if (nameDisplay) {
+                nameDisplay.innerHTML = name
+                    ? `<span class="text-gray-800">${name}</span>`
+                    : '<span class="text-gray-400">--</span>';
+            }
+        }
+    }
+
+    // ============================================================
+    // å°Žå‡º
+    // ============================================================
+
+    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    if (window.SELA) {
+        window.SELA.transaction = {
+            showTwModal: showAddTwModal,
+            closeTwModal,
+            showUsModal: showAddUsModal,
+            closeUsModal,
+            quickTrade
+        };
+    }
+
+    // å…¨åŸŸå°Žå‡ºï¼ˆå‘å¾Œå…¼å®¹ï¼‰
+    window.showAddTwModal = showAddTwModal;
+    window.closeTwModal = closeTwModal;
+    window.setTwType = setTwType;
+    window.updateTwQuantity = updateTwQuantity;
+    window.lookupTwStock = lookupTwStock;
+    window.submitTwTransaction = submitTwTransaction;
+    window.editTwTransaction = editTwTransaction;
+
+    window.showAddUsModal = showAddUsModal;
+    window.closeUsModal = closeUsModal;
+    window.setUsType = setUsType;
+    window.lookupUsStock = lookupUsStock;
+    window.submitUsTransaction = submitUsTransaction;
+    window.editUsTransaction = editUsTransaction;
+
+    window.quickTrade = quickTrade;
+
+    // ðŸ”§ åˆ¸å•†ç›¸é—œå‡½æ•¸
+    window.loadBrokers = loadBrokers;
+    window.handleBrokerChange = handleBrokerChange;
+
+    console.log('ðŸ’° transaction.js æ¨¡çµ„å·²è¼‰å…¥ (P4 å„ªåŒ–ç‰ˆ)');
+})();
