@@ -1,5 +1,5 @@
 """
-åˆ¸å•†ç®¡ç† API
+券商管理 API
 """
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,7 +16,7 @@ from app.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/brokers", tags=["åˆ¸å•†ç®¡ç†"])
+router = APIRouter(prefix="/api/brokers", tags=["券商管理"])
 
 
 # ============================================================
@@ -36,15 +36,15 @@ class BrokerUpdate(BaseModel):
 
 
 # ============================================================
-# API ç«¯é»ž
+# API 端點
 # ============================================================
 
-@router.get("", summary="å–å¾—åˆ¸å•†åˆ—è¡¨")
+@router.get("", summary="取得券商列表")
 async def get_brokers(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """å–å¾—ç”¨æˆ¶çš„æ‰€æœ‰åˆ¸å•†"""
+    """取得用戶的所有券商"""
     stmt = select(Broker).where(Broker.user_id == current_user.id).order_by(Broker.name)
     result = await db.execute(stmt)
     brokers = result.scalars().all()
@@ -55,23 +55,23 @@ async def get_brokers(
     }
 
 
-@router.post("", summary="æ–°å¢žåˆ¸å•†")
+@router.post("", summary="新增券商")
 async def create_broker(
     data: BrokerCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """æ–°å¢žåˆ¸å•†"""
-    # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨åŒååˆ¸å•†
+    """新增券商"""
+    # 檢查是否已存在同名券商
     stmt = select(Broker).where(
         Broker.user_id == current_user.id,
         Broker.name == data.name
     )
     result = await db.execute(stmt)
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="åˆ¸å•†åç¨±å·²å­˜åœ¨")
+        raise HTTPException(status_code=400, detail="券商名稱已存在")
     
-    # å¦‚æžœè¨­ç‚ºé è¨­ï¼Œå…ˆå–æ¶ˆå…¶ä»–é è¨­
+    # 如果設為預設，先取消其他預設
     if data.is_default:
         await db.execute(
             update(Broker)
@@ -91,19 +91,19 @@ async def create_broker(
     
     return {
         "success": True,
-        "message": "åˆ¸å•†å·²æ–°å¢ž",
+        "message": "券商已新增",
         "data": broker.to_dict(),
     }
 
 
-@router.put("/{broker_id}", summary="æ›´æ–°åˆ¸å•†")
+@router.put("/{broker_id}", summary="更新券商")
 async def update_broker(
     broker_id: int,
     data: BrokerUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """æ›´æ–°åˆ¸å•†"""
+    """更新券商"""
     stmt = select(Broker).where(
         Broker.id == broker_id,
         Broker.user_id == current_user.id
@@ -112,9 +112,9 @@ async def update_broker(
     broker = result.scalar_one_or_none()
     
     if not broker:
-        raise HTTPException(status_code=404, detail="åˆ¸å•†ä¸å­˜åœ¨")
+        raise HTTPException(status_code=404, detail="券商不存在")
     
-    # æª¢æŸ¥åç¨±æ˜¯å¦é‡è¤‡
+    # 檢查名稱是否重複
     if data.name and data.name != broker.name:
         check_stmt = select(Broker).where(
             Broker.user_id == current_user.id,
@@ -123,9 +123,9 @@ async def update_broker(
         )
         check_result = await db.execute(check_stmt)
         if check_result.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="åˆ¸å•†åç¨±å·²å­˜åœ¨")
+            raise HTTPException(status_code=400, detail="券商名稱已存在")
     
-    # å¦‚æžœè¨­ç‚ºé è¨­ï¼Œå…ˆå–æ¶ˆå…¶ä»–é è¨­
+    # 如果設為預設，先取消其他預設
     if data.is_default:
         await db.execute(
             update(Broker)
@@ -133,7 +133,7 @@ async def update_broker(
             .values(is_default=False)
         )
     
-    # æ›´æ–°æ¬„ä½
+    # 更新欄位
     if data.name is not None:
         broker.name = data.name
     if data.color is not None:
@@ -146,18 +146,18 @@ async def update_broker(
     
     return {
         "success": True,
-        "message": "åˆ¸å•†å·²æ›´æ–°",
+        "message": "券商已更新",
         "data": broker.to_dict(),
     }
 
 
-@router.delete("/{broker_id}", summary="åˆªé™¤åˆ¸å•†")
+@router.delete("/{broker_id}", summary="刪除券商")
 async def delete_broker(
     broker_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """åˆªé™¤åˆ¸å•†ï¼ˆäº¤æ˜“è¨˜éŒ„ä¸­çš„ broker_id æœƒè®Šæˆ NULLï¼‰"""
+    """刪除券商（交易記錄中的 broker_id 會變成 NULL）"""
     stmt = select(Broker).where(
         Broker.id == broker_id,
         Broker.user_id == current_user.id
@@ -166,12 +166,12 @@ async def delete_broker(
     broker = result.scalar_one_or_none()
     
     if not broker:
-        raise HTTPException(status_code=404, detail="åˆ¸å•†ä¸å­˜åœ¨")
+        raise HTTPException(status_code=404, detail="券商不存在")
     
     await db.delete(broker)
     await db.commit()
     
     return {
         "success": True,
-        "message": "åˆ¸å•†å·²åˆªé™¤",
+        "message": "券商已刪除",
     }

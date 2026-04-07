@@ -1,6 +1,6 @@
 """
-è¨­å®šç®¡ç† API è·¯ç”±
-ðŸ”§ P0ä¿®å¾©ï¼šä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+設定管理 API 路由
+🔧 P0修復：使用統一認證模組
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,21 +23,21 @@ from app.schemas.schemas import (
     ResponseBase,
 )
 
-# ðŸ”§ ä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+# 🔧 使用統一認證模組
 from app.dependencies import get_current_user
 
-router = APIRouter(prefix="/api/settings", tags=["è¨­å®š"])
+router = APIRouter(prefix="/api/settings", tags=["設定"])
 
 
-# ==================== æŒ‡æ¨™é¡¯ç¤ºè¨­å®š ====================
+# ==================== 指標顯示設定 ====================
 
-@router.get("/indicators", summary="å–å¾—æŒ‡æ¨™é¡¯ç¤ºè¨­å®š", response_model=IndicatorSettingsResponse)
+@router.get("/indicators", summary="取得指標顯示設定", response_model=IndicatorSettingsResponse)
 async def get_indicator_settings(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    å–å¾—ç”¨æˆ¶çš„æŒ‡æ¨™é¡¯ç¤ºè¨­å®š
+    取得用戶的指標顯示設定
     """
     stmt = select(UserIndicatorSettings).where(
         UserIndicatorSettings.user_id == user.id
@@ -46,7 +46,7 @@ async def get_indicator_settings(
     settings = result.scalar_one_or_none()
     
     if not settings:
-        # å»ºç«‹é è¨­è¨­å®š
+        # 建立預設設定
         settings = UserIndicatorSettings.create_default(user.id)
         db.add(settings)
         await db.commit()
@@ -58,14 +58,14 @@ async def get_indicator_settings(
     )
 
 
-@router.put("/indicators", summary="æ›´æ–°æŒ‡æ¨™é¡¯ç¤ºè¨­å®š", response_model=IndicatorSettingsResponse)
+@router.put("/indicators", summary="更新指標顯示設定", response_model=IndicatorSettingsResponse)
 async def update_indicator_settings(
     data: IndicatorSettingsUpdate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    æ›´æ–°ç”¨æˆ¶çš„æŒ‡æ¨™é¡¯ç¤ºè¨­å®š
+    更新用戶的指標顯示設定
     """
     stmt = select(UserIndicatorSettings).where(
         UserIndicatorSettings.user_id == user.id
@@ -77,7 +77,7 @@ async def update_indicator_settings(
         settings = UserIndicatorSettings.create_default(user.id)
         db.add(settings)
     
-    # æ›´æ–°è¨­å®š
+    # 更新設定
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(settings, key, value)
@@ -87,20 +87,20 @@ async def update_indicator_settings(
     
     return IndicatorSettingsResponse(
         success=True,
-        message="è¨­å®šå·²æ›´æ–°",
+        message="設定已更新",
         data=settings.to_dict(),
     )
 
 
-# ==================== é€šçŸ¥è¨­å®š ====================
+# ==================== 通知設定 ====================
 
-@router.get("/alerts", summary="å–å¾—é€šçŸ¥è¨­å®š", response_model=AlertSettingsResponse)
+@router.get("/alerts", summary="取得通知設定", response_model=AlertSettingsResponse)
 async def get_alert_settings(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    å–å¾—ç”¨æˆ¶çš„é€šçŸ¥è¨­å®š
+    取得用戶的通知設定
     """
     stmt = select(UserAlertSettings).where(
         UserAlertSettings.user_id == user.id
@@ -120,14 +120,14 @@ async def get_alert_settings(
     )
 
 
-@router.put("/alerts", summary="æ›´æ–°é€šçŸ¥è¨­å®š", response_model=AlertSettingsResponse)
+@router.put("/alerts", summary="更新通知設定", response_model=AlertSettingsResponse)
 async def update_alert_settings(
     data: AlertSettingsUpdate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    æ›´æ–°ç”¨æˆ¶çš„é€šçŸ¥è¨­å®š
+    更新用戶的通知設定
     """
     stmt = select(UserAlertSettings).where(
         UserAlertSettings.user_id == user.id
@@ -139,7 +139,7 @@ async def update_alert_settings(
         settings = UserAlertSettings.create_default(user.id)
         db.add(settings)
     
-    # æ›´æ–°è¨­å®š
+    # 更新設定
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(settings, key, value)
@@ -149,20 +149,20 @@ async def update_alert_settings(
     
     return AlertSettingsResponse(
         success=True,
-        message="è¨­å®šå·²æ›´æ–°",
+        message="設定已更新",
         data=settings.to_dict(),
     )
 
 
-# ==================== æŒ‡æ¨™åƒæ•¸è¨­å®š ====================
+# ==================== 指標參數設定 ====================
 
-@router.get("/params", summary="å–å¾—æŒ‡æ¨™åƒæ•¸", response_model=IndicatorParamsResponse)
+@router.get("/params", summary="取得指標參數", response_model=IndicatorParamsResponse)
 async def get_indicator_params(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    å–å¾—ç”¨æˆ¶çš„æŒ‡æ¨™åƒæ•¸è¨­å®š
+    取得用戶的指標參數設定
     """
     stmt = select(UserIndicatorParams).where(
         UserIndicatorParams.user_id == user.id
@@ -182,22 +182,22 @@ async def get_indicator_params(
     )
 
 
-@router.put("/params", summary="æ›´æ–°æŒ‡æ¨™åƒæ•¸", response_model=IndicatorParamsResponse)
+@router.put("/params", summary="更新指標參數", response_model=IndicatorParamsResponse)
 async def update_indicator_params(
     data: IndicatorParamsUpdate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    æ›´æ–°ç”¨æˆ¶çš„æŒ‡æ¨™åƒæ•¸è¨­å®š
+    更新用戶的指標參數設定
     
-    å¯è‡ªè¨‚åƒæ•¸åŒ…æ‹¬ï¼š
-    - å‡ç·šé€±æœŸ (ma_short, ma_mid, ma_long)
-    - RSI åƒæ•¸ (rsi_period, rsi_overbought, rsi_oversold)
-    - MACD åƒæ•¸ (macd_fast, macd_slow, macd_signal)
-    - KD é€±æœŸ (kd_period)
-    - å¸ƒæž—é€šé“ (bollinger_period, bollinger_std)
-    - è­¦æˆ’å€¼ (breakout_threshold, volume_alert_ratio)
+    可自訂參數包括：
+    - 均線週期 (ma_short, ma_mid, ma_long)
+    - RSI 參數 (rsi_period, rsi_overbought, rsi_oversold)
+    - MACD 參數 (macd_fast, macd_slow, macd_signal)
+    - KD 週期 (kd_period)
+    - 布林通道 (bollinger_period, bollinger_std)
+    - 警戒值 (breakout_threshold, volume_alert_ratio)
     """
     stmt = select(UserIndicatorParams).where(
         UserIndicatorParams.user_id == user.id
@@ -209,7 +209,7 @@ async def update_indicator_params(
         params = UserIndicatorParams.create_default(user.id)
         db.add(params)
     
-    # æ›´æ–°åƒæ•¸
+    # 更新參數
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(params, key, value)
@@ -219,12 +219,12 @@ async def update_indicator_params(
     
     return IndicatorParamsResponse(
         success=True,
-        message="åƒæ•¸å·²æ›´æ–°",
+        message="參數已更新",
         data=params.to_dict(),
     )
 
 
-# ==================== é è¨­æ¨¡æ¿ ====================
+# ==================== 預設模板 ====================
 
 TEMPLATES = {
     "minimal": {
@@ -319,30 +319,30 @@ TEMPLATES = {
 }
 
 
-@router.post("/template/{template_name}", summary="å¥—ç”¨é è¨­æ¨¡æ¿", response_model=ResponseBase)
+@router.post("/template/{template_name}", summary="套用預設模板", response_model=ResponseBase)
 async def apply_template(
     template_name: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    å¥—ç”¨é è¨­è¨­å®šæ¨¡æ¿
+    套用預設設定模板
     
-    å¯ç”¨æ¨¡æ¿ï¼š
-    - **minimal**: æ¥µç°¡ (åªé¡¯ç¤ºå‡ç·šå’Œæˆäº¤é‡)
-    - **standard**: æ¨™æº– (é è¨­ï¼Œå«ä¸»è¦æŒ‡æ¨™)
-    - **full**: å®Œæ•´ (é¡¯ç¤ºæ‰€æœ‰æŒ‡æ¨™)
-    - **short_term**: çŸ­ç·š (ä½¿ç”¨è¼ƒçŸ­çš„å‡ç·šé€±æœŸ)
+    可用模板：
+    - **minimal**: 極簡 (只顯示均線和成交量)
+    - **standard**: 標準 (預設，含主要指標)
+    - **full**: 完整 (顯示所有指標)
+    - **short_term**: 短線 (使用較短的均線週期)
     """
     if template_name not in TEMPLATES:
         raise HTTPException(
             status_code=400,
-            detail=f"ä¸å­˜åœ¨çš„æ¨¡æ¿: {template_name}"
+            detail=f"不存在的模板: {template_name}"
         )
     
     template = TEMPLATES[template_name]
     
-    # æ›´æ–°æŒ‡æ¨™è¨­å®š
+    # 更新指標設定
     if "indicators" in template:
         stmt = select(UserIndicatorSettings).where(
             UserIndicatorSettings.user_id == user.id
@@ -356,7 +356,7 @@ async def apply_template(
         for key, value in template["indicators"].items():
             setattr(ind_settings, key, value)
     
-    # æ›´æ–°é€šçŸ¥è¨­å®š
+    # 更新通知設定
     if "alerts" in template:
         stmt = select(UserAlertSettings).where(
             UserAlertSettings.user_id == user.id
@@ -370,7 +370,7 @@ async def apply_template(
         for key, value in template["alerts"].items():
             setattr(alert_settings, key, value)
     
-    # æ›´æ–°åƒæ•¸è¨­å®š
+    # 更新參數設定
     if "params" in template:
         stmt = select(UserIndicatorParams).where(
             UserIndicatorParams.user_id == user.id
@@ -388,5 +388,5 @@ async def apply_template(
     
     return ResponseBase(
         success=True,
-        message=f"å·²å¥—ç”¨æ¨¡æ¿: {template_name}",
+        message=f"已套用模板: {template_name}",
     )

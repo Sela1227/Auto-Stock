@@ -1,6 +1,6 @@
 """
-èªè­‰ API è·¯ç”±
-LINE Login æ•´åˆ
+認證 API 路由
+LINE Login 整合
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks
 from fastapi.responses import RedirectResponse
@@ -19,86 +19,94 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/auth", tags=["èªè­‰"])
+router = APIRouter(prefix="/auth", tags=["認證"])
 
-# ç‰ˆæœ¬æ¨™è­˜
+# 版本標識
 AUTH_VERSION = "2.1.0-admin-update"
 
 
 # ============================================================
-# ðŸ†• ç®¡ç†å“¡ç™»å…¥è‡ªå‹•æ›´æ–°
+# 🆕 管理員登入自動更新
 # ============================================================
 
 async def trigger_admin_updates():
     """
-    ç®¡ç†å“¡ç™»å…¥è§¸ç™¼çš„èƒŒæ™¯æ›´æ–°
-    - æ›´æ–°æ‰€æœ‰è¿½è¹¤è‚¡ç¥¨åƒ¹æ ¼
-    - æ›´æ–°å¸‚å ´æƒ…ç·’æŒ‡æ•¸
+    管理員登入觸發的背景更新（優化版）
+    - 🆕 只在股市開盤時間更新股票價格
+    - 更新市場情緒指數（不受時間限制）
     """
     from app.database import SessionLocal
+    from app.services.price_cache_service import is_tw_market_open, is_us_market_open
     
-    logger.info("ðŸ”„ ç®¡ç†å“¡ç™»å…¥ï¼Œè§¸ç™¼è‡ªå‹•æ›´æ–°...")
+    tw_open = is_tw_market_open()
+    us_open = is_us_market_open()
+    
+    logger.info(f"🔄 管理員登入，檢查更新狀態...")
+    logger.info(f"   台股: {'開盤' if tw_open else '收盤'}, 美股: {'開盤' if us_open else '收盤'}")
     
     try:
         db = SessionLocal()
         
-        # 1. æ›´æ–°è‚¡ç¥¨åƒ¹æ ¼å¿«å–
-        try:
-            from app.services.price_cache_service import PriceCacheService
-            cache_service = PriceCacheService(db)
-            result = cache_service.update_all_prices()
-            logger.info(f"âœ… è‚¡ç¥¨åƒ¹æ ¼æ›´æ–°å®Œæˆ: {result}")
-        except Exception as e:
-            logger.error(f"âŒ è‚¡ç¥¨åƒ¹æ ¼æ›´æ–°å¤±æ•—: {e}")
+        # 1. 更新股票價格快取（🆕 只在開盤時）
+        if tw_open or us_open:
+            try:
+                from app.services.price_cache_service import PriceCacheService
+                cache_service = PriceCacheService(db)
+                result = cache_service.update_all_prices()
+                logger.info(f"✅ 股票價格更新完成: {result}")
+            except Exception as e:
+                logger.error(f"❌ 股票價格更新失敗: {e}")
+        else:
+            logger.info("💤 台股美股皆收盤，跳過股票價格更新")
         
-        # 2. æ›´æ–°å¸‚å ´æƒ…ç·’
+        # 2. 更新市場情緒（總是更新）
         try:
             from app.services.market_service import market_service
             market_service.update_fear_greed()
-            logger.info("âœ… å¸‚å ´æƒ…ç·’æ›´æ–°å®Œæˆ")
+            logger.info("✅ 市場情緒更新完成")
         except Exception as e:
-            logger.error(f"âŒ å¸‚å ´æƒ…ç·’æ›´æ–°å¤±æ•—: {e}")
+            logger.error(f"❌ 市場情緒更新失敗: {e}")
         
-        # 3. æŠ“å–è¨‚é–±ç²¾é¸ï¼ˆå¦‚æžœæœ‰ï¼‰
+        # 3. 抓取訂閱精選（如果有）
         try:
             from app.services.subscription_service import SubscriptionService
             sub_service = SubscriptionService(db)
             sub_result = sub_service.fetch_all_sources(backfill=False)
-            logger.info(f"âœ… è¨‚é–±ç²¾é¸æ›´æ–°å®Œæˆ: {sub_result}")
+            logger.info(f"✅ 訂閱精選更新完成: {sub_result}")
         except Exception as e:
-            logger.warning(f"âš ï¸ è¨‚é–±ç²¾é¸æ›´æ–°è·³éŽ: {e}")
+            logger.warning(f"⚠️ 訂閱精選更新跳過: {e}")
         
         db.close()
-        logger.info("ðŸŽ‰ ç®¡ç†å“¡è‡ªå‹•æ›´æ–°å…¨éƒ¨å®Œæˆ")
+        logger.info("🎉 管理員自動更新完成")
         
     except Exception as e:
-        logger.error(f"âŒ ç®¡ç†å“¡è‡ªå‹•æ›´æ–°å¤±æ•—: {e}")
+        logger.error(f"❌ 管理員自動更新失敗: {e}")
 
 
-@router.get("/version", summary="èªè­‰æ¨¡çµ„ç‰ˆæœ¬")
+@router.get("/version", summary="認證模組版本")
 async def auth_version():
-    """å›žå‚³èªè­‰æ¨¡çµ„ç‰ˆæœ¬ï¼Œç”¨æ–¼ç¢ºèªéƒ¨ç½²"""
+    """回傳認證模組版本，用於確認部署"""
     return {
         "auth_version": AUTH_VERSION,
         "state_method": "HMAC",
         "jwt_key_set": bool(settings.JWT_SECRET_KEY and settings.JWT_SECRET_KEY != "your-secret-key-change-in-production"),
-        "admin_auto_update": True,  # ðŸ†•
+        "admin_auto_update": True,  # 🆕
     }
 
 
 def create_state_token() -> str:
-    """å»ºç«‹ state token (HMAC ç°½åï¼Œæœ‰æ•ˆæœŸ 10 åˆ†é˜)"""
-    # æ ¼å¼: timestamp.nonce.signature
+    """建立 state token (HMAC 簽名，有效期 10 分鐘)"""
+    # 格式: timestamp.nonce.signature
     timestamp = str(int(time.time()))
-    nonce = secrets.token_hex(8)  # 16 å­—å…ƒ
+    nonce = secrets.token_hex(8)  # 16 字元
 
-    # ç°½å
+    # 簽名
     message = f"{timestamp}.{nonce}"
     signature = hmac.new(
         settings.JWT_SECRET_KEY.encode(),
         message.encode(),
         hashlib.sha256
-    ).hexdigest()[:16]  # åªå–å‰ 16 å­—å…ƒ
+    ).hexdigest()[:16]  # 只取前 16 字元
 
     state = f"{timestamp}.{nonce}.{signature}"
     logger.info(f"Created state: {state}")
@@ -106,7 +114,7 @@ def create_state_token() -> str:
 
 
 def verify_state_token(state: str) -> bool:
-    """é©—è­‰ state token"""
+    """驗證 state token"""
     logger.info(f"Verifying state: {state}")
     try:
         parts = state.split(".")
@@ -119,14 +127,14 @@ def verify_state_token(state: str) -> bool:
         timestamp, nonce, signature = parts
         logger.info(f"timestamp={timestamp}, nonce={nonce}, signature={signature}")
 
-        # æª¢æŸ¥æ˜¯å¦éŽæœŸ (10 åˆ†é˜)
+        # 檢查是否過期 (10 分鐘)
         time_diff = int(time.time()) - int(timestamp)
         logger.info(f"Time difference: {time_diff} seconds")
         if time_diff > 600:
             logger.warning(f"State expired, time_diff={time_diff}")
             return False
 
-        # é©—è­‰ç°½å
+        # 驗證簽名
         message = f"{timestamp}.{nonce}"
         expected_signature = hmac.new(
             settings.JWT_SECRET_KEY.encode(),
@@ -144,24 +152,24 @@ def verify_state_token(state: str) -> bool:
         return False
 
 
-@router.get("/line", summary="LINE ç™»å…¥")
+@router.get("/line", summary="LINE 登入")
 async def line_login():
     """
-    å°Žå‘ LINE ç™»å…¥æŽˆæ¬Šé é¢
+    導向 LINE 登入授權頁面
     """
     if not settings.LINE_LOGIN_CHANNEL_ID:
         raise HTTPException(
             status_code=500,
-            detail="LINE Login å°šæœªè¨­å®š"
+            detail="LINE Login 尚未設定"
         )
 
-    # ç”¢ç”Ÿ state
+    # 產生 state
     state = create_state_token()
 
     # URL encode callback URL
     callback_url = urllib.parse.quote(settings.LINE_LOGIN_CALLBACK_URL, safe='')
 
-    # å»ºç«‹æŽˆæ¬Š URL
+    # 建立授權 URL
     auth_url = (
         "https://access.line.me/oauth2/v2.1/authorize"
         f"?response_type=code"
@@ -176,49 +184,49 @@ async def line_login():
     return RedirectResponse(url=auth_url)
 
 
-@router.get("/line/callback", summary="LINE ç™»å…¥å›žèª¿")
+@router.get("/line/callback", summary="LINE 登入回調")
 async def line_callback(
     request: Request,
-    background_tasks: BackgroundTasks,  # ðŸ†• åŠ å…¥ BackgroundTasks
-    code: str = Query(..., description="æŽˆæ¬Šç¢¼"),
+    background_tasks: BackgroundTasks,  # 🆕 加入 BackgroundTasks
+    code: str = Query(..., description="授權碼"),
     state: str = Query(..., description="State"),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    LINE ç™»å…¥å›žèª¿è™•ç†
+    LINE 登入回調處理
     
-    - é©—è­‰ state
-    - ç”¨ code æ›å– access token
-    - å–å¾—ç”¨æˆ¶è³‡æ–™
-    - å»ºç«‹/æ›´æ–°ç”¨æˆ¶
-    - ðŸ†• ç®¡ç†å“¡ç™»å…¥æ™‚è§¸ç™¼èƒŒæ™¯æ›´æ–°
-    - å›žå‚³ HTML é é¢å„²å­˜ Token ä¸¦è·³è½‰
+    - 驗證 state
+    - 用 code 換取 access token
+    - 取得用戶資料
+    - 建立/更新用戶
+    - 🆕 管理員登入時觸發背景更新
+    - 回傳 HTML 頁面儲存 Token 並跳轉
     """
     from fastapi.responses import HTMLResponse
 
-    # é©—è­‰ state (ä½¿ç”¨ JWT é©—è­‰)
+    # 驗證 state (使用 JWT 驗證)
     if not verify_state_token(state):
         raise HTTPException(
             status_code=400,
             detail="Invalid state"
         )
 
-    # å–å¾—å®¢æˆ¶ç«¯è³‡è¨Š
+    # 取得客戶端資訊
     client_ip = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
 
-    # åŸ·è¡Œç™»å…¥æµç¨‹
+    # 執行登入流程
     auth_service = AuthService(db)
     result = await auth_service.login_with_line(code, client_ip, user_agent)
 
     if not result:
-        # å¯èƒ½æ˜¯è¢«å°éŽ–çš„ç”¨æˆ¶
+        # 可能是被封鎖的用戶
         html_content = """
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>SELA è‡ªå‹•é¸è‚¡ç³»çµ±</title>
+            <title>SELA 自動選股系統</title>
             <style>
                 body {
                     display: flex;
@@ -243,27 +251,27 @@ async def line_callback(
         </head>
         <body>
             <div class="card">
-                <h2>âš ï¸ ç™»å…¥å¤±æ•—</h2>
-                <p>æ‚¨çš„å¸³è™Ÿå·²è¢«åœç”¨æˆ–ç™»å…¥éŽç¨‹ç™¼ç”ŸéŒ¯èª¤</p>
-                <p style="margin-top: 1rem;"><a href="/static/index.html">è¿”å›žé¦–é </a></p>
+                <h2>⚠️ 登入失敗</h2>
+                <p>您的帳號已被停用或登入過程發生錯誤</p>
+                <p style="margin-top: 1rem;"><a href="/static/index.html">返回首頁</a></p>
             </div>
         </body>
         </html>
         """
         return HTMLResponse(content=html_content, status_code=403)
 
-    # å›žå‚³ HTML é é¢ï¼Œå°‡ Token å­˜å…¥ localStorage ä¸¦è·³è½‰åˆ°å„€è¡¨æ¿
+    # 回傳 HTML 頁面，將 Token 存入 localStorage 並跳轉到儀表板
     token = result["token"]
     user = result["user"]
 
-    # è¨˜éŒ„ç™»å…¥æˆåŠŸçš„ log
-    logger.info(f"=== ç™»å…¥æˆåŠŸï¼Œæº–å‚™è·³è½‰ ===")
-    logger.info(f"ç”¨æˆ¶ ID: {user.id}, LINE ID: {user.line_user_id}, åç¨±: {user.display_name}")
+    # 記錄登入成功的 log
+    logger.info(f"=== 登入成功，準備跳轉 ===")
+    logger.info(f"用戶 ID: {user.id}, LINE ID: {user.line_user_id}, 名稱: {user.display_name}")
 
-    # ðŸ†• ç®¡ç†å“¡ç™»å…¥è§¸ç™¼è‡ªå‹•æ›´æ–°
+    # 🆕 管理員登入觸發自動更新
     is_admin = getattr(user, 'is_admin', False)
     if is_admin:
-        logger.info(f"ðŸ”‘ ç®¡ç†å“¡ {user.display_name} ç™»å…¥ï¼Œè§¸ç™¼èƒŒæ™¯æ›´æ–°")
+        logger.info(f"🔑 管理員 {user.display_name} 登入，觸發背景更新")
         background_tasks.add_task(trigger_admin_updates)
 
     html_content = f"""
@@ -271,7 +279,7 @@ async def line_callback(
     <html>
     <head>
         <meta charset="UTF-8">
-        <title>SELA è‡ªå‹•é¸è‚¡ç³»çµ±</title>
+        <title>SELA 自動選股系統</title>
         <style>
             body {{
                 display: flex;
@@ -329,16 +337,16 @@ async def line_callback(
         <div class="card">
             <div class="logo">SELA</div>
             <div class="spinner"></div>
-            <h2>ç™»å…¥æˆåŠŸï¼</h2>
-            <p>æ­¡è¿Žå›žä¾†ï¼Œ{user.display_name}</p>
-            {'<div class="admin-badge">ðŸ”„ ç®¡ç†å“¡æ¨¡å¼ - æ­£åœ¨èƒŒæ™¯æ›´æ–°æ•¸æ“š</div>' if is_admin else ''}
+            <h2>登入成功！</h2>
+            <p>歡迎回來，{user.display_name}</p>
+            {'<div class="admin-badge">🔄 管理員模式 - 正在背景更新數據</div>' if is_admin else ''}
         </div>
         <script>
-            // â˜…â˜…â˜… é‡è¦ï¼šå…ˆæ¸…é™¤æ‰€æœ‰èˆŠè³‡æ–™ï¼Œé¿å… A ç”¨æˆ¶çœ‹åˆ° B ç”¨æˆ¶çš„è³‡æ–™ â˜…â˜…â˜…
+            // ★★★ 重要：先清除所有舊資料，避免 A 用戶看到 B 用戶的資料 ★★★
             localStorage.clear();
             sessionStorage.clear();
             
-            // è¨­å®šæ–°çš„ç”¨æˆ¶è³‡æ–™
+            // 設定新的用戶資料
             localStorage.setItem('token', '{token}');
             localStorage.setItem('user', JSON.stringify({{
                 id: {user.id},
@@ -349,7 +357,7 @@ async def line_callback(
             }}));
             localStorage.setItem('login_time', new Date().toISOString());
             
-            console.log('ç™»å…¥æˆåŠŸ: ç”¨æˆ¶ ID = {user.id}, LINE ID = {user.line_user_id}, ç®¡ç†å“¡ = {str(is_admin).lower()}');
+            console.log('登入成功: 用戶 ID = {user.id}, LINE ID = {user.line_user_id}, 管理員 = {str(is_admin).lower()}');
             
             setTimeout(function() {{
                 window.location.href = '/static/dashboard.html';
@@ -362,42 +370,42 @@ async def line_callback(
     return HTMLResponse(content=html_content)
 
 
-@router.post("/logout", summary="ç™»å‡º")
+@router.post("/logout", summary="登出")
 async def logout():
     """
-    ç™»å‡ºï¼ˆå‰ç«¯æ¸…é™¤ Token å³å¯ï¼‰
+    登出（前端清除 Token 即可）
     """
-    return {"success": True, "message": "å·²ç™»å‡º"}
+    return {"success": True, "message": "已登出"}
 
 
-@router.get("/me", summary="å–å¾—ç•¶å‰ç”¨æˆ¶", response_model=UserResponse)
+@router.get("/me", summary="取得當前用戶", response_model=UserResponse)
 async def get_current_user(
     request: Request,
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    å–å¾—ç•¶å‰ç™»å…¥ç”¨æˆ¶è³‡è¨Š
+    取得當前登入用戶資訊
     
-    éœ€è¦åœ¨ Header å¸¶å…¥ Authorization: Bearer {token}
+    需要在 Header 帶入 Authorization: Bearer {token}
     """
-    # å¾ž Header å–å¾— Token
+    # 從 Header 取得 Token
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(
             status_code=401,
-            detail="æœªæä¾›èªè­‰ Token"
+            detail="未提供認證 Token"
         )
 
     token = auth_header.split(" ")[1]
 
-    # é©—è­‰ Token ä¸¦å–å¾—ç”¨æˆ¶
+    # 驗證 Token 並取得用戶
     auth_service = AuthService(db)
     user = await auth_service.get_user_from_token(token)
 
     if not user:
         raise HTTPException(
             status_code=401,
-            detail="ç„¡æ•ˆçš„ Token"
+            detail="無效的 Token"
         )
 
     return UserResponse.model_validate(user)

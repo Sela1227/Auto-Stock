@@ -1,6 +1,6 @@
 """
-å ±é…¬çŽ‡æ¯”è¼ƒçµ„åˆ Model
-å„²å­˜ç”¨æˆ¶çš„è‡ªè¨‚æ¯”è¼ƒçµ„åˆ
+報酬率比較組合 Model
+儲存用戶的自訂比較組合
 """
 from datetime import datetime
 from typing import List, Optional
@@ -13,23 +13,23 @@ from app.database import Base
 
 
 class Comparison(Base):
-    """ç”¨æˆ¶å„²å­˜çš„æ¯”è¼ƒçµ„åˆ"""
+    """用戶儲存的比較組合"""
     __tablename__ = "comparisons"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    name = Column(String(100), nullable=False)  # çµ„åˆåç¨±
-    symbols_json = Column(Text, nullable=False)  # JSON æ ¼å¼å„²å­˜ ["AAPL","MSFT"]
-    benchmark = Column(String(20), nullable=True, default="^GSPC")  # åŸºæº–æŒ‡æ•¸
+    name = Column(String(100), nullable=False)  # 組合名稱
+    symbols_json = Column(Text, nullable=False)  # JSON 格式儲存 ["AAPL","MSFT"]
+    benchmark = Column(String(20), nullable=True, default="^GSPC")  # 基準指數
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # é—œè¯
+    # 關聯
     user = relationship("User", backref="comparisons")
     
     @property
     def symbols(self) -> List[str]:
-        """å–å¾—æ¨™çš„åˆ—è¡¨"""
+        """取得標的列表"""
         try:
             return json.loads(self.symbols_json)
         except (json.JSONDecodeError, TypeError):
@@ -37,11 +37,11 @@ class Comparison(Base):
     
     @symbols.setter
     def symbols(self, value: List[str]):
-        """è¨­å®šæ¨™çš„åˆ—è¡¨"""
+        """設定標的列表"""
         self.symbols_json = json.dumps(value)
     
     def to_dict(self) -> dict:
-        """è½‰æ›ç‚ºå­—å…¸"""
+        """轉換為字典"""
         return {
             "id": self.id,
             "user_id": self.user_id,

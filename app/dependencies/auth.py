@@ -1,9 +1,9 @@
 """
-çµ±ä¸€èªè­‰ä¾è³´æ¨¡çµ„
+統一認證依賴模組
 =================
-è§£æ±ºå¤šå€‹ router é‡è¤‡å®šç¾© get_current_user çš„å•é¡Œ
+解決多個 router 重複定義 get_current_user 的問題
 
-ç”¨æ³•:
+用法:
     from app.dependencies import get_current_user, get_admin_user
     
     @router.get("/my-data")
@@ -31,10 +31,10 @@ async def get_current_user(
     db: AsyncSession = Depends(get_async_session)
 ) -> User:
     """
-    å¾ž JWT Token å–å¾—ç•¶å‰ç™»å…¥ç”¨æˆ¶ï¼ˆå¿…é ˆç™»å…¥ï¼‰
+    從 JWT Token 取得當前登入用戶（必須登入）
     
     Raises:
-        HTTPException 401: æœªæä¾› Token æˆ– Token ç„¡æ•ˆ
+        HTTPException 401: 未提供 Token 或 Token 無效
     """
     from app.services.auth_service import AuthService
     
@@ -42,7 +42,7 @@ async def get_current_user(
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(
             status_code=401,
-            detail="æœªæä¾›èªè­‰ Token"
+            detail="未提供認證 Token"
         )
     
     token = auth_header.split(" ")[1]
@@ -52,7 +52,7 @@ async def get_current_user(
     if not user:
         raise HTTPException(
             status_code=401,
-            detail="ç„¡æ•ˆçš„ Token"
+            detail="無效的 Token"
         )
     
     return user
@@ -63,33 +63,33 @@ async def get_admin_user(
     db: AsyncSession = Depends(get_async_session)
 ) -> User:
     """
-    è¦æ±‚ç®¡ç†å“¡æ¬Šé™ï¼ˆå¿…é ˆæ˜¯ç®¡ç†å“¡ï¼‰
+    要求管理員權限（必須是管理員）
     
     Raises:
-        HTTPException 401: æœªæä¾› Token æˆ– Token ç„¡æ•ˆ
-        HTTPException 403: ä¸æ˜¯ç®¡ç†å“¡
+        HTTPException 401: 未提供 Token 或 Token 無效
+        HTTPException 403: 不是管理員
     """
     from app.services.auth_service import AuthService
     
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="æœªæä¾›èªè­‰ Token")
+        raise HTTPException(status_code=401, detail="未提供認證 Token")
     
     token = auth_header.split(" ")[1]
     auth_service = AuthService(db)
     user = await auth_service.get_user_from_token(token)
     
     if not user:
-        raise HTTPException(status_code=401, detail="ç„¡æ•ˆçš„ Token")
+        raise HTTPException(status_code=401, detail="無效的 Token")
     
-    # æª¢æŸ¥æ˜¯å¦ç‚ºç®¡ç†å“¡
+    # 檢查是否為管理員
     if not user.is_admin:
-        # æª¢æŸ¥æ˜¯å¦åœ¨ç’°å¢ƒè®Šæ•¸çš„åˆå§‹ç®¡ç†å“¡åå–®ä¸­
+        # 檢查是否在環境變數的初始管理員名單中
         admin_ids = settings.get_admin_line_ids()
         if user.line_user_id not in admin_ids:
-            raise HTTPException(status_code=403, detail="éœ€è¦ç®¡ç†å“¡æ¬Šé™")
+            raise HTTPException(status_code=403, detail="需要管理員權限")
         
-        # è‡ªå‹•è¨­å®šç‚ºç®¡ç†å“¡
+        # 自動設定為管理員
         user.is_admin = True
         await db.commit()
         logger.info(f"Auto-promoted user {user.id} to admin")
@@ -102,11 +102,11 @@ async def get_optional_user(
     db: AsyncSession = Depends(get_async_session)
 ) -> Optional[User]:
     """
-    å¯é¸èªè­‰ - æœ‰ Token å°±é©—è­‰ï¼Œæ²’æœ‰ä¹Ÿå…è¨±ï¼ˆè¿”å›ž Noneï¼‰
+    可選認證 - 有 Token 就驗證，沒有也允許（返回 None）
     
-    é©ç”¨å ´æ™¯:
-        - å…¬é–‹ API ä½†ç™»å…¥ç”¨æˆ¶æœ‰é¡å¤–åŠŸèƒ½
-        - éœ€è¦åˆ¤æ–·æ˜¯å¦ç™»å…¥çš„æ··åˆé é¢
+    適用場景:
+        - 公開 API 但登入用戶有額外功能
+        - 需要判斷是否登入的混合頁面
     """
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):

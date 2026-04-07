@@ -1,6 +1,6 @@
 """
-æŠ€è¡“æŒ‡æ¨™è¨ˆç®—æœå‹™
-åŒ…å« MAã€RSIã€MACDã€KDã€å¸ƒæž—é€šé“ã€OBV ç­‰æŒ‡æ¨™è¨ˆç®—
+技術指標計算服務
+包含 MA、RSI、MACD、KD、布林通道、OBV 等指標計算
 """
 import pandas as pd
 import numpy as np
@@ -12,27 +12,27 @@ from app.config import settings
 
 
 class TrendDirection(Enum):
-    """è¶¨å‹¢æ–¹å‘"""
-    BULLISH = "bullish"      # å¤šé ­
-    BEARISH = "bearish"      # ç©ºé ­
-    NEUTRAL = "neutral"      # ä¸­æ€§
+    """趨勢方向"""
+    BULLISH = "bullish"      # 多頭
+    BEARISH = "bearish"      # 空頭
+    NEUTRAL = "neutral"      # 中性
 
 
 class SignalType(Enum):
-    """è¨Šè™Ÿé¡žåž‹"""
-    GOLDEN_CROSS = "golden_cross"      # é»ƒé‡‘äº¤å‰
-    DEATH_CROSS = "death_cross"        # æ­»äº¡äº¤å‰
-    OVERBOUGHT = "overbought"          # è¶…è²·
-    OVERSOLD = "oversold"              # è¶…è³£
-    BREAKOUT = "breakout"              # çªç ´
-    BREAKDOWN = "breakdown"            # è·Œç ´
-    APPROACHING_BREAKOUT = "approaching_breakout"  # æŽ¥è¿‘çªç ´
-    APPROACHING_BREAKDOWN = "approaching_breakdown"  # æŽ¥è¿‘è·Œç ´
+    """訊號類型"""
+    GOLDEN_CROSS = "golden_cross"      # 黃金交叉
+    DEATH_CROSS = "death_cross"        # 死亡交叉
+    OVERBOUGHT = "overbought"          # 超買
+    OVERSOLD = "oversold"              # 超賣
+    BREAKOUT = "breakout"              # 突破
+    BREAKDOWN = "breakdown"            # 跌破
+    APPROACHING_BREAKOUT = "approaching_breakout"  # 接近突破
+    APPROACHING_BREAKDOWN = "approaching_breakdown"  # 接近跌破
 
 
 @dataclass
 class Signal:
-    """äº¤æ˜“è¨Šè™Ÿ"""
+    """交易訊號"""
     type: SignalType
     indicator: str
     description: str
@@ -41,7 +41,7 @@ class Signal:
 
 
 class IndicatorService:
-    """æŠ€è¡“æŒ‡æ¨™è¨ˆç®—æœå‹™"""
+    """技術指標計算服務"""
     
     def __init__(
         self,
@@ -60,8 +60,8 @@ class IndicatorService:
         breakout_threshold: float = None,
     ):
         """
-        åˆå§‹åŒ–æŒ‡æ¨™åƒæ•¸
-        è‹¥æœªæŒ‡å®šï¼Œå‰‡ä½¿ç”¨ config ä¸­çš„é è¨­å€¼
+        初始化指標參數
+        若未指定，則使用 config 中的預設值
         """
         self.ma_short = ma_short or settings.MA_SHORT
         self.ma_mid = ma_mid or settings.MA_MID
@@ -77,39 +77,39 @@ class IndicatorService:
         self.bollinger_std = bollinger_std or settings.BOLLINGER_STD
         self.breakout_threshold = breakout_threshold or settings.BREAKOUT_THRESHOLD
     
-    # ==================== ç§»å‹•å¹³å‡ç·š (MA) ====================
+    # ==================== 移動平均線 (MA) ====================
     
     def calculate_ma(self, df: pd.DataFrame, period: int, column: str = "close") -> pd.Series:
-        """è¨ˆç®—ç°¡å–®ç§»å‹•å¹³å‡ç·š (SMA)"""
+        """計算簡單移動平均線 (SMA)"""
         return df[column].rolling(window=period).mean()
     
     def calculate_ema(self, df: pd.DataFrame, period: int, column: str = "close") -> pd.Series:
-        """è¨ˆç®—æŒ‡æ•¸ç§»å‹•å¹³å‡ç·š (EMA)"""
+        """計算指數移動平均線 (EMA)"""
         return df[column].ewm(span=period, adjust=False).mean()
     
     def add_ma_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        æ–°å¢žç§»å‹•å¹³å‡ç·šæŒ‡æ¨™
+        新增移動平均線指標
         
         Returns:
-            æ–°å¢ž ma20, ma50, ma200, ma250 æ¬„ä½çš„ DataFrame
+            新增 ma20, ma50, ma200, ma250 欄位的 DataFrame
         """
         df = df.copy()
         df[f"ma{self.ma_short}"] = self.calculate_ma(df, self.ma_short)
         df[f"ma{self.ma_mid}"] = self.calculate_ma(df, self.ma_mid)
         df[f"ma{self.ma_long}"] = self.calculate_ma(df, self.ma_long)
-        df["ma250"] = self.calculate_ma(df, 250)  # æ·»åŠ  MA250
+        df["ma250"] = self.calculate_ma(df, 250)  # 添加 MA250
         return df
     
     def get_ma_alignment(self, df: pd.DataFrame) -> Tuple[TrendDirection, str]:
         """
-        åˆ¤æ–·å‡ç·šæŽ’åˆ—
+        判斷均線排列
         
         Returns:
-            (è¶¨å‹¢æ–¹å‘, æè¿°)
+            (趨勢方向, 描述)
         """
         if len(df) < self.ma_long:
-            return TrendDirection.NEUTRAL, "è³‡æ–™ä¸è¶³"
+            return TrendDirection.NEUTRAL, "資料不足"
         
         latest = df.iloc[-1]
         ma_short = latest.get(f"ma{self.ma_short}")
@@ -118,29 +118,29 @@ class IndicatorService:
         price = latest["close"]
         
         if pd.isna(ma_short) or pd.isna(ma_mid) or pd.isna(ma_long):
-            return TrendDirection.NEUTRAL, "å‡ç·šè³‡æ–™ä¸è¶³"
+            return TrendDirection.NEUTRAL, "均線資料不足"
         
-        # å¤šé ­æŽ’åˆ—ï¼šåƒ¹æ ¼ > çŸ­å‡ > ä¸­å‡ > é•·å‡
+        # 多頭排列：價格 > 短均 > 中均 > 長均
         if price > ma_short > ma_mid > ma_long:
-            return TrendDirection.BULLISH, "å¤šé ­æŽ’åˆ—"
+            return TrendDirection.BULLISH, "多頭排列"
         
-        # ç©ºé ­æŽ’åˆ—ï¼šåƒ¹æ ¼ < çŸ­å‡ < ä¸­å‡ < é•·å‡
+        # 空頭排列：價格 < 短均 < 中均 < 長均
         if price < ma_short < ma_mid < ma_long:
-            return TrendDirection.BEARISH, "ç©ºé ­æŽ’åˆ—"
+            return TrendDirection.BEARISH, "空頭排列"
         
-        return TrendDirection.NEUTRAL, "ç›¤æ•´"
+        return TrendDirection.NEUTRAL, "盤整"
     
     def check_ma_cross(self, df: pd.DataFrame, short_ma: str, long_ma: str) -> Optional[Signal]:
         """
-        æª¢æŸ¥å‡ç·šäº¤å‰
+        檢查均線交叉
         
         Args:
-            df: å«æœ‰å‡ç·šè³‡æ–™çš„ DataFrame
-            short_ma: çŸ­å‡ç·šæ¬„ä½åç¨± (å¦‚ "ma20")
-            long_ma: é•·å‡ç·šæ¬„ä½åç¨± (å¦‚ "ma50")
+            df: 含有均線資料的 DataFrame
+            short_ma: 短均線欄位名稱 (如 "ma20")
+            long_ma: 長均線欄位名稱 (如 "ma50")
             
         Returns:
-            Signal ç‰©ä»¶æˆ– None
+            Signal 物件或 None
         """
         if len(df) < 2:
             return None
@@ -156,20 +156,20 @@ class IndicatorService:
         if any(pd.isna(x) for x in [short_today, short_yesterday, long_today, long_yesterday]):
             return None
         
-        # é»ƒé‡‘äº¤å‰ï¼šçŸ­å‡ç·šç”±ä¸‹å¾€ä¸Šç©¿è¶Šé•·å‡ç·š
+        # 黃金交叉：短均線由下往上穿越長均線
         if short_yesterday < long_yesterday and short_today > long_today:
             return Signal(
                 type=SignalType.GOLDEN_CROSS,
                 indicator=f"{short_ma}/{long_ma}",
-                description=f"{short_ma.upper()} é»ƒé‡‘äº¤å‰ {long_ma.upper()}",
+                description=f"{short_ma.upper()} 黃金交叉 {long_ma.upper()}",
             )
         
-        # æ­»äº¡äº¤å‰ï¼šçŸ­å‡ç·šç”±ä¸Šå¾€ä¸‹ç©¿è¶Šé•·å‡ç·š
+        # 死亡交叉：短均線由上往下穿越長均線
         if short_yesterday > long_yesterday and short_today < long_today:
             return Signal(
                 type=SignalType.DEATH_CROSS,
                 indicator=f"{short_ma}/{long_ma}",
-                description=f"{short_ma.upper()} æ­»äº¡äº¤å‰ {long_ma.upper()}",
+                description=f"{short_ma.upper()} 死亡交叉 {long_ma.upper()}",
             )
         
         return None
@@ -181,36 +181,36 @@ class IndicatorService:
         ma_name: str,
     ) -> Optional[Signal]:
         """
-        æª¢æŸ¥åƒ¹æ ¼èˆ‡å‡ç·šçš„é—œä¿‚ï¼ˆæŽ¥è¿‘çªç ´/è·Œç ´ï¼‰
+        檢查價格與均線的關係（接近突破/跌破）
         
         Args:
-            price: ç•¶å‰åƒ¹æ ¼
-            ma_value: å‡ç·šå€¼
-            ma_name: å‡ç·šåç¨± (å¦‚ "MA20")
+            price: 當前價格
+            ma_value: 均線值
+            ma_name: 均線名稱 (如 "MA20")
             
         Returns:
-            Signal ç‰©ä»¶æˆ– None
+            Signal 物件或 None
         """
         if pd.isna(ma_value):
             return None
         
         distance_pct = ((price - ma_value) / ma_value) * 100
         
-        # åƒ¹æ ¼åœ¨å‡ç·šä¸‹æ–¹ï¼Œä¸”è·é›¢å°æ–¼é–€æª» -> æŽ¥è¿‘å‘ä¸Šçªç ´
+        # 價格在均線下方，且距離小於門檻 -> 接近向上突破
         if -self.breakout_threshold < distance_pct < 0:
             return Signal(
                 type=SignalType.APPROACHING_BREAKOUT,
                 indicator=ma_name,
-                description=f"æŽ¥è¿‘çªç ´ {ma_name} ({abs(distance_pct):.1f}%)",
+                description=f"接近突破 {ma_name} ({abs(distance_pct):.1f}%)",
                 value=distance_pct,
             )
         
-        # åƒ¹æ ¼åœ¨å‡ç·šä¸Šæ–¹ï¼Œä¸”è·é›¢å°æ–¼é–€æª» -> æŽ¥è¿‘å‘ä¸‹è·Œç ´
+        # 價格在均線上方，且距離小於門檻 -> 接近向下跌破
         if 0 < distance_pct < self.breakout_threshold:
             return Signal(
                 type=SignalType.APPROACHING_BREAKDOWN,
                 indicator=ma_name,
-                description=f"æŽ¥è¿‘è·Œç ´ {ma_name} ({distance_pct:.1f}%)",
+                description=f"接近跌破 {ma_name} ({distance_pct:.1f}%)",
                 value=distance_pct,
             )
         
@@ -220,10 +220,10 @@ class IndicatorService:
     
     def calculate_rsi(self, df: pd.DataFrame, period: int = None) -> pd.Series:
         """
-        è¨ˆç®— RSIï¼ˆç›¸å°å¼·å¼±æŒ‡æ¨™ï¼‰
+        計算 RSI（相對強弱指標）
         
         RSI = 100 - (100 / (1 + RS))
-        RS = å¹³å‡æ¼²å¹… / å¹³å‡è·Œå¹…
+        RS = 平均漲幅 / 平均跌幅
         """
         period = period or self.rsi_period
         
@@ -240,30 +240,30 @@ class IndicatorService:
         return rsi
     
     def add_rsi_indicator(self, df: pd.DataFrame) -> pd.DataFrame:
-        """æ–°å¢ž RSI æŒ‡æ¨™"""
+        """新增 RSI 指標"""
         df = df.copy()
         df["rsi"] = self.calculate_rsi(df)
         return df
     
     def get_rsi_status(self, rsi_value: float) -> Tuple[str, str]:
         """
-        å–å¾— RSI ç‹€æ…‹
+        取得 RSI 狀態
         
         Returns:
-            (ç‹€æ…‹, æè¿°)
+            (狀態, 描述)
         """
         if pd.isna(rsi_value):
-            return "unknown", "è³‡æ–™ä¸è¶³"
+            return "unknown", "資料不足"
         
         if rsi_value >= self.rsi_overbought:
-            return "overbought", f"è¶…è²· ({rsi_value:.1f})"
+            return "overbought", f"超買 ({rsi_value:.1f})"
         elif rsi_value <= self.rsi_oversold:
-            return "oversold", f"è¶…è³£ ({rsi_value:.1f})"
+            return "oversold", f"超賣 ({rsi_value:.1f})"
         else:
-            return "neutral", f"ä¸­æ€§ ({rsi_value:.1f})"
+            return "neutral", f"中性 ({rsi_value:.1f})"
     
     def check_rsi_signal(self, df: pd.DataFrame) -> Optional[Signal]:
-        """æª¢æŸ¥ RSI è¨Šè™Ÿ"""
+        """檢查 RSI 訊號"""
         if len(df) < 2 or "rsi" not in df.columns:
             return None
         
@@ -273,21 +273,21 @@ class IndicatorService:
         if pd.isna(rsi_today) or pd.isna(rsi_yesterday):
             return None
         
-        # é€²å…¥è¶…è²·å€
+        # 進入超買區
         if rsi_yesterday < self.rsi_overbought <= rsi_today:
             return Signal(
                 type=SignalType.OVERBOUGHT,
                 indicator="RSI",
-                description=f"RSI é€²å…¥è¶…è²·å€ ({rsi_today:.1f})",
+                description=f"RSI 進入超買區 ({rsi_today:.1f})",
                 value=rsi_today,
             )
         
-        # é€²å…¥è¶…è³£å€
+        # 進入超賣區
         if rsi_yesterday > self.rsi_oversold >= rsi_today:
             return Signal(
                 type=SignalType.OVERSOLD,
                 indicator="RSI",
-                description=f"RSI é€²å…¥è¶…è³£å€ ({rsi_today:.1f})",
+                description=f"RSI 進入超賣區 ({rsi_today:.1f})",
                 value=rsi_today,
             )
         
@@ -297,7 +297,7 @@ class IndicatorService:
     
     def calculate_macd(self, df: pd.DataFrame) -> Tuple[pd.Series, pd.Series, pd.Series]:
         """
-        è¨ˆç®— MACD
+        計算 MACD
         
         Returns:
             (DIF, MACD/DEA, Histogram)
@@ -312,13 +312,13 @@ class IndicatorService:
         return dif, dea, histogram
     
     def add_macd_indicator(self, df: pd.DataFrame) -> pd.DataFrame:
-        """æ–°å¢ž MACD æŒ‡æ¨™"""
+        """新增 MACD 指標"""
         df = df.copy()
         df["macd_dif"], df["macd_dea"], df["macd_hist"] = self.calculate_macd(df)
         return df
     
     def check_macd_signal(self, df: pd.DataFrame) -> Optional[Signal]:
-        """æª¢æŸ¥ MACD äº¤å‰è¨Šè™Ÿ"""
+        """檢查 MACD 交叉訊號"""
         if len(df) < 2:
             return None
         
@@ -330,23 +330,23 @@ class IndicatorService:
         if any(pd.isna(x) for x in [dif_today, dif_yesterday, dea_today, dea_yesterday]):
             return None
         
-        # é»ƒé‡‘äº¤å‰ï¼šDIF ç”±ä¸‹å¾€ä¸Šç©¿è¶Š DEA
+        # 黃金交叉：DIF 由下往上穿越 DEA
         if dif_yesterday < dea_yesterday and dif_today > dea_today:
-            position = "é›¶è»¸ä¸Šæ–¹" if dif_today > 0 else "é›¶è»¸ä¸‹æ–¹"
+            position = "零軸上方" if dif_today > 0 else "零軸下方"
             return Signal(
                 type=SignalType.GOLDEN_CROSS,
                 indicator="MACD",
-                description=f"MACD é»ƒé‡‘äº¤å‰ ({position})",
+                description=f"MACD 黃金交叉 ({position})",
                 value=dif_today,
             )
         
-        # æ­»äº¡äº¤å‰ï¼šDIF ç”±ä¸Šå¾€ä¸‹ç©¿è¶Š DEA
+        # 死亡交叉：DIF 由上往下穿越 DEA
         if dif_yesterday > dea_yesterday and dif_today < dea_today:
-            position = "é›¶è»¸ä¸Šæ–¹" if dif_today > 0 else "é›¶è»¸ä¸‹æ–¹"
+            position = "零軸上方" if dif_today > 0 else "零軸下方"
             return Signal(
                 type=SignalType.DEATH_CROSS,
                 indicator="MACD",
-                description=f"MACD æ­»äº¡äº¤å‰ ({position})",
+                description=f"MACD 死亡交叉 ({position})",
                 value=dif_today,
             )
         
@@ -356,11 +356,11 @@ class IndicatorService:
     
     def calculate_kd(self, df: pd.DataFrame) -> Tuple[pd.Series, pd.Series]:
         """
-        è¨ˆç®— KDï¼ˆéš¨æ©ŸæŒ‡æ¨™ï¼‰
+        計算 KD（隨機指標）
         
-        RSV = (ä»Šæ—¥æ”¶ç›¤ - Næ—¥æœ€ä½Ž) / (Næ—¥æœ€é«˜ - Næ—¥æœ€ä½Ž) Ã— 100
-        K = 2/3 Ã— æ˜¨æ—¥K + 1/3 Ã— RSV
-        D = 2/3 Ã— æ˜¨æ—¥D + 1/3 Ã— K
+        RSV = (今日收盤 - N日最低) / (N日最高 - N日最低) × 100
+        K = 2/3 × 昨日K + 1/3 × RSV
+        D = 2/3 × 昨日D + 1/3 × K
         
         Returns:
             (K, D)
@@ -372,18 +372,18 @@ class IndicatorService:
         
         rsv = ((df["close"] - lowest) / (highest - lowest)) * 100
         
-        # åˆå§‹åŒ– K, D
+        # 初始化 K, D
         k = pd.Series(index=df.index, dtype=float)
         d = pd.Series(index=df.index, dtype=float)
         
-        # ç¬¬ä¸€å€‹æœ‰æ•ˆå€¼è¨­ç‚º 50
+        # 第一個有效值設為 50
         first_valid = rsv.first_valid_index()
         if first_valid is not None:
             idx = df.index.get_loc(first_valid)
             k.iloc[idx] = 50
             d.iloc[idx] = 50
             
-            # è¿­ä»£è¨ˆç®—
+            # 迭代計算
             for i in range(idx + 1, len(df)):
                 k.iloc[i] = (2/3) * k.iloc[i-1] + (1/3) * rsv.iloc[i]
                 d.iloc[i] = (2/3) * d.iloc[i-1] + (1/3) * k.iloc[i]
@@ -391,13 +391,13 @@ class IndicatorService:
         return k, d
     
     def add_kd_indicator(self, df: pd.DataFrame) -> pd.DataFrame:
-        """æ–°å¢ž KD æŒ‡æ¨™"""
+        """新增 KD 指標"""
         df = df.copy()
         df["kd_k"], df["kd_d"] = self.calculate_kd(df)
         return df
     
     def check_kd_signal(self, df: pd.DataFrame) -> Optional[Signal]:
-        """æª¢æŸ¥ KD äº¤å‰è¨Šè™Ÿ"""
+        """檢查 KD 交叉訊號"""
         if len(df) < 2:
             return None
         
@@ -409,36 +409,36 @@ class IndicatorService:
         if any(pd.isna(x) for x in [k_today, k_yesterday, d_today, d_yesterday]):
             return None
         
-        # é»ƒé‡‘äº¤å‰ï¼šK ç”±ä¸‹å¾€ä¸Šç©¿è¶Š D
+        # 黃金交叉：K 由下往上穿越 D
         if k_yesterday < d_yesterday and k_today > d_today:
-            zone = "è¶…è³£å€" if k_today < 20 else ("è¶…è²·å€" if k_today > 80 else "ä¸­æ€§å€")
+            zone = "超賣區" if k_today < 20 else ("超買區" if k_today > 80 else "中性區")
             return Signal(
                 type=SignalType.GOLDEN_CROSS,
                 indicator="KD",
-                description=f"KD é»ƒé‡‘äº¤å‰ ({zone}, K={k_today:.1f})",
+                description=f"KD 黃金交叉 ({zone}, K={k_today:.1f})",
                 value=k_today,
             )
         
-        # æ­»äº¡äº¤å‰ï¼šK ç”±ä¸Šå¾€ä¸‹ç©¿è¶Š D
+        # 死亡交叉：K 由上往下穿越 D
         if k_yesterday > d_yesterday and k_today < d_today:
-            zone = "è¶…è³£å€" if k_today < 20 else ("è¶…è²·å€" if k_today > 80 else "ä¸­æ€§å€")
+            zone = "超賣區" if k_today < 20 else ("超買區" if k_today > 80 else "中性區")
             return Signal(
                 type=SignalType.DEATH_CROSS,
                 indicator="KD",
-                description=f"KD æ­»äº¡äº¤å‰ ({zone}, K={k_today:.1f})",
+                description=f"KD 死亡交叉 ({zone}, K={k_today:.1f})",
                 value=k_today,
             )
         
         return None
     
-    # ==================== å¸ƒæž—é€šé“ ====================
+    # ==================== 布林通道 ====================
     
     def calculate_bollinger(self, df: pd.DataFrame) -> Tuple[pd.Series, pd.Series, pd.Series]:
         """
-        è¨ˆç®—å¸ƒæž—é€šé“
+        計算布林通道
         
         Returns:
-            (ä¸Šè»Œ, ä¸­è»Œ, ä¸‹è»Œ)
+            (上軌, 中軌, 下軌)
         """
         middle = df["close"].rolling(window=self.bollinger_period).mean()
         std = df["close"].rolling(window=self.bollinger_period).std()
@@ -449,14 +449,14 @@ class IndicatorService:
         return upper, middle, lower
     
     def add_bollinger_indicator(self, df: pd.DataFrame) -> pd.DataFrame:
-        """æ–°å¢žå¸ƒæž—é€šé“æŒ‡æ¨™"""
+        """新增布林通道指標"""
         df = df.copy()
         df["bb_upper"], df["bb_middle"], df["bb_lower"] = self.calculate_bollinger(df)
         df["bb_width"] = (df["bb_upper"] - df["bb_lower"]) / df["bb_middle"]
         return df
     
     def get_bollinger_position(self, price: float, upper: float, middle: float, lower: float) -> str:
-        """å–å¾—åƒ¹æ ¼åœ¨å¸ƒæž—é€šé“ä¸­çš„ä½ç½®"""
+        """取得價格在布林通道中的位置"""
         if pd.isna(upper) or pd.isna(lower):
             return "unknown"
         
@@ -473,11 +473,11 @@ class IndicatorService:
     
     def calculate_obv(self, df: pd.DataFrame) -> pd.Series:
         """
-        è¨ˆç®— OBVï¼ˆèƒ½é‡æ½®æŒ‡æ¨™ï¼‰
+        計算 OBV（能量潮指標）
         
-        è‹¥ä»Šæ—¥æ”¶ç›¤ > æ˜¨æ—¥æ”¶ç›¤ï¼šOBV = æ˜¨æ—¥ OBV + ä»Šæ—¥æˆäº¤é‡
-        è‹¥ä»Šæ—¥æ”¶ç›¤ < æ˜¨æ—¥æ”¶ç›¤ï¼šOBV = æ˜¨æ—¥ OBV - ä»Šæ—¥æˆäº¤é‡
-        è‹¥ä»Šæ—¥æ”¶ç›¤ = æ˜¨æ—¥æ”¶ç›¤ï¼šOBV = æ˜¨æ—¥ OBV
+        若今日收盤 > 昨日收盤：OBV = 昨日 OBV + 今日成交量
+        若今日收盤 < 昨日收盤：OBV = 昨日 OBV - 今日成交量
+        若今日收盤 = 昨日收盤：OBV = 昨日 OBV
         """
         obv = pd.Series(index=df.index, dtype=float)
         obv.iloc[0] = df["volume"].iloc[0]
@@ -493,9 +493,9 @@ class IndicatorService:
         return obv
     
     def add_obv_indicator(self, df: pd.DataFrame) -> pd.DataFrame:
-        """æ–°å¢ž OBV æŒ‡æ¨™"""
+        """新增 OBV 指標"""
         df = df.copy()
-        # æª¢æŸ¥æ˜¯å¦æœ‰ volume æ¬„ä½
+        # 檢查是否有 volume 欄位
         if "volume" not in df.columns:
             df["obv"] = None
             return df
@@ -504,14 +504,14 @@ class IndicatorService:
     
     def get_obv_trend(self, df: pd.DataFrame, lookback: int = 5) -> str:
         """
-        åˆ¤æ–· OBV è¶¨å‹¢
+        判斷 OBV 趨勢
         
         Args:
-            df: å«æœ‰ OBV çš„ DataFrame
-            lookback: å›žé¡§å¤©æ•¸
+            df: 含有 OBV 的 DataFrame
+            lookback: 回顧天數
             
         Returns:
-            è¶¨å‹¢å­—ä¸² ("rising", "falling", "flat")
+            趨勢字串 ("rising", "falling", "flat")
         """
         if "obv" not in df.columns or len(df) < lookback:
             return "unknown"
@@ -523,7 +523,7 @@ class IndicatorService:
         elif obv_recent.is_monotonic_decreasing:
             return "falling"
         else:
-            # æ¯”è¼ƒé¦–å°¾
+            # 比較首尾
             change_pct = (obv_recent.iloc[-1] - obv_recent.iloc[0]) / abs(obv_recent.iloc[0]) * 100
             if change_pct > 5:
                 return "rising"
@@ -532,17 +532,17 @@ class IndicatorService:
             else:
                 return "flat"
     
-    # ==================== æˆäº¤é‡åˆ†æž ====================
+    # ==================== 成交量分析 ====================
     
     def calculate_volume_ratio(self, df: pd.DataFrame, ma_period: int = 20) -> pd.Series:
-        """è¨ˆç®—é‡æ¯”ï¼ˆä»Šæ—¥æˆäº¤é‡ / Næ—¥å‡é‡ï¼‰"""
+        """計算量比（今日成交量 / N日均量）"""
         avg_volume = df["volume"].rolling(window=ma_period).mean()
         return df["volume"] / avg_volume
     
     def add_volume_indicator(self, df: pd.DataFrame) -> pd.DataFrame:
-        """æ–°å¢žæˆäº¤é‡æŒ‡æ¨™"""
+        """新增成交量指標"""
         df = df.copy()
-        # æª¢æŸ¥æ˜¯å¦æœ‰ volume æ¬„ä½
+        # 檢查是否有 volume 欄位
         if "volume" not in df.columns:
             df["volume_ma20"] = None
             df["volume_ratio"] = None
@@ -551,10 +551,10 @@ class IndicatorService:
         df["volume_ratio"] = self.calculate_volume_ratio(df)
         return df
     
-    # ==================== ç¶œåˆè¨ˆç®— ====================
+    # ==================== 綜合計算 ====================
     
     def calculate_all_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """è¨ˆç®—æ‰€æœ‰æŠ€è¡“æŒ‡æ¨™"""
+        """計算所有技術指標"""
         df = self.add_ma_indicators(df)
         df = self.add_rsi_indicator(df)
         df = self.add_macd_indicator(df)
@@ -565,10 +565,10 @@ class IndicatorService:
         return df
     
     def get_all_signals(self, df: pd.DataFrame) -> List[Signal]:
-        """å–å¾—æ‰€æœ‰è¨Šè™Ÿ"""
+        """取得所有訊號"""
         signals = []
         
-        # MA äº¤å‰
+        # MA 交叉
         ma_cross_20_50 = self.check_ma_cross(df, f"ma{self.ma_short}", f"ma{self.ma_mid}")
         if ma_cross_20_50:
             signals.append(ma_cross_20_50)
@@ -592,7 +592,7 @@ class IndicatorService:
         if kd_signal:
             signals.append(kd_signal)
         
-        # åƒ¹æ ¼æŽ¥è¿‘å‡ç·š
+        # 價格接近均線
         if len(df) > 0:
             latest = df.iloc[-1]
             price = latest["close"]
@@ -607,7 +607,7 @@ class IndicatorService:
     
     def calculate_score(self, df: pd.DataFrame) -> Dict[str, Any]:
         """
-        è¨ˆç®—ç¶œåˆè©•åˆ†
+        計算綜合評分
         
         Returns:
             {
@@ -626,19 +626,19 @@ class IndicatorService:
                 "buy_score": 0,
                 "sell_score": 0,
                 "rating": "insufficient_data",
-                "details": ["è³‡æ–™ä¸è¶³ï¼Œç„¡æ³•è©•åˆ†"],
+                "details": ["資料不足，無法評分"],
             }
         
         latest = df.iloc[-1]
         
-        # 1. å‡ç·šæŽ’åˆ—
+        # 1. 均線排列
         alignment, alignment_desc = self.get_ma_alignment(df)
         if alignment == TrendDirection.BULLISH:
             buy_score += 1
-            details.append(f"âœ… {alignment_desc}")
+            details.append(f"✅ {alignment_desc}")
         elif alignment == TrendDirection.BEARISH:
             sell_score += 1
-            details.append(f"âŒ {alignment_desc}")
+            details.append(f"❌ {alignment_desc}")
         
         # 2. RSI
         if "rsi" in df.columns:
@@ -646,10 +646,10 @@ class IndicatorService:
             if not pd.isna(rsi):
                 if rsi <= self.rsi_oversold:
                     buy_score += 1
-                    details.append(f"âœ… RSI è¶…è³£ ({rsi:.1f})")
+                    details.append(f"✅ RSI 超賣 ({rsi:.1f})")
                 elif rsi >= self.rsi_overbought:
                     sell_score += 1
-                    details.append(f"âŒ RSI è¶…è²· ({rsi:.1f})")
+                    details.append(f"❌ RSI 超買 ({rsi:.1f})")
         
         # 3. MACD
         if "macd_hist" in df.columns and len(df) >= 2:
@@ -658,10 +658,10 @@ class IndicatorService:
             if not pd.isna(hist_today) and not pd.isna(hist_yesterday):
                 if hist_today > 0 and hist_today > hist_yesterday:
                     buy_score += 1
-                    details.append("âœ… MACD å‹•èƒ½å¢žå¼·")
+                    details.append("✅ MACD 動能增強")
                 elif hist_today < 0 and hist_today < hist_yesterday:
                     sell_score += 1
-                    details.append("âŒ MACD å‹•èƒ½æ¸›å¼±")
+                    details.append("❌ MACD 動能減弱")
         
         # 4. KD
         if "kd_k" in df.columns:
@@ -670,12 +670,12 @@ class IndicatorService:
             if not pd.isna(k) and not pd.isna(d):
                 if k < 20 and k > d:
                     buy_score += 1
-                    details.append(f"âœ… KD ä½Žæª”é»ƒé‡‘äº¤å‰ (K={k:.1f})")
+                    details.append(f"✅ KD 低檔黃金交叉 (K={k:.1f})")
                 elif k > 80 and k < d:
                     sell_score += 1
-                    details.append(f"âŒ KD é«˜æª”æ­»äº¡äº¤å‰ (K={k:.1f})")
+                    details.append(f"❌ KD 高檔死亡交叉 (K={k:.1f})")
         
-        # 5. å¸ƒæž—é€šé“
+        # 5. 布林通道
         if "bb_lower" in df.columns:
             price = latest["close"]
             bb_lower = latest["bb_lower"]
@@ -685,33 +685,33 @@ class IndicatorService:
             if not pd.isna(bb_lower):
                 if price <= bb_lower:
                     buy_score += 1
-                    details.append("âœ… è§¸åŠå¸ƒæž—ä¸‹è»Œ")
+                    details.append("✅ 觸及布林下軌")
                 elif price >= bb_upper:
                     sell_score += 1
-                    details.append("âŒ è§¸åŠå¸ƒæž—ä¸Šè»Œ")
+                    details.append("❌ 觸及布林上軌")
                 elif price < bb_middle and len(df) >= 2:
                     if df["close"].iloc[-2] >= bb_middle:
                         sell_score += 1
-                        details.append("âŒ è·Œç ´å¸ƒæž—ä¸­è»Œ")
+                        details.append("❌ 跌破布林中軌")
         
-        # 6. é‡èƒ½
+        # 6. 量能
         if "volume_ratio" in df.columns:
             vol_ratio = latest["volume_ratio"]
             if not pd.isna(vol_ratio):
                 if vol_ratio >= 2.0:
-                    details.append(f"ðŸ“Š æˆäº¤é‡çˆ†å¢ž (é‡æ¯” {vol_ratio:.1f})")
+                    details.append(f"📊 成交量爆增 (量比 {vol_ratio:.1f})")
         
         # 7. OBV
         if "obv" in df.columns:
             obv_trend = self.get_obv_trend(df)
             if obv_trend == "rising":
                 buy_score += 1
-                details.append("âœ… OBV ä¸Šå‡è¶¨å‹¢")
+                details.append("✅ OBV 上升趨勢")
             elif obv_trend == "falling":
                 sell_score += 1
-                details.append("âŒ OBV ä¸‹é™è¶¨å‹¢")
+                details.append("❌ OBV 下降趨勢")
         
-        # è¨ˆç®—è©•ç­‰
+        # 計算評等
         if buy_score >= 5:
             rating = "strong_buy"
         elif buy_score >= 3:
@@ -730,7 +730,7 @@ class IndicatorService:
             "details": details,
         }
     
-    # ==================== å¹´åŒ–å ±é…¬çŽ‡ï¼ˆCAGRï¼‰è¨ˆç®— ====================
+    # ==================== 年化報酬率（CAGR）計算 ====================
     
     def calculate_cagr(
         self,
@@ -738,41 +738,41 @@ class IndicatorService:
         years: float,
     ) -> Optional[float]:
         """
-        è¨ˆç®—å¹´åŒ–è¤‡åˆæˆé•·çŽ‡ï¼ˆCAGRï¼‰
+        計算年化複合成長率（CAGR）
         
-        å…¬å¼: CAGR = (çµ‚å€¼/åˆå€¼)^(1/å¹´æ•¸) - 1
+        公式: CAGR = (終值/初值)^(1/年數) - 1
         
         Args:
-            df: è‚¡åƒ¹ DataFrameï¼ˆéœ€æœ‰ 'close' æ¬„ä½ï¼‰
-            years: è¨ˆç®—çš„å¹´æ•¸
+            df: 股價 DataFrame（需有 'close' 欄位）
+            years: 計算的年數
             
         Returns:
-            å¹´åŒ–å ±é…¬çŽ‡ï¼ˆç™¾åˆ†æ¯”ï¼‰ï¼Œä¾‹å¦‚ 15.5 è¡¨ç¤º 15.5%
-            å¦‚æžœè³‡æ–™ä¸è¶³å‰‡è¿”å›ž None
+            年化報酬率（百分比），例如 15.5 表示 15.5%
+            如果資料不足則返回 None
         """
         if df is None or df.empty:
             return None
         
-        # è¨ˆç®—éœ€è¦çš„å¤©æ•¸ï¼ˆå‡è¨­ä¸€å¹´ç´„ 252 å€‹äº¤æ˜“æ—¥ï¼‰
+        # 計算需要的天數（假設一年約 252 個交易日）
         trading_days = int(years * 252)
         
         if len(df) < trading_days:
             return None
         
         try:
-            # å–å¾—çµ‚å€¼ï¼ˆæœ€æ–°åƒ¹æ ¼ï¼‰
+            # 取得終值（最新價格）
             end_price = float(df['close'].iloc[-1])
             
-            # å–å¾—åˆå€¼ï¼ˆNå¹´å‰åƒ¹æ ¼ï¼‰
+            # 取得初值（N年前價格）
             start_price = float(df['close'].iloc[-trading_days])
             
             if start_price <= 0 or end_price <= 0:
                 return None
             
-            # è¨ˆç®— CAGR
+            # 計算 CAGR
             cagr = (end_price / start_price) ** (1 / years) - 1
             
-            # è½‰æ›ç‚ºç™¾åˆ†æ¯”
+            # 轉換為百分比
             return round(cagr * 100, 2)
         except Exception:
             return None
@@ -782,14 +782,14 @@ class IndicatorService:
         df: pd.DataFrame,
     ) -> Dict[str, Optional[float]]:
         """
-        è¨ˆç®—æ‰€æœ‰æ™‚é–“ç¯„åœçš„å¹´åŒ–å ±é…¬çŽ‡
+        計算所有時間範圍的年化報酬率
         
         Returns:
             {
-                "cagr_1y": 15.5,   # 1 å¹´å¹´åŒ–
-                "cagr_3y": 12.3,   # 3 å¹´å¹´åŒ–
-                "cagr_5y": 18.7,   # 5 å¹´å¹´åŒ–
-                "cagr_10y": 14.2,  # 10 å¹´å¹´åŒ–
+                "cagr_1y": 15.5,   # 1 年年化
+                "cagr_3y": 12.3,   # 3 年年化
+                "cagr_5y": 18.7,   # 5 年年化
+                "cagr_10y": 14.2,  # 10 年年化
             }
         """
         return {
@@ -806,15 +806,15 @@ class IndicatorService:
         years: float,
     ) -> Optional[float]:
         """
-        å¾žèµ·å§‹å’ŒçµæŸåƒ¹æ ¼è¨ˆç®— CAGR
+        從起始和結束價格計算 CAGR
         
         Args:
-            start_price: èµ·å§‹åƒ¹æ ¼
-            end_price: çµæŸåƒ¹æ ¼
-            years: å¹´æ•¸
+            start_price: 起始價格
+            end_price: 結束價格
+            years: 年數
             
         Returns:
-            å¹´åŒ–å ±é…¬çŽ‡ï¼ˆç™¾åˆ†æ¯”ï¼‰
+            年化報酬率（百分比）
         """
         if start_price <= 0 or end_price <= 0 or years <= 0:
             return None
@@ -826,5 +826,5 @@ class IndicatorService:
             return None
 
 
-# å»ºç«‹é è¨­å¯¦ä¾‹
+# 建立預設實例
 indicator_service = IndicatorService()

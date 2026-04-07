@@ -1,6 +1,6 @@
 """
-ç”¨æˆ¶è¨­å®šè³‡æ–™æ¨¡åž‹
-åŒ…å«æŒ‡æ¨™é¡¯ç¤ºè¨­å®šã€é€šçŸ¥è¨­å®šã€åƒæ•¸è¨­å®š
+用戶設定資料模型
+包含指標顯示設定、通知設定、參數設定
 """
 from sqlalchemy import Column, Integer, Boolean, ForeignKey, Numeric
 from sqlalchemy.orm import relationship
@@ -8,7 +8,7 @@ from app.database import Base
 
 
 class UserIndicatorSettings(Base):
-    """ç”¨æˆ¶æŒ‡æ¨™é¡¯ç¤ºè¨­å®š"""
+    """用戶指標顯示設定"""
     
     __tablename__ = "user_indicator_settings"
     
@@ -21,7 +21,7 @@ class UserIndicatorSettings(Base):
     show_obv = Column(Boolean, default=False)
     show_volume = Column(Boolean, default=True)
     
-    # é—œè¯
+    # 關聯
     user = relationship("User", back_populates="indicator_settings")
     
     def __repr__(self):
@@ -40,26 +40,26 @@ class UserIndicatorSettings(Base):
     
     @classmethod
     def create_default(cls, user_id: int):
-        """å»ºç«‹é è¨­è¨­å®š"""
+        """建立預設設定"""
         return cls(user_id=user_id)
 
 
 class UserAlertSettings(Base):
-    """ç”¨æˆ¶é€šçŸ¥è¨­å®š"""
+    """用戶通知設定"""
     
     __tablename__ = "user_alert_settings"
     
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    alert_ma_cross = Column(Boolean, default=True)      # å‡ç·šäº¤å‰é€šçŸ¥
-    alert_ma_breakout = Column(Boolean, default=True)   # å‡ç·šçªç ´é€šçŸ¥
-    alert_rsi = Column(Boolean, default=True)           # RSI è¶…è²·è¶…è³£é€šçŸ¥
-    alert_macd = Column(Boolean, default=True)          # MACD äº¤å‰é€šçŸ¥
-    alert_kd = Column(Boolean, default=False)           # KD äº¤å‰é€šçŸ¥
-    alert_bollinger = Column(Boolean, default=False)    # å¸ƒæž—çªç ´é€šçŸ¥
-    alert_volume = Column(Boolean, default=False)       # é‡èƒ½ç•°å¸¸é€šçŸ¥
-    alert_sentiment = Column(Boolean, default=True)     # æƒ…ç·’æ¥µç«¯é€šçŸ¥
+    alert_ma_cross = Column(Boolean, default=True)      # 均線交叉通知
+    alert_ma_breakout = Column(Boolean, default=True)   # 均線突破通知
+    alert_rsi = Column(Boolean, default=True)           # RSI 超買超賣通知
+    alert_macd = Column(Boolean, default=True)          # MACD 交叉通知
+    alert_kd = Column(Boolean, default=False)           # KD 交叉通知
+    alert_bollinger = Column(Boolean, default=False)    # 布林突破通知
+    alert_volume = Column(Boolean, default=False)       # 量能異常通知
+    alert_sentiment = Column(Boolean, default=True)     # 情緒極端通知
     
-    # é—œè¯
+    # 關聯
     user = relationship("User", back_populates="alert_settings")
     
     def __repr__(self):
@@ -79,18 +79,18 @@ class UserAlertSettings(Base):
     
     @classmethod
     def create_default(cls, user_id: int):
-        """å»ºç«‹é è¨­è¨­å®š"""
+        """建立預設設定"""
         return cls(user_id=user_id)
 
 
 class UserIndicatorParams(Base):
-    """ç”¨æˆ¶æŒ‡æ¨™åƒæ•¸è¨­å®š"""
+    """用戶指標參數設定"""
     
     __tablename__ = "user_indicator_params"
     
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     
-    # å‡ç·š
+    # 均線
     ma_short = Column(Integer, default=20)
     ma_mid = Column(Integer, default=50)
     ma_long = Column(Integer, default=200)
@@ -108,15 +108,15 @@ class UserIndicatorParams(Base):
     # KD
     kd_period = Column(Integer, default=9)
     
-    # å¸ƒæž—é€šé“
+    # 布林通道
     bollinger_period = Column(Integer, default=20)
     bollinger_std = Column(Numeric(3, 1), default=2.0)
     
-    # è­¦æˆ’å€¼
-    breakout_threshold = Column(Numeric(4, 2), default=2.00)  # çªç ´é è­¦é–€æª» (%)
-    volume_alert_ratio = Column(Numeric(3, 1), default=2.0)   # é‡æ¯”è­¦æˆ’å€æ•¸
+    # 警戒值
+    breakout_threshold = Column(Numeric(4, 2), default=2.00)  # 突破預警門檻 (%)
+    volume_alert_ratio = Column(Numeric(3, 1), default=2.0)   # 量比警戒倍數
     
-    # é—œè¯
+    # 關聯
     user = relationship("User")
     
     def __repr__(self):
@@ -142,5 +142,5 @@ class UserIndicatorParams(Base):
     
     @classmethod
     def create_default(cls, user_id: int):
-        """å»ºç«‹é è¨­è¨­å®š"""
+        """建立預設設定"""
         return cls(user_id=user_id)

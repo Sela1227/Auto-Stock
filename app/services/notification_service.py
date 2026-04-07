@@ -1,6 +1,6 @@
 """
-é€šçŸ¥ç®¡ç†æœå‹™
-æ•´åˆè¨Šè™Ÿåµæ¸¬ã€é€šçŸ¥è¨˜éŒ„ã€LINE æŽ¨æ’­
+通知管理服務
+整合訊號偵測、通知記錄、LINE 推播
 """
 import logging
 from datetime import datetime, timedelta
@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 class NotificationService:
-    """é€šçŸ¥ç®¡ç†æœå‹™"""
+    """通知管理服務"""
     
-    # è¨Šè™Ÿé¡žåž‹èˆ‡é€šçŸ¥è¨­å®šçš„å°æ‡‰
+    # 訊號類型與通知設定的對應
     SIGNAL_TO_SETTING = {
         SignalType.MA_GOLDEN_CROSS: "alert_ma_cross",
         SignalType.MA_DEATH_CROSS: "alert_ma_cross",
@@ -46,10 +46,10 @@ class NotificationService:
     
     async def get_all_tracked_symbols(self, db: AsyncSession) -> Dict[str, Set[int]]:
         """
-        å–å¾—æ‰€æœ‰ç”¨æˆ¶è¿½è¹¤çš„è‚¡ç¥¨ï¼ˆè¯é›†ï¼‰
+        取得所有用戶追蹤的股票（聯集）
         
         Returns:
-            {symbol: set(user_ids)} å°æ‡‰è¡¨
+            {symbol: set(user_ids)} 對應表
         """
         result = await db.execute(
             select(Watchlist.symbol, Watchlist.user_id, Watchlist.asset_type)
@@ -66,7 +66,7 @@ class NotificationService:
                 symbol_users[key] = {"symbol": symbol, "asset_type": asset_type, "users": set()}
             symbol_users[key]["users"].add(user_id)
         
-        logger.info(f"å…± {len(symbol_users)} å€‹è¿½è¹¤æ¨™çš„")
+        logger.info(f"共 {len(symbol_users)} 個追蹤標的")
         return symbol_users
     
     async def get_user_alert_settings(
@@ -74,14 +74,14 @@ class NotificationService:
         db: AsyncSession, 
         user_id: int
     ) -> Dict[str, bool]:
-        """å–å¾—ç”¨æˆ¶çš„é€šçŸ¥è¨­å®š"""
+        """取得用戶的通知設定"""
         result = await db.execute(
             select(UserAlertSettings).where(UserAlertSettings.user_id == user_id)
         )
         settings = result.scalar_one_or_none()
         
         if not settings:
-            # ä½¿ç”¨é è¨­å€¼ï¼ˆå…¨éƒ¨é–‹å•Ÿï¼‰
+            # 使用預設值（全部開啟）
             return {
                 "alert_ma_cross": True,
                 "alert_ma_breakout": True,
@@ -113,16 +113,16 @@ class NotificationService:
         hours: int = 24
     ) -> bool:
         """
-        æª¢æŸ¥æ˜¯å¦æœ€è¿‘å·²é€šçŸ¥éŽï¼ˆé˜²æ­¢é‡è¤‡ï¼‰
+        檢查是否最近已通知過（防止重複）
         
         Args:
-            user_id: ç”¨æˆ¶ ID
-            symbol: è‚¡ç¥¨ä»£è™Ÿ
-            signal_type: è¨Šè™Ÿé¡žåž‹
-            hours: å¤šå°‘å°æ™‚å…§ä¸é‡è¤‡
+            user_id: 用戶 ID
+            symbol: 股票代號
+            signal_type: 訊號類型
+            hours: 多少小時內不重複
             
         Returns:
-            æ˜¯å¦å·²é€šçŸ¥éŽ
+            是否已通知過
         """
         since = datetime.utcnow() - timedelta(hours=hours)
         
@@ -145,7 +145,7 @@ class NotificationService:
         signal: Signal,
         sent: bool = False
     ) -> Notification:
-        """å„²å­˜é€šçŸ¥è¨˜éŒ„"""
+        """儲存通知記錄"""
         notification = Notification(
             user_id=user_id,
             symbol=signal.symbol,
@@ -170,21 +170,21 @@ class NotificationService:
         signals: List[Signal]
     ) -> Dict[str, Any]:
         """
-        è™•ç†ç”¨æˆ¶çš„è¨Šè™Ÿé€šçŸ¥
+        處理用戶的訊號通知
         
         Args:
-            db: è³‡æ–™åº« session
-            user_id: ç”¨æˆ¶ ID
+            db: 資料庫 session
+            user_id: 用戶 ID
             line_user_id: LINE User ID
-            signals: è¨Šè™Ÿåˆ—è¡¨
+            signals: 訊號列表
             
         Returns:
-            è™•ç†çµæžœ
+            處理結果
         """
         if not signals:
             return {"sent": 0, "skipped": 0, "filtered": 0}
         
-        # å–å¾—ç”¨æˆ¶é€šçŸ¥è¨­å®š
+        # 取得用戶通知設定
         alert_settings = await self.get_user_alert_settings(db, user_id)
         
         sent_count = 0
@@ -193,13 +193,13 @@ class NotificationService:
         signals_to_send = []
         
         for signal in signals:
-            # 1. æª¢æŸ¥ç”¨æˆ¶æ˜¯å¦é–‹å•Ÿæ­¤é¡žé€šçŸ¥
+            # 1. 檢查用戶是否開啟此類通知
             setting_key = self.SIGNAL_TO_SETTING.get(signal.signal_type)
             if setting_key and not alert_settings.get(setting_key, True):
                 filtered_count += 1
                 continue
             
-            # 2. æª¢æŸ¥æ˜¯å¦æœ€è¿‘å·²é€šçŸ¥éŽ
+            # 2. 檢查是否最近已通知過
             if await self.is_recently_notified(
                 db, user_id, signal.symbol, signal.signal_type.value
             ):
@@ -208,16 +208,16 @@ class NotificationService:
             
             signals_to_send.append(signal)
         
-        # 3. ç™¼é€ LINE é€šçŸ¥
+        # 3. 發送 LINE 通知
         if signals_to_send and line_user_id:
-            # åˆä½µè¨Šæ¯ç™¼é€
+            # 合併訊息發送
             message = signal_service.format_signals_summary(signals_to_send)
             
             success = await line_notify_service.push_text_message(
                 line_user_id, message
             )
             
-            # 4. å„²å­˜é€šçŸ¥è¨˜éŒ„
+            # 4. 儲存通知記錄
             for signal in signals_to_send:
                 await self.save_notification(db, user_id, signal, sent=success)
                 if success:
@@ -231,19 +231,19 @@ class NotificationService:
     
     async def run_signal_check(self, db: AsyncSession) -> Dict[str, Any]:
         """
-        åŸ·è¡Œè¨Šè™Ÿæª¢æŸ¥ï¼ˆä¸»è¦å…¥å£ï¼‰
+        執行訊號檢查（主要入口）
         
-        æµç¨‹ï¼š
-        1. å–å¾—æ‰€æœ‰è¿½è¹¤çš„è‚¡ç¥¨
-        2. è¨ˆç®—æŠ€è¡“æŒ‡æ¨™
-        3. åµæ¸¬è¨Šè™Ÿ
-        4. æ ¹æ“šç”¨æˆ¶è¨­å®šéŽæ¿¾ä¸¦ç™¼é€é€šçŸ¥
+        流程：
+        1. 取得所有追蹤的股票
+        2. 計算技術指標
+        3. 偵測訊號
+        4. 根據用戶設定過濾並發送通知
         
         Returns:
-            åŸ·è¡Œçµæžœæ‘˜è¦
+            執行結果摘要
         """
         logger.info("=" * 50)
-        logger.info("é–‹å§‹åŸ·è¡Œè¨Šè™Ÿæª¢æŸ¥")
+        logger.info("開始執行訊號檢查")
         logger.info("=" * 50)
         
         start_time = datetime.now()
@@ -255,40 +255,40 @@ class NotificationService:
         }
         
         try:
-            # 1. å–å¾—æ‰€æœ‰è¿½è¹¤çš„è‚¡ç¥¨
+            # 1. 取得所有追蹤的股票
             symbol_users = await self.get_all_tracked_symbols(db)
             
             if not symbol_users:
-                logger.info("ç„¡è¿½è¹¤æ¨™çš„ï¼ŒçµæŸæª¢æŸ¥")
+                logger.info("無追蹤標的，結束檢查")
                 return result
             
             all_signals_by_symbol = {}  # {symbol: [signals]}
             
-            # 2. é€ä¸€è¨ˆç®—æŒ‡æ¨™ä¸¦åµæ¸¬è¨Šè™Ÿ
+            # 2. 逐一計算指標並偵測訊號
             for key, info in symbol_users.items():
                 symbol = info["symbol"]
                 asset_type = info["asset_type"]
                 
                 try:
-                    # å–å¾—è‚¡åƒ¹è³‡æ–™
+                    # 取得股價資料
                     if asset_type == "stock":
                         df = yahoo_finance.get_stock_history(symbol, period="6mo")
                     else:
-                        # åŠ å¯†è²¨å¹£è™•ç†
+                        # 加密貨幣處理
                         from app.services.crypto_service import crypto_service
                         df = await crypto_service.get_crypto_history(symbol, period="6mo")
                     
                     if df is None or df.empty:
-                        logger.warning(f"{symbol} ç„¡æ³•å–å¾—è³‡æ–™")
+                        logger.warning(f"{symbol} 無法取得資料")
                         continue
                     
-                    # è¨ˆç®—æŠ€è¡“æŒ‡æ¨™
+                    # 計算技術指標
                     indicators = indicator_service.calculate_all_indicators(df)
                     
                     if not indicators:
                         continue
                     
-                    # åµæ¸¬è¨Šè™Ÿ
+                    # 偵測訊號
                     signals = signal_service.detect_signals(
                         symbol, indicators, asset_type
                     )
@@ -303,17 +303,17 @@ class NotificationService:
                     result["symbols_checked"] += 1
                     
                 except Exception as e:
-                    logger.error(f"è™•ç† {symbol} æ™‚ç™¼ç”ŸéŒ¯èª¤: {e}")
+                    logger.error(f"處理 {symbol} 時發生錯誤: {e}")
                     result["errors"].append(f"{symbol}: {str(e)}")
             
-            # 3. ç™¼é€é€šçŸ¥çµ¦ç”¨æˆ¶
+            # 3. 發送通知給用戶
             for key, data in all_signals_by_symbol.items():
                 signals = data["signals"]
                 user_ids = data["users"]
                 
                 for user_id in user_ids:
                     try:
-                        # å–å¾—ç”¨æˆ¶ LINE ID
+                        # 取得用戶 LINE ID
                         user_result = await db.execute(
                             select(User).where(User.id == user_id)
                         )
@@ -322,7 +322,7 @@ class NotificationService:
                         if not user or not user.line_user_id:
                             continue
                         
-                        # è™•ç†ä¸¦ç™¼é€é€šçŸ¥
+                        # 處理並發送通知
                         send_result = await self.process_signals_for_user(
                             db, user_id, user.line_user_id, signals
                         )
@@ -330,10 +330,10 @@ class NotificationService:
                         result["notifications_sent"] += send_result["sent"]
                         
                     except Exception as e:
-                        logger.error(f"ç™¼é€é€šçŸ¥çµ¦ç”¨æˆ¶ {user_id} æ™‚ç™¼ç”ŸéŒ¯èª¤: {e}")
+                        logger.error(f"發送通知給用戶 {user_id} 時發生錯誤: {e}")
                         result["errors"].append(f"user_{user_id}: {str(e)}")
             
-            # 4. æª¢æŸ¥å¸‚å ´æƒ…ç·’
+            # 4. 檢查市場情緒
             try:
                 from app.services.market_service import MarketService
                 market_service = MarketService()
@@ -343,21 +343,21 @@ class NotificationService:
                 
                 if sentiment_signals:
                     result["signals_detected"] += len(sentiment_signals)
-                    # æƒ…ç·’è¨Šè™Ÿç™¼é€çµ¦æ‰€æœ‰é–‹å•Ÿæ­¤é€šçŸ¥çš„ç”¨æˆ¶
-                    # ï¼ˆé€™è£¡ç°¡åŒ–è™•ç†ï¼Œå¯¦éš›å¯ä»¥æ›´ç²¾ç´°æŽ§åˆ¶ï¼‰
-                    logger.info(f"åµæ¸¬åˆ° {len(sentiment_signals)} å€‹æƒ…ç·’è¨Šè™Ÿ")
+                    # 情緒訊號發送給所有開啟此通知的用戶
+                    # （這裡簡化處理，實際可以更精細控制）
+                    logger.info(f"偵測到 {len(sentiment_signals)} 個情緒訊號")
                     
             except Exception as e:
-                logger.error(f"æª¢æŸ¥å¸‚å ´æƒ…ç·’æ™‚ç™¼ç”ŸéŒ¯èª¤: {e}")
+                logger.error(f"檢查市場情緒時發生錯誤: {e}")
             
         except Exception as e:
-            logger.error(f"è¨Šè™Ÿæª¢æŸ¥ç™¼ç”Ÿåš´é‡éŒ¯èª¤: {e}", exc_info=True)
+            logger.error(f"訊號檢查發生嚴重錯誤: {e}", exc_info=True)
             result["errors"].append(f"critical: {str(e)}")
         
         elapsed = (datetime.now() - start_time).total_seconds()
         result["elapsed_seconds"] = round(elapsed, 2)
         
-        logger.info(f"è¨Šè™Ÿæª¢æŸ¥å®Œæˆ: {result}")
+        logger.info(f"訊號檢查完成: {result}")
         return result
     
     async def get_user_notifications(
@@ -367,7 +367,7 @@ class NotificationService:
         limit: int = 50,
         unread_only: bool = False
     ) -> List[Dict]:
-        """å–å¾—ç”¨æˆ¶çš„é€šçŸ¥æ­·å²"""
+        """取得用戶的通知歷史"""
         query = select(Notification).where(
             Notification.user_id == user_id
         ).order_by(Notification.triggered_at.desc()).limit(limit)
@@ -381,5 +381,5 @@ class NotificationService:
         return [n.to_dict() for n in notifications]
 
 
-# å–®ä¾‹
+# 單例
 notification_service = NotificationService()

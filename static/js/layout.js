@@ -1,32 +1,32 @@
 /**
- * ä½ˆå±€å…ƒä»¶å‹•æ…‹ç”Ÿæˆæ¨¡çµ„
- * ç”Ÿæˆå´é‚Šæ¬„ã€åº•éƒ¨å°Žèˆªç­‰é‡è¤‡ä½¿ç”¨çš„ UI å…ƒä»¶
+ * 佈局元件動態生成模組
+ * 生成側邊欄、底部導航等重複使用的 UI 元件
  */
 
 (function() {
     'use strict';
 
     // ============================================================
-    // å°Žèˆªé …ç›®é…ç½®
+    // 導航項目配置
     // ============================================================
 
     const NAV_ITEMS = [
-        { id: 'dashboard', icon: 'fa-tachometer-alt', label: 'å„€è¡¨æ¿', mobileLabel: 'é¦–é ' },
-        { id: 'search', icon: 'fa-search', label: 'è‚¡ç¥¨æŸ¥è©¢', mobileLabel: 'æŸ¥è©¢' },
-        { id: 'watchlist', icon: 'fa-star', label: 'è¿½è¹¤æ¸…å–®', mobileLabel: 'è¿½è¹¤' },
-        { id: 'sentiment', icon: 'fa-heart-pulse', label: 'ææ‡¼è²ªå©ª', mobileLabel: 'æƒ…ç·’' },
-        { id: 'compare', icon: 'fa-chart-line', label: 'èµ°å‹¢æ¯”è¼ƒ' },
-        { id: 'portfolio', icon: 'fa-wallet', label: 'å€‹äººæŠ•è³‡è¨˜éŒ„' },
-        { id: 'subscription', icon: 'fa-satellite-dish', label: 'è¨‚é–±ç²¾é¸' },
-        { id: 'cagr', icon: 'fa-trophy', label: 'å ±é…¬çŽ‡æ¯”è¼ƒ' },
-        { id: 'settings', icon: 'fa-cog', label: 'è¨­å®š', mobileLabel: 'è¨­å®š', showInBottomNav: true }
+        { id: 'dashboard', icon: 'fa-tachometer-alt', label: '儀表板', mobileLabel: '首頁' },
+        { id: 'search', icon: 'fa-search', label: '股票查詢', mobileLabel: '查詢' },
+        { id: 'watchlist', icon: 'fa-star', label: '追蹤清單', mobileLabel: '追蹤' },
+        { id: 'sentiment', icon: 'fa-heart-pulse', label: '恐懼貪婪', mobileLabel: '情緒' },
+        { id: 'compare', icon: 'fa-chart-line', label: '走勢比較' },
+        { id: 'portfolio', icon: 'fa-wallet', label: '個人投資記錄' },
+        { id: 'subscription', icon: 'fa-satellite-dish', label: '訂閱精選' },
+        { id: 'cagr', icon: 'fa-trophy', label: '報酬率比較' },
+        { id: 'settings', icon: 'fa-cog', label: '設定', mobileLabel: '設定', showInBottomNav: true }
     ];
 
-    // åº•éƒ¨å°Žèˆªé¡¯ç¤ºçš„é …ç›®
+    // 底部導航顯示的項目
     const BOTTOM_NAV_ITEMS = ['dashboard', 'search', 'watchlist', 'sentiment', 'settings'];
 
     // ============================================================
-    // æ‰‹æ©Ÿç‰ˆå´é‚Šé¸å–®
+    // 手機版側邊選單
     // ============================================================
 
     function renderMobileSidebar() {
@@ -61,16 +61,16 @@
                     </div>
                 </div>
                 <div class="text-xs text-gray-400 mb-2">
-                    é–’ç½®ç™»å‡º: <span id="sidebarTimer">5:00</span>
+                    閒置登出: <span id="sidebarTimer">5:00</span>
                 </div>
                 <button onclick="logout()" class="w-full py-2 text-red-500 hover:bg-red-50 rounded-lg flex items-center justify-center touch-target">
                     <i class="fas fa-sign-out-alt mr-2"></i>
-                    <span>ç™»å‡º</span>
+                    <span>登出</span>
                 </button>
             </div>
         `;
 
-        // è¨­å®šç¬¬ä¸€å€‹ç‚º active
+        // 設定第一個為 active
         const firstLink = sidebar.querySelector('.mobile-nav-link');
         if (firstLink) {
             firstLink.classList.remove('text-gray-600', 'hover:bg-gray-50');
@@ -79,7 +79,7 @@
     }
 
     // ============================================================
-    // é›»è…¦ç‰ˆå´é‚Šæ¬„
+    // 電腦版側邊欄
     // ============================================================
 
     function renderDesktopSidebar() {
@@ -96,17 +96,17 @@
         sidebar.innerHTML = `
             <nav class="p-4 space-y-2">
                 ${navItems}
-                <!-- ç®¡ç†å“¡å…¥å£ (é è¨­éš±è—) -->
+                <!-- 管理員入口 (預設隱藏) -->
                 <a id="adminSidebarLink" href="#" onclick="showSection('admin', event)" class="hidden flex items-center px-4 py-2 text-orange-500 hover:bg-orange-50 rounded-lg mt-4 border-t pt-4" data-section="admin">
                     <i class="fas fa-user-shield mr-3"></i>
-                    <span>ç®¡ç†å¾Œå°</span>
+                    <span>管理後台</span>
                 </a>
             </nav>
         `;
     }
 
     // ============================================================
-    // æ‰‹æ©Ÿç‰ˆåº•éƒ¨å°Žèˆªåˆ—
+    // 手機版底部導航列
     // ============================================================
 
     function renderMobileBottomNav() {
@@ -128,18 +128,18 @@
     }
 
     // ============================================================
-    // åˆå§‹åŒ–æ‰€æœ‰ä½ˆå±€å…ƒä»¶
+    // 初始化所有佈局元件
     // ============================================================
 
     function initLayout() {
         renderMobileSidebar();
         renderDesktopSidebar();
         renderMobileBottomNav();
-        console.log('âœ… ä½ˆå±€å…ƒä»¶å·²åˆå§‹åŒ–');
+        console.log('✅ 佈局元件已初始化');
     }
 
     // ============================================================
-    // å°Žå‡ºåˆ°å…¨åŸŸ
+    // 導出到全域
     // ============================================================
 
     window.initLayout = initLayout;
@@ -147,7 +147,7 @@
     window.renderDesktopSidebar = renderDesktopSidebar;
     window.renderMobileBottomNav = renderMobileBottomNav;
 
-    // è‡ªå‹•åˆå§‹åŒ–
+    // 自動初始化
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initLayout);
     } else {

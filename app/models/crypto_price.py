@@ -1,5 +1,5 @@
 """
-åŠ å¯†è²¨å¹£åƒ¹æ ¼æ­·å²è³‡æ–™æ¨¡åž‹
+加密貨幣價格歷史資料模型
 """
 from sqlalchemy import Column, Integer, String, Date, Numeric, DateTime, Index
 from sqlalchemy.sql import func
@@ -7,16 +7,16 @@ from app.database import Base
 
 
 class CryptoPrice(Base):
-    """åŠ å¯†è²¨å¹£åƒ¹æ ¼æ­·å²"""
+    """加密貨幣價格歷史"""
     
     __tablename__ = "crypto_prices"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     symbol = Column(String(10), nullable=False, index=True)  # BTC, ETH
     date = Column(Date, nullable=False, index=True)
-    price = Column(Numeric(18, 8))  # USD åƒ¹æ ¼
-    volume_24h = Column(Numeric(18, 2))  # 24 å°æ™‚æˆäº¤é‡
-    market_cap = Column(Numeric(18, 2))  # å¸‚å€¼
+    price = Column(Numeric(18, 8))  # USD 價格
+    volume_24h = Column(Numeric(18, 2))  # 24 小時成交量
+    market_cap = Column(Numeric(18, 2))  # 市值
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     __table_args__ = (

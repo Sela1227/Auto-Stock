@@ -1,11 +1,11 @@
 """
-è‚¡ç¥¨æ­·å²è³‡æ–™å¿«å–æœå‹™
+股票歷史資料快取服務
 ====================
-å°‡æŸ¥è©¢éŽçš„æ­·å²è³‡æ–™å­˜å…¥ PostgreSQLï¼Œå¤§å¹…æ¸›å°‘ Yahoo Finance API èª¿ç”¨
+將查詢過的歷史資料存入 PostgreSQL，大幅減少 Yahoo Finance API 調用
 
-ä¿®æ­£ç‰ˆ - 2026-01-16
-- ç¢ºä¿è³‡æ–™æ­£ç¢ºå­˜å…¥ DB
-- ç¢ºä¿å¾ž DB è®€å–çš„æ ¼å¼èˆ‡ yahoo_finance å®Œå…¨ä¸€è‡´
+修正版 - 2026-01-16
+- 確保資料正確存入 DB
+- 確保從 DB 讀取的格式與 yahoo_finance 完全一致
 """
 import pandas as pd
 from datetime import datetime, date, timedelta
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class StockHistoryService:
-    """è‚¡ç¥¨æ­·å²è³‡æ–™å¿«å–æœå‹™"""
+    """股票歷史資料快取服務"""
     
     def __init__(self, db: Session):
         self.db = db
@@ -33,45 +33,45 @@ class StockHistoryService:
         force_refresh: bool = False,
     ) -> Tuple[Optional[pd.DataFrame], str]:
         """
-        å–å¾—è‚¡ç¥¨æ­·å²è³‡æ–™ï¼ˆå„ªå…ˆä½¿ç”¨æœ¬åœ°å¿«å–ï¼‰
+        取得股票歷史資料（優先使用本地快取）
         
         Returns:
-            (DataFrame, source) - DataFrame æ ¼å¼èˆ‡ yahoo_finance.get_stock_history() å®Œå…¨ç›¸åŒ
+            (DataFrame, source) - DataFrame 格式與 yahoo_finance.get_stock_history() 完全相同
         """
         symbol = symbol.upper()
         
-        # å¼·åˆ¶åˆ·æ–°
+        # 強制刷新
         if force_refresh:
-            logger.info(f"ðŸ”„ å¼·åˆ¶åˆ·æ–°: {symbol}")
+            logger.info(f"🔄 強制刷新: {symbol}")
             df = self._fetch_and_save(symbol, years)
             return df, "yahoo"
         
-        # æª¢æŸ¥å¿«å–
+        # 檢查快取
         cache_info = self._get_cache_info(symbol)
         
         if cache_info is None:
-            # ç„¡å¿«å–ï¼Œé¦–æ¬¡æŸ¥è©¢
-            logger.info(f"ðŸ“¥ é¦–æ¬¡æŸ¥è©¢: {symbol}")
+            # 無快取，首次查詢
+            logger.info(f"📥 首次查詢: {symbol}")
             df = self._fetch_and_save(symbol, years)
             return df, "yahoo"
         
         latest_date, record_count = cache_info
         today = date.today()
         
-        # åˆ¤æ–·å¿«å–æ˜¯å¦è¶³å¤ æ–°
+        # 判斷快取是否足夠新
         if self._is_cache_fresh(latest_date, today):
-            logger.info(f"ðŸ“¦ å¿«å–å‘½ä¸­: {symbol} ({record_count} ç­†ï¼Œæœ€æ–° {latest_date})")
+            logger.info(f"📦 快取命中: {symbol} ({record_count} 筆，最新 {latest_date})")
             df = self._load_from_db(symbol, years)
             return df, "cache"
         else:
-            # éœ€è¦è£œæŠ“
+            # 需要補抓
             days_missing = (today - latest_date).days
-            logger.info(f"ðŸ“¥ è£œæŠ“ {symbol}: {days_missing} å¤©")
+            logger.info(f"📥 補抓 {symbol}: {days_missing} 天")
             df = self._fetch_incremental(symbol, latest_date, years)
             return df, "partial" if df is not None else "cache"
     
     def _get_cache_info(self, symbol: str) -> Optional[Tuple[date, int]]:
-        """å–å¾—å¿«å–è³‡è¨Š"""
+        """取得快取資訊"""
         try:
             stmt = select(
                 func.max(StockPrice.date),
@@ -83,40 +83,40 @@ class StockHistoryService:
             if result and result[0] is not None:
                 return result[0], result[1]
         except Exception as e:
-            logger.warning(f"æŸ¥è©¢å¿«å–è³‡è¨Šå¤±æ•—: {e}")
+            logger.warning(f"查詢快取資訊失敗: {e}")
         return None
     
     def _is_cache_fresh(self, latest_date: date, today: date) -> bool:
-        """åˆ¤æ–·å¿«å–æ˜¯å¦è¶³å¤ æ–°"""
+        """判斷快取是否足夠新"""
         if latest_date >= today:
             return True
         
-        # é€±æœ«åˆ¤æ–·
+        # 週末判斷
         if today.weekday() >= 5:
             days_since_friday = today.weekday() - 4
             last_friday = today - timedelta(days=days_since_friday)
             if latest_date >= last_friday:
                 return True
         
-        # å…è¨± 1 å¤©å»¶é²ï¼ˆå‡æ—¥ï¼‰
+        # 允許 1 天延遲（假日）
         if (today - latest_date).days <= 1:
             return True
         
         return False
     
     def _fetch_and_save(self, symbol: str, years: int) -> Optional[pd.DataFrame]:
-        """å¾ž Yahoo æŠ“å–ä¸¦å­˜å…¥ DB"""
+        """從 Yahoo 抓取並存入 DB"""
         period = f"{years}y"
         df = yahoo_finance.get_stock_history(symbol, period=period)
         
         if df is not None and not df.empty:
             saved = self._save_to_db(symbol, df)
-            logger.info(f"ðŸ’¾ å·²å­˜å…¥ DB: {symbol} ({saved} ç­†)")
+            logger.info(f"💾 已存入 DB: {symbol} ({saved} 筆)")
         
         return df
     
     def _fetch_incremental(self, symbol: str, last_date: date, years: int) -> Optional[pd.DataFrame]:
-        """å¢žé‡æŠ“å–"""
+        """增量抓取"""
         today = date.today()
         days_needed = (today - last_date).days + 5
         
@@ -130,17 +130,17 @@ class StockHistoryService:
         df_new = yahoo_finance.get_stock_history(symbol, period=period)
         
         if df_new is not None and not df_new.empty:
-            # åªå­˜æ–°è³‡æ–™
+            # 只存新資料
             df_to_save = df_new[df_new['date'] > last_date]
             if not df_to_save.empty:
                 saved = self._save_to_db(symbol, df_to_save)
-                logger.info(f"ðŸ’¾ å¢žé‡å­˜å…¥: {symbol} ({saved} ç­†)")
+                logger.info(f"💾 增量存入: {symbol} ({saved} 筆)")
         
-        # è¿”å›žå®Œæ•´è³‡æ–™
+        # 返回完整資料
         return self._load_from_db(symbol, years)
     
     def _save_to_db(self, symbol: str, df: pd.DataFrame) -> int:
-        """å­˜å…¥è³‡æ–™åº«"""
+        """存入資料庫"""
         if df is None or df.empty:
             return 0
         
@@ -149,28 +149,28 @@ class StockHistoryService:
         
         for _, row in df.iterrows():
             try:
-                # è™•ç†æ—¥æœŸ
+                # 處理日期
                 row_date = row['date']
                 if hasattr(row_date, 'date') and callable(row_date.date):
                     row_date = row_date.date()
                 elif not isinstance(row_date, date):
                     row_date = pd.to_datetime(row_date).date()
                 
-                # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨
+                # 檢查是否已存在
                 existing = self.db.query(StockPrice).filter(
                     StockPrice.symbol == symbol,
                     StockPrice.date == row_date
                 ).first()
                 
                 if existing:
-                    # æ›´æ–°
+                    # 更新
                     existing.open = float(row['open']) if pd.notna(row.get('open')) else None
                     existing.high = float(row['high']) if pd.notna(row.get('high')) else None
                     existing.low = float(row['low']) if pd.notna(row.get('low')) else None
                     existing.close = float(row['close']) if pd.notna(row.get('close')) else None
                     existing.volume = int(row['volume']) if pd.notna(row.get('volume')) else 0
                 else:
-                    # æ–°å¢ž
+                    # 新增
                     price = StockPrice(
                         symbol=symbol,
                         date=row_date,
@@ -184,13 +184,13 @@ class StockHistoryService:
                     count += 1
                     
             except Exception as e:
-                logger.warning(f"å­˜å…¥å¤±æ•— {symbol} {row.get('date')}: {e}")
+                logger.warning(f"存入失敗 {symbol} {row.get('date')}: {e}")
                 continue
         
         try:
             self.db.commit()
         except Exception as e:
-            logger.error(f"Commit å¤±æ•—: {e}")
+            logger.error(f"Commit 失敗: {e}")
             self.db.rollback()
             return 0
         
@@ -198,7 +198,7 @@ class StockHistoryService:
     
     def _load_from_db(self, symbol: str, years: int) -> Optional[pd.DataFrame]:
         """
-        å¾žè³‡æ–™åº«è¼‰å…¥ï¼Œè¿”å›žæ ¼å¼èˆ‡ yahoo_finance.get_stock_history() å®Œå…¨ç›¸åŒ
+        從資料庫載入，返回格式與 yahoo_finance.get_stock_history() 完全相同
         """
         start_date = date.today() - timedelta(days=years * 365)
         
@@ -211,7 +211,7 @@ class StockHistoryService:
             if not results:
                 return None
             
-            # å»ºç«‹èˆ‡ yahoo_finance ç›¸åŒæ ¼å¼çš„ DataFrame
+            # 建立與 yahoo_finance 相同格式的 DataFrame
             data = []
             for r in results:
                 data.append({
@@ -226,17 +226,17 @@ class StockHistoryService:
             
             df = pd.DataFrame(data)
             
-            # èª¿ç”¨ yahoo_finance çš„åˆ†å‰²èª¿æ•´é‚è¼¯ï¼Œç”¢ç”Ÿ adj_close
+            # 調用 yahoo_finance 的分割調整邏輯，產生 adj_close
             df = yahoo_finance._detect_and_adjust_splits(df, symbol)
             
             return df
             
         except Exception as e:
-            logger.error(f"å¾ž DB è¼‰å…¥å¤±æ•—: {e}")
+            logger.error(f"從 DB 載入失敗: {e}")
             return None
     
     def get_cache_stats(self, symbol: str = None) -> dict:
-        """å–å¾—å¿«å–çµ±è¨ˆ"""
+        """取得快取統計"""
         if symbol:
             info = self._get_cache_info(symbol.upper())
             if info:
@@ -268,7 +268,7 @@ class StockHistoryService:
             return {"error": str(e)}
     
     def clear_cache(self, symbol: str = None) -> int:
-        """æ¸…é™¤å¿«å–"""
+        """清除快取"""
         try:
             if symbol:
                 count = self.db.query(StockPrice).filter(
@@ -278,9 +278,9 @@ class StockHistoryService:
                 count = self.db.query(StockPrice).delete()
             
             self.db.commit()
-            logger.info(f"ðŸ—‘ï¸ å·²æ¸…é™¤å¿«å–: {symbol or 'å…¨éƒ¨'} ({count} ç­†)")
+            logger.info(f"🗑️ 已清除快取: {symbol or '全部'} ({count} 筆)")
             return count
         except Exception as e:
-            logger.error(f"æ¸…é™¤å¿«å–å¤±æ•—: {e}")
+            logger.error(f"清除快取失敗: {e}")
             self.db.rollback()
             return 0

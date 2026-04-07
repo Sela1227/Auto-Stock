@@ -1,6 +1,6 @@
 """
-è¨‚é–±ç²¾é¸æœå‹™
-è² è²¬ç®¡ç†è¨‚é–±æºã€è™•ç†æŠ“å–çµæžœã€ç”¨æˆ¶è¨‚é–±
+訂閱精選服務
+負責管理訂閱源、處理抓取結果、用戶訂閱
 """
 import logging
 from datetime import datetime, timedelta
@@ -15,31 +15,31 @@ logger = logging.getLogger(__name__)
 
 
 class SubscriptionService:
-    """è¨‚é–±ç²¾é¸æœå‹™"""
+    """訂閱精選服務"""
     
     def __init__(self, db: Session):
         self.db = db
     
     # ============================================================
-    # è¨‚é–±æºç®¡ç†
+    # 訂閱源管理
     # ============================================================
     
     def get_all_sources(self, enabled_only: bool = True) -> List[SubscriptionSource]:
-        """å–å¾—æ‰€æœ‰è¨‚é–±æº"""
+        """取得所有訂閱源"""
         query = self.db.query(SubscriptionSource)
         if enabled_only:
             query = query.filter(SubscriptionSource.enabled == True)
         return query.all()
     
     def get_source_by_slug(self, slug: str) -> Optional[SubscriptionSource]:
-        """æ ¹æ“š slug å–å¾—è¨‚é–±æº"""
+        """根據 slug 取得訂閱源"""
         return self.db.query(SubscriptionSource).filter(
             SubscriptionSource.slug == slug
         ).first()
     
     def create_source(self, name: str, slug: str, url: str, 
                       type: str = "substack", description: str = None) -> SubscriptionSource:
-        """å»ºç«‹è¨‚é–±æº"""
+        """建立訂閱源"""
         source = SubscriptionSource(
             name=name,
             slug=slug,
@@ -50,18 +50,18 @@ class SubscriptionService:
         self.db.add(source)
         self.db.commit()
         self.db.refresh(source)
-        logger.info(f"å»ºç«‹è¨‚é–±æº: {name} ({slug})")
+        logger.info(f"建立訂閱源: {name} ({slug})")
         return source
     
     def init_default_sources(self):
-        """åˆå§‹åŒ–é è¨­è¨‚é–±æº"""
+        """初始化預設訂閱源"""
         defaults = [
             {
-                "name": "ç¾Žè‚¡å¤§å”",
+                "name": "美股大叔",
                 "slug": "uncle-stock",
                 "url": "https://unclestocknotes.substack.com/feed",
                 "type": "substack",
-                "description": "ç¾Žè‚¡å¤§å”çš„æŠ•è³‡ç­†è¨˜",
+                "description": "美股大叔的投資筆記",
             },
         ]
         
@@ -71,46 +71,46 @@ class SubscriptionService:
                 self.create_source(**source_data)
     
     # ============================================================
-    # æŠ“å–èˆ‡æ›´æ–°
+    # 抓取與更新
     # ============================================================
     
     def fetch_source(self, source: SubscriptionSource, 
                      since_date: datetime = None, 
                      backfill: bool = False) -> Dict:
         """
-        æŠ“å–å–®ä¸€è¨‚é–±æº
+        抓取單一訂閱源
         
         Args:
-            source: è¨‚é–±æº
-            since_date: èµ·å§‹æ—¥æœŸ
-            backfill: æ˜¯å¦ç‚ºå›žæº¯æ¨¡å¼ï¼ˆé¦–æ¬¡æŠ“å–ï¼‰
+            source: 訂閱源
+            since_date: 起始日期
+            backfill: 是否為回溯模式（首次抓取）
         
         Returns:
             {new: int, updated: int, symbols: [...]}
         """
-        logger.info(f"é–‹å§‹æŠ“å–: {source.name}")
+        logger.info(f"開始抓取: {source.name}")
         
-        # æ±ºå®šèµ·å§‹æ—¥æœŸ
+        # 決定起始日期
         if backfill:
             since_date = datetime.now() - timedelta(days=30)
         elif since_date is None:
-            # ä½¿ç”¨ä¸Šæ¬¡æŠ“å–æ™‚é–“ï¼Œæˆ–é è¨­ 1 å¤©å‰
+            # 使用上次抓取時間，或預設 1 天前
             since_date = source.last_fetched_at or (datetime.now() - timedelta(days=1))
         
-        # æŠ“å– RSS
+        # 抓取 RSS
         picks = rss_fetcher.fetch_and_parse(source.url, since_date)
         
         result = {"new": 0, "updated": 0, "symbols": []}
         
-        # ç”¨ä¾†è¿½è¹¤æœ¬æ¬¡è™•ç†éŽçš„ symbolsï¼ˆé¿å…é‡è¤‡æ’å…¥ï¼‰
+        # 用來追蹤本次處理過的 symbols（避免重複插入）
         processed_symbols = {}
         
         for pick in picks:
             symbol = pick["symbol"]
             
-            # æª¢æŸ¥æ˜¯å¦åœ¨æœ¬æ¬¡è¿´åœˆä¸­å·²è™•ç†éŽ
+            # 檢查是否在本次迴圈中已處理過
             if symbol in processed_symbols:
-                # æ›´æ–°æœ¬æ¬¡è¿´åœˆä¸­çš„è¨˜éŒ„
+                # 更新本次迴圈中的記錄
                 existing_pick = processed_symbols[symbol]
                 existing_pick.update_mention(
                     article_url=pick["article_url"],
@@ -120,7 +120,7 @@ class SubscriptionService:
                 result["updated"] += 1
                 continue
             
-            # æª¢æŸ¥è³‡æ–™åº«ä¸­æ˜¯å¦å·²å­˜åœ¨
+            # 檢查資料庫中是否已存在
             existing = self.db.query(AutoPick).filter(
                 and_(
                     AutoPick.source_id == source.id,
@@ -129,7 +129,7 @@ class SubscriptionService:
             ).first()
             
             if existing:
-                # æ›´æ–°æåŠ
+                # 更新提及
                 existing.update_mention(
                     article_url=pick["article_url"],
                     article_title=pick["article_title"],
@@ -138,7 +138,7 @@ class SubscriptionService:
                 processed_symbols[symbol] = existing
                 result["updated"] += 1
             else:
-                # æ–°å¢ž
+                # 新增
                 new_pick = AutoPick(
                     source_id=source.id,
                     symbol=symbol,
@@ -157,15 +157,15 @@ class SubscriptionService:
             if symbol not in result["symbols"]:
                 result["symbols"].append(symbol)
         
-        # æ›´æ–°æœ€å¾ŒæŠ“å–æ™‚é–“
+        # 更新最後抓取時間
         source.last_fetched_at = datetime.now()
         self.db.commit()
         
-        logger.info(f"æŠ“å–å®Œæˆ: æ–°å¢ž {result['new']}, æ›´æ–° {result['updated']}")
+        logger.info(f"抓取完成: 新增 {result['new']}, 更新 {result['updated']}")
         return result
     
     def fetch_all_sources(self, backfill: bool = False) -> Dict:
-        """æŠ“å–æ‰€æœ‰å•Ÿç”¨çš„è¨‚é–±æº"""
+        """抓取所有啟用的訂閱源"""
         sources = self.get_all_sources(enabled_only=True)
         
         total_result = {"sources": [], "total_new": 0, "total_updated": 0}
@@ -183,11 +183,11 @@ class SubscriptionService:
         return total_result
     
     # ============================================================
-    # ç”¨æˆ¶è¨‚é–±
+    # 用戶訂閱
     # ============================================================
     
     def subscribe(self, user_id: int, source_id: int) -> bool:
-        """ç”¨æˆ¶è¨‚é–±ä¾†æº"""
+        """用戶訂閱來源"""
         existing = self.db.query(UserSubscription).filter(
             and_(
                 UserSubscription.user_id == user_id,
@@ -196,7 +196,7 @@ class SubscriptionService:
         ).first()
         
         if existing:
-            return False  # å·²è¨‚é–±
+            return False  # 已訂閱
         
         subscription = UserSubscription(
             user_id=user_id,
@@ -204,11 +204,11 @@ class SubscriptionService:
         )
         self.db.add(subscription)
         self.db.commit()
-        logger.info(f"ç”¨æˆ¶ {user_id} è¨‚é–±äº†ä¾†æº {source_id}")
+        logger.info(f"用戶 {user_id} 訂閱了來源 {source_id}")
         return True
     
     def unsubscribe(self, user_id: int, source_id: int) -> bool:
-        """ç”¨æˆ¶å–æ¶ˆè¨‚é–±"""
+        """用戶取消訂閱"""
         subscription = self.db.query(UserSubscription).filter(
             and_(
                 UserSubscription.user_id == user_id,
@@ -221,11 +221,11 @@ class SubscriptionService:
         
         self.db.delete(subscription)
         self.db.commit()
-        logger.info(f"ç”¨æˆ¶ {user_id} å–æ¶ˆè¨‚é–±ä¾†æº {source_id}")
+        logger.info(f"用戶 {user_id} 取消訂閱來源 {source_id}")
         return True
     
     def get_user_subscriptions(self, user_id: int) -> List[SubscriptionSource]:
-        """å–å¾—ç”¨æˆ¶è¨‚é–±çš„ä¾†æº"""
+        """取得用戶訂閱的來源"""
         subscriptions = self.db.query(UserSubscription).filter(
             UserSubscription.user_id == user_id
         ).all()
@@ -239,7 +239,7 @@ class SubscriptionService:
         ).all()
     
     def is_subscribed(self, user_id: int, source_id: int) -> bool:
-        """æª¢æŸ¥ç”¨æˆ¶æ˜¯å¦å·²è¨‚é–±"""
+        """檢查用戶是否已訂閱"""
         return self.db.query(UserSubscription).filter(
             and_(
                 UserSubscription.user_id == user_id,
@@ -248,11 +248,11 @@ class SubscriptionService:
         ).first() is not None
     
     # ============================================================
-    # æŸ¥è©¢ç²¾é¸
+    # 查詢精選
     # ============================================================
     
     def get_active_picks(self, source_id: int = None, limit: int = 50) -> List[AutoPick]:
-        """å–å¾—æœ‰æ•ˆçš„ç²¾é¸ï¼ˆæœªéŽæœŸï¼‰"""
+        """取得有效的精選（未過期）"""
         query = self.db.query(AutoPick).filter(
             AutoPick.expires_at > datetime.now()
         )
@@ -263,15 +263,15 @@ class SubscriptionService:
         return query.order_by(AutoPick.last_seen_at.desc()).limit(limit).all()
     
     def get_user_picks(self, user_id: int, limit: int = 50) -> List[Dict]:
-        """å–å¾—ç”¨æˆ¶è¨‚é–±çš„æ‰€æœ‰ç²¾é¸"""
-        # å–å¾—ç”¨æˆ¶è¨‚é–±çš„ä¾†æº
+        """取得用戶訂閱的所有精選"""
+        # 取得用戶訂閱的來源
         subscribed_sources = self.get_user_subscriptions(user_id)
         if not subscribed_sources:
             return []
         
         source_ids = [s.id for s in subscribed_sources]
         
-        # æŸ¥è©¢æœ‰æ•ˆçš„ç²¾é¸
+        # 查詢有效的精選
         picks = self.db.query(AutoPick).filter(
             and_(
                 AutoPick.source_id.in_(source_ids),
@@ -279,7 +279,7 @@ class SubscriptionService:
             )
         ).order_by(AutoPick.last_seen_at.desc()).limit(limit).all()
         
-        # çµ„åˆçµæžœ
+        # 組合結果
         source_map = {s.id: s for s in subscribed_sources}
         results = []
         for pick in picks:
@@ -291,7 +291,7 @@ class SubscriptionService:
         return results
     
     def get_pick_by_symbol(self, source_id: int, symbol: str) -> Optional[AutoPick]:
-        """æ ¹æ“šä¾†æºå’Œä»£ç¢¼å–å¾—ç²¾é¸"""
+        """根據來源和代碼取得精選"""
         return self.db.query(AutoPick).filter(
             and_(
                 AutoPick.source_id == source_id,

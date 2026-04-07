@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ç®¡ç†å¾Œå° - SELA è‡ªå‹•é¸è‚¡ç³»çµ±</title>
+    <title>管理後台 - SELA 自動選股系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" type="image/png" href="/static/logo.png">
     <style>
@@ -13,17 +13,17 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <!-- é ‚éƒ¨å°Žèˆª -->
+    <!-- 頂部導航 -->
     <nav class="bg-slate-800 text-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-4">
                     <span class="text-xl font-bold bg-brand-orange px-3 py-1 rounded">SELA</span>
-                    <span class="text-lg">ç®¡ç†å¾Œå°</span>
+                    <span class="text-lg">管理後台</span>
                 </div>
                 <div class="flex items-center space-x-4">
                     <a href="/static/dashboard.html" class="text-gray-300 hover:text-white">
-                        â† è¿”å›žå„€è¡¨æ¿
+                        ← 返回儀表板
                     </a>
                     <span id="adminName" class="text-gray-300"></span>
                 </div>
@@ -31,143 +31,143 @@
         </div>
     </nav>
 
-    <!-- ä¸»å…§å®¹ -->
+    <!-- 主內容 -->
     <div class="max-w-7xl mx-auto px-4 py-6">
-        <!-- çµ±è¨ˆå¡ç‰‡ -->
+        <!-- 統計卡片 -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div class="bg-white rounded-lg shadow p-4">
-                <div class="text-gray-500 text-sm">ç¸½ç”¨æˆ¶æ•¸</div>
+                <div class="text-gray-500 text-sm">總用戶數</div>
                 <div id="statTotal" class="text-2xl font-bold text-slate-800">-</div>
             </div>
             <div class="bg-white rounded-lg shadow p-4">
-                <div class="text-gray-500 text-sm">ç¸½ç™»å…¥æ¬¡æ•¸</div>
+                <div class="text-gray-500 text-sm">總登入次數</div>
                 <div id="statTotalLogins" class="text-2xl font-bold text-purple-600">-</div>
             </div>
             <div class="bg-white rounded-lg shadow p-4">
-                <div class="text-gray-500 text-sm">ä»Šæ—¥ç™»å…¥</div>
+                <div class="text-gray-500 text-sm">今日登入</div>
                 <div id="statToday" class="text-2xl font-bold text-green-600">-</div>
             </div>
             <div class="bg-white rounded-lg shadow p-4">
-                <div class="text-gray-500 text-sm">å°éŽ–ç”¨æˆ¶</div>
+                <div class="text-gray-500 text-sm">封鎖用戶</div>
                 <div id="statBlocked" class="text-2xl font-bold text-red-600">-</div>
             </div>
             <div class="bg-white rounded-lg shadow p-4">
-                <div class="text-gray-500 text-sm">ç®¡ç†å“¡</div>
+                <div class="text-gray-500 text-sm">管理員</div>
                 <div id="statAdmin" class="text-2xl font-bold text-blue-600">-</div>
             </div>
         </div>
         
-        <!-- ç³»çµ±ç®¡ç† -->
+        <!-- 系統管理 -->
         <div class="bg-white rounded-lg shadow p-4 mb-6">
-            <h3 class="font-bold text-gray-700 mb-4">ðŸ“Š å¸‚å ´è³‡æ–™ç®¡ç†</h3>
+            <h3 class="font-bold text-gray-700 mb-4">📊 市場資料管理</h3>
             <div class="flex flex-wrap gap-3">
                 <button onclick="initializeData()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
-                    <span class="mr-2">ðŸ”„</span>åˆå§‹åŒ–æ­·å²è³‡æ–™
+                    <span class="mr-2">🔄</span>初始化歷史資料
                 </button>
                 <button onclick="updateIndices()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center">
-                    <span class="mr-2">ðŸ“ˆ</span>æ›´æ–°ä¸‰å¤§æŒ‡æ•¸
+                    <span class="mr-2">📈</span>更新三大指數
                 </button>
                 <button onclick="updateSentiment()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center">
-                    <span class="mr-2">ðŸ’­</span>æ›´æ–°ææ‡¼è²ªå©ª
+                    <span class="mr-2">💭</span>更新恐懼貪婪
                 </button>
                 <button onclick="triggerDailyUpdate()" class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center">
-                    <span class="mr-2">âš¡</span>åŸ·è¡Œæ¯æ—¥æ›´æ–°
+                    <span class="mr-2">⚡</span>執行每日更新
                 </button>
             </div>
             <p id="systemMessage" class="mt-3 text-sm text-gray-500"></p>
         </div>
 
-        <!-- è¨Šè™Ÿæª¢æŸ¥èˆ‡æŽ¨æ’­ -->
+        <!-- 訊號檢查與推播 -->
         <div class="bg-white rounded-lg shadow p-4 mb-6">
-            <h3 class="font-bold text-gray-700 mb-4">ðŸ”” è¨Šè™Ÿæª¢æŸ¥èˆ‡æŽ¨æ’­</h3>
+            <h3 class="font-bold text-gray-700 mb-4">🔔 訊號檢查與推播</h3>
             <div class="flex flex-wrap gap-3 mb-3">
                 <button onclick="runSignalCheck()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center">
-                    <span class="mr-2">ðŸ”</span>åµæ¸¬è¨Šè™Ÿï¼ˆæ¸¬è©¦ï¼‰
+                    <span class="mr-2">🔍</span>偵測訊號（測試）
                 </button>
                 <button onclick="sendSignalNotifications()" class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center">
-                    <span class="mr-2">ðŸ“¤</span>ç™¼é€è¨Šè™Ÿé€šçŸ¥
+                    <span class="mr-2">📤</span>發送訊號通知
                 </button>
                 <button onclick="testLineNotify()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 flex items-center">
-                    <span class="mr-2">ðŸ“±</span>æ¸¬è©¦ LINE æŽ¨æ’­
+                    <span class="mr-2">📱</span>測試 LINE 推播
                 </button>
             </div>
             <div class="flex gap-2 items-center">
-                <input type="text" id="testSymbolInput" placeholder="è¼¸å…¥è‚¡ç¥¨ä»£è™Ÿæ¸¬è©¦è¨Šè™Ÿåµæ¸¬ (å¦‚ AAPL)"
+                <input type="text" id="testSymbolInput" placeholder="輸入股票代號測試訊號偵測 (如 AAPL)"
                     class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400">
                 <button onclick="testSignalDetection()" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
-                    æ¸¬è©¦åµæ¸¬
+                    測試偵測
                 </button>
             </div>
             <p id="signalMessage" class="mt-3 text-sm text-gray-500"></p>
             <div id="signalResult" class="mt-3 hidden">
-                <h4 class="font-medium text-gray-700 mb-2">åµæ¸¬çµæžœï¼š</h4>
+                <h4 class="font-medium text-gray-700 mb-2">偵測結果：</h4>
                 <pre id="signalResultContent" class="bg-gray-100 p-3 rounded text-xs overflow-x-auto"></pre>
             </div>
         </div>
 
-        <!-- æœå°‹å’Œç¯©é¸ -->
+        <!-- 搜尋和篩選 -->
         <div class="bg-white rounded-lg shadow p-4 mb-6">
             <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex-1">
-                    <input type="text" id="searchInput" placeholder="æœå°‹ç”¨æˆ¶åç¨±ã€Email æˆ– LINE ID..."
+                    <input type="text" id="searchInput" placeholder="搜尋用戶名稱、Email 或 LINE ID..."
                         class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400">
                 </div>
                 <div class="flex gap-2">
                     <label class="flex items-center">
                         <input type="checkbox" id="blockedOnly" class="mr-2">
-                        <span class="text-sm">åªé¡¯ç¤ºå°éŽ–</span>
+                        <span class="text-sm">只顯示封鎖</span>
                     </label>
                     <button onclick="loadUsers()" class="bg-brand-orange text-white px-4 py-2 rounded-lg hover:bg-brand-orange-dark">
-                        æœå°‹
+                        搜尋
                     </button>
                     <button onclick="kickAllUsers()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
-                        è¸¢å‡ºå…¨éƒ¨
+                        踢出全部
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- ç”¨æˆ¶åˆ—è¡¨ -->
+        <!-- 用戶列表 -->
         <div class="bg-white rounded-lg shadow overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ç”¨æˆ¶</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">用戶</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Email</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ç‹€æ…‹</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ç™»å…¥æ¬¡æ•¸</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">æœ€å¾Œç™»å…¥</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">æ“ä½œ</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">狀態</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">登入次數</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">最後登入</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                         </tr>
                     </thead>
                     <tbody id="userList" class="divide-y divide-gray-200">
-                        <!-- å‹•æ…‹è¼‰å…¥ -->
+                        <!-- 動態載入 -->
                     </tbody>
                 </table>
             </div>
             
-            <!-- åˆ†é  -->
+            <!-- 分頁 -->
             <div class="px-4 py-3 bg-gray-50 flex items-center justify-between">
                 <div id="pageInfo" class="text-sm text-gray-500"></div>
                 <div class="flex gap-2">
-                    <button id="prevPage" onclick="changePage(-1)" class="px-3 py-1 border rounded hover:bg-gray-100" disabled>ä¸Šä¸€é </button>
-                    <button id="nextPage" onclick="changePage(1)" class="px-3 py-1 border rounded hover:bg-gray-100" disabled>ä¸‹ä¸€é </button>
+                    <button id="prevPage" onclick="changePage(-1)" class="px-3 py-1 border rounded hover:bg-gray-100" disabled>上一頁</button>
+                    <button id="nextPage" onclick="changePage(1)" class="px-3 py-1 border rounded hover:bg-gray-100" disabled>下一頁</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ç”¨æˆ¶è©³æƒ… Modal -->
+    <!-- 用戶詳情 Modal -->
     <div id="userModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div class="p-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-bold">ç”¨æˆ¶è©³æƒ…</h3>
-                    <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">âœ•</button>
+                    <h3 class="text-lg font-bold">用戶詳情</h3>
+                    <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">✕</button>
                 </div>
                 <div id="modalContent">
-                    <!-- å‹•æ…‹è¼‰å…¥ -->
+                    <!-- 動態載入 -->
                 </div>
             </div>
         </div>
@@ -179,14 +179,14 @@
         const token = localStorage.getItem('token');
         const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-        // æª¢æŸ¥ç™»å…¥å’Œç®¡ç†å“¡æ¬Šé™
+        // 檢查登入和管理員權限
         if (!token) {
             window.location.href = '/static/index.html';
         }
 
         document.getElementById('adminName').textContent = user.display_name || '';
 
-        // API è«‹æ±‚
+        // API 請求
         async function apiRequest(url, options = {}) {
             const response = await fetch(url, {
                 ...options,
@@ -204,7 +204,7 @@
             }
             
             if (response.status === 403) {
-                alert('æ‚¨æ²’æœ‰ç®¡ç†å“¡æ¬Šé™');
+                alert('您沒有管理員權限');
                 window.location.href = '/static/dashboard.html';
                 return null;
             }
@@ -212,7 +212,7 @@
             return response.json();
         }
 
-        // è¼‰å…¥çµ±è¨ˆ
+        // 載入統計
         async function loadStats() {
             const data = await apiRequest('/api/admin/stats');
             if (data && data.success) {
@@ -224,7 +224,7 @@
             }
         }
 
-        // è¼‰å…¥ç”¨æˆ¶åˆ—è¡¨
+        // 載入用戶列表
         async function loadUsers() {
             const search = document.getElementById('searchInput').value;
             const blockedOnly = document.getElementById('blockedOnly').checked;
@@ -238,13 +238,13 @@
                 renderUsers(data.users);
                 totalPages = data.pagination.total_pages;
                 document.getElementById('pageInfo').textContent = 
-                    `ç¬¬ ${data.pagination.page} / ${totalPages} é ï¼Œå…± ${data.pagination.total} ç­†`;
+                    `第 ${data.pagination.page} / ${totalPages} 頁，共 ${data.pagination.total} 筆`;
                 document.getElementById('prevPage').disabled = currentPage <= 1;
                 document.getElementById('nextPage').disabled = currentPage >= totalPages;
             }
         }
 
-        // æ¸²æŸ“ç”¨æˆ¶åˆ—è¡¨
+        // 渲染用戶列表
         function renderUsers(users) {
             const tbody = document.getElementById('userList');
             tbody.innerHTML = users.map(u => `
@@ -255,7 +255,7 @@
                                 class="w-10 h-10 rounded-full mr-3" 
                                 onerror="this.src='/static/logo.png'">
                             <div>
-                                <div class="font-medium text-gray-900">${escapeHtml(u.display_name || 'æœªå‘½å')}</div>
+                                <div class="font-medium text-gray-900">${escapeHtml(u.display_name || '未命名')}</div>
                                 <div class="text-xs text-gray-500">ID: ${u.id}</div>
                             </div>
                         </div>
@@ -265,8 +265,8 @@
                     </td>
                     <td class="px-4 py-3">
                         <div class="flex flex-wrap gap-1">
-                            ${u.is_admin ? '<span class="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">ç®¡ç†å“¡</span>' : ''}
-                            ${u.is_blocked ? '<span class="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800">å·²å°éŽ–</span>' : '<span class="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">æ­£å¸¸</span>'}
+                            ${u.is_admin ? '<span class="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">管理員</span>' : ''}
+                            ${u.is_blocked ? '<span class="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800">已封鎖</span>' : '<span class="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">正常</span>'}
                         </div>
                     </td>
                     <td class="px-4 py-3 text-center">
@@ -278,20 +278,20 @@
                     <td class="px-4 py-3">
                         <div class="flex gap-1">
                             <button onclick="showUserDetail(${u.id})" 
-                                class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">è©³æƒ…</button>
+                                class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">詳情</button>
                             ${u.is_blocked 
-                                ? `<button onclick="unblockUser(${u.id})" class="px-2 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded">è§£å°</button>`
-                                : `<button onclick="blockUser(${u.id})" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded">å°éŽ–</button>`
+                                ? `<button onclick="unblockUser(${u.id})" class="px-2 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded">解封</button>`
+                                : `<button onclick="blockUser(${u.id})" class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded">封鎖</button>`
                             }
                             <button onclick="kickUser(${u.id})" 
-                                class="px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded">è¸¢å‡º</button>
+                                class="px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded">踢出</button>
                         </div>
                     </td>
                 </tr>
             `).join('');
         }
 
-        // é¡¯ç¤ºç”¨æˆ¶è©³æƒ…
+        // 顯示用戶詳情
         async function showUserDetail(userId) {
             const data = await apiRequest(`/api/admin/users/${userId}`);
             if (data && data.success) {
@@ -304,14 +304,14 @@
                             class="w-16 h-16 rounded-full mr-4"
                             onerror="this.src='/static/logo.png'">
                         <div>
-                            <div class="font-bold text-xl">${escapeHtml(u.display_name || 'æœªå‘½å')}</div>
-                            <div class="text-gray-500">${escapeHtml(u.email || 'ç„¡ Email')}</div>
+                            <div class="font-bold text-xl">${escapeHtml(u.display_name || '未命名')}</div>
+                            <div class="text-gray-500">${escapeHtml(u.email || '無 Email')}</div>
                         </div>
                     </div>
                     
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div class="bg-gray-50 p-3 rounded">
-                            <div class="text-xs text-gray-500">ç”¨æˆ¶ ID</div>
+                            <div class="text-xs text-gray-500">用戶 ID</div>
                             <div class="font-medium">${u.id}</div>
                         </div>
                         <div class="bg-gray-50 p-3 rounded">
@@ -319,43 +319,43 @@
                             <div class="font-medium text-xs break-all">${u.line_user_id}</div>
                         </div>
                         <div class="bg-gray-50 p-3 rounded">
-                            <div class="text-xs text-gray-500">è¨»å†Šæ™‚é–“</div>
+                            <div class="text-xs text-gray-500">註冊時間</div>
                             <div class="font-medium">${formatDate(u.created_at)}</div>
                         </div>
                         <div class="bg-gray-50 p-3 rounded">
-                            <div class="text-xs text-gray-500">æœ€å¾Œç™»å…¥</div>
+                            <div class="text-xs text-gray-500">最後登入</div>
                             <div class="font-medium">${formatDate(u.last_login)}</div>
                         </div>
                     </div>
                     
                     <div class="flex gap-2 mb-4">
                         ${u.is_admin 
-                            ? `<button onclick="removeAdmin(${u.id})" class="flex-1 py-2 bg-gray-200 hover:bg-gray-300 rounded">ç§»é™¤ç®¡ç†å“¡</button>`
-                            : `<button onclick="setAdmin(${u.id})" class="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded">è¨­ç‚ºç®¡ç†å“¡</button>`
+                            ? `<button onclick="removeAdmin(${u.id})" class="flex-1 py-2 bg-gray-200 hover:bg-gray-300 rounded">移除管理員</button>`
+                            : `<button onclick="setAdmin(${u.id})" class="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded">設為管理員</button>`
                         }
                         ${u.is_blocked 
-                            ? `<button onclick="unblockUser(${u.id})" class="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded">è§£é™¤å°éŽ–</button>`
-                            : `<button onclick="blockUser(${u.id})" class="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white rounded">å°éŽ–ç”¨æˆ¶</button>`
+                            ? `<button onclick="unblockUser(${u.id})" class="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded">解除封鎖</button>`
+                            : `<button onclick="blockUser(${u.id})" class="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white rounded">封鎖用戶</button>`
                         }
                     </div>
                     
                     ${u.is_blocked ? `
                         <div class="bg-red-50 p-3 rounded mb-4">
-                            <div class="text-red-800 font-medium">å°éŽ–è³‡è¨Š</div>
-                            <div class="text-sm text-red-600">åŽŸå› ï¼š${escapeHtml(u.blocked_reason || 'æœªèªªæ˜Ž')}</div>
-                            <div class="text-sm text-red-600">æ™‚é–“ï¼š${formatDate(u.blocked_at)}</div>
+                            <div class="text-red-800 font-medium">封鎖資訊</div>
+                            <div class="text-sm text-red-600">原因：${escapeHtml(u.blocked_reason || '未說明')}</div>
+                            <div class="text-sm text-red-600">時間：${formatDate(u.blocked_at)}</div>
                         </div>
                     ` : ''}
                     
                     <div class="border-t pt-4">
-                        <div class="font-medium mb-2">æœ€è¿‘æ´»å‹•è¨˜éŒ„</div>
+                        <div class="font-medium mb-2">最近活動記錄</div>
                         <div class="max-h-48 overflow-y-auto">
                             ${logs.length ? logs.map(log => `
                                 <div class="flex justify-between py-1 text-sm border-b">
                                     <span class="text-gray-600">${getActionText(log.action)}</span>
                                     <span class="text-gray-400">${formatDate(log.created_at)}</span>
                                 </div>
-                            `).join('') : '<div class="text-gray-400 text-sm">ç„¡è¨˜éŒ„</div>'}
+                            `).join('') : '<div class="text-gray-400 text-sm">無記錄</div>'}
                         </div>
                     </div>
                 `;
@@ -370,9 +370,9 @@
             document.getElementById('userModal').classList.remove('flex');
         }
 
-        // æ“ä½œå‡½æ•¸
+        // 操作函數
         async function blockUser(userId) {
-            const reason = prompt('è«‹è¼¸å…¥å°éŽ–åŽŸå› ï¼ˆå¯ç•™ç©ºï¼‰ï¼š');
+            const reason = prompt('請輸入封鎖原因（可留空）：');
             if (reason === null) return;
             
             const data = await apiRequest(`/api/admin/users/${userId}/block?reason=${encodeURIComponent(reason)}`, {
@@ -387,7 +387,7 @@
         }
 
         async function unblockUser(userId) {
-            if (!confirm('ç¢ºå®šè¦è§£é™¤å°éŽ–æ­¤ç”¨æˆ¶å—Žï¼Ÿ')) return;
+            if (!confirm('確定要解除封鎖此用戶嗎？')) return;
             
             const data = await apiRequest(`/api/admin/users/${userId}/unblock`, {
                 method: 'POST'
@@ -401,7 +401,7 @@
         }
 
         async function kickUser(userId) {
-            if (!confirm('ç¢ºå®šè¦è¸¢å‡ºæ­¤ç”¨æˆ¶å—Žï¼Ÿç”¨æˆ¶éœ€è¦é‡æ–°ç™»å…¥ã€‚')) return;
+            if (!confirm('確定要踢出此用戶嗎？用戶需要重新登入。')) return;
             
             const data = await apiRequest(`/api/admin/users/${userId}/kick`, {
                 method: 'POST'
@@ -412,8 +412,8 @@
         }
 
         async function kickAllUsers() {
-            if (!confirm('âš ï¸ ç¢ºå®šè¦è¸¢å‡ºæ‰€æœ‰ç”¨æˆ¶å—Žï¼Ÿæ‰€æœ‰äººï¼ˆåŒ…æ‹¬æ‚¨è‡ªå·±ï¼‰éƒ½éœ€è¦é‡æ–°ç™»å…¥ï¼')) return;
-            if (!confirm('å†æ¬¡ç¢ºèªï¼šé€™å°‡ä½¿æ‰€æœ‰ç™»å…¥ Token å¤±æ•ˆï¼')) return;
+            if (!confirm('⚠️ 確定要踢出所有用戶嗎？所有人（包括您自己）都需要重新登入！')) return;
+            if (!confirm('再次確認：這將使所有登入 Token 失效！')) return;
             
             const data = await apiRequest('/api/admin/kick-all', {
                 method: 'POST'
@@ -426,7 +426,7 @@
         }
 
         async function setAdmin(userId) {
-            if (!confirm('ç¢ºå®šè¦å°‡æ­¤ç”¨æˆ¶è¨­ç‚ºç®¡ç†å“¡å—Žï¼Ÿ')) return;
+            if (!confirm('確定要將此用戶設為管理員嗎？')) return;
             
             const data = await apiRequest(`/api/admin/users/${userId}/set-admin`, {
                 method: 'POST'
@@ -440,7 +440,7 @@
         }
 
         async function removeAdmin(userId) {
-            if (!confirm('ç¢ºå®šè¦ç§»é™¤æ­¤ç”¨æˆ¶çš„ç®¡ç†å“¡æ¬Šé™å—Žï¼Ÿ')) return;
+            if (!confirm('確定要移除此用戶的管理員權限嗎？')) return;
             
             const data = await apiRequest(`/api/admin/users/${userId}/remove-admin`, {
                 method: 'POST'
@@ -458,7 +458,7 @@
             loadUsers();
         }
 
-        // å·¥å…·å‡½æ•¸
+        // 工具函數
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');
@@ -480,17 +480,17 @@
 
         function getActionText(action) {
             const actions = {
-                'login': 'ðŸ”‘ ç™»å…¥',
-                'logout': 'ðŸšª ç™»å‡º',
-                'blocked': 'ðŸš« è¢«å°éŽ–',
-                'unblocked': 'âœ… è§£é™¤å°éŽ–',
-                'kicked': 'ðŸ‘¢ è¢«è¸¢å‡º',
-                'kick_all': 'ðŸ‘¢ å…¨å“¡è¸¢å‡º',
+                'login': '🔑 登入',
+                'logout': '🚪 登出',
+                'blocked': '🚫 被封鎖',
+                'unblocked': '✅ 解除封鎖',
+                'kicked': '👢 被踢出',
+                'kick_all': '👢 全員踢出',
             };
             return actions[action] || action;
         }
         
-        // ===== å¸‚å ´è³‡æ–™ç®¡ç† =====
+        // ===== 市場資料管理 =====
         
         function showSystemMessage(msg, isError = false) {
             const el = document.getElementById('systemMessage');
@@ -499,70 +499,70 @@
         }
         
         async function initializeData() {
-            if (!confirm('é€™æœƒåˆå§‹åŒ–ä¸‰å¤§æŒ‡æ•¸æ­·å²è³‡æ–™ï¼ˆ10å¹´ï¼‰å’Œå¹£åœˆæƒ…ç·’æ­·å²ï¼ˆ365å¤©ï¼‰ï¼Œå¯èƒ½éœ€è¦å¹¾åˆ†é˜ã€‚ç¢ºå®šè¦åŸ·è¡Œå—Žï¼Ÿ')) {
+            if (!confirm('這會初始化三大指數歷史資料（10年）和幣圈情緒歷史（365天），可能需要幾分鐘。確定要執行嗎？')) {
                 return;
             }
             
-            showSystemMessage('æ­£åœ¨åˆå§‹åŒ–è³‡æ–™ï¼Œè«‹ç¨å€™...');
+            showSystemMessage('正在初始化資料，請稍候...');
             
             try {
                 const data = await apiRequest('/api/market/admin/initialize', { method: 'POST' });
                 if (data && data.success) {
-                    showSystemMessage(`âœ… åˆå§‹åŒ–å®Œæˆï¼æŒ‡æ•¸: ${data.data?.indices || 0} ç­†, æƒ…ç·’: ${data.data?.sentiment || 0} ç­†`);
+                    showSystemMessage(`✅ 初始化完成！指數: ${data.data?.indices || 0} 筆, 情緒: ${data.data?.sentiment || 0} 筆`);
                 } else {
-                    showSystemMessage(`âŒ åˆå§‹åŒ–å¤±æ•—: ${data?.detail || 'æœªçŸ¥éŒ¯èª¤'}`, true);
+                    showSystemMessage(`❌ 初始化失敗: ${data?.detail || '未知錯誤'}`, true);
                 }
             } catch (e) {
-                showSystemMessage(`âŒ åˆå§‹åŒ–å¤±æ•—: ${e.message}`, true);
+                showSystemMessage(`❌ 初始化失敗: ${e.message}`, true);
             }
         }
         
         async function updateIndices() {
-            showSystemMessage('æ­£åœ¨æ›´æ–°ä¸‰å¤§æŒ‡æ•¸...');
+            showSystemMessage('正在更新三大指數...');
             
             try {
                 const data = await apiRequest('/api/market/admin/update-indices', { method: 'POST' });
                 if (data && data.success) {
-                    showSystemMessage(`âœ… ä¸‰å¤§æŒ‡æ•¸æ›´æ–°å®Œæˆï¼${data.data?.count || 0} ç­†è³‡æ–™`);
+                    showSystemMessage(`✅ 三大指數更新完成！${data.data?.count || 0} 筆資料`);
                 } else {
-                    showSystemMessage(`âŒ æ›´æ–°å¤±æ•—: ${data?.detail || 'æœªçŸ¥éŒ¯èª¤'}`, true);
+                    showSystemMessage(`❌ 更新失敗: ${data?.detail || '未知錯誤'}`, true);
                 }
             } catch (e) {
-                showSystemMessage(`âŒ æ›´æ–°å¤±æ•—: ${e.message}`, true);
+                showSystemMessage(`❌ 更新失敗: ${e.message}`, true);
             }
         }
         
         async function updateSentiment() {
-            showSystemMessage('æ­£åœ¨æ›´æ–°ææ‡¼è²ªå©ªæŒ‡æ•¸...');
+            showSystemMessage('正在更新恐懼貪婪指數...');
             
             try {
                 const data = await apiRequest('/api/market/admin/update-sentiment', { method: 'POST' });
                 if (data && data.success) {
-                    showSystemMessage(`âœ… ææ‡¼è²ªå©ªæŒ‡æ•¸æ›´æ–°å®Œæˆï¼`);
+                    showSystemMessage(`✅ 恐懼貪婪指數更新完成！`);
                 } else {
-                    showSystemMessage(`âŒ æ›´æ–°å¤±æ•—: ${data?.detail || 'æœªçŸ¥éŒ¯èª¤'}`, true);
+                    showSystemMessage(`❌ 更新失敗: ${data?.detail || '未知錯誤'}`, true);
                 }
             } catch (e) {
-                showSystemMessage(`âŒ æ›´æ–°å¤±æ•—: ${e.message}`, true);
+                showSystemMessage(`❌ 更新失敗: ${e.message}`, true);
             }
         }
         
         async function triggerDailyUpdate() {
-            showSystemMessage('æ­£åœ¨åŸ·è¡Œæ¯æ—¥æ›´æ–°...');
+            showSystemMessage('正在執行每日更新...');
             
             try {
                 const data = await apiRequest('/api/market/admin/update', { method: 'POST' });
                 if (data && data.success) {
-                    showSystemMessage(`âœ… æ¯æ—¥æ›´æ–°å®Œæˆï¼`);
+                    showSystemMessage(`✅ 每日更新完成！`);
                 } else {
-                    showSystemMessage(`âŒ æ›´æ–°å¤±æ•—: ${data?.detail || 'æœªçŸ¥éŒ¯èª¤'}`, true);
+                    showSystemMessage(`❌ 更新失敗: ${data?.detail || '未知錯誤'}`, true);
                 }
             } catch (e) {
-                showSystemMessage(`âŒ æ›´æ–°å¤±æ•—: ${e.message}`, true);
+                showSystemMessage(`❌ 更新失敗: ${e.message}`, true);
             }
         }
 
-        // ========== è¨Šè™Ÿæª¢æŸ¥ç›¸é—œ ==========
+        // ========== 訊號檢查相關 ==========
         
         function showSignalMessage(msg, isError = false) {
             const el = document.getElementById('signalMessage');
@@ -571,13 +571,13 @@
         }
 
         async function runSignalCheck() {
-            showSignalMessage('æ­£åœ¨åŸ·è¡Œè¨Šè™Ÿæª¢æŸ¥...');
+            showSignalMessage('正在執行訊號檢查...');
             document.getElementById('signalResult').classList.add('hidden');
             
             try {
                 const data = await apiRequest('/api/admin/signal/detect', { method: 'POST' });
                 if (data && data.success) {
-                    showSignalMessage(`âœ… æª¢æŸ¥å®Œæˆï¼šåµæ¸¬åˆ° ${data.total_signals} å€‹è¨Šè™Ÿ`);
+                    showSignalMessage(`✅ 檢查完成：偵測到 ${data.total_signals} 個訊號`);
                     
                     if (data.signals_by_symbol && Object.keys(data.signals_by_symbol).length > 0) {
                         document.getElementById('signalResult').classList.remove('hidden');
@@ -585,91 +585,91 @@
                             JSON.stringify(data.signals_by_symbol, null, 2);
                     }
                 } else {
-                    showSignalMessage(`âŒ æª¢æŸ¥å¤±æ•—: ${data?.detail || 'æœªçŸ¥éŒ¯èª¤'}`, true);
+                    showSignalMessage(`❌ 檢查失敗: ${data?.detail || '未知錯誤'}`, true);
                 }
             } catch (e) {
-                showSignalMessage(`âŒ æª¢æŸ¥å¤±æ•—: ${e.message}`, true);
+                showSignalMessage(`❌ 檢查失敗: ${e.message}`, true);
             }
         }
 
         async function sendSignalNotifications() {
-            showSignalMessage('æ­£åœ¨ç™¼é€è¨Šè™Ÿé€šçŸ¥...');
+            showSignalMessage('正在發送訊號通知...');
             
             try {
                 const data = await apiRequest('/api/admin/signal/notify', { method: 'POST' });
                 if (data && data.success) {
                     const r = data.result || {};
-                    showSignalMessage(`âœ… ${data.message} - è‚¡ç¥¨æ›´æ–°: ${r.stocks_updated}, è¨Šè™Ÿåµæ¸¬: ${r.signals_detected}, é€šçŸ¥ç™¼é€: ${r.notifications_sent}`);
+                    showSignalMessage(`✅ ${data.message} - 股票更新: ${r.stocks_updated}, 訊號偵測: ${r.signals_detected}, 通知發送: ${r.notifications_sent}`);
                     
                     if (r.errors && r.errors.length > 0) {
                         document.getElementById('signalResult').classList.remove('hidden');
                         document.getElementById('signalResultContent').textContent = 
-                            'éŒ¯èª¤è¨˜éŒ„:\n' + r.errors.join('\n');
+                            '錯誤記錄:\n' + r.errors.join('\n');
                     }
                 } else {
-                    showSignalMessage(`âŒ ç™¼é€å¤±æ•—: ${data?.detail || 'æœªçŸ¥éŒ¯èª¤'}`, true);
+                    showSignalMessage(`❌ 發送失敗: ${data?.detail || '未知錯誤'}`, true);
                 }
             } catch (e) {
-                showSignalMessage(`âŒ ç™¼é€å¤±æ•—: ${e.message}`, true);
+                showSignalMessage(`❌ 發送失敗: ${e.message}`, true);
             }
         }
 
         async function testSignalDetection() {
             const symbol = document.getElementById('testSymbolInput').value.trim();
             if (!symbol) {
-                showSignalMessage('è«‹è¼¸å…¥è‚¡ç¥¨ä»£è™Ÿ', true);
+                showSignalMessage('請輸入股票代號', true);
                 return;
             }
             
-            showSignalMessage(`æ­£åœ¨æ¸¬è©¦ ${symbol.toUpperCase()} çš„è¨Šè™Ÿåµæ¸¬...`);
+            showSignalMessage(`正在測試 ${symbol.toUpperCase()} 的訊號偵測...`);
             document.getElementById('signalResult').classList.add('hidden');
             
-            // ä½¿ç”¨ detect API ç„¶å¾ŒéŽæ¿¾ç‰¹å®šè‚¡ç¥¨
+            // 使用 detect API 然後過濾特定股票
             try {
                 const data = await apiRequest('/api/admin/signal/detect', { method: 'POST' });
                 if (data && data.success) {
                     const symbolUpper = symbol.toUpperCase();
                     const symbolSignals = data.signals_by_symbol[symbolUpper] || [];
                     
-                    showSignalMessage(`âœ… ${symbolUpper} åµæ¸¬åˆ° ${symbolSignals.length} å€‹è¨Šè™Ÿ`);
+                    showSignalMessage(`✅ ${symbolUpper} 偵測到 ${symbolSignals.length} 個訊號`);
                     
                     document.getElementById('signalResult').classList.remove('hidden');
                     document.getElementById('signalResultContent').textContent = 
                         JSON.stringify({ symbol: symbolUpper, signals: symbolSignals }, null, 2);
                 } else {
-                    showSignalMessage(`âŒ åµæ¸¬å¤±æ•—: ${data?.detail || 'æœªçŸ¥éŒ¯èª¤'}`, true);
+                    showSignalMessage(`❌ 偵測失敗: ${data?.detail || '未知錯誤'}`, true);
                 }
             } catch (e) {
-                showSignalMessage(`âŒ åµæ¸¬å¤±æ•—: ${e.message}`, true);
+                showSignalMessage(`❌ 偵測失敗: ${e.message}`, true);
             }
         }
 
         async function testLineNotify() {
-            showSignalMessage('æ­£åœ¨ç™¼é€æ¸¬è©¦è¨Šæ¯...');
+            showSignalMessage('正在發送測試訊息...');
             
             try {
-                const data = await apiRequest('/api/admin/signal/test-push?message=ç®¡ç†å“¡æ¸¬è©¦è¨Šæ¯', { method: 'POST' });
+                const data = await apiRequest('/api/admin/signal/test-push?message=管理員測試訊息', { method: 'POST' });
                 if (data && data.success) {
-                    showSignalMessage('âœ… æ¸¬è©¦è¨Šæ¯å·²ç™¼é€ï¼Œè«‹æª¢æŸ¥ LINE');
+                    showSignalMessage('✅ 測試訊息已發送，請檢查 LINE');
                 } else {
-                    showSignalMessage(`âŒ ç™¼é€å¤±æ•—: ${data?.message || data?.detail || 'æœªçŸ¥éŒ¯èª¤'}`, true);
+                    showSignalMessage(`❌ 發送失敗: ${data?.message || data?.detail || '未知錯誤'}`, true);
                 }
             } catch (e) {
-                showSignalMessage(`âŒ ç™¼é€å¤±æ•—: ${e.message}`, true);
+                showSignalMessage(`❌ 發送失敗: ${e.message}`, true);
             }
         }
 
-        // æ¸¬è©¦è‚¡ç¥¨è¼¸å…¥æ¡† Enter éµæ”¯æ´
+        // 測試股票輸入框 Enter 鍵支援
         document.getElementById('testSymbolInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') testSignalDetection();
         });
 
-        // æœå°‹ Enter éµæ”¯æ´
+        // 搜尋 Enter 鍵支援
         document.getElementById('searchInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') loadUsers();
         });
 
-        // åˆå§‹è¼‰å…¥
+        // 初始載入
         loadStats();
         loadUsers();
     </script>

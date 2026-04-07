@@ -1,10 +1,10 @@
 """
-åƒ¹æ ¼å¿«å–è¼”åŠ©æ¨¡çµ„
+價格快取輔助模組
 
-æŸ¥è©¢è‚¡ç¥¨æ™‚è‡ªå‹•å°‡çµæžœå¯«å…¥å¿«å–
-- æŸ¥è©¢éŽçš„è‚¡ç¥¨æœƒè¢«å¿«å–
-- ä½†ä¸æœƒè‡ªå‹•æ›´æ–°ï¼ˆåªæœ‰è¿½è¹¤æ¸…å–®æ‰æœƒï¼‰
-- æ”¯æ´ MA20 æ¬„ä½ç”¨æ–¼æŽ’åº
+查詢股票時自動將結果寫入快取
+- 查詢過的股票會被快取
+- 但不會自動更新（只有追蹤清單才會）
+- 支援 MA20 欄位用於排序
 """
 import logging
 from datetime import datetime
@@ -25,18 +25,18 @@ def cache_stock_price(
     asset_type: str = "stock"
 ):
     """
-    å°‡æŸ¥è©¢çµæžœå¯«å…¥å¿«å–ï¼ˆèƒŒæ™¯åŸ·è¡Œï¼Œä¸å½±éŸ¿ä¸»æµç¨‹ï¼‰
+    將查詢結果寫入快取（背景執行，不影響主流程）
     
     Args:
-        symbol: è‚¡ç¥¨ä»£ç¢¼ (å¦‚ 0050.TW, AAPL)
-        name: è‚¡ç¥¨åç¨±
-        price: æœ€æ–°åƒ¹æ ¼
-        prev_close: å‰æ”¶ç›¤åƒ¹
-        change: æ¼²è·Œé‡‘é¡
-        change_pct: æ¼²è·Œå¹… %
-        ma20: 20æ—¥å‡ç·šï¼ˆç”¨æ–¼æŽ’åºï¼‰
-        volume: æˆäº¤é‡
-        asset_type: è³‡ç”¢é¡žåž‹ (stock/crypto)
+        symbol: 股票代碼 (如 0050.TW, AAPL)
+        name: 股票名稱
+        price: 最新價格
+        prev_close: 前收盤價
+        change: 漲跌金額
+        change_pct: 漲跌幅 %
+        ma20: 20日均線（用於排序）
+        volume: 成交量
+        asset_type: 資產類型 (stock/crypto)
     """
     try:
         from app.database import SessionLocal
@@ -49,7 +49,7 @@ def cache_stock_price(
             ).first()
             
             if cache:
-                # æ›´æ–°ç¾æœ‰å¿«å–
+                # 更新現有快取
                 cache.name = name or cache.name
                 cache.price = price
                 if prev_close is not None:
@@ -63,9 +63,9 @@ def cache_stock_price(
                 if volume is not None:
                     cache.volume = volume
                 cache.updated_at = datetime.now()
-                logger.debug(f"æ›´æ–°å¿«å–: {symbol} = {price}, MA20={ma20}")
+                logger.debug(f"更新快取: {symbol} = {price}, MA20={ma20}")
             else:
-                # æ–°å¢žå¿«å–
+                # 新增快取
                 cache = StockPriceCache(
                     symbol=symbol,
                     name=name,
@@ -78,14 +78,14 @@ def cache_stock_price(
                     asset_type=asset_type,
                 )
                 db.add(cache)
-                logger.info(f"æ–°å¢žå¿«å–: {symbol} = {price}, MA20={ma20}")
+                logger.info(f"新增快取: {symbol} = {price}, MA20={ma20}")
             
             db.commit()
         finally:
             db.close()
     except Exception as e:
-        # å¿«å–å¤±æ•—ä¸å½±éŸ¿ä¸»æµç¨‹
-        logger.warning(f"å¿«å– {symbol} å¤±æ•—ï¼ˆä¸å½±éŸ¿æŸ¥è©¢ï¼‰: {e}")
+        # 快取失敗不影響主流程
+        logger.warning(f"快取 {symbol} 失敗（不影響查詢）: {e}")
 
 
 def cache_crypto_price(
@@ -96,7 +96,7 @@ def cache_crypto_price(
     volume: Optional[int] = None
 ):
     """
-    å¿«å–åŠ å¯†è²¨å¹£åƒ¹æ ¼ï¼ˆåŠ å¯†è²¨å¹£ä¸éœ€è¦ MA20ï¼‰
+    快取加密貨幣價格（加密貨幣不需要 MA20）
     """
     cache_stock_price(
         symbol=symbol,

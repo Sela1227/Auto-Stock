@@ -1,6 +1,6 @@
 """
-è¨‚é–±ç²¾é¸ API è·¯ç”±
-ðŸ”§ P0ä¿®å¾©ï¼šä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+訂閱精選 API 路由
+🔧 P0修復：使用統一認證模組
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -13,31 +13,31 @@ from app.services.subscription_service import SubscriptionService
 from app.models.subscription import SubscriptionSource, AutoPick
 from app.models.price_cache import StockPriceCache
 
-# ðŸ”§ ä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+# 🔧 使用統一認證模組
 from app.dependencies import get_current_user, get_admin_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/subscription", tags=["è¨‚é–±ç²¾é¸"])
+router = APIRouter(prefix="/api/subscription", tags=["訂閱精選"])
 
 
 # ============================================================
-# è¨‚é–±æº
+# 訂閱源
 # ============================================================
 
-@router.get("/sources", summary="å–å¾—æ‰€æœ‰è¨‚é–±æº")
+@router.get("/sources", summary="取得所有訂閱源")
 def get_sources(db: Session = Depends(get_db)):
-    """å–å¾—æ‰€æœ‰å¯è¨‚é–±çš„ä¾†æº"""
+    """取得所有可訂閱的來源"""
     from datetime import datetime
     
     service = SubscriptionService(db)
     sources = service.get_all_sources(enabled_only=True)
     
-    # è¨ˆç®—æ¯å€‹ä¾†æºçš„æœ‰æ•ˆç²¾é¸æ•¸é‡
+    # 計算每個來源的有效精選數量
     results = []
     for source in sources:
         source_dict = source.to_dict()
-        # è¨ˆç®—æœªéŽæœŸçš„ç²¾é¸æ•¸é‡
+        # 計算未過期的精選數量
         picks_count = db.query(AutoPick).filter(
             AutoPick.source_id == source.id,
             AutoPick.expires_at > datetime.now()
@@ -51,14 +51,14 @@ def get_sources(db: Session = Depends(get_db)):
     }
 
 
-@router.get("/sources/{slug}", summary="å–å¾—å–®ä¸€è¨‚é–±æº")
+@router.get("/sources/{slug}", summary="取得單一訂閱源")
 def get_source(slug: str, db: Session = Depends(get_db)):
-    """å–å¾—å–®ä¸€è¨‚é–±æºè©³æƒ…"""
+    """取得單一訂閱源詳情"""
     service = SubscriptionService(db)
     source = service.get_source_by_slug(slug)
     
     if not source:
-        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è¨‚é–±æº")
+        raise HTTPException(status_code=404, detail="找不到訂閱源")
     
     return {
         "success": True,
@@ -67,15 +67,15 @@ def get_source(slug: str, db: Session = Depends(get_db)):
 
 
 # ============================================================
-# ç”¨æˆ¶è¨‚é–±
+# 用戶訂閱
 # ============================================================
 
-@router.get("/my", summary="æˆ‘çš„è¨‚é–±")
+@router.get("/my", summary="我的訂閱")
 async def get_my_subscriptions(
     user = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """å–å¾—ç”¨æˆ¶è¨‚é–±çš„ä¾†æº"""
+    """取得用戶訂閱的來源"""
     service = SubscriptionService(db)
     sources = service.get_user_subscriptions(user.id)
     
@@ -85,67 +85,67 @@ async def get_my_subscriptions(
     }
 
 
-@router.post("/subscribe/{source_id}", summary="è¨‚é–±ä¾†æº")
+@router.post("/subscribe/{source_id}", summary="訂閱來源")
 async def subscribe_source(
     source_id: int,
     user = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """è¨‚é–±æŒ‡å®šä¾†æº"""
+    """訂閱指定來源"""
     service = SubscriptionService(db)
     
-    # æª¢æŸ¥ä¾†æºæ˜¯å¦å­˜åœ¨
+    # 檢查來源是否存在
     source = db.query(SubscriptionSource).filter(
         SubscriptionSource.id == source_id
     ).first()
     if not source:
-        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è¨‚é–±æº")
+        raise HTTPException(status_code=404, detail="找不到訂閱源")
     
     result = service.subscribe(user.id, source_id)
     
     if not result:
         return {
             "success": True,
-            "message": "å·²ç¶“è¨‚é–±éŽäº†",
+            "message": "已經訂閱過了",
         }
     
     return {
         "success": True,
-        "message": f"æˆåŠŸè¨‚é–± {source.name}",
+        "message": f"成功訂閱 {source.name}",
     }
 
 
-@router.delete("/unsubscribe/{source_id}", summary="å–æ¶ˆè¨‚é–±")
+@router.delete("/unsubscribe/{source_id}", summary="取消訂閱")
 async def unsubscribe_source(
     source_id: int,
     user = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """å–æ¶ˆè¨‚é–±æŒ‡å®šä¾†æº"""
+    """取消訂閱指定來源"""
     service = SubscriptionService(db)
     result = service.unsubscribe(user.id, source_id)
     
     if not result:
-        raise HTTPException(status_code=404, detail="æœªè¨‚é–±æ­¤ä¾†æº")
+        raise HTTPException(status_code=404, detail="未訂閱此來源")
     
     return {
         "success": True,
-        "message": "å·²å–æ¶ˆè¨‚é–±",
+        "message": "已取消訂閱",
     }
 
 
 # ============================================================
-# ç²¾é¸åˆ—è¡¨
+# 精選列表
 # ============================================================
 
-@router.get("/picks", summary="æˆ‘çš„è¨‚é–±ç²¾é¸")
+@router.get("/picks", summary="我的訂閱精選")
 async def get_my_picks(
     user = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
-    å–å¾—ç”¨æˆ¶è¨‚é–±çš„æ‰€æœ‰ç²¾é¸
-    åŒ…å«åƒ¹æ ¼è³‡è¨Šï¼ˆå¾žå¿«å–ï¼‰
+    取得用戶訂閱的所有精選
+    包含價格資訊（從快取）
     """
     service = SubscriptionService(db)
     picks = service.get_user_picks(user.id)
@@ -154,10 +154,10 @@ async def get_my_picks(
         return {
             "success": True,
             "data": [],
-            "message": "å°šæœªè¨‚é–±ä»»ä½•ä¾†æºï¼Œæˆ–ç›®å‰æ²’æœ‰ç²¾é¸",
+            "message": "尚未訂閱任何來源，或目前沒有精選",
         }
     
-    # å–å¾—åƒ¹æ ¼å¿«å–
+    # 取得價格快取
     symbols = [p["symbol"] for p in picks]
     cache_map = {}
     
@@ -167,7 +167,7 @@ async def get_my_picks(
         ).all()
         cache_map = {c.symbol: c for c in caches}
     
-    # çµ„åˆåƒ¹æ ¼
+    # 組合價格
     for pick in picks:
         cache = cache_map.get(pick["symbol"])
         pick["price"] = float(cache.price) if cache and cache.price else None
@@ -181,21 +181,21 @@ async def get_my_picks(
     }
 
 
-@router.get("/picks/{source_slug}", summary="ç‰¹å®šä¾†æºçš„ç²¾é¸")
+@router.get("/picks/{source_slug}", summary="特定來源的精選")
 def get_source_picks(
     source_slug: str,
     db: Session = Depends(get_db),
 ):
-    """å–å¾—ç‰¹å®šä¾†æºçš„æ‰€æœ‰ç²¾é¸ï¼ˆå…¬é–‹ï¼‰"""
+    """取得特定來源的所有精選（公開）"""
     service = SubscriptionService(db)
     source = service.get_source_by_slug(source_slug)
     
     if not source:
-        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è¨‚é–±æº")
+        raise HTTPException(status_code=404, detail="找不到訂閱源")
     
     picks = service.get_active_picks(source_id=source.id)
     
-    # å–å¾—åƒ¹æ ¼
+    # 取得價格
     symbols = [p.symbol for p in picks]
     cache_map = {}
     if symbols:
@@ -221,44 +221,44 @@ def get_source_picks(
 
 
 # ============================================================
-# ç®¡ç† APIï¼ˆç®¡ç†å“¡ç”¨ï¼‰
+# 管理 API（管理員用）
 # ============================================================
 
-@router.post("/admin/fetch", summary="æ‰‹å‹•æŠ“å–")
+@router.post("/admin/fetch", summary="手動抓取")
 async def admin_fetch(
     backfill: bool = False,
     admin = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     """
-    æ‰‹å‹•è§¸ç™¼æŠ“å–
-    - backfill=True: å›žæº¯ 30 å¤©
-    - backfill=False: åªæŠ“æ–°çš„
+    手動觸發抓取
+    - backfill=True: 回溯 30 天
+    - backfill=False: 只抓新的
     """
-    logger.info(f"ç®¡ç†å“¡ {admin.display_name} è§¸ç™¼è¨‚é–±æºæŠ“å– (backfill={backfill})")
+    logger.info(f"管理員 {admin.display_name} 觸發訂閱源抓取 (backfill={backfill})")
     
     service = SubscriptionService(db)
     result = service.fetch_all_sources(backfill=backfill)
     
     return {
         "success": True,
-        "message": "æŠ“å–å®Œæˆ",
+        "message": "抓取完成",
         "data": result,
     }
 
 
-@router.post("/admin/init", summary="åˆå§‹åŒ–è¨‚é–±æº")
+@router.post("/admin/init", summary="初始化訂閱源")
 async def admin_init(
     admin = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
-    """åˆå§‹åŒ–é è¨­è¨‚é–±æº"""
-    logger.info(f"ç®¡ç†å“¡ {admin.display_name} åˆå§‹åŒ–è¨‚é–±æº")
+    """初始化預設訂閱源"""
+    logger.info(f"管理員 {admin.display_name} 初始化訂閱源")
     
     service = SubscriptionService(db)
     service.init_default_sources()
     
     return {
         "success": True,
-        "message": "åˆå§‹åŒ–å®Œæˆ",
+        "message": "初始化完成",
     }

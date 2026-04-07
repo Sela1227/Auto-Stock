@@ -1,5 +1,5 @@
 /**
- * èµ°å‹¢æ¯”è¼ƒæ¨¡çµ„
+ * 走勢比較模組
  */
 
 (function() {
@@ -7,15 +7,15 @@
     
     let compareChart = null;
     const compareColors = [
-        '#3B82F6', // è—
-        '#EF4444', // ç´…
-        '#10B981', // ç¶ 
-        '#F59E0B', // æ©™
-        '#8B5CF6', // ç´«
+        '#3B82F6', // 藍
+        '#EF4444', // 紅
+        '#10B981', // 綠
+        '#F59E0B', // 橙
+        '#8B5CF6', // 紫
     ];
     
     /**
-     * æ–°å¢žæ¯”è¼ƒæ¨™çš„
+     * 新增比較標的
      */
     function addCompareSymbol(symbol) {
         const input = document.getElementById('compareSymbols');
@@ -26,7 +26,7 @@
         
         if (!symbols.includes(symbol.toUpperCase())) {
             if (symbols.length >= 5) {
-                showToast('æœ€å¤šåªèƒ½æ¯”è¼ƒ 5 å€‹æ¨™çš„');
+                showToast('最多只能比較 5 個標的');
                 return;
             }
             symbols.push(symbol.toUpperCase());
@@ -36,7 +36,7 @@
     }
     
     /**
-     * ç§»é™¤æ¯”è¼ƒæ¨™çš„
+     * 移除比較標的
      */
     function removeCompareSymbol(symbol) {
         const input = document.getElementById('compareSymbols');
@@ -50,7 +50,7 @@
     }
     
     /**
-     * æ›´æ–°å·²é¸æ“‡çš„æ¨™çš„é¡¯ç¤º
+     * 更新已選擇的標的顯示
      */
     function updateSelectedSymbols() {
         const input = document.getElementById('compareSymbols');
@@ -79,7 +79,7 @@
     }
     
     /**
-     * è¼‰å…¥æ¯”è¼ƒåœ–è¡¨
+     * 載入比較圖表
      */
     async function loadCompareChart() {
         const input = document.getElementById('compareSymbols');
@@ -88,11 +88,11 @@
         const days = daysSelect?.value || 90;
         
         if (!symbols) {
-            showToast('è«‹è¼¸å…¥è‡³å°‘ä¸€å€‹è‚¡ç¥¨ä»£è™Ÿ');
+            showToast('請輸入至少一個股票代號');
             return;
         }
         
-        // é¡¯ç¤ºè¼‰å…¥ä¸­
+        // 顯示載入中
         const placeholder = document.getElementById('compareChartPlaceholder');
         const container = document.getElementById('compareChartContainer');
         const loading = document.getElementById('compareChartLoading');
@@ -108,18 +108,18 @@
             const data = await res.json();
             
             if (!data.success) {
-                throw new Error(data.detail || 'å–å¾—è³‡æ–™å¤±æ•—');
+                throw new Error(data.detail || '取得資料失敗');
             }
             
-            // âœ… ä¿®æ­£ï¼šå¾Œç«¯è¿”å›ž data.data ç›´æŽ¥æ˜¯è‚¡ç¥¨å­—å…¸ï¼Œä¸æ˜¯ data.data.stocks
+            // ✅ 修正：後端返回 data.data 直接是股票字典，不是 data.data.stocks
             const stocks = data.data;
             const symbolList = Object.keys(stocks);
             
             if (symbolList.length === 0) {
-                throw new Error('æ‰¾ä¸åˆ°ä»»ä½•æœ‰æ•ˆè³‡æ–™');
+                throw new Error('找不到任何有效資料');
             }
             
-            // æº–å‚™åœ–è¡¨è³‡æ–™
+            // 準備圖表資料
             const datasets = [];
             let tableHtml = '';
             
@@ -127,7 +127,7 @@
                 const stock = stocks[sym];
                 const color = compareColors[idx % compareColors.length];
                 
-                // âœ… ä¿®æ­£ï¼šå¾Œç«¯è¿”å›ž stock.historyï¼Œä¸æ˜¯ stock.data
+                // ✅ 修正：後端返回 stock.history，不是 stock.data
                 const historyData = stock.history || [];
                 
                 if (historyData.length === 0) return;
@@ -144,13 +144,13 @@
                     fill: false,
                 });
                 
-                // âœ… ä¿®æ­£ï¼šå¾ž history è¨ˆç®—èµ·å§‹åƒ¹ã€çµæŸåƒ¹ã€æ¼²è·Œå¹…
+                // ✅ 修正：從 history 計算起始價、結束價、漲跌幅
                 const startValue = historyData[0]?.value || 100;
                 const endValue = historyData[historyData.length - 1]?.value || 100;
-                const changePct = endValue - startValue; // å› ç‚ºå·²ç¶“æ­£è¦åŒ–ç‚º 100 åŸºæº–
+                const changePct = endValue - startValue; // 因為已經正規化為 100 基準
                 
                 const changeClass = changePct >= 0 ? 'text-green-600' : 'text-red-600';
-                const changeIcon = changePct >= 0 ? 'â–²' : 'â–¼';
+                const changeIcon = changePct >= 0 ? '▲' : '▼';
                 
                 tableHtml += `
                     <tr class="border-b hover:bg-gray-50">
@@ -169,13 +169,13 @@
             });
             
             if (datasets.length === 0) {
-                throw new Error('ç„¡æ³•è™•ç†è³‡æ–™');
+                throw new Error('無法處理資料');
             }
             
-            // ç¹ªè£½åœ–è¡¨
+            // 繪製圖表
             const canvas = document.getElementById('compareChart');
             if (!canvas) {
-                throw new Error('æ‰¾ä¸åˆ°åœ–è¡¨å…ƒç´ ');
+                throw new Error('找不到圖表元素');
             }
             
             const ctx = canvas.getContext('2d');
@@ -223,7 +223,7 @@
                 }
             });
             
-            // æ›´æ–° UI
+            // 更新 UI
             if (loading) loading.classList.add('hidden');
             if (container) container.classList.remove('hidden');
             
@@ -232,15 +232,15 @@
             if (resultTable) resultTable.classList.remove('hidden');
             
         } catch (e) {
-            console.error('èµ°å‹¢æ¯”è¼ƒå¤±æ•—:', e);
+            console.error('走勢比較失敗:', e);
             if (loading) loading.classList.add('hidden');
             if (placeholder) placeholder.classList.remove('hidden');
-            showToast(e.message || 'è¼‰å…¥å¤±æ•—');
+            showToast(e.message || '載入失敗');
         }
     }
     
     /**
-     * æ¸…ç©ºæ¯”è¼ƒ
+     * 清空比較
      */
     function clearCompare() {
         const input = document.getElementById('compareSymbols');
@@ -261,7 +261,7 @@
         }
     }
     
-    // åˆå§‹åŒ–ï¼šç›£è½è¼¸å…¥è®ŠåŒ–
+    // 初始化：監聽輸入變化
     document.addEventListener('DOMContentLoaded', () => {
         const input = document.getElementById('compareSymbols');
         if (input) {
@@ -269,12 +269,12 @@
         }
     });
     
-    // å°Žå‡ºåˆ°å…¨åŸŸ
+    // 導出到全域
     window.addCompareSymbol = addCompareSymbol;
     window.removeCompareSymbol = removeCompareSymbol;
     window.updateSelectedSymbols = updateSelectedSymbols;
     window.loadCompareChart = loadCompareChart;
     window.clearCompare = clearCompare;
     
-    console.log('ðŸ“ˆ compare.js æ¨¡çµ„å·²è¼‰å…¥');
+    console.log('📈 compare.js 模組已載入');
 })();

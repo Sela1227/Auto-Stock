@@ -1,6 +1,6 @@
 """
-å€‹äººæŠ•è³‡è¨˜éŒ„æ¨¡åž‹
-ç”¨æ–¼è¨˜éŒ„ç”¨æˆ¶çš„è‚¡ç¥¨è²·è³£äº¤æ˜“åŠåŒ¯çŽ‡
+個人投資記錄模型
+用於記錄用戶的股票買賣交易及匯率
 """
 from datetime import date, datetime
 from decimal import Decimal
@@ -13,37 +13,37 @@ from app.database import Base
 
 
 class PortfolioTransaction(Base):
-    """äº¤æ˜“ç´€éŒ„"""
+    """交易紀錄"""
     
     __tablename__ = "portfolio_transactions"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
-    # è‚¡ç¥¨è³‡è¨Š
-    symbol = Column(String(20), nullable=False)           # è‚¡ç¥¨ä»£ç¢¼
-    name = Column(String(100))                            # è‚¡ç¥¨åç¨±
+    # 股票資訊
+    symbol = Column(String(20), nullable=False)           # 股票代碼
+    name = Column(String(100))                            # 股票名稱
     market = Column(String(10), nullable=False)           # tw / us
     
-    # äº¤æ˜“è³‡è¨Š
+    # 交易資訊
     transaction_type = Column(String(10), nullable=False) # buy / sell
-    quantity = Column(Integer, nullable=False)            # ç¸½è‚¡æ•¸ï¼ˆå°è‚¡ï¼šå¼µÃ—1000 + é›¶è‚¡ï¼‰
-    price = Column(Numeric(12, 4), nullable=False)        # æˆäº¤åƒ¹
-    fee = Column(Numeric(10, 2), default=0)               # æ‰‹çºŒè²»
-    tax = Column(Numeric(10, 2), default=0)               # äº¤æ˜“ç¨…ï¼ˆè³£å‡ºæ™‚ï¼‰
-    transaction_date = Column(Date, nullable=False)       # äº¤æ˜“æ—¥æœŸ
+    quantity = Column(Integer, nullable=False)            # 總股數（台股：張×1000 + 零股）
+    price = Column(Numeric(12, 4), nullable=False)        # 成交價
+    fee = Column(Numeric(10, 2), default=0)               # 手續費
+    tax = Column(Numeric(10, 2), default=0)               # 交易稅（賣出時）
+    transaction_date = Column(Date, nullable=False)       # 交易日期
     
-    # å‚™è¨»
+    # 備註
     note = Column(Text)
     
-    # åˆ¸å•†
+    # 券商
     broker_id = Column(Integer, ForeignKey("brokers.id", ondelete="SET NULL"), nullable=True)
     
-    # æ™‚é–“æˆ³
+    # 時間戳
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
-    # ç´¢å¼•
+    # 索引
     __table_args__ = (
         Index('idx_portfolio_user', 'user_id'),
         Index('idx_portfolio_symbol', 'symbol'),
@@ -54,12 +54,12 @@ class PortfolioTransaction(Base):
     
     @property
     def total_amount(self) -> float:
-        """äº¤æ˜“ç¸½é¡ï¼ˆä¸å«æ‰‹çºŒè²»ï¼‰"""
+        """交易總額（不含手續費）"""
         return float(self.quantity) * float(self.price)
     
     @property
     def total_cost(self) -> float:
-        """ç¸½æˆæœ¬ï¼ˆå«æ‰‹çºŒè²»ã€ç¨…ï¼‰"""
+        """總成本（含手續費、稅）"""
         base = self.total_amount
         fee = float(self.fee or 0)
         tax = float(self.tax or 0)
@@ -70,18 +70,18 @@ class PortfolioTransaction(Base):
             return base - fee - tax
     
     def format_quantity_display(self) -> str:
-        """æ ¼å¼åŒ–é¡¯ç¤ºè‚¡æ•¸ï¼ˆå°è‚¡é¡¯ç¤ºå¼µ+é›¶è‚¡ï¼‰"""
+        """格式化顯示股數（台股顯示張+零股）"""
         if self.market == 'tw':
             lots = self.quantity // 1000
             odd = self.quantity % 1000
             if lots > 0 and odd > 0:
-                return f"{lots}å¼µ{odd}è‚¡"
+                return f"{lots}張{odd}股"
             elif lots > 0:
-                return f"{lots}å¼µ"
+                return f"{lots}張"
             else:
-                return f"{odd}è‚¡"
+                return f"{odd}股"
         else:
-            return f"{self.quantity}è‚¡"
+            return f"{self.quantity}股"
     
     def to_dict(self) -> dict:
         return {
@@ -107,8 +107,8 @@ class PortfolioTransaction(Base):
 
 class PortfolioHolding(Base):
     """
-    æŒè‚¡å½™ç¸½
-    ç”±äº¤æ˜“ç´€éŒ„è¨ˆç®—è€Œä¾†ï¼Œç”¨æ–¼å¿«é€ŸæŸ¥è©¢
+    持股彙總
+    由交易紀錄計算而來，用於快速查詢
     """
     
     __tablename__ = "portfolio_holdings"
@@ -119,11 +119,11 @@ class PortfolioHolding(Base):
     name = Column(String(100))
     market = Column(String(10), nullable=False)
     
-    # æŒè‚¡è³‡è¨Š
-    total_shares = Column(Integer, default=0)              # ç¸½æŒè‚¡
-    avg_cost = Column(Numeric(12, 4), default=0)           # å¹³å‡æˆæœ¬
-    total_invested = Column(Numeric(14, 2), default=0)     # ç¸½æŠ•å…¥é‡‘é¡
-    realized_profit = Column(Numeric(14, 2), default=0)    # å·²å¯¦ç¾æç›Š
+    # 持股資訊
+    total_shares = Column(Integer, default=0)              # 總持股
+    avg_cost = Column(Numeric(12, 4), default=0)           # 平均成本
+    total_invested = Column(Numeric(14, 2), default=0)     # 總投入金額
+    realized_profit = Column(Numeric(14, 2), default=0)    # 已實現損益
     
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
@@ -133,18 +133,18 @@ class PortfolioHolding(Base):
     )
     
     def format_quantity_display(self) -> str:
-        """æ ¼å¼åŒ–é¡¯ç¤ºè‚¡æ•¸ï¼ˆå°è‚¡é¡¯ç¤ºå¼µ+é›¶è‚¡ï¼‰"""
+        """格式化顯示股數（台股顯示張+零股）"""
         if self.market == 'tw':
             lots = self.total_shares // 1000
             odd = self.total_shares % 1000
             if lots > 0 and odd > 0:
-                return f"{lots}å¼µ{odd}è‚¡"
+                return f"{lots}張{odd}股"
             elif lots > 0:
-                return f"{lots}å¼µ"
+                return f"{lots}張"
             else:
-                return f"{odd}è‚¡"
+                return f"{odd}股"
         else:
-            return f"{self.total_shares}è‚¡"
+            return f"{self.total_shares}股"
     
     def to_dict(self) -> dict:
         return {
@@ -163,14 +163,14 @@ class PortfolioHolding(Base):
 
 
 class ExchangeRate(Base):
-    """åŒ¯çŽ‡è¡¨"""
+    """匯率表"""
     
     __tablename__ = "exchange_rates"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     from_currency = Column(String(10), nullable=False)    # USD
     to_currency = Column(String(10), nullable=False)      # TWD
-    rate = Column(Float, nullable=False)                  # åŒ¯çŽ‡
+    rate = Column(Float, nullable=False)                  # 匯率
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     __table_args__ = (

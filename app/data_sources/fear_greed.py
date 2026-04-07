@@ -1,7 +1,7 @@
 """
-å¸‚å ´æƒ…ç·’æŒ‡æ•¸è³‡æ–™ä¾†æº
-- CNN Fear & Greed Index (ç¾Žè‚¡)
-- Alternative.me (åŠ å¯†è²¨å¹£)
+市場情緒指數資料來源
+- CNN Fear & Greed Index (美股)
+- Alternative.me (加密貨幣)
 """
 import requests
 from datetime import datetime, date
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class FearGreedClient:
-    """å¸‚å ´æƒ…ç·’æŒ‡æ•¸å®¢æˆ¶ç«¯"""
+    """市場情緒指數客戶端"""
     
     def __init__(self):
         self.session = requests.Session()
@@ -21,23 +21,23 @@ class FearGreedClient:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         })
     
-    # ==================== åŠ å¯†è²¨å¹£æƒ…ç·’ (Alternative.me) ====================
+    # ==================== 加密貨幣情緒 (Alternative.me) ====================
     
     def get_crypto_fear_greed(self, limit: int = 1) -> Optional[Dict[str, Any]]:
         """
-        å–å¾—åŠ å¯†è²¨å¹£ Fear & Greed æŒ‡æ•¸
-        ä¾†æº: Alternative.me
+        取得加密貨幣 Fear & Greed 指數
+        來源: Alternative.me
         
         Args:
-            limit: å–å¾—å¤©æ•¸ (1 = åªå–ä»Šå¤©)
+            limit: 取得天數 (1 = 只取今天)
             
         Returns:
             {
                 "value": 45,
                 "classification": "fear",
-                "classification_zh": "ææ‡¼",
+                "classification_zh": "恐懼",
                 "timestamp": "2025-01-05",
-                "history": [...]  # å¦‚æžœ limit > 1
+                "history": [...]  # 如果 limit > 1
             }
         """
         try:
@@ -62,7 +62,7 @@ class FearGreedClient:
                 "market": "crypto",
             }
             
-            # å¦‚æžœéœ€è¦æ­·å²è³‡æ–™
+            # 如果需要歷史資料
             if limit > 1:
                 result["history"] = [
                     {
@@ -76,60 +76,60 @@ class FearGreedClient:
             return result
             
         except Exception as e:
-            logger.error(f"å–å¾—åŠ å¯†è²¨å¹£æƒ…ç·’æŒ‡æ•¸å¤±æ•—: {e}")
+            logger.error(f"取得加密貨幣情緒指數失敗: {e}")
             return self._get_fallback_crypto()
     
     def _get_fallback_crypto(self) -> Dict[str, Any]:
-        """åŠ å¯†è²¨å¹£æƒ…ç·’çš„å‚™ç”¨å€¼"""
+        """加密貨幣情緒的備用值"""
         return {
             "value": 50,
             "classification": "neutral",
-            "classification_zh": "ä¸­æ€§",
+            "classification_zh": "中性",
             "timestamp": date.today().strftime("%Y-%m-%d"),
             "market": "crypto",
             "is_fallback": True,
         }
     
-    # ==================== ç¾Žè‚¡æƒ…ç·’ (CNN Fear & Greed) ====================
+    # ==================== 美股情緒 (CNN Fear & Greed) ====================
     
     def get_stock_fear_greed(self) -> Optional[Dict[str, Any]]:
         """
-        å–å¾—ç¾Žè‚¡ Fear & Greed æŒ‡æ•¸
-        ä¾†æº: CNN Business (é€éŽç¬¬ä¸‰æ–¹ API æˆ–çˆ¬èŸ²)
+        取得美股 Fear & Greed 指數
+        來源: CNN Business (透過第三方 API 或爬蟲)
         
         Returns:
             {
                 "value": 55,
                 "classification": "neutral",
-                "classification_zh": "ä¸­æ€§",
+                "classification_zh": "中性",
                 "timestamp": "2025-01-05",
             }
         """
-        # æ–¹æ³• 1: ä½¿ç”¨ CNN çš„éžå®˜æ–¹ API
+        # 方法 1: 使用 CNN 的非官方 API
         result = self._get_cnn_fear_greed_api()
         if result:
             return result
         
-        # æ–¹æ³• 2: ä½¿ç”¨å‚™ç”¨è³‡æ–™ä¾†æº
+        # 方法 2: 使用備用資料來源
         result = self._get_fear_greed_alternative()
         if result:
             return result
         
-        logger.warning("ç„¡æ³•å–å¾—ç¾Žè‚¡æƒ…ç·’æŒ‡æ•¸ï¼Œä½¿ç”¨å‚™ç”¨å€¼")
-        # è¿”å›žå‚™ç”¨å€¼è€Œéž None
+        logger.warning("無法取得美股情緒指數，使用備用值")
+        # 返回備用值而非 None
         return {
             "value": 50,
             "classification": "neutral",
-            "classification_zh": "ä¸­æ€§",
+            "classification_zh": "中性",
             "timestamp": date.today().strftime("%Y-%m-%d"),
             "market": "stock",
             "is_fallback": True,
         }
     
     def _get_cnn_fear_greed_api(self) -> Optional[Dict[str, Any]]:
-        """å¾ž CNN API å–å¾— Fear & Greed"""
+        """從 CNN API 取得 Fear & Greed"""
         try:
-            # CNN çš„éžå®˜æ–¹ API ç«¯é»ž
+            # CNN 的非官方 API 端點
             url = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
             
             response = self.session.get(url, timeout=10)
@@ -152,28 +152,28 @@ class FearGreedClient:
             }
             
         except Exception as e:
-            logger.debug(f"CNN API å–å¾—å¤±æ•—: {e}")
+            logger.debug(f"CNN API 取得失敗: {e}")
             return None
     
     def _get_fear_greed_alternative(self) -> Optional[Dict[str, Any]]:
-        """å‚™ç”¨æ–¹æ³•ï¼šä½¿ç”¨å…¶ä»–è³‡æ–™ä¾†æº"""
+        """備用方法：使用其他資料來源"""
         try:
-            # å¯ä»¥ä½¿ç”¨å…¶ä»–å…¬é–‹ API æˆ–çˆ¬èŸ²
-            # é€™è£¡æä¾›ä¸€å€‹æ¨¡æ“¬çš„å‚™ç”¨æ–¹æ¡ˆ
+            # 可以使用其他公開 API 或爬蟲
+            # 這裡提供一個模擬的備用方案
             
-            # ä¾‹å¦‚å¾ž rapidapi æˆ–å…¶ä»–ä¾†æºå–å¾—
-            # ç›®å‰è¿”å›ž Noneï¼Œè¡¨ç¤ºç„¡æ³•å–å¾—
+            # 例如從 rapidapi 或其他來源取得
+            # 目前返回 None，表示無法取得
             return None
             
         except Exception as e:
-            logger.debug(f"å‚™ç”¨ä¾†æºå–å¾—å¤±æ•—: {e}")
+            logger.debug(f"備用來源取得失敗: {e}")
             return None
     
-    # ==================== é€šç”¨æ–¹æ³• ====================
+    # ==================== 通用方法 ====================
     
     def get_all_sentiment(self) -> Dict[str, Any]:
         """
-        å–å¾—æ‰€æœ‰å¸‚å ´æƒ…ç·’
+        取得所有市場情緒
         
         Returns:
             {
@@ -183,12 +183,12 @@ class FearGreedClient:
         """
         result = {}
         
-        # ç¾Žè‚¡æƒ…ç·’
+        # 美股情緒
         stock_sentiment = self.get_stock_fear_greed()
         if stock_sentiment:
             result["stock"] = stock_sentiment
         
-        # åŠ å¯†è²¨å¹£æƒ…ç·’
+        # 加密貨幣情緒
         crypto_sentiment = self.get_crypto_fear_greed()
         if crypto_sentiment:
             result["crypto"] = crypto_sentiment
@@ -196,7 +196,7 @@ class FearGreedClient:
         return result
     
     def _get_classification(self, value: int) -> str:
-        """å–å¾—è‹±æ–‡åˆ†é¡ž"""
+        """取得英文分類"""
         if value <= 25:
             return "extreme_fear"
         elif value <= 45:
@@ -209,40 +209,40 @@ class FearGreedClient:
             return "extreme_greed"
     
     def _get_classification_zh(self, value: int) -> str:
-        """å–å¾—ä¸­æ–‡åˆ†é¡ž"""
+        """取得中文分類"""
         if value <= 25:
-            return "æ¥µåº¦ææ‡¼"
+            return "極度恐懼"
         elif value <= 45:
-            return "ææ‡¼"
+            return "恐懼"
         elif value <= 55:
-            return "ä¸­æ€§"
+            return "中性"
         elif value <= 75:
-            return "è²ªå©ª"
+            return "貪婪"
         else:
-            return "æ¥µåº¦è²ªå©ª"
+            return "極度貪婪"
     
     def get_sentiment_advice(self, value: int) -> str:
-        """æ ¹æ“šæƒ…ç·’å€¼å–å¾—å»ºè­°"""
+        """根據情緒值取得建議"""
         if value <= 25:
-            return "å¸‚å ´æ¥µåº¦ææ‡¼ï¼Œå¯èƒ½æ˜¯è²·å…¥æ©Ÿæœƒï¼Œä½†éœ€è¬¹æ…Ž"
+            return "市場極度恐懼，可能是買入機會，但需謹慎"
         elif value <= 45:
-            return "å¸‚å ´åææ‡¼ï¼Œç•™æ„æ½›åœ¨æ©Ÿæœƒ"
+            return "市場偏恐懼，留意潛在機會"
         elif value <= 55:
-            return "å¸‚å ´ä¸­æ€§ï¼Œè§€æœ›ç‚ºä¸»"
+            return "市場中性，觀望為主"
         elif value <= 75:
-            return "å¸‚å ´åæ¨‚è§€ï¼Œç•™æ„é¢¨éšª"
+            return "市場偏樂觀，留意風險"
         else:
-            return "å¸‚å ´æ¥µåº¦è²ªå©ªï¼Œå¯èƒ½æ˜¯ç²åˆ©äº†çµæ™‚æ©Ÿ"
+            return "市場極度貪婪，可能是獲利了結時機"
     
     def get_crypto_fear_greed_history(self, days: int = 365) -> List[Dict[str, Any]]:
         """
-        å–å¾—åŠ å¯†è²¨å¹£ Fear & Greed æ­·å²è³‡æ–™
+        取得加密貨幣 Fear & Greed 歷史資料
         
         Args:
-            days: å–å¾—å¤©æ•¸ï¼ˆæœ€å¤š 365 å¤©ï¼‰
+            days: 取得天數（最多 365 天）
             
         Returns:
-            æ­·å²è³‡æ–™åˆ—è¡¨
+            歷史資料列表
         """
         try:
             url = "https://api.alternative.me/fng/"
@@ -265,15 +265,15 @@ class FearGreedClient:
                     "classification_zh": self._get_classification_zh(value),
                 })
             
-            # åè½‰é †åºï¼Œè®“æœ€èˆŠçš„åœ¨å‰é¢
+            # 反轉順序，讓最舊的在前面
             history.reverse()
             
             return history
             
         except Exception as e:
-            logger.error(f"å–å¾—åŠ å¯†è²¨å¹£æƒ…ç·’æ­·å²å¤±æ•—: {e}")
+            logger.error(f"取得加密貨幣情緒歷史失敗: {e}")
             return []
 
 
-# å»ºç«‹å…¨åŸŸå®¢æˆ¶ç«¯å¯¦ä¾‹
+# 建立全域客戶端實例
 fear_greed = FearGreedClient()

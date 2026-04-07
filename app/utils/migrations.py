@@ -1,6 +1,6 @@
 """
-è³‡æ–™åº«è‡ªå‹•é·ç§»
-åœ¨å•Ÿå‹•æ™‚æª¢æŸ¥ä¸¦æ·»åŠ ç¼ºå°‘çš„æ¬„ä½
+資料庫自動遷移
+在啟動時檢查並添加缺少的欄位
 """
 import logging
 from sqlalchemy import text
@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 def run_migrations(db: Session):
-    """åŸ·è¡Œè³‡æ–™åº«é·ç§»"""
+    """執行資料庫遷移"""
     migrations = [
-        # 2024-01-14: è¿½è¹¤æ¸…å–® MA20 æŽ’åºåŠŸèƒ½
+        # 2024-01-14: 追蹤清單 MA20 排序功能
         {
             "name": "add_ma20_to_price_cache",
             "check": "SELECT column_name FROM information_schema.columns WHERE table_name='stock_price_cache' AND column_name='ma20'",
@@ -22,18 +22,18 @@ def run_migrations(db: Session):
     
     for migration in migrations:
         try:
-            # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨
+            # 檢查是否已存在
             result = db.execute(text(migration["check"])).fetchone()
             if result:
-                logger.debug(f"Migration '{migration['name']}' å·²å­˜åœ¨ï¼Œè·³éŽ")
+                logger.debug(f"Migration '{migration['name']}' 已存在，跳過")
                 continue
             
-            # åŸ·è¡Œé·ç§»
-            logger.info(f"åŸ·è¡Œ Migration: {migration['name']}")
+            # 執行遷移
+            logger.info(f"執行 Migration: {migration['name']}")
             db.execute(text(migration["sql"]))
             db.commit()
-            logger.info(f"Migration '{migration['name']}' å®Œæˆ")
+            logger.info(f"Migration '{migration['name']}' 完成")
             
         except Exception as e:
-            logger.warning(f"Migration '{migration['name']}' å¤±æ•—: {e}")
+            logger.warning(f"Migration '{migration['name']}' 失敗: {e}")
             db.rollback()

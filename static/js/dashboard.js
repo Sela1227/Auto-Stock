@@ -1,13 +1,13 @@
 /**
- * å„€è¡¨æ¿æ¨¡çµ„
- * åŒ…å«ï¼šBTC åƒ¹æ ¼ã€ä¸‰å¤§æŒ‡æ•¸ã€å¸‚å ´æƒ…ç·’ã€ç†±é–€è¿½è¹¤çµ±è¨ˆ
+ * 儀表板模組
+ * 包含：BTC 價格、三大指數、市場情緒、熱門追蹤統計
  */
 
 (function() {
     'use strict';
     
     // ============================================================
-    // ç§æœ‰è®Šæ•¸
+    // 私有變數
     // ============================================================
     
     let btcRefreshInterval = null;
@@ -20,7 +20,7 @@
     let currentSentimentName = '';
     
     // ============================================================
-    // BTC åƒ¹æ ¼
+    // BTC 價格
     // ============================================================
     
     async function loadBtcPrice() {
@@ -34,11 +34,11 @@
         try {
             if (indicatorEl) indicatorEl.classList.remove('hidden');
 
-            // ç›´æŽ¥ç”¨ CoinGecko Simple API å–å³æ™‚åƒ¹æ ¼
+            // 直接用 CoinGecko Simple API 取即時價格
             const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');
             const data = await res.json();
             
-            console.log('[BTC] CoinGecko å›žæ‡‰:', data);
+            console.log('[BTC] CoinGecko 回應:', data);
 
             if (data.bitcoin) {
                 const price = data.bitcoin.usd || 0;
@@ -56,7 +56,7 @@
                     changeEl.classList.remove('text-green-200', 'text-red-200');
                     changeEl.classList.add(dayChange >= 0 ? 'text-green-200' : 'text-red-200');
 
-                    // æ ¹æ“šæ¼²è·Œå¹…æ”¹è®Šå¡ç‰‡é¡è‰²
+                    // 根據漲跌幅改變卡片顏色
                     if (cardEl) {
                         cardEl.classList.remove(
                             'from-orange-500', 'to-yellow-500', 
@@ -72,12 +72,12 @@
                         }
                     }
                 } else {
-                    priceEl.textContent = 'è¼‰å…¥ä¸­...';
+                    priceEl.textContent = '載入中...';
                 }
             }
         } catch (e) {
-            console.error('[BTC] è¼‰å…¥å¤±æ•—:', e);
-            // å‚™æ´ï¼šä½¿ç”¨å¾Œç«¯ API
+            console.error('[BTC] 載入失敗:', e);
+            // 備援：使用後端 API
             try {
                 const backupRes = await fetch('/api/crypto/BTC');
                 const backupData = await backupRes.json();
@@ -90,25 +90,25 @@
                     changeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
                 }
             } catch (backupErr) {
-                console.error('[BTC] å‚™æ´ API ä¹Ÿå¤±æ•—:', backupErr);
+                console.error('[BTC] 備援 API 也失敗:', backupErr);
             }
         } finally {
             if (indicatorEl) setTimeout(() => indicatorEl.classList.add('hidden'), 500);
         }
         
-        // è¨­å®šè‡ªå‹•æ›´æ–°ï¼ˆæ¯åˆ†é˜ï¼‰
+        // 設定自動更新（每分鐘）
         if (!btcRefreshInterval) {
             btcRefreshInterval = setInterval(loadBtcPrice, 60000);
         }
     }
     
     // ============================================================
-    // ä¸‰å¤§æŒ‡æ•¸
+    // 三大指數
     // ============================================================
     
     async function loadIndices() {
         try {
-            console.log('é–‹å§‹è¼‰å…¥æŒ‡æ•¸...');
+            console.log('開始載入指數...');
             const res = await fetch('/api/market/indices');
             const data = await res.json();
             
@@ -121,7 +121,7 @@
                 if (indices['^TWII']) updateIndexCard('TWII', indices['^TWII']);
             }
         } catch (e) {
-            console.error('è¼‰å…¥æŒ‡æ•¸å¤±æ•—', e);
+            console.error('載入指數失敗', e);
         }
     }
     
@@ -138,17 +138,17 @@
         
         if (changeEl && data.change_pct !== undefined) {
             const isPositive = data.change_pct >= 0;
-            changeEl.textContent = `${isPositive ? 'â–²' : 'â–¼'} ${Math.abs(data.change_pct).toFixed(2)}%`;
+            changeEl.textContent = `${isPositive ? '▲' : '▼'} ${Math.abs(data.change_pct).toFixed(2)}%`;
             changeEl.className = `text-sm font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`;
         }
         
         if (dateEl && data.date) {
-            dateEl.textContent = `æ›´æ–°: ${data.date}`;
+            dateEl.textContent = `更新: ${data.date}`;
         }
     }
     
     // ============================================================
-    // æŒ‡æ•¸åœ–è¡¨ Modal
+    // 指數圖表 Modal
     // ============================================================
     
     function openIndexModal(symbol, name) {
@@ -169,7 +169,7 @@
         const canvas = document.getElementById('indexModalChart');
         if (!canvas) return;
         
-        // æ›´æ–°æŒ‰éˆ•ç‹€æ…‹
+        // 更新按鈕狀態
         document.querySelectorAll('.index-modal-btn').forEach(btn => {
             btn.classList.remove('active');
             if (btn.textContent === '1M' && days === 30) btn.classList.add('active');
@@ -227,12 +227,12 @@
                 });
             }
         } catch (e) {
-            console.error('è¼‰å…¥æŒ‡æ•¸èµ°å‹¢å¤±æ•—', e);
+            console.error('載入指數走勢失敗', e);
         }
     }
     
     // ============================================================
-    // å¸‚å ´æƒ…ç·’
+    // 市場情緒
     // ============================================================
     
     async function loadSentiment() {
@@ -245,7 +245,7 @@
                 updateSentimentCard('crypto', data.crypto || { value: 50, classification: 'neutral' });
             }
         } catch (e) {
-            console.error('è¼‰å…¥æƒ…ç·’å¤±æ•—', e);
+            console.error('載入情緒失敗', e);
             updateSentimentCard('stock', { value: 50, classification: 'neutral' });
             updateSentimentCard('crypto', { value: 50, classification: 'neutral' });
         }
@@ -256,16 +256,16 @@
         
         const value = sentiment.value;
         
-        // æ›´æ–°æ•¸å€¼
+        // 更新數值
         const gaugeValue = document.getElementById(`${type}GaugeValue`);
         if (gaugeValue) gaugeValue.textContent = value;
         
-        // æ›´æ–°æŒ‡é‡è§’åº¦
+        // 更新指針角度
         const angle = -90 + (value / 100) * 180;
         const needleGroup = document.getElementById(`${type}NeedleGroup`);
         if (needleGroup) needleGroup.style.transform = `rotate(${angle}deg)`;
         
-        // æ±ºå®šç‹€æ…‹
+        // 決定狀態
         let label, colorClass;
         if (value <= 25) { label = 'Extreme Fear'; colorClass = 'text-red-600'; }
         else if (value <= 45) { label = 'Fear'; colorClass = 'text-orange-500'; }
@@ -287,7 +287,7 @@
     }
     
     // ============================================================
-    // æƒ…ç·’åœ–è¡¨ Modal
+    // 情緒圖表 Modal
     // ============================================================
     
     function openSentimentModal(market, name) {
@@ -308,7 +308,7 @@
         const canvas = document.getElementById('sentimentModalChart');
         if (!canvas) return;
         
-        // æ›´æ–°æŒ‰éˆ•ç‹€æ…‹
+        // 更新按鈕狀態
         document.querySelectorAll('.sentiment-modal-btn').forEach(btn => {
             btn.classList.remove('active');
             if (btn.textContent === '1M' && days === 30) btn.classList.add('active');
@@ -390,12 +390,12 @@
                 });
             }
         } catch (e) {
-            console.error('è¼‰å…¥æƒ…ç·’èµ°å‹¢å¤±æ•—', e);
+            console.error('載入情緒走勢失敗', e);
         }
     }
     
     // ============================================================
-    // ðŸ†• ç†±é–€è¿½è¹¤çµ±è¨ˆ
+    // 🆕 熱門追蹤統計
     // ============================================================
     
     async function loadPopularStocks() {
@@ -412,15 +412,15 @@
                 container.innerHTML = `
                     <div class="text-center py-4 text-gray-400 text-sm">
                         <i class="fas fa-chart-line mb-2"></i>
-                        <p>å°šç„¡è¿½è¹¤çµ±è¨ˆ</p>
+                        <p>尚無追蹤統計</p>
                     </div>
                 `;
             }
         } catch (e) {
-            console.error('è¼‰å…¥ç†±é–€è¿½è¹¤å¤±æ•—:', e);
+            console.error('載入熱門追蹤失敗:', e);
             container.innerHTML = `
                 <div class="text-center py-4 text-gray-400 text-sm">
-                    <p>è¼‰å…¥å¤±æ•—</p>
+                    <p>載入失敗</p>
                 </div>
             `;
         }
@@ -436,7 +436,7 @@
             <div class="space-y-2">
                 ${stocks.map((stock, index) => {
                     const barWidth = Math.max(20, (stock.count / maxCount) * 100);
-                    const medal = index === 0 ? 'ðŸ¥‡' : index === 1 ? 'ðŸ¥ˆ' : index === 2 ? 'ðŸ¥‰' : '';
+                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
                     const bgClass = index < 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50' : 'bg-gray-50';
                     
                     return `
@@ -446,7 +446,7 @@
                             <div class="flex-1 ml-2">
                                 <div class="flex items-center justify-between">
                                     <span class="font-medium text-gray-800 text-sm">${stock.symbol}</span>
-                                    <span class="text-xs text-gray-500">${stock.count} äººè¿½è¹¤</span>
+                                    <span class="text-xs text-gray-500">${stock.count} 人追蹤</span>
                                 </div>
                                 <div class="mt-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                                     <div class="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all" 
@@ -463,22 +463,22 @@
     }
     
     // ============================================================
-    // ä¸»è¼‰å…¥å‡½æ•¸
+    // 主載入函數
     // ============================================================
     
     async function loadDashboard() {
         await loadIndices();
         await loadSentiment();
         await loadBtcPrice();
-        await loadPopularStocks();  // ðŸ†• è¼‰å…¥ç†±é–€è¿½è¹¤
+        await loadPopularStocks();  // 🆕 載入熱門追蹤
         if (typeof loadWatchlistOverview === 'function') {
             await loadWatchlistOverview();
         }
     }
     
-    // ç®¡ç†å“¡æ›´æ–°
+    // 管理員更新
     async function triggerAdminUpdates() {
-        console.log('ðŸ”„ ç®¡ç†å“¡ç™»å…¥ï¼Œè§¸ç™¼å…¨éƒ¨æ›´æ–°...');
+        console.log('🔄 管理員登入，觸發全部更新...');
         const token = localStorage.getItem('token');
         
         try {
@@ -486,14 +486,14 @@
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             }).then(r => r.json()).then(d => {
-                console.log('âœ… å››å¤§æŒ‡æ•¸æ›´æ–°:', d.success ? 'æˆåŠŸ' : 'å¤±æ•—');
+                console.log('✅ 四大指數更新:', d.success ? '成功' : '失敗');
             });
             
             fetch('/api/admin/update-price-cache', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             }).then(r => r.json()).then(d => {
-                console.log('âœ… åƒ¹æ ¼å¿«å–æ›´æ–°:', d.success ? 'æˆåŠŸ' : 'å¤±æ•—');
+                console.log('✅ 價格快取更新:', d.success ? '成功' : '失敗');
             });
             
             loadBtcPrice();
@@ -502,21 +502,21 @@
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             }).then(r => r.json()).then(d => {
-                console.log('âœ… åŒ¯çŽ‡æ›´æ–°:', d.success ? 'æˆåŠŸ' : 'å¤±æ•—');
+                console.log('✅ 匯率更新:', d.success ? '成功' : '失敗');
             });
         } catch (e) {
-            console.error('ç®¡ç†å“¡æ›´æ–°è§¸ç™¼å¤±æ•—:', e);
+            console.error('管理員更新觸發失敗:', e);
         }
     }
     
     /**
-     * è¼‰å…¥ææ‡¼è²ªå©ªè©³ç´°é é¢
+     * 載入恐懼貪婪詳細頁面
      */
     async function loadSentimentDetail() {
         const container = document.getElementById('sentimentContent');
         if (!container) return;
         
-        // å…ˆå˜—è©¦å–å¾—æƒ…ç·’è³‡æ–™
+        // 先嘗試取得情緒資料
         let stockData = { value: 50, classification: 'neutral' };
         let cryptoData = { value: 50, classification: 'neutral' };
         
@@ -528,10 +528,10 @@
                 if (data.crypto) cryptoData = data.crypto;
             }
         } catch (e) {
-            console.error('è¼‰å…¥æƒ…ç·’è³‡æ–™å¤±æ•—', e);
+            console.error('載入情緒資料失敗', e);
         }
         
-        // ç”Ÿæˆç°¡æ½”å„€è¡¨ç›¤ SVG HTML
+        // 生成簡潔儀表盤 SVG HTML
         function createGaugeSVG(id, value) {
             const angle = -90 + (value / 100) * 180;
             
@@ -556,19 +556,19 @@
             return `
                 <div class="fear-greed-gauge">
                     <svg viewBox="0 0 200 115" class="gauge-svg">
-                        <!-- å¼§å½¢èƒŒæ™¯å€æ®µ -->
+                        <!-- 弧形背景區段 -->
                         <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
                         <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
                         <path class="gauge-arc gauge-arc-neutral" d="M 75 32 A 80 80 0 0 1 125 32" />
                         <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
                         <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
                         
-                        <!-- åˆ»åº¦æ•¸å­— -->
+                        <!-- 刻度數字 -->
                         <text x="8" y="105" class="gauge-tick-text">0</text>
                         <text x="96" y="12" class="gauge-tick-text" text-anchor="middle">50</text>
                         <text x="188" y="105" class="gauge-tick-text">100</text>
                         
-                        <!-- æŒ‡é‡ -->
+                        <!-- 指針 -->
                         <g class="gauge-needle-group" style="transform: rotate(${angle}deg); transform-origin: 100px 100px;">
                             <polygon class="gauge-needle" points="100,25 97,100 103,100" />
                         </g>
@@ -584,48 +584,48 @@
         
         container.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <!-- ç¾Žè‚¡æƒ…ç·’ -->
-                <div class="bg-white rounded-xl shadow p-6 cursor-pointer hover:shadow-lg" onclick="openSentimentModal('stock', 'ç¾Žè‚¡ææ‡¼è²ªå©ªæŒ‡æ•¸')">
-                    <h3 class="font-semibold text-gray-700 mb-4 text-center">ç¾Žè‚¡æƒ…ç·’æŒ‡æ•¸ (Fear & Greed)</h3>
+                <!-- 美股情緒 -->
+                <div class="bg-white rounded-xl shadow p-6 cursor-pointer hover:shadow-lg" onclick="openSentimentModal('stock', '美股恐懼貪婪指數')">
+                    <h3 class="font-semibold text-gray-700 mb-4 text-center">美股情緒指數 (Fear & Greed)</h3>
                     ${createGaugeSVG('stock-detail', stockData.value)}
-                    <p class="text-center text-xs text-gray-400 mt-2">é»žæ“ŠæŸ¥çœ‹æ­·å²è¶¨å‹¢</p>
+                    <p class="text-center text-xs text-gray-400 mt-2">點擊查看歷史趨勢</p>
                 </div>
                 
-                <!-- å¹£åœˆæƒ…ç·’ -->
-                <div class="bg-white rounded-xl shadow p-6 cursor-pointer hover:shadow-lg" onclick="openSentimentModal('crypto', 'å¹£åœˆææ‡¼è²ªå©ªæŒ‡æ•¸')">
-                    <h3 class="font-semibold text-gray-700 mb-4 text-center">å¹£åœˆæƒ…ç·’æŒ‡æ•¸</h3>
+                <!-- 幣圈情緒 -->
+                <div class="bg-white rounded-xl shadow p-6 cursor-pointer hover:shadow-lg" onclick="openSentimentModal('crypto', '幣圈恐懼貪婪指數')">
+                    <h3 class="font-semibold text-gray-700 mb-4 text-center">幣圈情緒指數</h3>
                     ${createGaugeSVG('crypto-detail', cryptoData.value)}
-                    <p class="text-center text-xs text-gray-400 mt-2">é»žæ“ŠæŸ¥çœ‹æ­·å²è¶¨å‹¢</p>
+                    <p class="text-center text-xs text-gray-400 mt-2">點擊查看歷史趨勢</p>
                 </div>
             </div>
             
             <div class="bg-white rounded-xl shadow p-6">
-                <h3 class="font-semibold text-gray-700 mb-4">å¸‚å ´æƒ…ç·’è§£è®€</h3>
+                <h3 class="font-semibold text-gray-700 mb-4">市場情緒解讀</h3>
                 <div class="space-y-4 text-sm text-gray-600">
                     <div class="flex items-start">
                         <span class="w-24 flex-shrink-0 font-medium">0-25</span>
-                        <span class="px-2 py-1 bg-red-100 text-red-700 rounded mr-2">æ¥µåº¦ææ‡¼</span>
-                        <span>å¸‚å ´ææ…Œï¼Œå¯èƒ½æ˜¯è²·å…¥æ©Ÿæœƒ</span>
+                        <span class="px-2 py-1 bg-red-100 text-red-700 rounded mr-2">極度恐懼</span>
+                        <span>市場恐慌，可能是買入機會</span>
                     </div>
                     <div class="flex items-start">
                         <span class="w-24 flex-shrink-0 font-medium">26-45</span>
-                        <span class="px-2 py-1 bg-orange-100 text-orange-700 rounded mr-2">ææ‡¼</span>
-                        <span>å¸‚å ´åè¬¹æ…Ž</span>
+                        <span class="px-2 py-1 bg-orange-100 text-orange-700 rounded mr-2">恐懼</span>
+                        <span>市場偏謹慎</span>
                     </div>
                     <div class="flex items-start">
                         <span class="w-24 flex-shrink-0 font-medium">46-55</span>
-                        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded mr-2">ä¸­æ€§</span>
-                        <span>è§€æœ›ç‚ºä¸»</span>
+                        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded mr-2">中性</span>
+                        <span>觀望為主</span>
                     </div>
                     <div class="flex items-start">
                         <span class="w-24 flex-shrink-0 font-medium">56-75</span>
-                        <span class="px-2 py-1 bg-green-100 text-green-700 rounded mr-2">è²ªå©ª</span>
-                        <span>å¸‚å ´åæ¨‚è§€</span>
+                        <span class="px-2 py-1 bg-green-100 text-green-700 rounded mr-2">貪婪</span>
+                        <span>市場偏樂觀</span>
                     </div>
                     <div class="flex items-start">
                         <span class="w-24 flex-shrink-0 font-medium">76-100</span>
-                        <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded mr-2">æ¥µåº¦è²ªå©ª</span>
-                        <span>å¸‚å ´éŽç†±ï¼Œç•™æ„é¢¨éšª</span>
+                        <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded mr-2">極度貪婪</span>
+                        <span>市場過熱，留意風險</span>
                     </div>
                 </div>
             </div>
@@ -633,7 +633,7 @@
     }
     
     // ============================================================
-    // å°Žå‡ºåˆ°å…¨åŸŸ
+    // 導出到全域
     // ============================================================
     
     window.loadDashboard = loadDashboard;
@@ -641,7 +641,7 @@
     window.loadIndices = loadIndices;
     window.loadSentiment = loadSentiment;
     window.loadSentimentDetail = loadSentimentDetail;
-    window.loadPopularStocks = loadPopularStocks;  // ðŸ†•
+    window.loadPopularStocks = loadPopularStocks;  // 🆕
     window.openIndexModal = openIndexModal;
     window.closeIndexModal = closeIndexModal;
     window.loadIndexModalChart = loadIndexModalChart;
@@ -650,5 +650,5 @@
     window.loadSentimentModalChart = loadSentimentModalChart;
     window.triggerAdminUpdates = triggerAdminUpdates;
     
-    console.log('ðŸ“Š dashboard.js æ¨¡çµ„å·²è¼‰å…¥ (P2 å«ç†±é–€è¿½è¹¤çµ±è¨ˆ)');
+    console.log('📊 dashboard.js 模組已載入 (P2 含熱門追蹤統計)');
 })();

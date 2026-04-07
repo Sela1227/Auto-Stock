@@ -1,13 +1,13 @@
 """
-æŒ‡æ•¸æœå‹™
+指數服務
 ========
-å››å¤§æŒ‡æ•¸è³‡æ–™æ›´æ–°æœå‹™
+四大指數資料更新服務
 - S&P 500 (^GSPC)
-- é“ç“Šå·¥æ¥­ (^DJI)
-- ç´æ–¯é”å…‹ (^IXIC)
-- å°ç£åŠ æ¬Š (^TWII)
+- 道瓊工業 (^DJI)
+- 納斯達克 (^IXIC)
+- 台灣加權 (^TWII)
 
-è§£æ±º admin.py å¼•ç”¨ index_service ä¸å­˜åœ¨çš„å•é¡Œ
+解決 admin.py 引用 index_service 不存在的問題
 """
 import logging
 from typing import Dict, Any
@@ -15,66 +15,66 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
-# å››å¤§æŒ‡æ•¸å®šç¾©
+# 四大指數定義
 INDICES = {
-    "^GSPC": {"name": "S&P 500", "name_zh": "æ¨™æ™®500"},
-    "^DJI": {"name": "Dow Jones", "name_zh": "é“ç“Šå·¥æ¥­"},
-    "^IXIC": {"name": "NASDAQ", "name_zh": "ç´æ–¯é”å…‹"},
-    "^TWII": {"name": "TWSE", "name_zh": "å°ç£åŠ æ¬Š"},
+    "^GSPC": {"name": "S&P 500", "name_zh": "標普500"},
+    "^DJI": {"name": "Dow Jones", "name_zh": "道瓊工業"},
+    "^IXIC": {"name": "NASDAQ", "name_zh": "納斯達克"},
+    "^TWII": {"name": "TWSE", "name_zh": "台灣加權"},
 }
 
 
 class IndexService:
-    """æŒ‡æ•¸æœå‹™é¡ž"""
+    """指數服務類"""
     
     def __init__(self, db: Session):
         self.db = db
     
     def update_index(self, symbol: str, period: str = "5d") -> Dict[str, Any]:
         """
-        æ›´æ–°å–®ä¸€æŒ‡æ•¸
+        更新單一指數
         
         Args:
-            symbol: æŒ‡æ•¸ä»£è™Ÿ
-            period: å–å¾—é€±æœŸ (5d, 1mo, 3mo, 1y, 5y, 10y)
+            symbol: 指數代號
+            period: 取得週期 (5d, 1mo, 3mo, 1y, 5y, 10y)
         
         Returns:
-            æ›´æ–°çµæžœ
+            更新結果
         """
         from app.data_sources.yahoo_finance import yahoo_finance
         from app.models.index_price import IndexPrice
         
         if symbol not in INDICES:
-            return {"success": False, "error": f"ç„¡æ•ˆçš„æŒ‡æ•¸ä»£è™Ÿ: {symbol}"}
+            return {"success": False, "error": f"無效的指數代號: {symbol}"}
         
         try:
-            logger.info(f"æ›´æ–°æŒ‡æ•¸ {symbol}...")
+            logger.info(f"更新指數 {symbol}...")
             
-            # å–å¾—æ­·å²è³‡æ–™
+            # 取得歷史資料
             df = yahoo_finance.get_stock_history(symbol, period=period)
             
             if df is None or df.empty:
-                return {"success": False, "error": f"ç„¡æ³•å–å¾— {symbol} è³‡æ–™"}
+                return {"success": False, "error": f"無法取得 {symbol} 資料"}
             
-            # å„²å­˜åˆ°è³‡æ–™åº«
+            # 儲存到資料庫
             count = 0
             for _, row in df.iterrows():
                 try:
-                    # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨
+                    # 檢查是否已存在
                     existing = self.db.query(IndexPrice).filter(
                         IndexPrice.symbol == symbol,
                         IndexPrice.date == row['date']
                     ).first()
                     
                     if existing:
-                        # æ›´æ–°
+                        # 更新
                         existing.open = float(row['open']) if row['open'] else None
                         existing.high = float(row['high']) if row['high'] else None
                         existing.low = float(row['low']) if row['low'] else None
                         existing.close = float(row['close']) if row['close'] else None
                         existing.volume = int(row['volume']) if row['volume'] else None
                     else:
-                        # æ–°å¢ž
+                        # 新增
                         index_price = IndexPrice(
                             symbol=symbol,
                             date=row['date'],
@@ -87,12 +87,12 @@ class IndexService:
                         self.db.add(index_price)
                     count += 1
                 except Exception as e:
-                    logger.warning(f"å„²å­˜ {symbol} {row['date']} å¤±æ•—: {e}")
+                    logger.warning(f"儲存 {symbol} {row['date']} 失敗: {e}")
                     continue
             
             self.db.commit()
             
-            logger.info(f"âœ… {symbol} æ›´æ–°å®Œæˆ: {count} ç­†")
+            logger.info(f"✅ {symbol} 更新完成: {count} 筆")
             return {
                 "success": True,
                 "symbol": symbol,
@@ -100,16 +100,16 @@ class IndexService:
             }
             
         except Exception as e:
-            logger.error(f"æ›´æ–° {symbol} å¤±æ•—: {e}")
+            logger.error(f"更新 {symbol} 失敗: {e}")
             self.db.rollback()
             return {"success": False, "error": str(e)}
     
     def update_all(self, period: str = "5d") -> Dict[str, Any]:
         """
-        æ›´æ–°æ‰€æœ‰æŒ‡æ•¸
+        更新所有指數
         
         Returns:
-            æ›´æ–°çµæžœå½™ç¸½
+            更新結果彙總
         """
         results = []
         errors = []
@@ -136,14 +136,14 @@ class IndexService:
 
 
 # ============================================================
-# å…¨åŸŸå‡½æ•¸ï¼ˆä¾› admin.py ä½¿ç”¨ï¼‰
+# 全域函數（供 admin.py 使用）
 # ============================================================
 
 def update_all_indices(period: str = "5d") -> Dict[str, Any]:
     """
-    æ›´æ–°æ‰€æœ‰å››å¤§æŒ‡æ•¸ï¼ˆå…¨åŸŸå‡½æ•¸ï¼‰
+    更新所有四大指數（全域函數）
     
-    ç”¨æ–¼ admin.py:
+    用於 admin.py:
         from app.services.index_service import update_all_indices
         result = update_all_indices()
     """
@@ -159,7 +159,7 @@ def update_all_indices(period: str = "5d") -> Dict[str, Any]:
 
 def update_single_index(symbol: str, period: str = "5d") -> Dict[str, Any]:
     """
-    æ›´æ–°å–®ä¸€æŒ‡æ•¸ï¼ˆå…¨åŸŸå‡½æ•¸ï¼‰
+    更新單一指數（全域函數）
     """
     from app.database import SessionLocal
     

@@ -1,14 +1,14 @@
 """
-åƒ¹æ ¼å¿«å–æŽ’ç¨‹ä»»å‹™
+價格快取排程任務
 
-æŽ’ç¨‹é‚è¼¯ï¼š
-1. æ¯ 10 åˆ†é˜åŸ·è¡Œ run_update()
-   - è‡ªå‹•åˆ¤æ–·å“ªäº›å¸‚å ´é–‹ç›¤
-   - åªæ›´æ–°é–‹ç›¤ä¸­çš„å¸‚å ´
+排程邏輯：
+1. 每 10 分鐘執行 run_update()
+   - 自動判斷哪些市場開盤
+   - 只更新開盤中的市場
    
-2. æ”¶ç›¤å¾Œå„åŸ·è¡Œä¸€æ¬¡ï¼ˆç¢ºä¿æœ‰æœ€çµ‚æ”¶ç›¤åƒ¹ï¼‰
-   - å°è‚¡ï¼š13:35
-   - ç¾Žè‚¡ï¼š05:05
+2. 收盤後各執行一次（確保有最終收盤價）
+   - 台股：13:35
+   - 美股：05:05
 """
 import logging
 from datetime import datetime
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class PriceCacheScheduler:
-    """åƒ¹æ ¼å¿«å–æŽ’ç¨‹å™¨"""
+    """價格快取排程器"""
     
     def __init__(self):
         self.last_run: datetime = None
@@ -29,34 +29,34 @@ class PriceCacheScheduler:
     
     def run_update(self) -> Dict[str, Any]:
         """
-        åŸ·è¡Œåƒ¹æ ¼å¿«å–æ›´æ–°ï¼ˆæ¯ 10 åˆ†é˜ï¼‰
+        執行價格快取更新（每 10 分鐘）
         
-        è‡ªå‹•åˆ¤æ–·ï¼š
-        - å°è‚¡é–‹ç›¤ (09:00-13:30) â†’ æ›´æ–°å°è‚¡
-        - ç¾Žè‚¡é–‹ç›¤ (21:30-05:00) â†’ æ›´æ–°ç¾Žè‚¡
-        - åŠ å¯†è²¨å¹£ â†’ 24 å°æ™‚æ›´æ–°
+        自動判斷：
+        - 台股開盤 (09:00-13:30) → 更新台股
+        - 美股開盤 (21:30-05:00) → 更新美股
+        - 加密貨幣 → 24 小時更新
         """
         market_status = get_market_status()
         
-        # å¦‚æžœæ‰€æœ‰è‚¡å¸‚éƒ½æ”¶ç›¤ï¼Œåªæ›´æ–°åŠ å¯†è²¨å¹£
+        # 如果所有股市都收盤，只更新加密貨幣
         if not market_status["tw_open"] and not market_status["us_open"]:
-            logger.info("å°è‚¡ç¾Žè‚¡çš†æ”¶ç›¤ï¼Œåªæ›´æ–°åŠ å¯†è²¨å¹£")
+            logger.info("台股美股皆收盤，只更新加密貨幣")
         
         return self._do_update(force=False)
     
     def run_force_update(self) -> Dict[str, Any]:
         """
-        å¼·åˆ¶æ›´æ–°æ‰€æœ‰å¸‚å ´ï¼ˆç”¨æ–¼æ”¶ç›¤å¾Œæˆ–æ‰‹å‹•è§¸ç™¼ï¼‰
+        強制更新所有市場（用於收盤後或手動觸發）
         """
-        logger.info("å¼·åˆ¶æ›´æ–°æ‰€æœ‰å¸‚å ´")
+        logger.info("強制更新所有市場")
         return self._do_update(force=True)
     
     def run_tw_close_update(self) -> Dict[str, Any]:
         """
-        å°è‚¡æ”¶ç›¤å¾Œæ›´æ–°ï¼ˆ13:35 åŸ·è¡Œï¼‰
-        ç¢ºä¿æœ‰æœ€çµ‚æ”¶ç›¤åƒ¹
+        台股收盤後更新（13:35 執行）
+        確保有最終收盤價
         """
-        logger.info("å°è‚¡æ”¶ç›¤ï¼ŒåŸ·è¡Œæœ€çµ‚æ›´æ–°")
+        logger.info("台股收盤，執行最終更新")
         
         db = SyncSessionLocal()
         try:
@@ -65,22 +65,22 @@ class PriceCacheScheduler:
             
             if tracked["tw_stocks"]:
                 result = service.batch_update_stock_prices(tracked["tw_stocks"])
-                logger.info(f"å°è‚¡æ”¶ç›¤æ›´æ–°å®Œæˆ: {result['updated']} æ”¯")
+                logger.info(f"台股收盤更新完成: {result['updated']} 支")
                 return result
-            return {"updated": 0, "message": "ç„¡å°è‚¡è¿½è¹¤"}
+            return {"updated": 0, "message": "無台股追蹤"}
             
         except Exception as e:
-            logger.error(f"å°è‚¡æ”¶ç›¤æ›´æ–°å¤±æ•—: {e}")
+            logger.error(f"台股收盤更新失敗: {e}")
             return {"error": str(e)}
         finally:
             db.close()
     
     def run_us_close_update(self) -> Dict[str, Any]:
         """
-        ç¾Žè‚¡æ”¶ç›¤å¾Œæ›´æ–°ï¼ˆ05:05 åŸ·è¡Œï¼‰
-        ç¢ºä¿æœ‰æœ€çµ‚æ”¶ç›¤åƒ¹
+        美股收盤後更新（05:05 執行）
+        確保有最終收盤價
         """
-        logger.info("ç¾Žè‚¡æ”¶ç›¤ï¼ŒåŸ·è¡Œæœ€çµ‚æ›´æ–°")
+        logger.info("美股收盤，執行最終更新")
         
         db = SyncSessionLocal()
         try:
@@ -89,21 +89,21 @@ class PriceCacheScheduler:
             
             if tracked["us_stocks"]:
                 result = service.batch_update_stock_prices(tracked["us_stocks"])
-                logger.info(f"ç¾Žè‚¡æ”¶ç›¤æ›´æ–°å®Œæˆ: {result['updated']} æ”¯")
+                logger.info(f"美股收盤更新完成: {result['updated']} 支")
                 return result
-            return {"updated": 0, "message": "ç„¡ç¾Žè‚¡è¿½è¹¤"}
+            return {"updated": 0, "message": "無美股追蹤"}
             
         except Exception as e:
-            logger.error(f"ç¾Žè‚¡æ”¶ç›¤æ›´æ–°å¤±æ•—: {e}")
+            logger.error(f"美股收盤更新失敗: {e}")
             return {"error": str(e)}
         finally:
             db.close()
     
     def _do_update(self, force: bool = False) -> Dict[str, Any]:
-        """åŸ·è¡Œæ›´æ–°"""
+        """執行更新"""
         logger.info("=" * 50)
-        logger.info(f"æŽ’ç¨‹: é–‹å§‹æ›´æ–°åƒ¹æ ¼å¿«å– (force={force})")
-        logger.info(f"æ™‚é–“: {datetime.now()}")
+        logger.info(f"排程: 開始更新價格快取 (force={force})")
+        logger.info(f"時間: {datetime.now()}")
         logger.info("=" * 50)
         
         db = SyncSessionLocal()
@@ -115,12 +115,12 @@ class PriceCacheScheduler:
             self.last_run = datetime.now()
             self.last_result = result
             
-            logger.info(f"æŽ’ç¨‹: åƒ¹æ ¼å¿«å–æ›´æ–°å®Œæˆ, å…± {result['total_updated']} ç­†")
+            logger.info(f"排程: 價格快取更新完成, 共 {result['total_updated']} 筆")
             
             return result
             
         except Exception as e:
-            logger.error(f"æŽ’ç¨‹: åƒ¹æ ¼å¿«å–æ›´æ–°å¤±æ•—: {e}", exc_info=True)
+            logger.error(f"排程: 價格快取更新失敗: {e}", exc_info=True)
             return {
                 "success": False,
                 "error": str(e),
@@ -130,7 +130,7 @@ class PriceCacheScheduler:
             db.close()
     
     def get_status(self) -> Dict[str, Any]:
-        """å–å¾—æŽ’ç¨‹ç‹€æ…‹"""
+        """取得排程狀態"""
         return {
             "last_run": self.last_run.isoformat() if self.last_run else None,
             "last_result": self.last_result,
@@ -138,12 +138,12 @@ class PriceCacheScheduler:
         }
 
 
-# å…¨åŸŸå¯¦ä¾‹
+# 全域實例
 price_cache_scheduler = PriceCacheScheduler()
 
 
 # ============================================================
-# APScheduler è¨­å®šç¯„ä¾‹ï¼ˆåŠ åˆ° main.pyï¼‰
+# APScheduler 設定範例（加到 main.py）
 # ============================================================
 
 """
@@ -153,36 +153,36 @@ from app.tasks.price_cache_task import price_cache_scheduler
 
 scheduler = AsyncIOScheduler()
 
-# 1. æ¯ 10 åˆ†é˜åŸ·è¡Œï¼ˆè‡ªå‹•åˆ¤æ–·é–‹ç›¤æ™‚é–“ï¼‰
+# 1. 每 10 分鐘執行（自動判斷開盤時間）
 scheduler.add_job(
     price_cache_scheduler.run_update,
     'interval',
     minutes=10,
     id='price_cache_interval',
-    name='åƒ¹æ ¼å¿«å–æ›´æ–°(æ¯10åˆ†é˜)',
+    name='價格快取更新(每10分鐘)',
 )
 
-# 2. å°è‚¡æ”¶ç›¤å¾ŒåŸ·è¡Œä¸€æ¬¡ï¼ˆé€±ä¸€åˆ°é€±äº” 13:35ï¼‰
+# 2. 台股收盤後執行一次（週一到週五 13:35）
 scheduler.add_job(
     price_cache_scheduler.run_tw_close_update,
     CronTrigger(day_of_week='mon-fri', hour=13, minute=35),
     id='price_cache_tw_close',
-    name='å°è‚¡æ”¶ç›¤æ›´æ–°',
+    name='台股收盤更新',
 )
 
-# 3. ç¾Žè‚¡æ”¶ç›¤å¾ŒåŸ·è¡Œä¸€æ¬¡ï¼ˆé€±äºŒåˆ°é€±å…­ 05:05ï¼Œå°æ‡‰ç¾Žè‚¡é€±ä¸€åˆ°é€±äº”ï¼‰
+# 3. 美股收盤後執行一次（週二到週六 05:05，對應美股週一到週五）
 scheduler.add_job(
     price_cache_scheduler.run_us_close_update,
     CronTrigger(day_of_week='tue-sat', hour=5, minute=5),
     id='price_cache_us_close',
-    name='ç¾Žè‚¡æ”¶ç›¤æ›´æ–°',
+    name='美股收盤更新',
 )
 
-# å•Ÿå‹•æŽ’ç¨‹
+# 啟動排程
 @app.on_event("startup")
 async def startup_event():
     scheduler.start()
-    # å•Ÿå‹•æ™‚åŸ·è¡Œä¸€æ¬¡ï¼ˆå¼·åˆ¶æ›´æ–°æ‰€æœ‰ï¼‰
+    # 啟動時執行一次（強制更新所有）
     price_cache_scheduler.run_force_update()
 
 @app.on_event("shutdown")

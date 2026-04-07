@@ -1,5 +1,5 @@
 """
-å¸‚å ´æƒ…ç·’æŒ‡æ•¸è³‡æ–™æ¨¡åž‹
+市場情緒指數資料模型
 """
 from sqlalchemy import Column, Integer, String, Date, DateTime, Index
 from sqlalchemy.sql import func
@@ -7,7 +7,7 @@ from app.database import Base
 
 
 class MarketSentiment(Base):
-    """å¸‚å ´æƒ…ç·’æŒ‡æ•¸"""
+    """市場情緒指數"""
     
     __tablename__ = "market_sentiment"
     
@@ -27,7 +27,7 @@ class MarketSentiment(Base):
     
     @staticmethod
     def get_classification(value: int) -> str:
-        """æ ¹æ“šæ•¸å€¼å–å¾—åˆ†é¡ž"""
+        """根據數值取得分類"""
         if value <= 25:
             return "extreme_fear"
         elif value <= 45:
@@ -41,17 +41,17 @@ class MarketSentiment(Base):
     
     @staticmethod
     def get_classification_zh(value: int) -> str:
-        """æ ¹æ“šæ•¸å€¼å–å¾—ä¸­æ–‡åˆ†é¡ž"""
+        """根據數值取得中文分類"""
         if value <= 25:
-            return "æ¥µåº¦ææ‡¼"
+            return "極度恐懼"
         elif value <= 45:
-            return "ææ‡¼"
+            return "恐懼"
         elif value <= 55:
-            return "ä¸­æ€§"
+            return "中性"
         elif value <= 75:
-            return "è²ªå©ª"
+            return "貪婪"
         else:
-            return "æ¥µåº¦è²ªå©ª"
+            return "極度貪婪"
     
     def to_dict(self):
         return {

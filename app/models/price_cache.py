@@ -1,8 +1,8 @@
 """
-è‚¡ç¥¨åƒ¹æ ¼å¿«å– Model
-ç”¨æ–¼è¿½è¹¤æ¸…å–®çš„å³æ™‚åƒ¹æ ¼é¡¯ç¤ºï¼ˆå…¨ç³»çµ±å…±ç”¨ï¼‰
+股票價格快取 Model
+用於追蹤清單的即時價格顯示（全系統共用）
 
-æ›´æ–°ï¼šåŠ å…¥ MA20 æ¬„ä½æ”¯æ´æŽ’åºåŠŸèƒ½
+更新：加入 MA20 欄位支援排序功能
 """
 from sqlalchemy import Column, String, Numeric, BigInteger, DateTime, Index
 from sqlalchemy.sql import func
@@ -11,37 +11,37 @@ from app.database import Base
 
 class StockPriceCache(Base):
     """
-    è‚¡ç¥¨å³æ™‚åƒ¹æ ¼å¿«å–
+    股票即時價格快取
     
-    - å…¨ç³»çµ±å…±ç”¨ï¼Œä¸åˆ†ç”¨æˆ¶
-    - æ¯ 10 åˆ†é˜ç”±æŽ’ç¨‹æ‰¹æ¬¡æ›´æ–°
-    - è¿½è¹¤æ¸…å–®é é¢ç›´æŽ¥å¾žé€™è£¡è®€å–
+    - 全系統共用，不分用戶
+    - 每 10 分鐘由排程批次更新
+    - 追蹤清單頁面直接從這裡讀取
     """
     
     __tablename__ = "stock_price_cache"
     
-    # ä¸»éµï¼šè‚¡ç¥¨ä»£è™Ÿï¼ˆå¦‚ 0050.TW, AAPLï¼‰
+    # 主鍵：股票代號（如 0050.TW, AAPL）
     symbol = Column(String(20), primary_key=True)
     
-    # è‚¡ç¥¨åç¨±
+    # 股票名稱
     name = Column(String(100))
     
-    # åƒ¹æ ¼è³‡è¨Š
-    price = Column(Numeric(12, 4))           # æœ€æ–°åƒ¹æ ¼
-    prev_close = Column(Numeric(12, 4))      # å‰æ”¶ç›¤åƒ¹ï¼ˆç”¨æ–¼è¨ˆç®—æ¼²è·Œï¼‰
-    change = Column(Numeric(12, 4))          # æ¼²è·Œé‡‘é¡
-    change_pct = Column(Numeric(8, 4))       # æ¼²è·Œå¹… %
+    # 價格資訊
+    price = Column(Numeric(12, 4))           # 最新價格
+    prev_close = Column(Numeric(12, 4))      # 前收盤價（用於計算漲跌）
+    change = Column(Numeric(12, 4))          # 漲跌金額
+    change_pct = Column(Numeric(8, 4))       # 漲跌幅 %
     
-    # ðŸ†• æŠ€è¡“æŒ‡æ¨™ï¼ˆç”¨æ–¼æŽ’åºï¼‰
-    ma20 = Column(Numeric(12, 4))            # 20æ—¥å‡ç·š
+    # 🆕 技術指標（用於排序）
+    ma20 = Column(Numeric(12, 4))            # 20日均線
     
-    # æˆäº¤é‡
+    # 成交量
     volume = Column(BigInteger)
     
-    # è³‡ç”¢é¡žåž‹ï¼šstock / crypto
+    # 資產類型：stock / crypto
     asset_type = Column(String(10), default="stock")
     
-    # æ›´æ–°æ™‚é–“
+    # 更新時間
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     __table_args__ = (

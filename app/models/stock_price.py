@@ -1,5 +1,5 @@
 """
-è‚¡ç¥¨åƒ¹æ ¼æ­·å²è³‡æ–™æ¨¡åž‹
+股票價格歷史資料模型
 """
 from sqlalchemy import Column, Integer, String, Date, Numeric, BigInteger, DateTime, Index
 from sqlalchemy.sql import func
@@ -7,7 +7,7 @@ from app.database import Base
 
 
 class StockPrice(Base):
-    """ç¾Žè‚¡åƒ¹æ ¼æ­·å²"""
+    """美股價格歷史"""
     
     __tablename__ = "stock_prices"
     

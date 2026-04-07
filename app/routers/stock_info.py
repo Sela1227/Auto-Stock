@@ -1,9 +1,9 @@
 """
-è‚¡ç¥¨è³‡è¨Š API è·¯ç”±
+股票資訊 API 路由
 ==================
-stock_info ç¨®å­è¡¨æŸ¥è©¢èˆ‡ç®¡ç†
+stock_info 種子表查詢與管理
 
-P1 åŠŸèƒ½
+P1 功能
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -19,7 +19,7 @@ from app.dependencies import get_admin_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/stock-info", tags=["è‚¡ç¥¨è³‡è¨Š"])
+router = APIRouter(prefix="/api/stock-info", tags=["股票資訊"])
 
 
 # ============================================================
@@ -49,20 +49,20 @@ class StockInfoUpdate(BaseModel):
 
 
 # ============================================================
-# å…¬é–‹ API
+# 公開 API
 # ============================================================
 
-@router.get("/search", summary="æœå°‹è‚¡ç¥¨")
+@router.get("/search", summary="搜尋股票")
 async def search_stocks(
-    q: str = Query(..., min_length=1, description="æœå°‹é—œéµå­—"),
+    q: str = Query(..., min_length=1, description="搜尋關鍵字"),
     market: Optional[str] = Query(None, pattern="^(us|tw|crypto)$"),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    æœå°‹è‚¡ç¥¨è³‡è¨Š
-    - æ”¯æ´ä»£è™Ÿã€åç¨±ã€ä¸­æ–‡åç¨±æ¨¡ç³Šæœå°‹
-    - å¯ç¯©é¸å¸‚å ´
+    搜尋股票資訊
+    - 支援代號、名稱、中文名稱模糊搜尋
+    - 可篩選市場
     """
     q_upper = q.upper()
     q_like = f"%{q}%"
@@ -79,7 +79,7 @@ async def search_stocks(
     if market:
         stmt = stmt.where(StockInfo.market == market)
     
-    # å„ªå…ˆé¡¯ç¤ºå®Œå…¨åŒ¹é…
+    # 優先顯示完全匹配
     stmt = stmt.order_by(
         (StockInfo.symbol == q_upper).desc(),
         StockInfo.is_popular.desc(),
@@ -97,13 +97,13 @@ async def search_stocks(
     }
 
 
-@router.get("/popular", summary="ç†±é–€è‚¡ç¥¨")
+@router.get("/popular", summary="熱門股票")
 async def get_popular_stocks(
     market: Optional[str] = Query(None, pattern="^(us|tw|crypto)$"),
     limit: int = Query(20, ge=1, le=50),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """å–å¾—ç†±é–€è‚¡ç¥¨åˆ—è¡¨"""
+    """取得熱門股票列表"""
     stmt = select(StockInfo).where(
         StockInfo.is_active == True,
         StockInfo.is_popular == True
@@ -124,7 +124,7 @@ async def get_popular_stocks(
     }
 
 
-@router.get("/by-market/{market}", summary="ä¾å¸‚å ´å–å¾—è‚¡ç¥¨")
+@router.get("/by-market/{market}", summary="依市場取得股票")
 async def get_stocks_by_market(
     market: str,
     sector: Optional[str] = None,
@@ -132,9 +132,9 @@ async def get_stocks_by_market(
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """ä¾å¸‚å ´å–å¾—è‚¡ç¥¨åˆ—è¡¨"""
+    """依市場取得股票列表"""
     if market not in ("us", "tw", "crypto"):
-        raise HTTPException(status_code=400, detail="ç„¡æ•ˆçš„å¸‚å ´")
+        raise HTTPException(status_code=400, detail="無效的市場")
     
     stmt = select(StockInfo).where(
         StockInfo.is_active == True,
@@ -158,12 +158,12 @@ async def get_stocks_by_market(
     }
 
 
-@router.get("/sectors", summary="å–å¾—ç”¢æ¥­åˆ†é¡ž")
+@router.get("/sectors", summary="取得產業分類")
 async def get_sectors(
     market: Optional[str] = Query(None, pattern="^(us|tw|crypto)$"),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """å–å¾—æ‰€æœ‰ç”¢æ¥­åˆ†é¡ž"""
+    """取得所有產業分類"""
     from sqlalchemy import func, distinct
     
     stmt = select(distinct(StockInfo.sector)).where(
@@ -183,12 +183,12 @@ async def get_sectors(
     }
 
 
-@router.get("/{symbol}", summary="å–å¾—è‚¡ç¥¨è³‡è¨Š")
+@router.get("/{symbol}", summary="取得股票資訊")
 async def get_stock_info(
     symbol: str,
     db: AsyncSession = Depends(get_async_session),
 ):
-    """å–å¾—å–®ä¸€è‚¡ç¥¨çš„è©³ç´°è³‡è¨Š"""
+    """取得單一股票的詳細資訊"""
     stmt = select(StockInfo).where(
         StockInfo.symbol == symbol.upper()
     )
@@ -196,7 +196,7 @@ async def get_stock_info(
     stock = result.scalar_one_or_none()
     
     if not stock:
-        raise HTTPException(status_code=404, detail=f"æ‰¾ä¸åˆ°è‚¡ç¥¨: {symbol}")
+        raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
     
     return {
         "success": True,
@@ -205,20 +205,20 @@ async def get_stock_info(
 
 
 # ============================================================
-# ç®¡ç†å“¡ API
+# 管理員 API
 # ============================================================
 
-@router.post("/admin/init", summary="åˆå§‹åŒ–ç¨®å­è³‡æ–™")
+@router.post("/admin/init", summary="初始化種子資料")
 async def init_stock_info(
     admin = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """åˆå§‹åŒ–é è¨­è‚¡ç¥¨è³‡è¨Š"""
+    """初始化預設股票資訊"""
     added = 0
     skipped = 0
     
     for stock_data in DEFAULT_STOCK_INFO:
-        # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨
+        # 檢查是否已存在
         stmt = select(StockInfo).where(StockInfo.symbol == stock_data["symbol"])
         result = await db.execute(stmt)
         if result.scalar_one_or_none():
@@ -231,30 +231,30 @@ async def init_stock_info(
     
     await db.commit()
     
-    logger.info(f"ç®¡ç†å“¡ {admin.display_name} åˆå§‹åŒ–è‚¡ç¥¨è³‡è¨Š: æ–°å¢ž {added}, è·³éŽ {skipped}")
+    logger.info(f"管理員 {admin.display_name} 初始化股票資訊: 新增 {added}, 跳過 {skipped}")
     
     return {
         "success": True,
-        "message": f"åˆå§‹åŒ–å®Œæˆï¼šæ–°å¢ž {added} ç­†ï¼Œè·³éŽ {skipped} ç­†",
+        "message": f"初始化完成：新增 {added} 筆，跳過 {skipped} 筆",
         "added": added,
         "skipped": skipped,
     }
 
 
-@router.post("/admin/add", summary="æ–°å¢žè‚¡ç¥¨è³‡è¨Š")
+@router.post("/admin/add", summary="新增股票資訊")
 async def add_stock_info(
     data: StockInfoCreate,
     admin = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """æ–°å¢žè‚¡ç¥¨è³‡è¨Š"""
+    """新增股票資訊"""
     symbol = data.symbol.upper()
     
-    # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨
+    # 檢查是否已存在
     stmt = select(StockInfo).where(StockInfo.symbol == symbol)
     result = await db.execute(stmt)
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail=f"è‚¡ç¥¨ {symbol} å·²å­˜åœ¨")
+        raise HTTPException(status_code=400, detail=f"股票 {symbol} 已存在")
     
     stock = StockInfo(
         symbol=symbol,
@@ -270,31 +270,31 @@ async def add_stock_info(
     await db.commit()
     await db.refresh(stock)
     
-    logger.info(f"ç®¡ç†å“¡ {admin.display_name} æ–°å¢žè‚¡ç¥¨: {symbol}")
+    logger.info(f"管理員 {admin.display_name} 新增股票: {symbol}")
     
     return {
         "success": True,
-        "message": f"å·²æ–°å¢ž {symbol}",
+        "message": f"已新增 {symbol}",
         "data": stock.to_dict(),
     }
 
 
-@router.put("/admin/{symbol}", summary="æ›´æ–°è‚¡ç¥¨è³‡è¨Š")
+@router.put("/admin/{symbol}", summary="更新股票資訊")
 async def update_stock_info(
     symbol: str,
     data: StockInfoUpdate,
     admin = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """æ›´æ–°è‚¡ç¥¨è³‡è¨Š"""
+    """更新股票資訊"""
     stmt = select(StockInfo).where(StockInfo.symbol == symbol.upper())
     result = await db.execute(stmt)
     stock = result.scalar_one_or_none()
     
     if not stock:
-        raise HTTPException(status_code=404, detail=f"æ‰¾ä¸åˆ°è‚¡ç¥¨: {symbol}")
+        raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
     
-    # æ›´æ–°æ¬„ä½
+    # 更新欄位
     update_data = data.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(stock, key, value)
@@ -302,47 +302,47 @@ async def update_stock_info(
     await db.commit()
     await db.refresh(stock)
     
-    logger.info(f"ç®¡ç†å“¡ {admin.display_name} æ›´æ–°è‚¡ç¥¨: {symbol}")
+    logger.info(f"管理員 {admin.display_name} 更新股票: {symbol}")
     
     return {
         "success": True,
-        "message": f"å·²æ›´æ–° {symbol}",
+        "message": f"已更新 {symbol}",
         "data": stock.to_dict(),
     }
 
 
-@router.delete("/admin/{symbol}", summary="åˆªé™¤è‚¡ç¥¨è³‡è¨Š")
+@router.delete("/admin/{symbol}", summary="刪除股票資訊")
 async def delete_stock_info(
     symbol: str,
     admin = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """åˆªé™¤è‚¡ç¥¨è³‡è¨Š"""
+    """刪除股票資訊"""
     stmt = select(StockInfo).where(StockInfo.symbol == symbol.upper())
     result = await db.execute(stmt)
     stock = result.scalar_one_or_none()
     
     if not stock:
-        raise HTTPException(status_code=404, detail=f"æ‰¾ä¸åˆ°è‚¡ç¥¨: {symbol}")
+        raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
     
     await db.delete(stock)
     await db.commit()
     
-    logger.info(f"ç®¡ç†å“¡ {admin.display_name} åˆªé™¤è‚¡ç¥¨: {symbol}")
+    logger.info(f"管理員 {admin.display_name} 刪除股票: {symbol}")
     
     return {
         "success": True,
-        "message": f"å·²åˆªé™¤ {symbol}",
+        "message": f"已刪除 {symbol}",
     }
 
 
-@router.post("/admin/batch-add", summary="æ‰¹æ¬¡æ–°å¢žè‚¡ç¥¨")
+@router.post("/admin/batch-add", summary="批次新增股票")
 async def batch_add_stocks(
     stocks: List[StockInfoCreate],
     admin = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """æ‰¹æ¬¡æ–°å¢žè‚¡ç¥¨è³‡è¨Š"""
+    """批次新增股票資訊"""
     added = []
     errors = []
     
@@ -350,11 +350,11 @@ async def batch_add_stocks(
         symbol = stock_data.symbol.upper()
         
         try:
-            # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨
+            # 檢查是否已存在
             stmt = select(StockInfo).where(StockInfo.symbol == symbol)
             result = await db.execute(stmt)
             if result.scalar_one_or_none():
-                errors.append({"symbol": symbol, "error": "å·²å­˜åœ¨"})
+                errors.append({"symbol": symbol, "error": "已存在"})
                 continue
             
             stock = StockInfo(
@@ -374,29 +374,29 @@ async def batch_add_stocks(
     
     await db.commit()
     
-    logger.info(f"ç®¡ç†å“¡ {admin.display_name} æ‰¹æ¬¡æ–°å¢žè‚¡ç¥¨: æˆåŠŸ {len(added)}, å¤±æ•— {len(errors)}")
+    logger.info(f"管理員 {admin.display_name} 批次新增股票: 成功 {len(added)}, 失敗 {len(errors)}")
     
     return {
         "success": True,
-        "message": f"æ‰¹æ¬¡æ–°å¢žå®Œæˆï¼šæˆåŠŸ {len(added)} ç­†ï¼Œå¤±æ•— {len(errors)} ç­†",
+        "message": f"批次新增完成：成功 {len(added)} 筆，失敗 {len(errors)} 筆",
         "added": added,
         "errors": errors,
     }
 
 
-@router.get("/admin/stats", summary="è‚¡ç¥¨è³‡è¨Šçµ±è¨ˆ")
+@router.get("/admin/stats", summary="股票資訊統計")
 async def get_stock_info_stats(
     admin = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """å–å¾—è‚¡ç¥¨è³‡è¨Šçµ±è¨ˆ"""
+    """取得股票資訊統計"""
     from sqlalchemy import func
     
-    # ç¸½æ•¸
+    # 總數
     total_stmt = select(func.count(StockInfo.id))
     total = await db.scalar(total_stmt)
     
-    # ä¾å¸‚å ´çµ±è¨ˆ
+    # 依市場統計
     market_stmt = (
         select(StockInfo.market, func.count(StockInfo.id))
         .group_by(StockInfo.market)
@@ -404,7 +404,7 @@ async def get_stock_info_stats(
     market_result = await db.execute(market_stmt)
     by_market = {row[0]: row[1] for row in market_result.all()}
     
-    # ç†±é–€è‚¡æ•¸é‡
+    # 熱門股數量
     popular_stmt = select(func.count(StockInfo.id)).where(StockInfo.is_popular == True)
     popular = await db.scalar(popular_stmt)
     

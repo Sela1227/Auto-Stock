@@ -1,6 +1,6 @@
 """
-åœ–è¡¨ç¹ªè£½æœå‹™
-ä½¿ç”¨ matplotlib + mplfinance ç¹ªè£½æŠ€è¡“åˆ†æžåœ–è¡¨
+圖表繪製服務
+使用 matplotlib + mplfinance 繪製技術分析圖表
 """
 import pandas as pd
 import numpy as np
@@ -16,37 +16,37 @@ from app.config import settings, CHARTS_DIR
 
 logger = logging.getLogger(__name__)
 
-# è¨­å®šä¸­æ–‡å­—é«”
+# 設定中文字體
 plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei', 'SimHei', 'Arial Unicode MS', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
-# é¡è‰²å®šç¾©
+# 顏色定義
 COLORS = {
-    "price": "#2196F3",      # åƒ¹æ ¼ç·š - è—è‰²
-    "ma_short": "#FF9800",   # MA20 - æ©™è‰²
-    "ma_mid": "#9C27B0",     # MA50 - ç´«è‰²
-    "ma_long": "#F44336",    # MA200 - ç´…è‰²
-    "volume_up": "#4CAF50",  # ä¸Šæ¼²æˆäº¤é‡ - ç¶ è‰²
-    "volume_down": "#F44336", # ä¸‹è·Œæˆäº¤é‡ - ç´…è‰²
-    "bb_fill": "#E3F2FD",    # å¸ƒæž—é€šé“å¡«å…… - æ·ºè—
-    "bb_line": "#90CAF9",    # å¸ƒæž—é€šé“ç·š - è—è‰²
-    "rsi": "#673AB7",        # RSI - æ·±ç´«
-    "macd_dif": "#2196F3",   # MACD DIF - è—è‰²
-    "macd_dea": "#FF9800",   # MACD DEA - æ©™è‰²
-    "macd_hist_pos": "#4CAF50",  # MACD æ­£æŸ± - ç¶ è‰²
-    "macd_hist_neg": "#F44336",  # MACD è² æŸ± - ç´…è‰²
-    "kd_k": "#2196F3",       # K ç·š - è—è‰²
-    "kd_d": "#FF9800",       # D ç·š - æ©™è‰²
-    "golden_cross": "#4CAF50",   # é»ƒé‡‘äº¤å‰ - ç¶ è‰²
-    "death_cross": "#F44336",    # æ­»äº¡äº¤å‰ - ç´…è‰²
-    "grid": "#E0E0E0",       # ç¶²æ ¼ç·š
-    "overbought": "#FFCDD2", # è¶…è²·å€ - æ·ºç´…
-    "oversold": "#C8E6C9",   # è¶…è³£å€ - æ·ºç¶ 
+    "price": "#2196F3",      # 價格線 - 藍色
+    "ma_short": "#FF9800",   # MA20 - 橙色
+    "ma_mid": "#9C27B0",     # MA50 - 紫色
+    "ma_long": "#F44336",    # MA200 - 紅色
+    "volume_up": "#4CAF50",  # 上漲成交量 - 綠色
+    "volume_down": "#F44336", # 下跌成交量 - 紅色
+    "bb_fill": "#E3F2FD",    # 布林通道填充 - 淺藍
+    "bb_line": "#90CAF9",    # 布林通道線 - 藍色
+    "rsi": "#673AB7",        # RSI - 深紫
+    "macd_dif": "#2196F3",   # MACD DIF - 藍色
+    "macd_dea": "#FF9800",   # MACD DEA - 橙色
+    "macd_hist_pos": "#4CAF50",  # MACD 正柱 - 綠色
+    "macd_hist_neg": "#F44336",  # MACD 負柱 - 紅色
+    "kd_k": "#2196F3",       # K 線 - 藍色
+    "kd_d": "#FF9800",       # D 線 - 橙色
+    "golden_cross": "#4CAF50",   # 黃金交叉 - 綠色
+    "death_cross": "#F44336",    # 死亡交叉 - 紅色
+    "grid": "#E0E0E0",       # 網格線
+    "overbought": "#FFCDD2", # 超買區 - 淺紅
+    "oversold": "#C8E6C9",   # 超賣區 - 淺綠
 }
 
 
 class ChartService:
-    """åœ–è¡¨ç¹ªè£½æœå‹™"""
+    """圖表繪製服務"""
     
     def __init__(self, output_dir: Path = None):
         self.output_dir = output_dir or CHARTS_DIR
@@ -68,38 +68,38 @@ class ChartService:
         save_path: Optional[str] = None,
     ) -> str:
         """
-        ç¹ªè£½å®Œæ•´è‚¡ç¥¨åˆ†æžåœ–è¡¨
+        繪製完整股票分析圖表
         
         Args:
-            df: å«æœ‰åƒ¹æ ¼å’ŒæŒ‡æ¨™çš„ DataFrame
-            symbol: è‚¡ç¥¨ä»£è™Ÿ
-            name: è‚¡ç¥¨åç¨±
-            show_ma: é¡¯ç¤ºå‡ç·š
-            show_bollinger: é¡¯ç¤ºå¸ƒæž—é€šé“
-            show_volume: é¡¯ç¤ºæˆäº¤é‡
-            show_rsi: é¡¯ç¤º RSI
-            show_macd: é¡¯ç¤º MACD
-            show_kd: é¡¯ç¤º KD
-            show_signals: æ¨™è¨˜äº¤å‰è¨Šè™Ÿ
-            days: é¡¯ç¤ºå¤©æ•¸
-            save_path: å„²å­˜è·¯å¾‘ï¼ˆä¸æŒ‡å®šå‰‡è‡ªå‹•ç”Ÿæˆï¼‰
+            df: 含有價格和指標的 DataFrame
+            symbol: 股票代號
+            name: 股票名稱
+            show_ma: 顯示均線
+            show_bollinger: 顯示布林通道
+            show_volume: 顯示成交量
+            show_rsi: 顯示 RSI
+            show_macd: 顯示 MACD
+            show_kd: 顯示 KD
+            show_signals: 標記交叉訊號
+            days: 顯示天數
+            save_path: 儲存路徑（不指定則自動生成）
             
         Returns:
-            åœ–è¡¨æª”æ¡ˆè·¯å¾‘
+            圖表檔案路徑
         """
-        # åªå–æœ€è¿‘ N å¤©è³‡æ–™
+        # 只取最近 N 天資料
         if len(df) > days:
             df = df.tail(days).copy()
         else:
             df = df.copy()
         
-        # ç¢ºä¿ date æ¬„ä½æ­£ç¢º
+        # 確保 date 欄位正確
         if 'date' in df.columns:
             df['date'] = pd.to_datetime(df['date'])
             df = df.set_index('date')
         
-        # è¨ˆç®—å­åœ–æ•¸é‡
-        n_subplots = 1  # ä¸»åœ–
+        # 計算子圖數量
+        n_subplots = 1  # 主圖
         if show_volume:
             n_subplots += 1
         if show_rsi:
@@ -109,8 +109,8 @@ class ChartService:
         if show_kd:
             n_subplots += 1
         
-        # è¨­å®šå­åœ–é«˜åº¦æ¯”ä¾‹
-        height_ratios = [3]  # ä¸»åœ–
+        # 設定子圖高度比例
+        height_ratios = [3]  # 主圖
         if show_volume:
             height_ratios.append(1)
         if show_rsi:
@@ -120,7 +120,7 @@ class ChartService:
         if show_kd:
             height_ratios.append(1)
         
-        # å»ºç«‹åœ–è¡¨
+        # 建立圖表
         fig, axes = plt.subplots(
             n_subplots, 1,
             figsize=(14, 3 + n_subplots * 2),
@@ -133,20 +133,20 @@ class ChartService:
         
         ax_idx = 0
         
-        # === ä¸»åœ–ï¼šåƒ¹æ ¼ + å‡ç·š + å¸ƒæž—é€šé“ ===
+        # === 主圖：價格 + 均線 + 布林通道 ===
         ax_main = axes[ax_idx]
         ax_idx += 1
         
         self._plot_price(ax_main, df, show_ma, show_bollinger, show_signals)
         
-        # æ¨™é¡Œ
+        # 標題
         title = f"{symbol}"
         if name:
             title += f" - {name}"
-        title += f"\næœ€å¾Œæ›´æ–°: {df.index[-1].strftime('%Y-%m-%d')} | æ”¶ç›¤: ${df['close'].iloc[-1]:.2f}"
+        title += f"\n最後更新: {df.index[-1].strftime('%Y-%m-%d')} | 收盤: ${df['close'].iloc[-1]:.2f}"
         ax_main.set_title(title, fontsize=14, fontweight='bold', pad=10)
         
-        # === æˆäº¤é‡ ===
+        # === 成交量 ===
         if show_volume:
             self._plot_volume(axes[ax_idx], df)
             ax_idx += 1
@@ -166,10 +166,10 @@ class ChartService:
             self._plot_kd(axes[ax_idx], df)
             ax_idx += 1
         
-        # èª¿æ•´å¸ƒå±€
+        # 調整布局
         plt.tight_layout()
         
-        # å„²å­˜åœ–è¡¨
+        # 儲存圖表
         if not save_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             save_path = self.output_dir / f"{symbol}_{timestamp}.png"
@@ -177,7 +177,7 @@ class ChartService:
         plt.savefig(save_path, dpi=150, bbox_inches='tight', facecolor='white')
         plt.close(fig)
         
-        logger.info(f"åœ–è¡¨å·²å„²å­˜: {save_path}")
+        logger.info(f"圖表已儲存: {save_path}")
         return str(save_path)
     
     def _plot_price(
@@ -188,8 +188,8 @@ class ChartService:
         show_bollinger: bool,
         show_signals: bool,
     ):
-        """ç¹ªè£½åƒ¹æ ¼ä¸»åœ–"""
-        # å¸ƒæž—é€šé“ï¼ˆå…ˆç•«ï¼Œä½œç‚ºèƒŒæ™¯ï¼‰
+        """繪製價格主圖"""
+        # 布林通道（先畫，作為背景）
         if show_bollinger and 'bb_upper' in df.columns:
             ax.fill_between(
                 df.index,
@@ -197,16 +197,16 @@ class ChartService:
                 df['bb_upper'],
                 color=COLORS['bb_fill'],
                 alpha=0.5,
-                label='å¸ƒæž—é€šé“',
+                label='布林通道',
             )
             ax.plot(df.index, df['bb_middle'], color=COLORS['bb_line'], 
                    linewidth=0.8, linestyle='--', alpha=0.7)
         
-        # åƒ¹æ ¼ç·š
+        # 價格線
         ax.plot(df.index, df['close'], color=COLORS['price'], 
-               linewidth=1.5, label='æ”¶ç›¤åƒ¹')
+               linewidth=1.5, label='收盤價')
         
-        # å‡ç·š
+        # 均線
         if show_ma:
             ma_short = f"ma{settings.MA_SHORT}"
             ma_mid = f"ma{settings.MA_MID}"
@@ -222,18 +222,18 @@ class ChartService:
                 ax.plot(df.index, df[ma_long], color=COLORS['ma_long'],
                        linewidth=1, label=f'MA{settings.MA_LONG}')
         
-        # æ¨™è¨˜äº¤å‰è¨Šè™Ÿ
+        # 標記交叉訊號
         if show_signals and show_ma:
             self._mark_crossovers(ax, df)
         
-        # è¨­å®š
-        ax.set_ylabel('åƒ¹æ ¼ ($)', fontsize=10)
+        # 設定
+        ax.set_ylabel('價格 ($)', fontsize=10)
         ax.legend(loc='upper left', fontsize=8)
         ax.grid(True, color=COLORS['grid'], linestyle='-', linewidth=0.5, alpha=0.7)
         ax.set_xlim(df.index[0], df.index[-1])
     
     def _mark_crossovers(self, ax: plt.Axes, df: pd.DataFrame):
-        """æ¨™è¨˜å‡ç·šäº¤å‰é»ž"""
+        """標記均線交叉點"""
         ma_short = f"ma{settings.MA_SHORT}"
         ma_mid = f"ma{settings.MA_MID}"
         
@@ -241,14 +241,14 @@ class ChartService:
             return
         
         for i in range(1, len(df)):
-            # é»ƒé‡‘äº¤å‰
+            # 黃金交叉
             if (df[ma_short].iloc[i-1] < df[ma_mid].iloc[i-1] and 
                 df[ma_short].iloc[i] > df[ma_mid].iloc[i]):
                 ax.scatter(df.index[i], df['close'].iloc[i], 
                           color=COLORS['golden_cross'], s=100, marker='^', 
                           zorder=5, edgecolors='white', linewidths=1)
             
-            # æ­»äº¡äº¤å‰
+            # 死亡交叉
             elif (df[ma_short].iloc[i-1] > df[ma_mid].iloc[i-1] and 
                   df[ma_short].iloc[i] < df[ma_mid].iloc[i]):
                 ax.scatter(df.index[i], df['close'].iloc[i], 
@@ -256,7 +256,7 @@ class ChartService:
                           zorder=5, edgecolors='white', linewidths=1)
     
     def _plot_volume(self, ax: plt.Axes, df: pd.DataFrame):
-        """ç¹ªè£½æˆäº¤é‡"""
+        """繪製成交量"""
         colors = []
         for i in range(len(df)):
             if i == 0:
@@ -268,39 +268,39 @@ class ChartService:
         
         ax.bar(df.index, df['volume'], color=colors, alpha=0.7, width=0.8)
         
-        # 20æ—¥å‡é‡ç·š
+        # 20日均量線
         if 'volume_ma20' in df.columns:
             ax.plot(df.index, df['volume_ma20'], color='orange', 
-                   linewidth=1, label='20æ—¥å‡é‡')
+                   linewidth=1, label='20日均量')
             ax.legend(loc='upper left', fontsize=8)
         
-        ax.set_ylabel('æˆäº¤é‡', fontsize=10)
+        ax.set_ylabel('成交量', fontsize=10)
         ax.grid(True, color=COLORS['grid'], linestyle='-', linewidth=0.5, alpha=0.7)
         
-        # æ ¼å¼åŒ– Y è»¸
+        # 格式化 Y 軸
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M'))
     
     def _plot_rsi(self, ax: plt.Axes, df: pd.DataFrame):
-        """ç¹ªè£½ RSI"""
-        # è¶…è²·è¶…è³£å€åŸŸ
+        """繪製 RSI"""
+        # 超買超賣區域
         ax.axhspan(settings.RSI_OVERBOUGHT, 100, color=COLORS['overbought'], alpha=0.3)
         ax.axhspan(0, settings.RSI_OVERSOLD, color=COLORS['oversold'], alpha=0.3)
         
-        # ä¸­ç·š
+        # 中線
         ax.axhline(y=50, color='gray', linestyle='--', linewidth=0.8, alpha=0.5)
         ax.axhline(y=settings.RSI_OVERBOUGHT, color='red', linestyle='--', linewidth=0.8, alpha=0.5)
         ax.axhline(y=settings.RSI_OVERSOLD, color='green', linestyle='--', linewidth=0.8, alpha=0.5)
         
-        # RSI ç·š
+        # RSI 線
         ax.plot(df.index, df['rsi'], color=COLORS['rsi'], linewidth=1.2, label='RSI')
         
-        # è¨­å®š
+        # 設定
         ax.set_ylabel('RSI', fontsize=10)
         ax.set_ylim(0, 100)
         ax.legend(loc='upper left', fontsize=8)
         ax.grid(True, color=COLORS['grid'], linestyle='-', linewidth=0.5, alpha=0.7)
         
-        # æ¨™è¨˜æœ€æ–°å€¼
+        # 標記最新值
         latest_rsi = df['rsi'].iloc[-1]
         if not pd.isna(latest_rsi):
             ax.annotate(f'{latest_rsi:.1f}', 
@@ -309,62 +309,62 @@ class ChartService:
                        fontsize=9, color=COLORS['rsi'])
     
     def _plot_macd(self, ax: plt.Axes, df: pd.DataFrame):
-        """ç¹ªè£½ MACD"""
-        # é›¶è»¸
+        """繪製 MACD"""
+        # 零軸
         ax.axhline(y=0, color='gray', linestyle='-', linewidth=0.8)
         
-        # MACD æŸ±ç‹€åœ–
+        # MACD 柱狀圖
         colors = [COLORS['macd_hist_pos'] if v >= 0 else COLORS['macd_hist_neg'] 
                  for v in df['macd_hist']]
         ax.bar(df.index, df['macd_hist'], color=colors, alpha=0.6, width=0.8)
         
-        # DIF å’Œ DEA ç·š
+        # DIF 和 DEA 線
         ax.plot(df.index, df['macd_dif'], color=COLORS['macd_dif'], 
                linewidth=1.2, label='DIF')
         ax.plot(df.index, df['macd_dea'], color=COLORS['macd_dea'], 
                linewidth=1.2, label='DEA')
         
-        # æ¨™è¨˜äº¤å‰é»ž
+        # 標記交叉點
         for i in range(1, len(df)):
             if pd.isna(df['macd_dif'].iloc[i]) or pd.isna(df['macd_dea'].iloc[i]):
                 continue
-            # é»ƒé‡‘äº¤å‰
+            # 黃金交叉
             if (df['macd_dif'].iloc[i-1] < df['macd_dea'].iloc[i-1] and 
                 df['macd_dif'].iloc[i] > df['macd_dea'].iloc[i]):
                 ax.scatter(df.index[i], df['macd_dif'].iloc[i], 
                           color=COLORS['golden_cross'], s=50, marker='^', zorder=5)
-            # æ­»äº¡äº¤å‰
+            # 死亡交叉
             elif (df['macd_dif'].iloc[i-1] > df['macd_dea'].iloc[i-1] and 
                   df['macd_dif'].iloc[i] < df['macd_dea'].iloc[i]):
                 ax.scatter(df.index[i], df['macd_dif'].iloc[i], 
                           color=COLORS['death_cross'], s=50, marker='v', zorder=5)
         
-        # è¨­å®š
+        # 設定
         ax.set_ylabel('MACD', fontsize=10)
         ax.legend(loc='upper left', fontsize=8)
         ax.grid(True, color=COLORS['grid'], linestyle='-', linewidth=0.5, alpha=0.7)
     
     def _plot_kd(self, ax: plt.Axes, df: pd.DataFrame):
-        """ç¹ªè£½ KD"""
-        # è¶…è²·è¶…è³£å€åŸŸ
+        """繪製 KD"""
+        # 超買超賣區域
         ax.axhspan(80, 100, color=COLORS['overbought'], alpha=0.3)
         ax.axhspan(0, 20, color=COLORS['oversold'], alpha=0.3)
         
-        # ä¸­ç·š
+        # 中線
         ax.axhline(y=50, color='gray', linestyle='--', linewidth=0.8, alpha=0.5)
         ax.axhline(y=80, color='red', linestyle='--', linewidth=0.8, alpha=0.5)
         ax.axhline(y=20, color='green', linestyle='--', linewidth=0.8, alpha=0.5)
         
-        # K å’Œ D ç·š
+        # K 和 D 線
         ax.plot(df.index, df['kd_k'], color=COLORS['kd_k'], linewidth=1.2, label='K')
         ax.plot(df.index, df['kd_d'], color=COLORS['kd_d'], linewidth=1.2, label='D')
         
-        # è¨­å®š
+        # 設定
         ax.set_ylabel('KD', fontsize=10)
         ax.set_ylim(0, 100)
         ax.legend(loc='upper left', fontsize=8)
         ax.grid(True, color=COLORS['grid'], linestyle='-', linewidth=0.5, alpha=0.7)
-        ax.set_xlabel('æ—¥æœŸ', fontsize=10)
+        ax.set_xlabel('日期', fontsize=10)
     
     def plot_candlestick(
         self,
@@ -375,36 +375,36 @@ class ChartService:
         save_path: Optional[str] = None,
     ) -> str:
         """
-        ç¹ªè£½ K ç·šåœ–ï¼ˆä½¿ç”¨ mplfinanceï¼‰
+        繪製 K 線圖（使用 mplfinance）
         
         Args:
             df: OHLCV DataFrame
-            symbol: è‚¡ç¥¨ä»£è™Ÿ
-            name: è‚¡ç¥¨åç¨±
-            days: é¡¯ç¤ºå¤©æ•¸
-            save_path: å„²å­˜è·¯å¾‘
+            symbol: 股票代號
+            name: 股票名稱
+            days: 顯示天數
+            save_path: 儲存路徑
             
         Returns:
-            åœ–è¡¨æª”æ¡ˆè·¯å¾‘
+            圖表檔案路徑
         """
         try:
             import mplfinance as mpf
         except ImportError:
-            logger.warning("mplfinance æœªå®‰è£ï¼Œä½¿ç”¨æ›¿ä»£æ–¹æ¡ˆ")
+            logger.warning("mplfinance 未安裝，使用替代方案")
             return self._plot_candlestick_fallback(df, symbol, name, days, save_path)
         
-        # æº–å‚™è³‡æ–™
+        # 準備資料
         if len(df) > days:
             df = df.tail(days).copy()
         else:
             df = df.copy()
         
-        # ç¢ºä¿ç´¢å¼•ç‚º DatetimeIndex
+        # 確保索引為 DatetimeIndex
         if 'date' in df.columns:
             df['date'] = pd.to_datetime(df['date'])
             df = df.set_index('date')
         
-        # ç¢ºä¿æ¬„ä½åç¨±æ­£ç¢ºï¼ˆmplfinance éœ€è¦å¤§å¯«ï¼‰
+        # 確保欄位名稱正確（mplfinance 需要大寫）
         df = df.rename(columns={
             'open': 'Open',
             'high': 'High',
@@ -413,7 +413,7 @@ class ChartService:
             'volume': 'Volume',
         })
         
-        # æº–å‚™å‡ç·š
+        # 準備均線
         ma_short = f"ma{settings.MA_SHORT}"
         ma_mid = f"ma{settings.MA_MID}"
         ma_long = f"ma{settings.MA_LONG}"
@@ -426,7 +426,7 @@ class ChartService:
         if ma_long in df.columns:
             addplots.append(mpf.make_addplot(df[ma_long], color=COLORS['ma_long']))
         
-        # è¨­å®šæ¨£å¼
+        # 設定樣式
         mc = mpf.make_marketcolors(
             up='#4CAF50',
             down='#F44336',
@@ -440,31 +440,31 @@ class ChartService:
             gridcolor=COLORS['grid'],
         )
         
-        # å„²å­˜è·¯å¾‘
+        # 儲存路徑
         if not save_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             save_path = self.output_dir / f"{symbol}_kline_{timestamp}.png"
         
-        # æ¨™é¡Œ
+        # 標題
         title = f"{symbol}"
         if name:
             title += f" - {name}"
         
-        # ç¹ªè£½
+        # 繪製
         mpf.plot(
             df,
             type='candle',
             style=style,
             title=title,
-            ylabel='åƒ¹æ ¼ ($)',
-            ylabel_lower='æˆäº¤é‡',
+            ylabel='價格 ($)',
+            ylabel_lower='成交量',
             volume=True,
             addplot=addplots if addplots else None,
             figsize=(14, 8),
             savefig=str(save_path),
         )
         
-        logger.info(f"Kç·šåœ–å·²å„²å­˜: {save_path}")
+        logger.info(f"K線圖已儲存: {save_path}")
         return str(save_path)
     
     def _plot_candlestick_fallback(
@@ -475,7 +475,7 @@ class ChartService:
         days: int,
         save_path: Optional[str],
     ) -> str:
-        """ç•¶ mplfinance ä¸å¯ç”¨æ™‚çš„æ›¿ä»£ K ç·šåœ–"""
+        """當 mplfinance 不可用時的替代 K 線圖"""
         if len(df) > days:
             df = df.tail(days).copy()
         else:
@@ -489,14 +489,14 @@ class ChartService:
                                         gridspec_kw={'height_ratios': [3, 1]},
                                         sharex=True)
         
-        # K ç·š
+        # K 線
         width = 0.6
         width2 = 0.1
         
         up = df[df['close'] >= df['open']]
         down = df[df['close'] < df['open']]
         
-        # ä¸Šæ¼² K ç·š
+        # 上漲 K 線
         ax1.bar(up.index, up['close'] - up['open'], width, bottom=up['open'], 
                color='#4CAF50', edgecolor='#4CAF50')
         ax1.bar(up.index, up['high'] - up['close'], width2, bottom=up['close'], 
@@ -504,7 +504,7 @@ class ChartService:
         ax1.bar(up.index, up['low'] - up['open'], width2, bottom=up['open'], 
                color='#4CAF50')
         
-        # ä¸‹è·Œ K ç·š
+        # 下跌 K 線
         ax1.bar(down.index, down['close'] - down['open'], width, bottom=down['open'], 
                color='#F44336', edgecolor='#F44336')
         ax1.bar(down.index, down['high'] - down['open'], width2, bottom=down['open'], 
@@ -512,19 +512,19 @@ class ChartService:
         ax1.bar(down.index, down['low'] - down['close'], width2, bottom=down['close'], 
                color='#F44336')
         
-        # æ¨™é¡Œ
+        # 標題
         title = f"{symbol}"
         if name:
             title += f" - {name}"
         ax1.set_title(title, fontsize=14, fontweight='bold')
-        ax1.set_ylabel('åƒ¹æ ¼ ($)')
+        ax1.set_ylabel('價格 ($)')
         ax1.grid(True, alpha=0.3)
         
-        # æˆäº¤é‡
+        # 成交量
         colors = ['#4CAF50' if df['close'].iloc[i] >= df['open'].iloc[i] 
                  else '#F44336' for i in range(len(df))]
         ax2.bar(df.index, df['volume'], color=colors, alpha=0.7)
-        ax2.set_ylabel('æˆäº¤é‡')
+        ax2.set_ylabel('成交量')
         ax2.grid(True, alpha=0.3)
         
         plt.tight_layout()
@@ -539,5 +539,5 @@ class ChartService:
         return str(save_path)
 
 
-# å»ºç«‹é è¨­å¯¦ä¾‹
+# 建立預設實例
 chart_service = ChartService()

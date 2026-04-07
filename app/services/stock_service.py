@@ -1,6 +1,6 @@
 """
-è‚¡ç¥¨æœå‹™
-æ•´åˆè³‡æ–™æŠ“å–ã€å¿«å–å’ŒæŠ€è¡“æŒ‡æ¨™è¨ˆç®—
+股票服務
+整合資料抓取、快取和技術指標計算
 """
 import pandas as pd
 from datetime import datetime, date, timedelta
@@ -18,22 +18,22 @@ logger = logging.getLogger(__name__)
 
 
 class StockService:
-    """è‚¡ç¥¨æœå‹™"""
+    """股票服務"""
     
     def __init__(self, db: Session):
         self.db = db
     
     def _is_cache_valid(self, symbol: str) -> bool:
         """
-        æª¢æŸ¥å¿«å–æ˜¯å¦æœ‰æ•ˆ
+        檢查快取是否有效
         
-        è¦å‰‡ï¼š
-        1. æœ‰ä»Šæ—¥è³‡æ–™
-        2. æˆ–æ˜¯é€±æœ«/å‡æ—¥æ™‚æœ‰æœ€è¿‘äº¤æ˜“æ—¥è³‡æ–™
+        規則：
+        1. 有今日資料
+        2. 或是週末/假日時有最近交易日資料
         """
         today = date.today()
         
-        # æŸ¥è©¢æœ€æ–°è³‡æ–™
+        # 查詢最新資料
         stmt = (
             select(StockPrice)
             .where(StockPrice.symbol == symbol.upper())
@@ -45,18 +45,18 @@ class StockService:
         if not result:
             return False
         
-        # å¦‚æžœæœ‰ä»Šæ—¥è³‡æ–™ï¼Œå¿«å–æœ‰æ•ˆ
+        # 如果有今日資料，快取有效
         if result.date == today:
             return True
         
-        # æª¢æŸ¥æ˜¯å¦ç‚ºé€±æœ«
-        if today.weekday() >= 5:  # é€±å…­=5, é€±æ—¥=6
-            # é€±æœ«æ™‚ï¼Œåªè¦æœ‰é€±äº”çš„è³‡æ–™å°±ç®—æœ‰æ•ˆ
+        # 檢查是否為週末
+        if today.weekday() >= 5:  # 週六=5, 週日=6
+            # 週末時，只要有週五的資料就算有效
             friday = today - timedelta(days=(today.weekday() - 4))
             if result.date >= friday:
                 return True
         
-        # æª¢æŸ¥æ›´æ–°æ™‚é–“æ˜¯å¦åœ¨å¿«å–æ™‚é–“å…§
+        # 檢查更新時間是否在快取時間內
         if result.updated_at:
             cache_hours = settings.STOCK_DATA_CACHE_HOURS
             cache_deadline = datetime.now() - timedelta(hours=cache_hours)
@@ -67,17 +67,17 @@ class StockService:
     
     def _save_prices_to_db(self, df: pd.DataFrame) -> int:
         """
-        å„²å­˜åƒ¹æ ¼è³‡æ–™åˆ°è³‡æ–™åº«
+        儲存價格資料到資料庫
         
         Returns:
-            å„²å­˜çš„ç­†æ•¸
+            儲存的筆數
         """
         if df is None or df.empty:
             return 0
         
         count = 0
         for _, row in df.iterrows():
-            # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨
+            # 檢查是否已存在
             stmt = select(StockPrice).where(
                 and_(
                     StockPrice.symbol == row["symbol"],
@@ -87,14 +87,14 @@ class StockService:
             existing = self.db.execute(stmt).scalar_one_or_none()
             
             if existing:
-                # æ›´æ–°ç¾æœ‰è³‡æ–™
+                # 更新現有資料
                 existing.open = row["open"]
                 existing.high = row["high"]
                 existing.low = row["low"]
                 existing.close = row["close"]
                 existing.volume = row["volume"]
             else:
-                # æ–°å¢žè³‡æ–™
+                # 新增資料
                 price = StockPrice(
                     symbol=row["symbol"],
                     date=row["date"],
@@ -115,7 +115,7 @@ class StockService:
         symbol: str,
         days: int = 365,
     ) -> Optional[pd.DataFrame]:
-        """å¾žè³‡æ–™åº«è¼‰å…¥åƒ¹æ ¼è³‡æ–™"""
+        """從資料庫載入價格資料"""
         start_date = date.today() - timedelta(days=days)
         
         stmt = (
@@ -149,10 +149,10 @@ class StockService:
     
     def fetch_and_cache_stock(self, symbol: str, period: str = "1y") -> bool:
         """
-        æŠ“å–è‚¡ç¥¨è³‡æ–™ä¸¦å¿«å–
+        抓取股票資料並快取
         
         Returns:
-            æ˜¯å¦æˆåŠŸ
+            是否成功
         """
         df = yahoo_finance.get_stock_history(symbol, period=period)
         if df is None:
@@ -167,26 +167,26 @@ class StockService:
         force_refresh: bool = False,
     ) -> Optional[pd.DataFrame]:
         """
-        å–å¾—è‚¡ç¥¨è³‡æ–™ï¼ˆå„ªå…ˆä½¿ç”¨å¿«å–ï¼‰
+        取得股票資料（優先使用快取）
         
         Args:
-            symbol: è‚¡ç¥¨ä»£è™Ÿ
-            force_refresh: æ˜¯å¦å¼·åˆ¶æ›´æ–°
+            symbol: 股票代號
+            force_refresh: 是否強制更新
             
         Returns:
-            åŒ…å«åƒ¹æ ¼å’ŒæŠ€è¡“æŒ‡æ¨™çš„ DataFrame
+            包含價格和技術指標的 DataFrame
         """
         symbol = symbol.upper()
         
-        # æª¢æŸ¥å¿«å–
+        # 檢查快取
         if not force_refresh and self._is_cache_valid(symbol):
-            logger.info(f"ä½¿ç”¨å¿«å–è³‡æ–™: {symbol}")
+            logger.info(f"使用快取資料: {symbol}")
             df = self._load_prices_from_db(symbol)
         else:
-            # å¾ž Yahoo Finance æŠ“å–
-            logger.info(f"å¾ž Yahoo Finance æŠ“å–: {symbol}")
+            # 從 Yahoo Finance 抓取
+            logger.info(f"從 Yahoo Finance 抓取: {symbol}")
             if not self.fetch_and_cache_stock(symbol):
-                # æŠ“å–å¤±æ•—ï¼Œå˜—è©¦ä½¿ç”¨èˆŠçš„å¿«å–
+                # 抓取失敗，嘗試使用舊的快取
                 df = self._load_prices_from_db(symbol)
                 if df is None:
                     return None
@@ -196,7 +196,7 @@ class StockService:
         if df is None or df.empty:
             return None
         
-        # è¨ˆç®—æŠ€è¡“æŒ‡æ¨™
+        # 計算技術指標
         df = indicator_service.calculate_all_indicators(df)
         
         return df
@@ -207,38 +207,38 @@ class StockService:
         force_refresh: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """
-        å–å¾—è‚¡ç¥¨å®Œæ•´åˆ†æžå ±å‘Š
+        取得股票完整分析報告
         
         Returns:
-            åˆ†æžå ±å‘Šå­—å…¸
+            分析報告字典
         """
         symbol = symbol.upper()
         
-        # å–å¾—è³‡æ–™
+        # 取得資料
         df = self.get_stock_data(symbol, force_refresh)
         if df is None:
             return None
         
-        # å–å¾—è‚¡ç¥¨åŸºæœ¬è³‡è¨Š
+        # 取得股票基本資訊
         info = yahoo_finance.get_stock_info(symbol)
         
-        # æœ€æ–°åƒ¹æ ¼è³‡æ–™
+        # 最新價格資料
         latest = df.iloc[-1]
         price = float(latest["close"])
         
-        # è¨ˆç®—æ¼²è·Œå¹…
+        # 計算漲跌幅
         changes = self._calculate_changes(df)
         
-        # æŠ€è¡“æŒ‡æ¨™
+        # 技術指標
         indicators = self._get_indicators_summary(df, latest)
         
-        # è¨Šè™Ÿ
+        # 訊號
         signals = indicator_service.get_all_signals(df)
         
-        # è©•åˆ†
+        # 評分
         score = indicator_service.calculate_score(df)
         
-        # æˆäº¤é‡
+        # 成交量
         volume_info = self._get_volume_info(df, latest)
         
         return {
@@ -268,7 +268,7 @@ class StockService:
         }
     
     def _calculate_changes(self, df: pd.DataFrame) -> Dict[str, float]:
-        """è¨ˆç®—å„æ™‚é–“æ®µæ¼²è·Œå¹…"""
+        """計算各時間段漲跌幅"""
         latest_close = df["close"].iloc[-1]
         
         def calc_change(days: int) -> Optional[float]:
@@ -290,7 +290,7 @@ class StockService:
         df: pd.DataFrame,
         latest: pd.Series,
     ) -> Dict[str, Any]:
-        """å–å¾—æŒ‡æ¨™æ‘˜è¦"""
+        """取得指標摘要"""
         price = float(latest["close"])
         
         # MA
@@ -365,7 +365,7 @@ class StockService:
         }
     
     def _get_kd_status(self, k_value: float) -> str:
-        """å–å¾— KD ç‹€æ…‹"""
+        """取得 KD 狀態"""
         if pd.isna(k_value):
             return "unknown"
         if k_value > 80:
@@ -382,7 +382,7 @@ class StockService:
         df: pd.DataFrame,
         latest: pd.Series,
     ) -> Dict[str, Any]:
-        """å–å¾—æˆäº¤é‡è³‡è¨Š"""
+        """取得成交量資訊"""
         today_vol = latest.get("volume", 0)
         avg_vol = latest.get("volume_ma20")
         vol_ratio = latest.get("volume_ratio")
@@ -394,14 +394,14 @@ class StockService:
         }
     
     def _calc_pct_from_high(self, price: float, info: Optional[Dict]) -> Optional[float]:
-        """è¨ˆç®—è·é›¢ 52 é€±é«˜é»žçš„è·Œå¹…"""
+        """計算距離 52 週高點的跌幅"""
         if not info or not info.get("fifty_two_week_high"):
             return None
         high = info["fifty_two_week_high"]
         return round((price - high) / high * 100, 2)
     
     def _calc_pct_from_low(self, price: float, info: Optional[Dict]) -> Optional[float]:
-        """è¨ˆç®—è·é›¢ 52 é€±ä½Žé»žçš„æ¼²å¹…"""
+        """計算距離 52 週低點的漲幅"""
         if not info or not info.get("fifty_two_week_low"):
             return None
         low = info["fifty_two_week_low"]
@@ -409,10 +409,10 @@ class StockService:
     
     def search_stocks(self, query: str) -> List[Dict[str, str]]:
         """
-        æœå°‹è‚¡ç¥¨ï¼ˆç°¡å–®å¯¦ä½œï¼Œç›´æŽ¥é©—è­‰ä»£è™Ÿï¼‰
+        搜尋股票（簡單實作，直接驗證代號）
         
         Returns:
-            ç¬¦åˆçš„è‚¡ç¥¨åˆ—è¡¨
+            符合的股票列表
         """
         symbol = query.upper().strip()
         
@@ -432,14 +432,14 @@ class StockService:
         years: int = 10,
     ) -> bool:
         """
-        æŠ“å–ä¸¦å¿«å–å»¶ä¼¸æ­·å²è³‡æ–™ï¼ˆæ”¯æ´å¤šå¹´ï¼‰
+        抓取並快取延伸歷史資料（支援多年）
         
         Args:
-            symbol: è‚¡ç¥¨ä»£è™Ÿ
-            years: å¹´æ•¸ (1, 3, 5, 10)
+            symbol: 股票代號
+            years: 年數 (1, 3, 5, 10)
             
         Returns:
-            æ˜¯å¦æˆåŠŸ
+            是否成功
         """
         period_map = {1: "1y", 2: "2y", 5: "5y", 10: "10y"}
         period = period_map.get(years, "10y")
@@ -457,14 +457,14 @@ class StockService:
         days: int = 365,
     ) -> Optional[pd.DataFrame]:
         """
-        å–å¾—è‚¡ç¥¨åƒ¹æ ¼æ­·å²ï¼ˆå¾žè³‡æ–™åº«ï¼‰
+        取得股票價格歷史（從資料庫）
         
         Args:
-            symbol: è‚¡ç¥¨ä»£è™Ÿ
-            days: å¤©æ•¸
+            symbol: 股票代號
+            days: 天數
             
         Returns:
-            åƒ¹æ ¼ DataFrame
+            價格 DataFrame
         """
         return self._load_prices_from_db(symbol, days)
     
@@ -474,15 +474,15 @@ class StockService:
         years: int = 10,
     ) -> bool:
         """
-        ç¢ºä¿æœ‰è¶³å¤ çš„æ­·å²è³‡æ–™
+        確保有足夠的歷史資料
         
-        æª¢æŸ¥è³‡æ–™åº«æ˜¯å¦æœ‰æŒ‡å®šå¹´ä»½çš„è³‡æ–™ï¼Œ
-        å¦‚æžœä¸è¶³å‰‡å¾ž API æŠ“å–è£œé½Š
+        檢查資料庫是否有指定年份的資料，
+        如果不足則從 API 抓取補齊
         """
         symbol = symbol.upper()
         days_needed = years * 365
         
-        # æª¢æŸ¥è³‡æ–™åº«ä¸­æœ€æ—©çš„è³‡æ–™æ—¥æœŸ
+        # 檢查資料庫中最早的資料日期
         stmt = (
             select(StockPrice)
             .where(StockPrice.symbol == symbol)
@@ -493,9 +493,9 @@ class StockService:
         
         if earliest:
             days_available = (date.today() - earliest.date).days
-            if days_available >= days_needed * 0.9:  # 90% å°±ç®—è¶³å¤ 
+            if days_available >= days_needed * 0.9:  # 90% 就算足夠
                 return True
         
-        # è³‡æ–™ä¸è¶³ï¼ŒæŠ“å–æ›´å¤š
-        logger.info(f"æŠ“å– {symbol} çš„ {years} å¹´æ­·å²è³‡æ–™")
+        # 資料不足，抓取更多
+        logger.info(f"抓取 {symbol} 的 {years} 年歷史資料")
         return self.fetch_extended_history(symbol, years)

@@ -1,29 +1,29 @@
 /**
- * æœå°‹æ ¸å¿ƒæ¨¡çµ„ (P2 æ‹†åˆ†)
+ * 搜尋核心模組 (P2 拆分)
  * 
- * è·è²¬ï¼š
- * - æœå°‹é‚è¼¯
- * - API è«‹æ±‚
- * - å¿«å–ç®¡ç†
+ * 職責：
+ * - 搜尋邏輯
+ * - API 請求
+ * - 快取管理
  * 
- * ä¾è³´ï¼šcore.js, state.js
- * è¢«ä¾è³´ï¼šsearch-render.js
+ * 依賴：core.js, state.js
+ * 被依賴：search-render.js
  */
 
 (function() {
     'use strict';
 
     // ============================================================
-    // å¿«å–ç³»çµ±
+    // 快取系統
     // ============================================================
     
     const stockCache = new Map();
-    const CACHE_TTL = 5 * 60 * 1000; // 5 åˆ†é˜
+    const CACHE_TTL = 5 * 60 * 1000; // 5 分鐘
 
     function getFromCache(symbol) {
         const cached = stockCache.get(symbol.toUpperCase());
         if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-            console.log(`ðŸ“¦ å¿«å–å‘½ä¸­: ${symbol}`);
+            console.log(`📦 快取命中: ${symbol}`);
             return cached.data;
         }
         return null;
@@ -34,13 +34,13 @@
             data: data,
             timestamp: Date.now()
         });
-        console.log(`ðŸ’¾ å·²å¿«å–: ${symbol}`);
+        console.log(`💾 已快取: ${symbol}`);
     }
 
     function clearStockCache() {
         stockCache.clear();
-        console.log('ðŸ—‘ï¸ è‚¡ç¥¨å¿«å–å·²æ¸…é™¤');
-        showToast('å¿«å–å·²æ¸…é™¤');
+        console.log('🗑️ 股票快取已清除');
+        showToast('快取已清除');
     }
 
     function getStockCacheStats() {
@@ -51,14 +51,14 @@
     }
 
     // ============================================================
-    // æœå°‹åŠŸèƒ½
+    // 搜尋功能
     // ============================================================
 
     function searchStock() {
         const input = $('searchSymbol');
         let symbol = input?.value?.trim().toUpperCase();
         if (!symbol) {
-            showToast('è«‹è¼¸å…¥è‚¡ç¥¨ä»£è™Ÿ');
+            showToast('請輸入股票代號');
             return;
         }
         searchSymbol(symbol);
@@ -74,23 +74,23 @@
         const input = $('searchSymbol');
         if (input) input.value = symbol;
 
-        // æª¢æŸ¥å‰ç«¯å¿«å–
+        // 檢查前端快取
         if (!forceRefresh) {
             const cached = getFromCache(symbol);
             if (cached) {
                 container.classList.remove('hidden');
-                // è§¸ç™¼æ¸²æŸ“ï¼ˆç”± search-render.js è™•ç†ï¼‰
+                // 觸發渲染（由 search-render.js 處理）
                 renderSearchResult(cached, symbol);
                 return;
             }
         }
 
-        // é¡¯ç¤ºè¼‰å…¥ä¸­
+        // 顯示載入中
         container.classList.remove('hidden');
         setHtml('searchResult', `
             <div class="bg-white rounded-xl shadow p-6 text-center">
                 <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
-                <p class="mt-2 text-gray-500 text-sm">æŸ¥è©¢ä¸­...ï¼ˆé¦–æ¬¡æŸ¥è©¢å¯èƒ½éœ€è¦ 10-30 ç§’ï¼‰</p>
+                <p class="mt-2 text-gray-500 text-sm">查詢中...（首次查詢可能需要 10-30 秒）</p>
             </div>
         `);
 
@@ -115,9 +115,9 @@
                 endpoint += '?refresh=true';
             }
 
-            console.log(`æŸ¥è©¢: ${endpoint}, é¡žåž‹: ${isCrypto ? 'åŠ å¯†è²¨å¹£' : isTaiwan ? 'å°è‚¡' : 'ç¾Žè‚¡'}`);
+            console.log(`查詢: ${endpoint}, 類型: ${isCrypto ? '加密貨幣' : isTaiwan ? '台股' : '美股'}`);
 
-            // è¨­ç½®è¼‰å…¥ç‹€æ…‹
+            // 設置載入狀態
             if (window.AppState) {
                 AppState.setLoading(true);
             }
@@ -129,7 +129,7 @@
             clearTimeout(timeoutId);
 
             const data = await res.json();
-            console.log('API å›žæ‡‰:', data);
+            console.log('API 回應:', data);
 
             if (window.AppState) {
                 AppState.setLoading(false);
@@ -138,9 +138,9 @@
             if (!res.ok) {
                 setHtml('searchResult', `
                     <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
-                        <p class="font-medium">æŸ¥è©¢å¤±æ•—</p>
+                        <p class="font-medium">查詢失敗</p>
                         <p class="text-sm mt-2">${data.detail || 'HTTP ' + res.status}</p>
-                        ${isCrypto ? '<p class="text-xs mt-2 text-gray-500">æ³¨æ„ï¼šåŠ å¯†è²¨å¹£æŸ¥è©¢å¯èƒ½å›  API é™åˆ¶æš«æ™‚ç„¡æ³•ä½¿ç”¨</p>' : ''}
+                        ${isCrypto ? '<p class="text-xs mt-2 text-gray-500">注意：加密貨幣查詢可能因 API 限制暫時無法使用</p>' : ''}
                     </div>
                 `);
                 return;
@@ -149,16 +149,16 @@
             if (!data.success) {
                 setHtml('searchResult', `
                     <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
-                        ${data.detail || 'æŸ¥è©¢å¤±æ•—'}
+                        ${data.detail || '查詢失敗'}
                     </div>
                 `);
                 return;
             }
 
-            // å­˜å…¥å¿«å–
+            // 存入快取
             saveToCache(symbol, data);
             
-            // åŒæ­¥åˆ° AppState
+            // 同步到 AppState
             if (window.AppState) {
                 AppState.setCurrentStock({
                     symbol: data.symbol,
@@ -169,7 +169,7 @@
                 });
             }
 
-            // æ¸²æŸ“çµæžœï¼ˆç”± search-render.js è™•ç†ï¼‰
+            // 渲染結果（由 search-render.js 處理）
             renderSearchResult(data, symbol);
 
         } catch (e) {
@@ -182,13 +182,13 @@
             if (e.name === 'AbortError') {
                 setHtml('searchResult', `
                     <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
-                        æŸ¥è©¢è¶…æ™‚ï¼Œè«‹ç¨å¾Œå†è©¦
+                        查詢超時，請稍後再試
                     </div>
                 `);
             } else {
                 setHtml('searchResult', `
                     <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
-                        æŸ¥è©¢å¤±æ•—: ${e.message}
+                        查詢失敗: ${e.message}
                     </div>
                 `);
             }
@@ -196,7 +196,7 @@
     }
 
     // ============================================================
-    // å¿«é€ŸåŠ å…¥è¿½è¹¤æ¸…å–®
+    // 快速加入追蹤清單
     // ============================================================
 
     async function quickAddToWatchlist(symbol, type = 'stock') {
@@ -209,9 +209,9 @@
             const data = await res.json();
 
             if (res.ok && data.success) {
-                showToast(`å·²åŠ å…¥è¿½è¹¤: ${symbol}`);
+                showToast(`已加入追蹤: ${symbol}`);
                 
-                // æ¨‚è§€æ›´æ–° AppState
+                // 樂觀更新 AppState
                 if (window.AppState) {
                     AppState.addToWatchlist({
                         symbol: symbol.toUpperCase(),
@@ -220,19 +220,19 @@
                     });
                 }
             } else {
-                showToast(data.detail || 'åŠ å…¥å¤±æ•—', 'error');
+                showToast(data.detail || '加入失敗', 'error');
             }
         } catch (e) {
             console.error('Add to watchlist error:', e);
-            showToast('åŠ å…¥å¤±æ•—', 'error');
+            showToast('加入失敗', 'error');
         }
     }
 
     // ============================================================
-    // å°Žå‡º
+    // 導出
     // ============================================================
 
-    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    // 掛載到 SELA 命名空間
     if (window.SELA) {
         window.SELA.search = {
             searchStock,
@@ -243,37 +243,37 @@
         };
     }
 
-    // å…¨åŸŸå°Žå‡ºï¼ˆå‘å¾Œå…¼å®¹ï¼‰
+    // 全域導出（向後兼容）
     window.searchStock = searchStock;
     window.searchSymbol = searchSymbol;
     window.quickAddToWatchlist = quickAddToWatchlist;
     window.clearStockCache = clearStockCache;
     window.getStockCacheStats = getStockCacheStats;
 
-    console.log('ðŸ” search-core.js æœå°‹æ ¸å¿ƒæ¨¡çµ„å·²è¼‰å…¥');
+    console.log('🔍 search-core.js 搜尋核心模組已載入');
 })();
 /**
- * æœå°‹çµæžœæ¸²æŸ“æ¨¡çµ„ (P2 æ‹†åˆ†)
+ * 搜尋結果渲染模組 (P2 拆分)
  * 
- * è·è²¬ï¼š
- * - æœå°‹çµæžœæ¸²æŸ“
- * - MA é€²éšŽåˆ†æž
- * - äº‹ä»¶å§”è¨—è™•ç†
+ * 職責：
+ * - 搜尋結果渲染
+ * - MA 進階分析
+ * - 事件委託處理
  * 
- * ä¾è³´ï¼šcore.js, search-core.js
+ * 依賴：core.js, search-core.js
  */
 
 (function() {
     'use strict';
 
     // ============================================================
-    // ç§æœ‰è®Šæ•¸
+    // 私有變數
     // ============================================================
 
     let currentChartData = null;
 
     // ============================================================
-    // æ¸²æŸ“å…¥å£
+    // 渲染入口
     // ============================================================
 
     function renderSearchResult(data, symbol) {
@@ -288,7 +288,7 @@
     }
 
     // ============================================================
-    // è‚¡ç¥¨çµæžœæ¸²æŸ“
+    // 股票結果渲染
     // ============================================================
 
     function renderStockResult(stock, isCrypto, isTaiwan = false) {
@@ -302,29 +302,29 @@
 
         const priceChange = stock.change?.day || 0;
         const priceChangeClass = priceChange >= 0 ? 'text-green-600' : 'text-red-600';
-        const priceChangeIcon = priceChange >= 0 ? 'ðŸ“ˆ' : 'ðŸ“‰';
+        const priceChangeIcon = priceChange >= 0 ? '📈' : '📉';
 
         const alignmentClass = ma.alignment === 'bullish' ? 'text-green-600' : ma.alignment === 'bearish' ? 'text-red-600' : 'text-gray-600';
-        const alignmentText = ma.alignment === 'bullish' ? 'å¤šé ­ ðŸŸ¢' : ma.alignment === 'bearish' ? 'ç©ºé ­ ðŸ”´' : 'ä¸­æ€§';
+        const alignmentText = ma.alignment === 'bullish' ? '多頭 🟢' : ma.alignment === 'bearish' ? '空頭 🔴' : '中性';
 
-        const rsiStatus = rsi.status === 'overbought' ? 'è¶…è²· âš ï¸' : rsi.status === 'oversold' ? 'è¶…è³£ ðŸŸ¢' : 'ä¸­æ€§';
-        const macdStatus = macd.status === 'bullish' ? 'åå¤š ðŸŸ¢' : 'åç©º ðŸ”´';
+        const rsiStatus = rsi.status === 'overbought' ? '超買 ⚠️' : rsi.status === 'oversold' ? '超賣 🟢' : '中性';
+        const macdStatus = macd.status === 'bullish' ? '偏多 🟢' : '偏空 🔴';
 
         let marketLabel, marketClass;
         if (isCrypto) {
-            marketLabel = 'åŠ å¯†è²¨å¹£';
+            marketLabel = '加密貨幣';
             marketClass = 'bg-purple-100 text-purple-700';
         } else if (isTaiwan) {
-            marketLabel = 'å°è‚¡';
+            marketLabel = '台股';
             marketClass = 'bg-orange-100 text-orange-700';
         } else {
-            marketLabel = 'ç¾Žè‚¡';
+            marketLabel = '美股';
             marketClass = 'bg-blue-100 text-blue-700';
         }
 
         const cacheIndicator = stock.from_cache
-            ? `<span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-500" title="è³‡æ–™ä¾†è‡ªå¿«å–">
-                   <i class="fas fa-database mr-1"></i>å¿«å–
+            ? `<span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-500" title="資料來自快取">
+                   <i class="fas fa-database mr-1"></i>快取
                </span>`
             : '';
 
@@ -332,7 +332,7 @@
 
         const html = `
             <div class="bg-white rounded-xl shadow overflow-hidden" id="searchResultCard" data-symbol="${stock.symbol}">
-                <!-- åƒ¹æ ¼å€å¡Š -->
+                <!-- 價格區塊 -->
                 <div class="p-4 md:p-6 border-b">
                     <div class="flex items-start justify-between mb-2">
                         <div>
@@ -341,7 +341,7 @@
                         </div>
                         <div class="flex items-center gap-2">
                             ${cacheIndicator}
-                            <button data-action="refresh" data-symbol="${stock.symbol}" class="p-2 text-gray-400 hover:text-blue-600 transition" title="é‡æ–°æ•´ç†">
+                            <button data-action="refresh" data-symbol="${stock.symbol}" class="p-2 text-gray-400 hover:text-blue-600 transition" title="重新整理">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
                             <span class="px-2 py-1 rounded text-xs ${marketClass}">${marketLabel}</span>
@@ -355,12 +355,12 @@
                     </div>
                 </div>
 
-                <!-- å¿«é€Ÿç¸½è¦½ -->
+                <!-- 快速總覽 -->
                 <div class="p-4 md:p-6 border-b bg-gray-50">
-                    <h4 class="font-semibold text-gray-700 mb-3 text-sm">ðŸ“Š å¿«é€Ÿç¸½è¦½</h4>
+                    <h4 class="font-semibold text-gray-700 mb-3 text-sm">📊 快速總覽</h4>
                     <div class="grid grid-cols-2 gap-3 text-sm">
                         <div class="flex justify-between">
-                            <span class="text-gray-500">å‡ç·šæŽ’åˆ—</span>
+                            <span class="text-gray-500">均線排列</span>
                             <span class="font-medium ${alignmentClass}">${alignmentText}</span>
                         </div>
                         <div class="flex justify-between">
@@ -372,22 +372,22 @@
                             <span class="font-medium">${macdStatus}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-gray-500">è©•åˆ†</span>
-                            <span class="font-medium">${stock.score?.rating === 'bullish' ? 'åå¤š' : stock.score?.rating === 'bearish' ? 'åç©º' : 'ä¸­æ€§'} (${stock.score?.buy || 0}/${stock.score?.sell || 0})</span>
+                            <span class="text-gray-500">評分</span>
+                            <span class="font-medium">${stock.score?.rating === 'bullish' ? '偏多' : stock.score?.rating === 'bearish' ? '偏空' : '中性'} (${stock.score?.buy || 0}/${stock.score?.sell || 0})</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- MA é€²éšŽåˆ†æž -->
+                <!-- MA 進階分析 -->
                 ${maAdvanced}
 
-                <!-- å¹´åŒ–å ±é…¬çŽ‡ (CAGR) -->
+                <!-- 年化報酬率 (CAGR) -->
                 ${stock.cagr ? renderCAGRSection(stock.cagr) : ''}
 
-                <!-- è©³ç´°æŒ‡æ¨™ (å¯æ‘ºç–Š) -->
+                <!-- 詳細指標 (可摺疊) -->
                 <div class="border-b">
                     <button data-action="toggle-collapsible" class="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 touch-target">
-                        <span class="font-medium text-gray-700">â–¼ å±•é–‹è©³ç´°æŒ‡æ¨™</span>
+                        <span class="font-medium text-gray-700">▼ 展開詳細指標</span>
                         <i class="fas fa-chevron-down text-gray-400 transition-transform"></i>
                     </button>
                     <div class="collapsible-content" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease;">
@@ -395,21 +395,21 @@
                     </div>
                 </div>
 
-                <!-- æ“ä½œæŒ‰éˆ• -->
+                <!-- 操作按鈕 -->
                 <div class="p-4 pb-28 md:pb-4 space-y-3">
                     ${stock.chart_data ? `
                     <button data-action="open-chart" data-symbol="${stock.symbol}" data-price="${stock.price?.current || 0}"
                         class="w-full py-3 bg-blue-600 text-white rounded-lg font-medium flex items-center justify-center touch-target hover:bg-blue-700">
-                        <i class="fas fa-chart-line mr-2"></i>æŸ¥çœ‹å®Œæ•´åœ–è¡¨
+                        <i class="fas fa-chart-line mr-2"></i>查看完整圖表
                     </button>
                     ` : ''}
                     <button data-action="load-returns" data-symbol="${stock.symbol}"
                         class="w-full py-3 bg-green-600 text-white rounded-lg font-medium flex items-center justify-center touch-target hover:bg-green-700">
-                        <i class="fas fa-percentage mr-2"></i>å¹´åŒ–å ±é…¬çŽ‡
+                        <i class="fas fa-percentage mr-2"></i>年化報酬率
                     </button>
                     <button data-action="add-watchlist" data-symbol="${stock.symbol}" data-type="${isCrypto ? 'crypto' : 'stock'}"
                         class="w-full py-3 border-2 border-orange-500 text-orange-600 rounded-lg font-medium flex items-center justify-center touch-target hover:bg-orange-50">
-                        <i class="fas fa-star mr-2"></i>åŠ å…¥è¿½è¹¤æ¸…å–®
+                        <i class="fas fa-star mr-2"></i>加入追蹤清單
                     </button>
                 </div>
             </div>
@@ -419,20 +419,20 @@
     }
 
     // ============================================================
-    // MA é€²éšŽåˆ†æžæ¸²æŸ“
+    // MA 進階分析渲染
     // ============================================================
 
     function renderMAAdvanced(ma, currentPrice) {
         if (!ma || !currentPrice) return '';
 
-        // äº¤å‰è¨Šè™Ÿ
+        // 交叉訊號
         const crossSignals = [];
-        if (ma.golden_cross_20_50) crossSignals.push({ type: 'golden', label: 'MA20â†—MA50 é»ƒé‡‘äº¤å‰', days: ma.golden_cross_20_50_days });
-        if (ma.death_cross_20_50) crossSignals.push({ type: 'death', label: 'MA20â†˜MA50 æ­»äº¡äº¤å‰', days: ma.death_cross_20_50_days });
-        if (ma.golden_cross_50_200) crossSignals.push({ type: 'golden', label: 'MA50â†—MA200 é»ƒé‡‘äº¤å‰', days: ma.golden_cross_50_200_days });
-        if (ma.death_cross_50_200) crossSignals.push({ type: 'death', label: 'MA50â†˜MA200 æ­»äº¡äº¤å‰', days: ma.death_cross_50_200_days });
+        if (ma.golden_cross_20_50) crossSignals.push({ type: 'golden', label: 'MA20↗MA50 黃金交叉', days: ma.golden_cross_20_50_days });
+        if (ma.death_cross_20_50) crossSignals.push({ type: 'death', label: 'MA20↘MA50 死亡交叉', days: ma.death_cross_20_50_days });
+        if (ma.golden_cross_50_200) crossSignals.push({ type: 'golden', label: 'MA50↗MA200 黃金交叉', days: ma.golden_cross_50_200_days });
+        if (ma.death_cross_50_200) crossSignals.push({ type: 'death', label: 'MA50↘MA200 死亡交叉', days: ma.death_cross_50_200_days });
 
-        // è·é›¢å‡ç·šç™¾åˆ†æ¯”
+        // 距離均線百分比
         const distances = [];
         if (ma.dist_ma20 !== undefined) distances.push({ label: 'MA20', value: ma.dist_ma20 });
         if (ma.dist_ma50 !== undefined) distances.push({ label: 'MA50', value: ma.dist_ma50 });
@@ -442,16 +442,16 @@
 
         let html = `
             <div class="p-4 md:p-6 border-b">
-                <h4 class="font-semibold text-gray-700 mb-3 text-sm">ðŸ” å‡ç·šé€²éšŽåˆ†æž</h4>
+                <h4 class="font-semibold text-gray-700 mb-3 text-sm">🔍 均線進階分析</h4>
         `;
 
-        // äº¤å‰è¨Šè™Ÿ
+        // 交叉訊號
         if (crossSignals.length > 0) {
             html += `<div class="mb-3">`;
             crossSignals.forEach(signal => {
                 const bgClass = signal.type === 'golden' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-                const icon = signal.type === 'golden' ? 'ðŸ”º' : 'ðŸ”»';
-                const daysText = signal.days ? `(${signal.days}å¤©å‰)` : '';
+                const icon = signal.type === 'golden' ? '🔺' : '🔻';
+                const daysText = signal.days ? `(${signal.days}天前)` : '';
                 html += `
                     <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${bgClass} mr-2 mb-2">
                         ${icon} ${signal.label} ${daysText}
@@ -461,7 +461,7 @@
             html += `</div>`;
         }
 
-        // è·é›¢å‡ç·š
+        // 距離均線
         if (distances.length > 0) {
             html += `
                 <div class="grid grid-cols-3 gap-2 text-center">
@@ -471,7 +471,7 @@
                         const textClass = isAbove ? 'text-green-600' : 'text-red-600';
                         return `
                             <div class="p-2 rounded-lg ${bgClass}">
-                                <p class="text-gray-500 text-xs">è· ${d.label}</p>
+                                <p class="text-gray-500 text-xs">距 ${d.label}</p>
                                 <p class="font-bold ${textClass}">${d.value >= 0 ? '+' : ''}${d.value.toFixed(1)}%</p>
                             </div>
                         `;
@@ -485,13 +485,13 @@
     }
 
     // ============================================================
-    // CAGR å€å¡Šæ¸²æŸ“
+    // CAGR 區塊渲染
     // ============================================================
 
     function renderCAGRSection(cagr) {
         return `
             <div class="p-4 md:p-6 border-b">
-                <h4 class="font-semibold text-gray-700 mb-3 text-sm">ðŸ“ˆ å¹´åŒ–å ±é…¬çŽ‡ (CAGR)</h4>
+                <h4 class="font-semibold text-gray-700 mb-3 text-sm">📈 年化報酬率 (CAGR)</h4>
                 <div class="grid grid-cols-4 gap-2 text-center">
                     ${['1y', '3y', '5y', '10y'].map(period => {
                         const val = cagr[`cagr_${period}`];
@@ -499,7 +499,7 @@
                         const textClass = val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-600';
                         return `
                             <div class="p-2 rounded-lg ${bgClass}">
-                                <p class="text-gray-500 text-xs">${period.replace('y', ' å¹´')}</p>
+                                <p class="text-gray-500 text-xs">${period.replace('y', ' 年')}</p>
                                 <p class="font-bold ${textClass}">
                                     ${val !== null ? (val > 0 ? '+' : '') + val + '%' : '--'}
                                 </p>
@@ -507,13 +507,13 @@
                         `;
                     }).join('')}
                 </div>
-                <p class="text-xs text-gray-400 mt-2 text-center">å¹´åŒ–è¤‡åˆæˆé•·çŽ‡ï¼Œåæ˜ é•·æœŸæŠ•è³‡å›žå ±</p>
+                <p class="text-xs text-gray-400 mt-2 text-center">年化複合成長率，反映長期投資回報</p>
             </div>
         `;
     }
 
     // ============================================================
-    // è©³ç´°æŒ‡æ¨™æ¸²æŸ“
+    // 詳細指標渲染
     // ============================================================
 
     function renderDetailedIndicators(ma, rsi, macd) {
@@ -532,7 +532,7 @@
                                 <p class="text-gray-500 text-xs">${key.toUpperCase()}</p>
                                 <p class="font-semibold">${val?.toFixed(2) || '--'}</p>
                                 <p class="text-xs ${isAbove ? 'text-green-600' : 'text-red-600'}">
-                                    ${isAbove ? 'åƒ¹æ ¼åœ¨ä¸Š âœ”' : 'åƒ¹æ ¼åœ¨ä¸‹'} ${distText ? `(${distText})` : ''}
+                                    ${isAbove ? '價格在上 ✔' : '價格在下'} ${distText ? `(${distText})` : ''}
                                 </p>
                             </div>
                         `;
@@ -553,16 +553,16 @@
     }
 
     // ============================================================
-    // äº‹ä»¶å§”è¨— (P2 æ ¸å¿ƒå„ªåŒ–)
+    // 事件委託 (P2 核心優化)
     // ============================================================
 
     function initSearchEventDelegation() {
         const container = $('searchResult');
         if (!container) return;
 
-        // ä½¿ç”¨äº‹ä»¶å§”è¨—ï¼Œåªç¶å®šä¸€å€‹ç›£è½å™¨
+        // 使用事件委託，只綁定一個監聽器
         container.addEventListener('click', handleSearchResultClick);
-        console.log('ðŸ“Œ æœå°‹çµæžœäº‹ä»¶å§”è¨—å·²åˆå§‹åŒ–');
+        console.log('📌 搜尋結果事件委託已初始化');
     }
 
     function handleSearchResultClick(e) {
@@ -610,7 +610,7 @@
         }
     }
 
-    // æ‘ºç–Šé¢æ¿åˆ‡æ›
+    // 摺疊面板切換
     function toggleCollapsible(button) {
         const content = button.nextElementSibling;
         const icon = button.querySelector('i');
@@ -625,11 +625,11 @@
     }
 
     // ============================================================
-    // åˆå§‹åŒ–
+    // 初始化
     // ============================================================
 
     function init() {
-        // DOM è¼‰å…¥å¾Œåˆå§‹åŒ–äº‹ä»¶å§”è¨—
+        // DOM 載入後初始化事件委託
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initSearchEventDelegation);
         } else {
@@ -640,10 +640,10 @@
     init();
 
     // ============================================================
-    // å°Žå‡º
+    // 導出
     // ============================================================
 
-    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    // 掛載到 SELA 命名空間
     if (window.SELA && window.SELA.search) {
         Object.assign(window.SELA.search, {
             renderSearchResult,
@@ -651,51 +651,51 @@
         });
     }
 
-    // å…¨åŸŸå°Žå‡ºï¼ˆå‘å¾Œå…¼å®¹ï¼‰
+    // 全域導出（向後兼容）
     window.renderSearchResult = renderSearchResult;
     window.renderStockResult = renderStockResult;
     window.toggleCollapsible = toggleCollapsible;
 
-    console.log('ðŸŽ¨ search-render.js æ¸²æŸ“æ¨¡çµ„å·²è¼‰å…¥');
+    console.log('🎨 search-render.js 渲染模組已載入');
 })();
 /**
- * æœå°‹åœ–è¡¨æ¨¡çµ„ (P2 æ‹†åˆ†)
+ * 搜尋圖表模組 (P2 拆分)
  * 
- * è·è²¬ï¼š
- * - å…¨èž¢å¹•åœ–è¡¨
- * - æˆäº¤é‡åœ–è¡¨
- * - åœ–è¡¨äº’å‹•
+ * 職責：
+ * - 全螢幕圖表
+ * - 成交量圖表
+ * - 圖表互動
  * 
- * ä¾è³´ï¼šcore.js, Chart.js
+ * 依賴：core.js, Chart.js
  */
 
 (function() {
     'use strict';
 
     // ============================================================
-    // ç§æœ‰è®Šæ•¸
+    // 私有變數
     // ============================================================
 
     let fullscreenChartInstance = null;
     let volumeChartInstance = null;
 
     // ============================================================
-    // å…¨èž¢å¹•åœ–è¡¨
+    // 全螢幕圖表
     // ============================================================
 
     function openChartFullscreen(symbol, currentPrice) {
         const chartData = window.currentChartData;
         if (!chartData) {
-            showToast('ç„¡åœ–è¡¨è³‡æ–™');
+            showToast('無圖表資料');
             return;
         }
 
         const modal = $('chartFullscreenModal');
         if (!modal) return;
 
-        // æ›´æ–°æ¨™é¡Œ
+        // 更新標題
         const title = $('chartModalTitle');
-        if (title) title.textContent = `${symbol} æŠ€è¡“åˆ†æž`;
+        if (title) title.textContent = `${symbol} 技術分析`;
 
         const priceEl = $('chartModalPrice');
         if (priceEl) priceEl.textContent = `$${currentPrice?.toLocaleString() || '--'}`;
@@ -703,7 +703,7 @@
         modal.classList.remove('hidden');
         modal.classList.add('flex');
 
-        // é è¨­é¡¯ç¤º 60 å¤©
+        // 預設顯示 60 天
         setTimeout(() => renderFullscreenChart(chartData, 60), 100);
     }
 
@@ -728,7 +728,7 @@
         const chartData = window.currentChartData;
         if (!chartData) return;
 
-        // æ›´æ–°æŒ‰éˆ•ç‹€æ…‹
+        // 更新按鈕狀態
         document.querySelectorAll('.chart-range-btn').forEach(btn => {
             btn.classList.remove('bg-blue-600', 'text-white');
             btn.classList.add('bg-gray-100', 'text-gray-700');
@@ -742,7 +742,7 @@
     }
 
     // ============================================================
-    // æ¸²æŸ“å…¨èž¢å¹•åœ–è¡¨
+    // 渲染全螢幕圖表
     // ============================================================
 
     function renderFullscreenChart(chartData, days = 60) {
@@ -757,7 +757,7 @@
         const dataLength = chartData.dates.length;
         const startIdx = Math.max(0, dataLength - days);
 
-        // æ—¥æœŸæ ¼å¼åŒ–
+        // 日期格式化
         const formatDate = (d) => {
             if (days <= 30) return d.slice(5);
             if (days <= 130) return d.slice(5);
@@ -772,7 +772,7 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'æ”¶ç›¤åƒ¹',
+                        label: '收盤價',
                         data: chartData.prices.slice(startIdx),
                         borderColor: '#3B82F6',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -844,21 +844,21 @@
             }
         });
 
-        // æ¸²æŸ“æˆäº¤é‡åœ–è¡¨
+        // 渲染成交量圖表
         if (chartData.volumes && chartData.volumes.length > 0) {
             renderVolumeChart(chartData, days, labels);
         }
     }
 
     // ============================================================
-    // æ¸²æŸ“æˆäº¤é‡åœ–è¡¨
+    // 渲染成交量圖表
     // ============================================================
 
     function renderVolumeChart(chartData, days, labels) {
         const volumeCanvas = $('volumeChart');
         if (!volumeCanvas) return;
 
-        // é¡¯ç¤ºæˆäº¤é‡å®¹å™¨
+        // 顯示成交量容器
         const volumeContainer = $('volumeChartContainer');
         if (volumeContainer) {
             volumeContainer.classList.remove('hidden');
@@ -875,13 +875,13 @@
         const volumes = chartData.volumes.slice(startIdx);
         const prices = chartData.prices.slice(startIdx);
 
-        // è¨ˆç®—æ¯æ ¹æŸ±å­çš„é¡è‰²ï¼ˆæ¼²ç¶ è·Œç´…ï¼‰
+        // 計算每根柱子的顏色（漲綠跌紅）
         const barColors = prices.map((price, i) => {
             if (i === 0) return 'rgba(156, 163, 175, 0.6)';
             return price >= prices[i - 1] ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
         });
 
-        // è¨ˆç®— 20 æ—¥å‡é‡
+        // 計算 20 日均量
         const avgVolumes = [];
         for (let i = 0; i < volumes.length; i++) {
             if (i < 19) {
@@ -898,14 +898,14 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'æˆäº¤é‡',
+                        label: '成交量',
                         data: volumes,
                         backgroundColor: barColors,
                         borderWidth: 0,
                         barPercentage: 0.8,
                     },
                     {
-                        label: '20æ—¥å‡é‡',
+                        label: '20日均量',
                         data: avgVolumes,
                         type: 'line',
                         borderColor: '#F59E0B',
@@ -960,7 +960,7 @@
     }
 
     // ============================================================
-    // å¹´åŒ–å ±é…¬çŽ‡ Modal
+    // 年化報酬率 Modal
     // ============================================================
 
     async function loadReturnsModal(symbol) {
@@ -974,7 +974,7 @@
         content.innerHTML = `
             <div class="text-center py-8">
                 <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
-                <p class="mt-2 text-gray-500">è¼‰å…¥ä¸­...</p>
+                <p class="mt-2 text-gray-500">載入中...</p>
             </div>
         `;
 
@@ -983,7 +983,7 @@
             const data = await res.json();
 
             if (!data.success) {
-                content.innerHTML = `<p class="text-center text-red-500">${data.detail || 'è¼‰å…¥å¤±æ•—'}</p>`;
+                content.innerHTML = `<p class="text-center text-red-500">${data.detail || '載入失敗'}</p>`;
                 return;
             }
 
@@ -991,7 +991,7 @@
 
         } catch (e) {
             console.error('Returns error:', e);
-            content.innerHTML = `<p class="text-center text-red-500">è¼‰å…¥å¤±æ•—: ${e.message}</p>`;
+            content.innerHTML = `<p class="text-center text-red-500">載入失敗: ${e.message}</p>`;
         }
     }
 
@@ -1000,17 +1000,17 @@
         const cagr = data.cagr || {};
 
         const html = `
-            <h4 class="font-semibold text-lg mb-4">${data.symbol} æ­·å²å ±é…¬çŽ‡</h4>
+            <h4 class="font-semibold text-lg mb-4">${data.symbol} 歷史報酬率</h4>
             
             <div class="space-y-4">
                 <div>
-                    <p class="text-sm text-gray-500 mb-2">ç´¯ç©å ±é…¬çŽ‡</p>
+                    <p class="text-sm text-gray-500 mb-2">累積報酬率</p>
                     <div class="grid grid-cols-4 gap-2 text-center">
                         ${['1m', '3m', '6m', '1y'].map(period => {
                             const val = returns[period];
                             const bgClass = val > 0 ? 'bg-green-50' : val < 0 ? 'bg-red-50' : 'bg-gray-50';
                             const textClass = val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-600';
-                            const label = period === '1m' ? '1æœˆ' : period === '3m' ? '3æœˆ' : period === '6m' ? '6æœˆ' : '1å¹´';
+                            const label = period === '1m' ? '1月' : period === '3m' ? '3月' : period === '6m' ? '6月' : '1年';
                             return `
                                 <div class="p-2 rounded ${bgClass}">
                                     <p class="text-xs text-gray-500">${label}</p>
@@ -1022,13 +1022,13 @@
                 </div>
                 
                 <div>
-                    <p class="text-sm text-gray-500 mb-2">å¹´åŒ–å ±é…¬çŽ‡ (CAGR)</p>
+                    <p class="text-sm text-gray-500 mb-2">年化報酬率 (CAGR)</p>
                     <div class="grid grid-cols-4 gap-2 text-center">
                         ${['1y', '3y', '5y', '10y'].map(period => {
                             const val = cagr[`cagr_${period}`];
                             const bgClass = val > 0 ? 'bg-green-50' : val < 0 ? 'bg-red-50' : 'bg-gray-50';
                             const textClass = val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-600';
-                            const label = period.replace('y', 'å¹´');
+                            const label = period.replace('y', '年');
                             return `
                                 <div class="p-2 rounded ${bgClass}">
                                     <p class="text-xs text-gray-500">${label}</p>
@@ -1040,7 +1040,7 @@
                 </div>
                 
                 <p class="text-xs text-gray-400 text-center">
-                    CAGR = å¹´åŒ–è¤‡åˆæˆé•·çŽ‡ï¼Œå·²åŒ…å«é…æ¯å†æŠ•å…¥çš„è¤‡åˆ©æ•ˆæžœ
+                    CAGR = 年化複合成長率，已包含配息再投入的複利效果
                 </p>
             </div>
         `;
@@ -1057,10 +1057,10 @@
     }
 
     // ============================================================
-    // å°Žå‡º
+    // 導出
     // ============================================================
 
-    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    // 掛載到 SELA 命名空間
     if (window.SELA && window.SELA.search) {
         Object.assign(window.SELA.search, {
             openChartFullscreen,
@@ -1071,7 +1071,7 @@
         });
     }
 
-    // å…¨åŸŸå°Žå‡ºï¼ˆå‘å¾Œå…¼å®¹ï¼‰
+    // 全域導出（向後兼容）
     window.openChartFullscreen = openChartFullscreen;
     window.closeChartFullscreen = closeChartFullscreen;
     window.setChartRange = setChartRange;
@@ -1080,5 +1080,5 @@
     window.loadReturnsModal = loadReturnsModal;
     window.closeReturnsModal = closeReturnsModal;
 
-    console.log('ðŸ“Š search-chart.js åœ–è¡¨æ¨¡çµ„å·²è¼‰å…¥');
+    console.log('📊 search-chart.js 圖表模組已載入');
 })();

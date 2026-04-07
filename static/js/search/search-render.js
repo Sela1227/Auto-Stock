@@ -1,19 +1,19 @@
 /**
- * æœå°‹çµæžœæ¸²æŸ“æ¨¡çµ„ (ä¿®å¾©ç‰ˆ 2026-01-17)
+ * 搜尋結果渲染模組 (修復版 2026-01-17)
  * 
- * ðŸ”§ ä¿®å¾©ï¼š
- * 1. æ™‚é–“ç¯„åœæŒ‰éˆ•ç„¡æ³•é»žæ“Š - ä½¿ç”¨ onclick ç›´æŽ¥ç¶å®š
- * 2. åœ–ä¾‹ç„¡æ³•é»žæ“Šåˆ‡æ› - å•Ÿç”¨ Chart.js legend onClick
- * 3. åœ–è¡¨å³é‚Šç©ºç™½å¤ªå° - å¢žåŠ  layout.padding
- * 4. chartFullscreenModal â†’ chartFullscreen (æ­£ç¢º ID)
- * 5. chartModalTitle â†’ chartFullscreenTitle (æ­£ç¢º ID)
+ * 🔧 修復：
+ * 1. 時間範圍按鈕無法點擊 - 使用 onclick 直接綁定
+ * 2. 圖例無法點擊切換 - 啟用 Chart.js legend onClick
+ * 3. 圖表右邊空白太小 - 增加 layout.padding
+ * 4. chartFullscreenModal → chartFullscreen (正確 ID)
+ * 5. chartModalTitle → chartFullscreenTitle (正確 ID)
  */
 
 (function() {
     'use strict';
 
     // ============================================================
-    // è¼”åŠ©å‡½æ•¸
+    // 輔助函數
     // ============================================================
 
     function $(id) {
@@ -26,7 +26,7 @@
     }
 
     // ============================================================
-    // åœ–è¡¨å¯¦ä¾‹
+    // 圖表實例
     // ============================================================
 
     let fullscreenChartInstance = null;
@@ -34,7 +34,7 @@
     let currentChartData = null;
 
     // ============================================================
-    // æ¸²æŸ“å…¥å£
+    // 渲染入口
     // ============================================================
 
     function renderSearchResult(data, symbol) {
@@ -49,7 +49,7 @@
     }
 
     // ============================================================
-    // è‚¡ç¥¨çµæžœæ¸²æŸ“
+    // 股票結果渲染
     // ============================================================
 
     function renderStockResult(data, isCrypto, isTaiwan) {
@@ -62,43 +62,43 @@
 
         const dayChange = change.day;
         const changeClass = dayChange >= 0 ? 'text-green-600' : 'text-red-600';
-        const changeIcon = dayChange >= 0 ? 'â–²' : 'â–¼';
+        const changeIcon = dayChange >= 0 ? '▲' : '▼';
         const changeBg = dayChange >= 0 ? 'bg-green-50' : 'bg-red-50';
 
-        // æ ¼å¼åŒ–åƒ¹æ ¼
+        // 格式化價格
         const formatPrice = (p) => {
             if (p == null) return '--';
             if (isTaiwan) return p.toLocaleString();
             return p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         };
 
-        // MA ç‹€æ…‹
+        // MA 狀態
         const ma = indicators.ma || {};
         const maAlignment = ma.alignment || 'neutral';
-        const maAlignmentText = maAlignment === 'bullish' ? 'å¤šé ­æŽ’åˆ—' : maAlignment === 'bearish' ? 'ç©ºé ­æŽ’åˆ—' : 'ä¸­æ€§';
+        const maAlignmentText = maAlignment === 'bullish' ? '多頭排列' : maAlignment === 'bearish' ? '空頭排列' : '中性';
         const maAlignmentClass = maAlignment === 'bullish' ? 'text-green-600' : maAlignment === 'bearish' ? 'text-red-600' : 'text-gray-600';
 
-        // RSI ç‹€æ…‹
+        // RSI 狀態
         const rsi = indicators.rsi || {};
         const rsiValue = rsi.value || 50;
         const rsiStatus = rsi.status || 'neutral';
         const rsiClass = rsiStatus === 'overbought' ? 'text-red-600' : rsiStatus === 'oversold' ? 'text-green-600' : 'text-gray-600';
-        const rsiText = rsiStatus === 'overbought' ? 'è¶…è²·' : rsiStatus === 'oversold' ? 'è¶…è³£' : 'ä¸­æ€§';
+        const rsiText = rsiStatus === 'overbought' ? '超買' : rsiStatus === 'oversold' ? '超賣' : '中性';
 
-        // MACD ç‹€æ…‹
+        // MACD 狀態
         const macd = indicators.macd || {};
         const macdStatus = macd.status || 'neutral';
         const macdClass = macdStatus === 'bullish' ? 'text-green-600' : 'text-red-600';
-        const macdText = macdStatus === 'bullish' ? 'å¤šé ­' : 'ç©ºé ­';
+        const macdText = macdStatus === 'bullish' ? '多頭' : '空頭';
 
-        // è©•åˆ†
+        // 評分
         const rating = score.rating || 'neutral';
-        const ratingText = rating === 'bullish' ? 'åå¤š' : rating === 'bearish' ? 'åç©º' : 'ä¸­æ€§';
+        const ratingText = rating === 'bullish' ? '偏多' : rating === 'bearish' ? '偏空' : '中性';
         const ratingClass = rating === 'bullish' ? 'bg-green-100 text-green-800' : rating === 'bearish' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
 
         const html = `
             <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                <!-- æ¨™é¡Œåˆ— -->
+                <!-- 標題列 -->
                 <div class="p-4 ${changeBg} border-b">
                     <div class="flex items-center justify-between">
                         <div>
@@ -114,29 +114,29 @@
                     </div>
                 </div>
 
-                <!-- å¿«é€Ÿæ“ä½œ -->
+                <!-- 快速操作 -->
                 <div class="p-4 border-b bg-gray-50">
                     <div class="flex flex-wrap gap-2">
                         <button onclick="quickAddToWatchlist('${symbol}', 'stock')" 
                                 class="flex-1 min-w-[100px] py-2 px-3 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                            <i class="fas fa-plus mr-1"></i>è¿½è¹¤
+                            <i class="fas fa-plus mr-1"></i>追蹤
                         </button>
                         <button onclick="openChartFullscreen('${symbol}', ${price})"
                                 class="flex-1 min-w-[100px] py-2 px-3 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors">
-                            <i class="fas fa-chart-line mr-1"></i>åœ–è¡¨
+                            <i class="fas fa-chart-line mr-1"></i>圖表
                         </button>
                         <button onclick="loadReturnsModal('${symbol}')"
                                 class="flex-1 min-w-[100px] py-2 px-3 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
-                            <i class="fas fa-percentage mr-1"></i>å ±é…¬çŽ‡
+                            <i class="fas fa-percentage mr-1"></i>報酬率
                         </button>
                     </div>
                 </div>
 
-                <!-- æŠ€è¡“æŒ‡æ¨™æ‘˜è¦ -->
+                <!-- 技術指標摘要 -->
                 <div class="p-4">
                     <div class="grid grid-cols-2 gap-3 mb-4">
                         <div class="p-3 bg-gray-50 rounded-lg">
-                            <p class="text-xs text-gray-500 mb-1">MA æŽ’åˆ—</p>
+                            <p class="text-xs text-gray-500 mb-1">MA 排列</p>
                             <p class="font-bold ${maAlignmentClass}">${maAlignmentText}</p>
                         </div>
                         <div class="p-3 bg-gray-50 rounded-lg">
@@ -148,25 +148,25 @@
                             <p class="font-bold ${macdClass}">${macdText}</p>
                         </div>
                         <div class="p-3 bg-gray-50 rounded-lg">
-                            <p class="text-xs text-gray-500 mb-1">ç¶œåˆè©•åˆ†</p>
+                            <p class="text-xs text-gray-500 mb-1">綜合評分</p>
                             <span class="px-2 py-1 rounded text-sm font-medium ${ratingClass}">${ratingText}</span>
                         </div>
                     </div>
 
-                    <!-- æ¼²è·Œå¹… -->
+                    <!-- 漲跌幅 -->
                     <div class="border-t pt-4">
-                        <p class="text-sm font-medium text-gray-700 mb-2">å€é–“æ¼²è·Œ</p>
+                        <p class="text-sm font-medium text-gray-700 mb-2">區間漲跌</p>
                         <div class="flex flex-wrap gap-2 text-xs">
-                            ${renderChangeTag('1é€±', change.week)}
-                            ${renderChangeTag('1æœˆ', change.month)}
-                            ${renderChangeTag('1å­£', change.quarter)}
-                            ${renderChangeTag('1å¹´', change.year)}
+                            ${renderChangeTag('1週', change.week)}
+                            ${renderChangeTag('1月', change.month)}
+                            ${renderChangeTag('1季', change.quarter)}
+                            ${renderChangeTag('1年', change.year)}
                         </div>
                     </div>
 
-                    <!-- MA è©³ç´° -->
+                    <!-- MA 詳細 -->
                     <div class="border-t pt-4 mt-4">
-                        <p class="text-sm font-medium text-gray-700 mb-2">å‡ç·šä½ç½®</p>
+                        <p class="text-sm font-medium text-gray-700 mb-2">均線位置</p>
                         <div class="space-y-1 text-xs">
                             ${renderMARow('MA20', ma.ma20, ma.price_vs_ma20, price)}
                             ${renderMARow('MA50', ma.ma50, ma.price_vs_ma50, price)}
@@ -190,7 +190,7 @@
     function renderMARow(label, maValue, position, currentPrice) {
         if (maValue == null) return '';
         const posClass = position === 'above' ? 'text-green-600' : 'text-red-600';
-        const posText = position === 'above' ? 'åƒ¹æ ¼åœ¨ä¸Š' : 'åƒ¹æ ¼åœ¨ä¸‹';
+        const posText = position === 'above' ? '價格在上' : '價格在下';
         const diff = currentPrice && maValue ? ((currentPrice - maValue) / maValue * 100).toFixed(2) : '--';
         return `
             <div class="flex justify-between items-center py-1">
@@ -202,37 +202,37 @@
     }
 
     // ============================================================
-    // ðŸ”§ ä¿®å¾©ï¼šå…¨èž¢å¹•åœ–è¡¨ï¼ˆä½¿ç”¨æ­£ç¢ºçš„ IDï¼‰
+    // 🔧 修復：全螢幕圖表（使用正確的 ID）
     // ============================================================
 
     function openChartFullscreen(symbol, currentPrice) {
         const chartData = window.currentChartData;
         if (!chartData) {
             if (typeof showToast === 'function') {
-                showToast('ç„¡åœ–è¡¨è³‡æ–™');
+                showToast('無圖表資料');
             }
             return;
         }
 
-        // ðŸ”§ ä½¿ç”¨æ­£ç¢ºçš„ ID: chartFullscreen
+        // 🔧 使用正確的 ID: chartFullscreen
         const modal = $('chartFullscreen');
         if (!modal) {
-            console.error('æ‰¾ä¸åˆ° chartFullscreen å…ƒç´ ');
+            console.error('找不到 chartFullscreen 元素');
             return;
         }
 
-        // ðŸ”§ ä½¿ç”¨æ­£ç¢ºçš„ ID: chartFullscreenTitle
+        // 🔧 使用正確的 ID: chartFullscreenTitle
         const title = $('chartFullscreenTitle');
         if (title) title.textContent = `${symbol} Technical Analysis`;
 
-        // é¡¯ç¤º Modal
+        // 顯示 Modal
         modal.style.display = 'block';
         modal.classList.add('active');
 
-        // ðŸ”§ æ›´æ–°æŒ‰éˆ•ç‹€æ…‹ï¼ˆé è¨­ 3M = 65å¤©ï¼‰
+        // 🔧 更新按鈕狀態（預設 3M = 65天）
         updateRangeButtonState(65);
 
-        // é è¨­é¡¯ç¤º 65 å¤© (3M)
+        // 預設顯示 65 天 (3M)
         setTimeout(() => renderFullscreenChart(chartData, 65), 100);
     }
 
@@ -249,7 +249,7 @@
         }
     }
 
-    // ðŸ”§ æ–°å¢žï¼šæ›´æ–°æŒ‰éˆ•ç‹€æ…‹
+    // 🔧 新增：更新按鈕狀態
     function updateRangeButtonState(days) {
         document.querySelectorAll('.chart-range-btn').forEach(btn => {
             const btnDays = parseInt(btn.dataset.days);
@@ -263,7 +263,7 @@
         });
     }
 
-    // ðŸ”§ ä¿®å¾©ï¼šè¨­å®šåœ–è¡¨ç¯„åœï¼ˆå…¨åŸŸå‡½æ•¸ï¼‰
+    // 🔧 修復：設定圖表範圍（全域函數）
     window.setChartRange = function(days) {
         const chartData = window.currentChartData;
         if (!chartData) return;
@@ -273,13 +273,13 @@
     };
 
     // ============================================================
-    // ðŸ”§ ä¿®å¾©ï¼šæ¸²æŸ“å…¨èž¢å¹•åœ–è¡¨ï¼ˆå¢žåŠ å³é‚Šç©ºç™½ + åœ–ä¾‹å¯é»žæ“Šï¼‰
+    // 🔧 修復：渲染全螢幕圖表（增加右邊空白 + 圖例可點擊）
     // ============================================================
 
     function renderFullscreenChart(chartData, days = 65) {
         const canvas = $('fullscreenChart');
         if (!canvas) {
-            console.error('æ‰¾ä¸åˆ° fullscreenChart canvas');
+            console.error('找不到 fullscreenChart canvas');
             return;
         }
 
@@ -290,11 +290,11 @@
         const ctx = canvas.getContext('2d');
         const dataLength = chartData.dates.length;
         
-        // è™•ç† MAX é¸é …
+        // 處理 MAX 選項
         const actualDays = days === 99999 ? dataLength : days;
         const startIdx = Math.max(0, dataLength - actualDays);
 
-        // æ—¥æœŸæ ¼å¼åŒ–
+        // 日期格式化
         const formatDate = (d) => {
             if (!d) return '';
             if (actualDays <= 30) return d.slice(5);      // MM-DD
@@ -311,7 +311,7 @@
 
         const datasets = [
             {
-                label: 'æ”¶ç›¤åƒ¹',
+                label: '收盤價',
                 data: prices,
                 borderColor: '#3B82F6',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -323,7 +323,7 @@
             }
         ];
 
-        // MA20 - ç´…è‰²
+        // MA20 - 紅色
         if (ma20.length > 0 && ma20.some(v => v != null)) {
             datasets.push({
                 label: 'MA20',
@@ -336,7 +336,7 @@
             });
         }
 
-        // MA50 - ç¶ è‰²
+        // MA50 - 綠色
         if (ma50.length > 0 && ma50.some(v => v != null)) {
             datasets.push({
                 label: 'MA50',
@@ -349,7 +349,7 @@
             });
         }
 
-        // MA200 - é»ƒè‰²
+        // MA200 - 黃色
         if (ma200.length > 0 && ma200.some(v => v != null)) {
             datasets.push({
                 label: 'MA200',
@@ -362,7 +362,7 @@
             });
         }
 
-        // MA250 - ç´«è‰²
+        // MA250 - 紫色
         if (ma250.length > 0 && ma250.some(v => v != null)) {
             datasets.push({
                 label: 'MA250',
@@ -385,10 +385,10 @@
                     mode: 'index',
                     intersect: false,
                 },
-                // ðŸ”§ å¢žåŠ å³é‚Šç©ºç™½
+                // 🔧 增加右邊空白
                 layout: {
                     padding: {
-                        right: 20,  // ðŸ”§ å¢žåŠ å³é‚Š padding
+                        right: 20,  // 🔧 增加右邊 padding
                         top: 10,
                         bottom: 10,
                         left: 10,
@@ -398,13 +398,13 @@
                     legend: {
                         display: true,
                         position: 'top',
-                        // ðŸ”§ å•Ÿç”¨åœ–ä¾‹é»žæ“Šåˆ‡æ›é¡¯ç¤º/éš±è—
+                        // 🔧 啟用圖例點擊切換顯示/隱藏
                         onClick: function(e, legendItem, legend) {
                             const index = legendItem.datasetIndex;
                             const ci = legend.chart;
                             const meta = ci.getDatasetMeta(index);
                             
-                            // åˆ‡æ›é¡¯ç¤ºç‹€æ…‹
+                            // 切換顯示狀態
                             meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
                             ci.update();
                         },
@@ -414,7 +414,7 @@
                             font: {
                                 size: 12,
                             },
-                            // ðŸ”§ æ·»åŠ æ¸¸æ¨™æ¨£å¼æç¤ºå¯é»žæ“Š
+                            // 🔧 添加游標樣式提示可點擊
                             generateLabels: function(chart) {
                                 const original = Chart.defaults.plugins.legend.labels.generateLabels;
                                 const labels = original.call(this, chart);
@@ -424,7 +424,7 @@
                                 return labels;
                             }
                         },
-                        // ðŸ”§ æ»‘é¼ ç§»ä¸ŠåŽ»é¡¯ç¤ºæ‰‹æŒ‡æ¸¸æ¨™
+                        // 🔧 滑鼠移上去顯示手指游標
                         onHover: function(e) {
                             e.native.target.style.cursor = 'pointer';
                         },
@@ -462,7 +462,7 @@
                         },
                         ticks: {
                             font: { size: 10 },
-                            // ðŸ”§ å¢žåŠ ä¸€äº›é¡å¤–ç©ºé–“
+                            // 🔧 增加一些額外空間
                             padding: 8,
                         },
                     },
@@ -472,7 +472,7 @@
     }
 
     // ============================================================
-    // å°Žå‡º
+    // 導出
     // ============================================================
 
     window.renderSearchResult = renderSearchResult;
@@ -480,5 +480,5 @@
     window.closeChartFullscreen = closeChartFullscreen;
     window.renderFullscreenChart = renderFullscreenChart;
 
-    console.log('ðŸ“Š search-render.js æ¨¡çµ„å·²è¼‰å…¥ (ä¿®å¾©ç‰ˆ 2026-01-17: æŒ‰éˆ•é»žæ“Š + åœ–ä¾‹äº’å‹• + å³é‚Šç©ºç™½)');
+    console.log('📊 search-render.js 模組已載入 (修復版 2026-01-17: 按鈕點擊 + 圖例互動 + 右邊空白)');
 })();

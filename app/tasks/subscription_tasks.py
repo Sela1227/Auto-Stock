@@ -1,6 +1,6 @@
 """
-è¨‚é–±ç²¾é¸æŽ’ç¨‹ä»»å‹™
-æ¯å°æ™‚æŠ“å–ä¸€æ¬¡ RSS
+訂閱精選排程任務
+每小時抓取一次 RSS
 """
 import logging
 from datetime import datetime
@@ -13,54 +13,54 @@ logger = logging.getLogger(__name__)
 
 def scheduled_fetch_subscriptions():
     """
-    æŽ’ç¨‹ä»»å‹™ï¼šæŠ“å–æ‰€æœ‰è¨‚é–±æº
-    æ¯å°æ™‚åŸ·è¡Œä¸€æ¬¡
+    排程任務：抓取所有訂閱源
+    每小時執行一次
     """
     logger.info("=" * 40)
-    logger.info(f"é–‹å§‹æŽ’ç¨‹æŠ“å–è¨‚é–±æº - {datetime.now()}")
+    logger.info(f"開始排程抓取訂閱源 - {datetime.now()}")
     logger.info("=" * 40)
     
     try:
         db = SessionLocal()
         service = SubscriptionService(db)
         
-        # æŠ“å–æ‰€æœ‰è¨‚é–±æºï¼ˆéžå›žæº¯æ¨¡å¼ï¼ŒåªæŠ“æ–°çš„ï¼‰
+        # 抓取所有訂閱源（非回溯模式，只抓新的）
         result = service.fetch_all_sources(backfill=False)
         
-        logger.info(f"æŠ“å–å®Œæˆ: æ–°å¢ž {result['total_new']}, æ›´æ–° {result['total_updated']}")
+        logger.info(f"抓取完成: 新增 {result['total_new']}, 更新 {result['total_updated']}")
         
         db.close()
         return result
         
     except Exception as e:
-        logger.error(f"æŽ’ç¨‹æŠ“å–å¤±æ•—: {e}", exc_info=True)
+        logger.error(f"排程抓取失敗: {e}", exc_info=True)
         return None
 
 
 def init_and_backfill():
     """
-    åˆå§‹åŒ–ä¸¦å›žæº¯æŠ“å–
-    é¦–æ¬¡éƒ¨ç½²æ™‚åŸ·è¡Œ
+    初始化並回溯抓取
+    首次部署時執行
     """
     logger.info("=" * 40)
-    logger.info("åˆå§‹åŒ–è¨‚é–±æºä¸¦å›žæº¯æŠ“å–")
+    logger.info("初始化訂閱源並回溯抓取")
     logger.info("=" * 40)
     
     try:
         db = SessionLocal()
         service = SubscriptionService(db)
         
-        # åˆå§‹åŒ–é è¨­è¨‚é–±æº
+        # 初始化預設訂閱源
         service.init_default_sources()
         
-        # å›žæº¯æŠ“å– 30 å¤©
+        # 回溯抓取 30 天
         result = service.fetch_all_sources(backfill=True)
         
-        logger.info(f"å›žæº¯å®Œæˆ: æ–°å¢ž {result['total_new']}, æ›´æ–° {result['total_updated']}")
+        logger.info(f"回溯完成: 新增 {result['total_new']}, 更新 {result['total_updated']}")
         
         db.close()
         return result
         
     except Exception as e:
-        logger.error(f"åˆå§‹åŒ–å¤±æ•—: {e}", exc_info=True)
+        logger.error(f"初始化失敗: {e}", exc_info=True)
         return None

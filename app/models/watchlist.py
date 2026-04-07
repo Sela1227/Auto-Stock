@@ -1,5 +1,5 @@
 """
-è¿½è¹¤æ¸…å–®è³‡æ–™æ¨¡åž‹
+追蹤清單資料模型
 """
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index, Numeric
 from sqlalchemy.sql import func
@@ -8,19 +8,19 @@ from app.database import Base
 
 
 class Watchlist(Base):
-    """ç”¨æˆ¶è¿½è¹¤æ¸…å–®"""
+    """用戶追蹤清單"""
     __tablename__ = "watchlists"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     symbol = Column(String(10), nullable=False)
     asset_type = Column(String(10), nullable=False)  # stock / crypto
-    note = Column(String(200))  # è‡ªè¨‚å‚™è¨»
-    target_price = Column(Numeric(12, 4), nullable=True)  # ç›®æ¨™åƒ¹æ ¼
-    target_direction = Column(String(10), nullable=True, default='above')  # above/below  # ðŸ†• ç›®æ¨™åƒ¹æ ¼
+    note = Column(String(200))  # 自訂備註
+    target_price = Column(Numeric(12, 4), nullable=True)  # 目標價格
+    target_direction = Column(String(10), nullable=True, default='above')  # above/below  # 🆕 目標價格
     added_at = Column(DateTime, server_default=func.now())
 
-    # é—œè¯
+    # 關聯
     user = relationship("User", back_populates="watchlists")
 
     __table_args__ = (

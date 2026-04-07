@@ -1,12 +1,12 @@
 /**
- * å¹´åŒ–å ±é…¬çŽ‡æ¨¡çµ„
+ * 年化報酬率模組
  */
 
 (function() {
     'use strict';
     
     /**
-     * è¼‰å…¥å¹´åŒ–å ±é…¬çŽ‡ Modal
+     * 載入年化報酬率 Modal
      */
     async function loadReturnsModal(symbol) {
         const modal = document.getElementById('returnsModal');
@@ -15,14 +15,14 @@
         
         if (!modal || !content) return;
         
-        if (title) title.textContent = `${symbol} å¹´åŒ–å ±é…¬çŽ‡`;
+        if (title) title.textContent = `${symbol} 年化報酬率`;
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         
         content.innerHTML = `
             <div class="text-center py-8">
                 <i class="fas fa-spinner fa-spin text-2xl text-green-600"></i>
-                <p class="mt-2 text-gray-500">è¨ˆç®—ä¸­...ï¼ˆå«é…æ¯å†æŠ•å…¥ï¼‰</p>
+                <p class="mt-2 text-gray-500">計算中...（含配息再投入）</p>
             </div>
         `;
         
@@ -31,24 +31,24 @@
             const data = await res.json();
             
             if (!data.success) {
-                throw new Error(data.detail || 'è¨ˆç®—å¤±æ•—');
+                throw new Error(data.detail || '計算失敗');
             }
             
             renderReturnsModal(data.data);
             
         } catch (e) {
-            console.error('è¼‰å…¥å¹´åŒ–å ±é…¬çŽ‡å¤±æ•—:', e);
+            console.error('載入年化報酬率失敗:', e);
             content.innerHTML = `
                 <div class="text-center py-8 text-red-500">
                     <i class="fas fa-exclamation-circle text-3xl mb-2"></i>
-                    <p>${e.message || 'è¼‰å…¥å¤±æ•—'}</p>
+                    <p>${e.message || '載入失敗'}</p>
                 </div>
             `;
         }
     }
     
     /**
-     * æ¸²æŸ“å ±é…¬çŽ‡å…§å®¹
+     * 渲染報酬率內容
      */
     function renderReturnsModal(data) {
         const content = document.getElementById('returnsModalContent');
@@ -73,7 +73,7 @@
                     <div class="p-3 bg-gray-100 rounded-lg opacity-50">
                         <div class="flex justify-between items-center">
                             <span class="font-medium text-gray-600">${period}</span>
-                            <span class="text-gray-400 text-sm">è³‡æ–™ä¸è¶³</span>
+                            <span class="text-gray-400 text-sm">資料不足</span>
                         </div>
                     </div>
                 `;
@@ -82,23 +82,23 @@
             
             const cagr = ret.cagr;
             const cagrClass = cagr >= 0 ? 'text-green-600' : 'text-red-600';
-            const cagrIcon = cagr >= 0 ? 'â–²' : 'â–¼';
+            const cagrIcon = cagr >= 0 ? '▲' : '▼';
             const cagrBg = cagr >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
             
             html += `
                 <div class="p-4 bg-white border rounded-lg shadow-sm">
                     <div class="flex justify-between items-center mb-3">
                         <span class="font-bold text-lg text-gray-800">${period}</span>
-                        <span class="text-xs text-gray-400">${ret.start_date} ~ ä»Š</span>
+                        <span class="text-xs text-gray-400">${ret.start_date} ~ 今</span>
                     </div>
                     <div class="p-4 ${cagrBg} rounded-lg border text-center mb-3">
-                        <p class="text-xs text-gray-500 mb-1">å¹´åŒ–å ±é…¬çŽ‡ (CAGR)</p>
+                        <p class="text-xs text-gray-500 mb-1">年化報酬率 (CAGR)</p>
                         <p class="text-3xl font-bold ${cagrClass}">${cagrIcon} ${cagr !== null ? Math.abs(cagr).toFixed(2) + '%' : '--'}</p>
                     </div>
                     <div class="flex justify-between text-xs text-gray-500 border-t pt-2">
-                        <span>èµ·å§‹åƒ¹: $${ret.start_price.toLocaleString()}</span>
-                        <span>é…æ¯ ${ret.dividend_count} æ¬¡</span>
-                        <span>ç¸½é…æ¯: $${ret.total_dividends.toFixed(2)}</span>
+                        <span>起始價: $${ret.start_price.toLocaleString()}</span>
+                        <span>配息 ${ret.dividend_count} 次</span>
+                        <span>總配息: $${ret.total_dividends.toFixed(2)}</span>
                     </div>
                 </div>
             `;
@@ -109,8 +109,8 @@
             <div class="mt-4 p-3 bg-blue-50 rounded-lg">
                 <p class="text-xs text-blue-600">
                     <i class="fas fa-info-circle mr-1"></i>
-                    CAGR åŸºæ–¼ Yahoo Finance é™¤æ¬Šæ¯èª¿æ•´å¾Œåƒ¹æ ¼è¨ˆç®—ï¼Œ<br>
-                    å·²åŒ…å«é…æ¯å†æŠ•å…¥çš„è¤‡åˆ©æ•ˆæžœ
+                    CAGR 基於 Yahoo Finance 除權息調整後價格計算，<br>
+                    已包含配息再投入的複利效果
                 </p>
             </div>
         `;
@@ -119,7 +119,7 @@
     }
     
     /**
-     * é—œé–‰ Modal
+     * 關閉 Modal
      */
     function closeReturnsModal() {
         const modal = document.getElementById('returnsModal');
@@ -129,10 +129,10 @@
         }
     }
     
-    // å°Žå‡ºåˆ°å…¨åŸŸ
+    // 導出到全域
     window.loadReturnsModal = loadReturnsModal;
     window.renderReturnsModal = renderReturnsModal;
     window.closeReturnsModal = closeReturnsModal;
     
-    console.log('ðŸ“Š returns.js æ¨¡çµ„å·²è¼‰å…¥');
+    console.log('📊 returns.js 模組已載入');
 })();

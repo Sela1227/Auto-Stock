@@ -1,12 +1,12 @@
 /**
- * äº¤æ˜“è¡¨å–®æ¨¡çµ„ (P4 å„ªåŒ–ç‰ˆ)
+ * 交易表單模組 (P4 優化版)
  * 
- * å„ªåŒ–å…§å®¹ï¼š
- * 1. DOM å¿«å– - ä½¿ç”¨ $() å‡½æ•¸
- * 2. æ¸›å°‘é‡è¤‡æŸ¥è©¢
- * 3. åˆ¸å•†é¸æ“‡åŠŸèƒ½
+ * 優化內容：
+ * 1. DOM 快取 - 使用 $() 函數
+ * 2. 減少重複查詢
+ * 3. 券商選擇功能
  * 
- * åŒ…å«ï¼šå°è‚¡/ç¾Žè‚¡äº¤æ˜“è¡¨å–®
+ * 包含：台股/美股交易表單
  */
 
 (function() {
@@ -14,10 +14,10 @@
 
     let twLookupTimer = null;
     let usLookupTimer = null;
-    let userBrokers = [];  // ðŸ”§ åˆ¸å•†åˆ—è¡¨å¿«å–
+    let userBrokers = [];  // 🔧 券商列表快取
 
     // ============================================================
-    // åˆ¸å•†ç®¡ç†
+    // 券商管理
     // ============================================================
 
     async function loadBrokers() {
@@ -30,7 +30,7 @@
                 renderBrokerSelect('usBroker');
             }
         } catch (e) {
-            console.error('è¼‰å…¥åˆ¸å•†å¤±æ•—:', e);
+            console.error('載入券商失敗:', e);
         }
     }
 
@@ -38,12 +38,12 @@
         const select = $(selectId);
         if (!select) return;
 
-        let html = '<option value="">ä¸æŒ‡å®šåˆ¸å•†</option>';
+        let html = '<option value="">不指定券商</option>';
         userBrokers.forEach(b => {
-            const defaultMark = b.is_default ? ' â­' : '';
+            const defaultMark = b.is_default ? ' ⭐' : '';
             html += `<option value="${b.id}" ${b.is_default ? 'selected' : ''}>${b.name}${defaultMark}</option>`;
         });
-        html += '<option value="__new__">+ æ–°å¢žåˆ¸å•†...</option>';
+        html += '<option value="__new__">+ 新增券商...</option>';
         select.innerHTML = html;
     }
 
@@ -52,7 +52,7 @@
         if (!select) return;
 
         if (select.value === '__new__') {
-            const name = prompt('è«‹è¼¸å…¥åˆ¸å•†åç¨±ï¼š');
+            const name = prompt('請輸入券商名稱：');
             if (name && name.trim()) {
                 try {
                     const res = await apiRequest('/api/brokers', {
@@ -61,19 +61,19 @@
                     });
                     const data = await res.json();
                     if (data.success) {
-                        showToast('åˆ¸å•†å·²æ–°å¢ž');
+                        showToast('券商已新增');
                         await loadBrokers();
-                        // é¸ä¸­æ–°å¢žçš„åˆ¸å•†
+                        // 選中新增的券商
                         if (data.data?.id) {
                             select.value = data.data.id;
                         }
                     } else {
-                        showToast(data.detail || 'æ–°å¢žå¤±æ•—');
+                        showToast(data.detail || '新增失敗');
                         select.value = '';
                     }
                 } catch (e) {
-                    console.error('æ–°å¢žåˆ¸å•†å¤±æ•—:', e);
-                    showToast('æ–°å¢žå¤±æ•—');
+                    console.error('新增券商失敗:', e);
+                    showToast('新增失敗');
                     select.value = '';
                 }
             } else {
@@ -83,27 +83,27 @@
     }
 
     // ============================================================
-    // å°è‚¡äº¤æ˜“
+    // 台股交易
     // ============================================================
 
     function showAddTwModal() {
-        // âœ… P4: ä½¿ç”¨ $() å¿«å–
+        // ✅ P4: 使用 $() 快取
         $('twEditId').value = '';
-        $('twModalTitle').textContent = 'æ–°å¢žå°è‚¡äº¤æ˜“';
+        $('twModalTitle').textContent = '新增台股交易';
         setTwType('buy');
         $('twSymbol').value = '';
         $('twName').value = '';
-        $('twNameDisplay').innerHTML = '<span class="text-gray-400">è¼¸å…¥ä»£ç¢¼è‡ªå‹•å¸¶å…¥</span>';
+        $('twNameDisplay').innerHTML = '<span class="text-gray-400">輸入代碼自動帶入</span>';
         $('twLots').value = '';
         $('twOddLot').value = '';
-        $('twQuantityDisplay').textContent = '= 0 è‚¡';
+        $('twQuantityDisplay').textContent = '= 0 股';
         $('twPrice').value = '';
         $('twFee').value = '0';
         $('twTax').value = '0';
         $('twDate').value = new Date().toISOString().split('T')[0];
         $('twNote').value = '';
 
-        // ðŸ”§ è¼‰å…¥åˆ¸å•†åˆ—è¡¨
+        // 🔧 載入券商列表
         loadBrokers();
 
         const modal = $('twTransactionModal');
@@ -154,7 +154,7 @@
         const total = lots * 1000 + oddLot;
 
         const display = $('twQuantityDisplay');
-        if (display) display.textContent = `= ${total.toLocaleString()} è‚¡`;
+        if (display) display.textContent = `= ${total.toLocaleString()} 股`;
 
         const hidden = $('twQuantity');
         if (hidden) hidden.value = total;
@@ -167,33 +167,33 @@
             if (!symbol || symbol.length < 4) return;
 
             try {
-                // ðŸ”§ ä¿®æ­£ï¼šä½¿ç”¨æ­£ç¢ºçš„ API è·¯å¾‘
+                // 🔧 修正：使用正確的 API 路徑
                 const res = await apiRequest(`/api/stock/${symbol}.TW`);
                 const data = await res.json();
 
                 const nameDisplay = $('twNameDisplay');
                 const nameInput = $('twName');
 
-                // ðŸ”§ ä¿®æ­£ï¼šå¾žå›žå‚³è³‡æ–™å–å¾—åç¨±
+                // 🔧 修正：從回傳資料取得名稱
                 const stockName = data.name || data.data?.name;
                 if (data.success && stockName) {
                     if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${stockName}</span>`;
                     if (nameInput) nameInput.value = stockName;
                     
-                    // ðŸ”§ æŸ¥è©¢è©²è‚¡ç¥¨æœ€å¾Œä¸€ç­†äº¤æ˜“åƒ¹æ ¼
+                    // 🔧 查詢該股票最後一筆交易價格
                     fetchLastTransactionPrice(`${symbol}.TW`, 'tw');
                 } else {
-                    if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">æŸ¥ç„¡è³‡æ–™</span>';
+                    if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
                 }
             } catch (e) {
-                console.error('æŸ¥è©¢å°è‚¡å¤±æ•—:', e);
+                console.error('查詢台股失敗:', e);
                 const nameDisplay = $('twNameDisplay');
-                if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">æŸ¥ç„¡è³‡æ–™</span>';
+                if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
             }
         }, 500);
     }
 
-    // ðŸ”§ æ–°å¢žï¼šç²å–æœ€å¾Œä¸€ç­†äº¤æ˜“åƒ¹æ ¼
+    // 🔧 新增：獲取最後一筆交易價格
     async function fetchLastTransactionPrice(symbol, market) {
         try {
             const res = await apiRequest(`/api/portfolio/transactions/last-price/${symbol}`);
@@ -208,32 +208,33 @@
                 }
             }
         } catch (e) {
-            // æ²’æœ‰æ­·å²äº¤æ˜“ï¼Œä¸è™•ç†
+            // 沒有歷史交易，不處理
         }
     }
 
     async function submitTwTransaction() {
         const editId = $('twEditId')?.value;
         const rawSymbol = $('twSymbol')?.value?.trim();
-        const symbol = rawSymbol ? `${rawSymbol}.TW` : '';  // ðŸ”§ åŠ ä¸Š .TW å¾Œç¶´
+        const symbol = rawSymbol ? `${rawSymbol}.TW` : '';  // 🔧 加上 .TW 後綴
         const name = $('twName')?.value?.trim();
         const type = $('twType')?.value;
         const quantity = parseInt($('twQuantity')?.value) || 0;
         const price = parseFloat($('twPrice')?.value) || 0;
-        const fee = 0;  // ðŸ”§ å¿½ç•¥æ‰‹çºŒè²»
-        const tax = 0;  // ðŸ”§ å¿½ç•¥äº¤æ˜“ç¨…
+        const fee = 0;  // 🔧 忽略手續費
+        const tax = 0;  // 🔧 忽略交易稅
         const date = $('twDate')?.value;
         const note = $('twNote')?.value?.trim();
-        const brokerId = $('twBroker')?.value;  // ðŸ”§ åˆ¸å•† ID
+        const brokerId = $('twBroker')?.value;  // 🔧 券商 ID
 
         if (!symbol || quantity <= 0 || price <= 0) {
-            showToast('è«‹å¡«å¯«å®Œæ•´è³‡æ–™');
+            showToast('請填寫完整資料');
             return;
         }
 
         const body = {
             symbol,
             name,
+            market: 'tw',  // ✅ 必填：市場類型
             transaction_type: type,
             quantity,
             price,
@@ -241,18 +242,18 @@
             tax,
             transaction_date: date,
             note,
-            broker_id: brokerId && brokerId !== '__new__' ? parseInt(brokerId) : null  // ðŸ”§ åŠ å…¥åˆ¸å•†
+            broker_id: brokerId && brokerId !== '__new__' ? parseInt(brokerId) : null  // 🔧 加入券商
         };
 
         try {
             let res;
             if (editId) {
-                res = await apiRequest(`/api/portfolio/transactions/tw/${editId}`, {
+                res = await apiRequest(`/api/portfolio/transactions/${editId}`, {
                     method: 'PUT',
                     body
                 });
             } else {
-                res = await apiRequest('/api/portfolio/transactions/tw', {
+                res = await apiRequest('/api/portfolio/transactions', {
                     method: 'POST',
                     body
                 });
@@ -261,10 +262,10 @@
             const data = await res.json();
 
             if (data.success) {
-                showToast(editId ? 'äº¤æ˜“å·²æ›´æ–°' : 'äº¤æ˜“å·²æ–°å¢ž');
+                showToast(editId ? '交易已更新' : '交易已新增');
                 closeTwModal();
 
-                // âœ… P4: æ¸…é™¤ AppState å¿«å–
+                // ✅ P4: 清除 AppState 快取
                 if (window.AppState) {
                     AppState.set('portfolioLoaded', false);
                 }
@@ -272,11 +273,11 @@
                 if (typeof loadPortfolio === 'function') loadPortfolio();
                 if (typeof loadTransactions === 'function') loadTransactions('tw');
             } else {
-                showToast(data.detail || 'æ“ä½œå¤±æ•—');
+                showToast(data.detail || '操作失敗');
             }
         } catch (e) {
-            console.error('æäº¤äº¤æ˜“å¤±æ•—:', e);
-            showToast('æ“ä½œå¤±æ•—');
+            console.error('提交交易失敗:', e);
+            showToast('操作失敗');
         }
     }
 
@@ -288,7 +289,7 @@
             if (data.success) {
                 const t = data.data;
                 $('twEditId').value = t.id;
-                $('twModalTitle').textContent = 'ç·¨è¼¯å°è‚¡äº¤æ˜“';
+                $('twModalTitle').textContent = '編輯台股交易';
                 setTwType(t.transaction_type);
 
                 $('twSymbol').value = t.symbol.replace('.TW', '').replace('.TWO', '');
@@ -320,22 +321,22 @@
                 }
             }
         } catch (e) {
-            console.error('è¼‰å…¥äº¤æ˜“å¤±æ•—:', e);
-            showToast('è¼‰å…¥å¤±æ•—');
+            console.error('載入交易失敗:', e);
+            showToast('載入失敗');
         }
     }
 
     // ============================================================
-    // ç¾Žè‚¡äº¤æ˜“
+    // 美股交易
     // ============================================================
 
     function showAddUsModal() {
         $('usEditId').value = '';
-        $('usModalTitle').textContent = 'æ–°å¢žç¾Žè‚¡äº¤æ˜“';
+        $('usModalTitle').textContent = '新增美股交易';
         setUsType('buy');
         $('usSymbol').value = '';
         $('usName').value = '';
-        $('usNameDisplay').innerHTML = '<span class="text-gray-400">è¼¸å…¥ä»£ç¢¼è‡ªå‹•å¸¶å…¥</span>';
+        $('usNameDisplay').innerHTML = '<span class="text-gray-400">輸入代碼自動帶入</span>';
         $('usQuantity').value = '';
         $('usPrice').value = '';
         $('usFee').value = '0';
@@ -343,7 +344,7 @@
         $('usDate').value = new Date().toISOString().split('T')[0];
         $('usNote').value = '';
 
-        // ðŸ”§ è¼‰å…¥åˆ¸å•†åˆ—è¡¨
+        // 🔧 載入券商列表
         loadBrokers();
 
         const modal = $('usTransactionModal');
@@ -395,28 +396,28 @@
             if (!symbol || symbol.length < 1) return;
 
             try {
-                // ðŸ”§ ä¿®æ­£ï¼šä½¿ç”¨æ­£ç¢ºçš„ API è·¯å¾‘
+                // 🔧 修正：使用正確的 API 路徑
                 const res = await apiRequest(`/api/stock/${symbol}`);
                 const data = await res.json();
 
                 const nameDisplay = $('usNameDisplay');
                 const nameInput = $('usName');
 
-                // ðŸ”§ ä¿®æ­£ï¼šå¾žå›žå‚³è³‡æ–™å–å¾—åç¨±
+                // 🔧 修正：從回傳資料取得名稱
                 const stockName = data.name || data.data?.name;
                 if (data.success && stockName) {
                     if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${stockName}</span>`;
                     if (nameInput) nameInput.value = stockName;
                     
-                    // ðŸ”§ æŸ¥è©¢è©²è‚¡ç¥¨æœ€å¾Œä¸€ç­†äº¤æ˜“åƒ¹æ ¼
+                    // 🔧 查詢該股票最後一筆交易價格
                     fetchLastTransactionPrice(symbol, 'us');
                 } else {
-                    if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">æŸ¥ç„¡è³‡æ–™</span>';
+                    if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
                 }
             } catch (e) {
-                console.error('æŸ¥è©¢ç¾Žè‚¡å¤±æ•—:', e);
+                console.error('查詢美股失敗:', e);
                 const nameDisplay = $('usNameDisplay');
-                if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">æŸ¥ç„¡è³‡æ–™</span>';
+                if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
             }
         }, 500);
     }
@@ -428,20 +429,21 @@
         const type = $('usType')?.value;
         const quantity = parseFloat($('usQuantity')?.value) || 0;
         const price = parseFloat($('usPrice')?.value) || 0;
-        const fee = 0;  // ðŸ”§ å¿½ç•¥æ‰‹çºŒè²»
-        const tax = 0;  // ðŸ”§ å¿½ç•¥äº¤æ˜“ç¨…
+        const fee = 0;  // 🔧 忽略手續費
+        const tax = 0;  // 🔧 忽略交易稅
         const date = $('usDate')?.value;
         const note = $('usNote')?.value?.trim();
-        const brokerId = $('usBroker')?.value;  // ðŸ”§ åˆ¸å•† ID
+        const brokerId = $('usBroker')?.value;  // 🔧 券商 ID
 
         if (!symbol || quantity <= 0 || price <= 0) {
-            showToast('è«‹å¡«å¯«å®Œæ•´è³‡æ–™');
+            showToast('請填寫完整資料');
             return;
         }
 
         const body = {
             symbol,
             name,
+            market: 'us',  // ✅ 必填：市場類型
             transaction_type: type,
             quantity,
             price,
@@ -449,18 +451,18 @@
             tax,
             transaction_date: date,
             note,
-            broker_id: brokerId && brokerId !== '__new__' ? parseInt(brokerId) : null  // ðŸ”§ åŠ å…¥åˆ¸å•†
+            broker_id: brokerId && brokerId !== '__new__' ? parseInt(brokerId) : null  // 🔧 加入券商
         };
 
         try {
             let res;
             if (editId) {
-                res = await apiRequest(`/api/portfolio/transactions/us/${editId}`, {
+                res = await apiRequest(`/api/portfolio/transactions/${editId}`, {
                     method: 'PUT',
                     body
                 });
             } else {
-                res = await apiRequest('/api/portfolio/transactions/us', {
+                res = await apiRequest('/api/portfolio/transactions', {
                     method: 'POST',
                     body
                 });
@@ -469,10 +471,10 @@
             const data = await res.json();
 
             if (data.success) {
-                showToast(editId ? 'äº¤æ˜“å·²æ›´æ–°' : 'äº¤æ˜“å·²æ–°å¢ž');
+                showToast(editId ? '交易已更新' : '交易已新增');
                 closeUsModal();
 
-                // âœ… P4: æ¸…é™¤ AppState å¿«å–
+                // ✅ P4: 清除 AppState 快取
                 if (window.AppState) {
                     AppState.set('portfolioLoaded', false);
                 }
@@ -480,11 +482,11 @@
                 if (typeof loadPortfolio === 'function') loadPortfolio();
                 if (typeof loadTransactions === 'function') loadTransactions('us');
             } else {
-                showToast(data.detail || 'æ“ä½œå¤±æ•—');
+                showToast(data.detail || '操作失敗');
             }
         } catch (e) {
-            console.error('æäº¤äº¤æ˜“å¤±æ•—:', e);
-            showToast('æ“ä½œå¤±æ•—');
+            console.error('提交交易失敗:', e);
+            showToast('操作失敗');
         }
     }
 
@@ -496,7 +498,7 @@
             if (data.success) {
                 const t = data.data;
                 $('usEditId').value = t.id;
-                $('usModalTitle').textContent = 'ç·¨è¼¯ç¾Žè‚¡äº¤æ˜“';
+                $('usModalTitle').textContent = '編輯美股交易';
                 setUsType(t.transaction_type);
 
                 $('usSymbol').value = t.symbol;
@@ -523,13 +525,13 @@
                 }
             }
         } catch (e) {
-            console.error('è¼‰å…¥äº¤æ˜“å¤±æ•—:', e);
-            showToast('è¼‰å…¥å¤±æ•—');
+            console.error('載入交易失敗:', e);
+            showToast('載入失敗');
         }
     }
 
     // ============================================================
-    // å¿«é€Ÿäº¤æ˜“ï¼ˆè¦†å¯« portfolio.js çš„ç‰ˆæœ¬ï¼‰
+    // 快速交易（覆寫 portfolio.js 的版本）
     // ============================================================
 
     function quickTrade(symbol, name, market, type) {
@@ -562,10 +564,10 @@
     }
 
     // ============================================================
-    // å°Žå‡º
+    // 導出
     // ============================================================
 
-    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    // 掛載到 SELA 命名空間
     if (window.SELA) {
         window.SELA.transaction = {
             showTwModal: showAddTwModal,
@@ -576,7 +578,7 @@
         };
     }
 
-    // å…¨åŸŸå°Žå‡ºï¼ˆå‘å¾Œå…¼å®¹ï¼‰
+    // 全域導出（向後兼容）
     window.showAddTwModal = showAddTwModal;
     window.closeTwModal = closeTwModal;
     window.setTwType = setTwType;
@@ -594,9 +596,9 @@
 
     window.quickTrade = quickTrade;
 
-    // ðŸ”§ åˆ¸å•†ç›¸é—œå‡½æ•¸
+    // 🔧 券商相關函數
     window.loadBrokers = loadBrokers;
     window.handleBrokerChange = handleBrokerChange;
 
-    console.log('ðŸ’° transaction.js æ¨¡çµ„å·²è¼‰å…¥ (P4 å„ªåŒ–ç‰ˆ)');
+    console.log('💰 transaction.js 模組已載入 (P4 優化版)');
 })();

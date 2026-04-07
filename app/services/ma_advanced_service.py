@@ -1,7 +1,7 @@
 """
-MA å¼·åŒ–åˆ†æžæœå‹™
+MA 強化分析服務
 ===============
-æä¾›å‡ç·šé€²éšŽåˆ†æžåŠŸèƒ½
+提供均線進階分析功能
 """
 import pandas as pd
 import numpy as np
@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 import logging
 
 def _to_python_type(value):
-    """å°‡ numpy é¡žåž‹è½‰æ›ç‚º Python åŽŸç”Ÿé¡žåž‹"""
+    """將 numpy 類型轉換為 Python 原生類型"""
     if value is None:
         return None
     if hasattr(value, 'item'):  # numpy scalar
@@ -26,18 +26,18 @@ logger = logging.getLogger(__name__)
 
 
 def analyze_ma_advanced(df: pd.DataFrame, current_price: float, lookback_days: int = 30) -> Dict[str, Any]:
-    """è¨ˆç®— MA é€²éšŽåˆ†æž"""
+    """計算 MA 進階分析"""
     result = {}
     
     try:
-        # 1. è·é›¢å‡ç·šç™¾åˆ†æ¯”
+        # 1. 距離均線百分比
         for ma_col, dist_key in [('ma20', 'dist_ma20'), ('ma50', 'dist_ma50'), ('ma200', 'dist_ma200'), ('ma250', 'dist_ma250')]:
             if ma_col in df.columns and len(df) > 0:
                 ma_value = df[ma_col].iloc[-1]
                 if pd.notna(ma_value) and ma_value > 0:
                     result[dist_key] = float(round((current_price - ma_value) / ma_value * 100, 2))
         
-        # 2. äº¤å‰åµæ¸¬
+        # 2. 交叉偵測
         for short_ma, long_ma, prefix in [('ma20', 'ma50', '20_50'), ('ma50', 'ma200', '50_200'), ('ma20', 'ma200', '20_200')]:
             cross = _find_cross(df, short_ma, long_ma, lookback_days)
             if cross:
@@ -48,20 +48,20 @@ def analyze_ma_advanced(df: pd.DataFrame, current_price: float, lookback_days: i
                     result[f'death_cross_{prefix}'] = True
                     result[f'death_cross_{prefix}_days'] = cross['days_ago']
         
-        # 3. æŽ’åˆ—åˆ†æž
+        # 3. 排列分析
         result.update(_analyze_alignment(df, current_price))
         
-        # 4. æ”¯æ’å£“åŠ›
+        # 4. 支撐壓力
         result.update(_analyze_support_resistance(df, current_price))
         
     except Exception as e:
-        logger.error(f"MA é€²éšŽåˆ†æžéŒ¯èª¤: {e}")
+        logger.error(f"MA 進階分析錯誤: {e}")
     
     return _to_python_type(result)
 
 
 def _find_cross(df: pd.DataFrame, short_ma: str, long_ma: str, lookback_days: int):
-    """å°‹æ‰¾äº¤å‰é»ž"""
+    """尋找交叉點"""
     if short_ma not in df.columns or long_ma not in df.columns or len(df) < 2:
         return None
     
@@ -87,8 +87,8 @@ def _find_cross(df: pd.DataFrame, short_ma: str, long_ma: str, lookback_days: in
 
 
 def _analyze_alignment(df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
-    """åˆ†æžå‡ç·šæŽ’åˆ—"""
-    result = {'alignment_status': 'neutral', 'alignment_detail': 'ç›¤æ•´', 'alignment_score': 2}
+    """分析均線排列"""
+    result = {'alignment_status': 'neutral', 'alignment_detail': '盤整', 'alignment_score': 2}
     
     if len(df) == 0:
         return _to_python_type(result)
@@ -104,19 +104,19 @@ def _analyze_alignment(df: pd.DataFrame, current_price: float) -> Dict[str, Any]
     result['alignment_score'] = score
     
     if score >= 4 and current_price > ma20 > ma50 > ma200:
-        result.update({'alignment_status': 'bullish', 'alignment_detail': 'å®Œç¾Žå¤šé ­æŽ’åˆ—'})
+        result.update({'alignment_status': 'bullish', 'alignment_detail': '完美多頭排列'})
     elif score >= 3:
-        result.update({'alignment_status': 'bullish', 'alignment_detail': 'å¤šé ­æŽ’åˆ—'})
+        result.update({'alignment_status': 'bullish', 'alignment_detail': '多頭排列'})
     elif score <= 1 and current_price < ma20 < ma50 < ma200:
-        result.update({'alignment_status': 'bearish', 'alignment_detail': 'å®Œç¾Žç©ºé ­æŽ’åˆ—'})
+        result.update({'alignment_status': 'bearish', 'alignment_detail': '完美空頭排列'})
     elif score <= 1:
-        result.update({'alignment_status': 'bearish', 'alignment_detail': 'ç©ºé ­æŽ’åˆ—'})
+        result.update({'alignment_status': 'bearish', 'alignment_detail': '空頭排列'})
     
     return _to_python_type(result)
 
 
 def _analyze_support_resistance(df: pd.DataFrame, current_price: float) -> Dict[str, Any]:
-    """åˆ†æžæ”¯æ’å£“åŠ›"""
+    """分析支撐壓力"""
     result = {'support_levels': [], 'resistance_levels': [], 'nearest_support': None, 'nearest_resistance': None}
     
     if len(df) == 0:

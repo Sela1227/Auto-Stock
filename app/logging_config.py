@@ -1,6 +1,6 @@
 """
-æ—¥èªŒè¨­å®š
-ç¢ºä¿æ‰€æœ‰é‡è¦æ“ä½œéƒ½æœ‰è¨˜éŒ„
+日誌設定
+確保所有重要操作都有記錄
 """
 import logging
 import sys
@@ -10,28 +10,28 @@ from pathlib import Path
 
 def setup_logging(log_level: str = "INFO", log_to_file: bool = True):
     """
-    è¨­å®šæ—¥èªŒç³»çµ±
+    設定日誌系統
     
     Args:
-        log_level: æ—¥èªŒç­‰ç´š (DEBUG, INFO, WARNING, ERROR)
-        log_to_file: æ˜¯å¦å¯«å…¥æª”æ¡ˆ
+        log_level: 日誌等級 (DEBUG, INFO, WARNING, ERROR)
+        log_to_file: 是否寫入檔案
     """
-    # å»ºç«‹ logs ç›®éŒ„
+    # 建立 logs 目錄
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
     
-    # æ—¥èªŒæ ¼å¼
+    # 日誌格式
     log_format = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
     date_format = "%Y-%m-%d %H:%M:%S"
     
-    # å»ºç«‹ formatter
+    # 建立 formatter
     formatter = logging.Formatter(log_format, datefmt=date_format)
     
-    # å–å¾— root logger
+    # 取得 root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(getattr(logging, log_level.upper(), logging.INFO))
     
-    # æ¸…é™¤ç¾æœ‰çš„ handlers
+    # 清除現有的 handlers
     root_logger.handlers.clear()
     
     # Console handler
@@ -41,7 +41,7 @@ def setup_logging(log_level: str = "INFO", log_to_file: bool = True):
     root_logger.addHandler(console_handler)
     
     if log_to_file:
-        # ä¸»è¦æ—¥èªŒæª”ï¼ˆæ‰€æœ‰æ—¥èªŒï¼‰
+        # 主要日誌檔（所有日誌）
         today = datetime.now().strftime("%Y-%m-%d")
         main_log_file = log_dir / f"app_{today}.log"
         file_handler = logging.FileHandler(main_log_file, encoding="utf-8")
@@ -49,7 +49,7 @@ def setup_logging(log_level: str = "INFO", log_to_file: bool = True):
         file_handler.setLevel(logging.DEBUG)
         root_logger.addHandler(file_handler)
         
-        # èªè­‰æ—¥èªŒæª”ï¼ˆç™»å…¥/ç™»å‡ºï¼‰
+        # 認證日誌檔（登入/登出）
         auth_logger = logging.getLogger("app.services.auth_service")
         auth_log_file = log_dir / f"auth_{today}.log"
         auth_handler = logging.FileHandler(auth_log_file, encoding="utf-8")
@@ -57,7 +57,7 @@ def setup_logging(log_level: str = "INFO", log_to_file: bool = True):
         auth_handler.setLevel(logging.INFO)
         auth_logger.addHandler(auth_handler)
         
-        # Watchlist æ—¥èªŒæª”
+        # Watchlist 日誌檔
         watchlist_logger = logging.getLogger("app.services.watchlist_service")
         watchlist_log_file = log_dir / f"watchlist_{today}.log"
         watchlist_handler = logging.FileHandler(watchlist_log_file, encoding="utf-8")
@@ -65,17 +65,17 @@ def setup_logging(log_level: str = "INFO", log_to_file: bool = True):
         watchlist_handler.setLevel(logging.INFO)
         watchlist_logger.addHandler(watchlist_handler)
     
-    # è¨­å®šç¬¬ä¸‰æ–¹å¥—ä»¶çš„æ—¥èªŒç­‰ç´š
+    # 設定第三方套件的日誌等級
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
     logging.getLogger("uvicorn").setLevel(logging.INFO)
     
-    root_logger.info("æ—¥èªŒç³»çµ±åˆå§‹åŒ–å®Œæˆ")
+    root_logger.info("日誌系統初始化完成")
     if log_to_file:
-        root_logger.info(f"æ—¥èªŒæª”æ¡ˆ: {log_dir.absolute()}")
+        root_logger.info(f"日誌檔案: {log_dir.absolute()}")
 
 
 def get_logger(name: str) -> logging.Logger:
-    """å–å¾— logger"""
+    """取得 logger"""
     return logging.getLogger(name)

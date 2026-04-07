@@ -1,23 +1,23 @@
 """
-å¸‚å ´æŒ‡æ•¸åƒ¹æ ¼æ­·å²è³‡æ–™æ¨¡åž‹
-æ”¯æ´ S&P 500, é“ç“Š, ç´æ–¯é”å…‹, å°è‚¡åŠ æ¬Š
+市場指數價格歷史資料模型
+支援 S&P 500, 道瓊, 納斯達克, 台股加權
 """
 from sqlalchemy import Column, Integer, String, Date, Numeric, BigInteger, DateTime, Index
 from sqlalchemy.sql import func
 from app.database import Base
 
 
-# æŒ‡æ•¸ä»£è™Ÿå°ç…§
+# 指數代號對照
 INDEX_SYMBOLS = {
-    "^GSPC": {"name": "S&P 500", "name_zh": "æ¨™æ™®500"},
-    "^DJI": {"name": "Dow Jones", "name_zh": "é“ç“Šå·¥æ¥­"},
-    "^IXIC": {"name": "NASDAQ", "name_zh": "ç´æ–¯é”å…‹"},
-    "^TWII": {"name": "TAIEX", "name_zh": "å°è‚¡åŠ æ¬Š"},
+    "^GSPC": {"name": "S&P 500", "name_zh": "標普500"},
+    "^DJI": {"name": "Dow Jones", "name_zh": "道瓊工業"},
+    "^IXIC": {"name": "NASDAQ", "name_zh": "納斯達克"},
+    "^TWII": {"name": "TAIEX", "name_zh": "台股加權"},
 }
 
 
 class IndexPrice(Base):
-    """å¸‚å ´æŒ‡æ•¸åƒ¹æ ¼æ­·å²"""
+    """市場指數價格歷史"""
     
     __tablename__ = "index_prices"
     
@@ -30,8 +30,8 @@ class IndexPrice(Base):
     low = Column(Numeric(12, 2))
     close = Column(Numeric(12, 2))
     volume = Column(BigInteger)
-    change = Column(Numeric(10, 2))  # æ¼²è·Œé»žæ•¸
-    change_pct = Column(Numeric(6, 2))  # æ¼²è·Œå¹… %
+    change = Column(Numeric(10, 2))  # 漲跌點數
+    change_pct = Column(Numeric(6, 2))  # 漲跌幅 %
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     __table_args__ = (
@@ -43,18 +43,18 @@ class IndexPrice(Base):
     
     @property
     def name_zh(self) -> str:
-        """å–å¾—ä¸­æ–‡åç¨±"""
+        """取得中文名稱"""
         info = INDEX_SYMBOLS.get(self.symbol, {})
         return info.get("name_zh", self.name or self.symbol)
     
     def to_dict(self):
         def safe_float(val):
-            """å®‰å…¨è½‰æ› floatï¼Œè™•ç† NaN å’Œ Infinity"""
+            """安全轉換 float，處理 NaN 和 Infinity"""
             if val is None:
                 return None
             try:
                 f = float(val)
-                # æª¢æŸ¥ NaN å’Œ Infinity
+                # 檢查 NaN 和 Infinity
                 import math
                 if math.isnan(f) or math.isinf(f):
                     return None

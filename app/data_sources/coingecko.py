@@ -1,6 +1,6 @@
 """
-CoinGecko API è³‡æ–™ä¾†æº
-æŠ“å–åŠ å¯†è²¨å¹£åƒ¹æ ¼è³‡æ–™
+CoinGecko API 資料來源
+抓取加密貨幣價格資料
 """
 import requests
 import pandas as pd
@@ -11,10 +11,10 @@ import time
 
 logger = logging.getLogger(__name__)
 
-# CoinGecko API åŸºç¤Ž URL
+# CoinGecko API 基礎 URL
 BASE_URL = "https://api.coingecko.com/api/v3"
 
-# æ”¯æ´çš„åŠ å¯†è²¨å¹£å°æ‡‰
+# 支援的加密貨幣對應
 CRYPTO_MAP = {
     "BTC": "bitcoin",
     "ETH": "ethereum",
@@ -24,7 +24,7 @@ CRYPTO_MAP = {
 
 
 class CoinGeckoClient:
-    """CoinGecko API å®¢æˆ¶ç«¯"""
+    """CoinGecko API 客戶端"""
     
     def __init__(self):
         self.session = requests.Session()
@@ -32,46 +32,46 @@ class CoinGeckoClient:
             "Accept": "application/json",
         })
         self._last_request_time = 0
-        self._min_request_interval = 1.5  # å…è²» API é™åˆ¶ï¼š~30 æ¬¡/åˆ†é˜
+        self._min_request_interval = 1.5  # 免費 API 限制：~30 次/分鐘
     
     def _rate_limit(self):
-        """é€ŸçŽ‡é™åˆ¶"""
+        """速率限制"""
         elapsed = time.time() - self._last_request_time
         if elapsed < self._min_request_interval:
             time.sleep(self._min_request_interval - elapsed)
         self._last_request_time = time.time()
     
     def _get(self, endpoint: str, params: dict = None) -> Optional[Dict]:
-        """ç™¼é€ GET è«‹æ±‚"""
+        """發送 GET 請求"""
         self._rate_limit()
         
         try:
             url = f"{BASE_URL}/{endpoint}"
-            logger.info(f"CoinGecko API è«‹æ±‚: {url}")
+            logger.info(f"CoinGecko API 請求: {url}")
             response = self.session.get(url, params=params, timeout=15)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.Timeout as e:
-            logger.error(f"CoinGecko API è«‹æ±‚è¶…æ™‚: {e}")
+            logger.error(f"CoinGecko API 請求超時: {e}")
             return None
         except requests.exceptions.ConnectionError as e:
-            logger.error(f"CoinGecko API é€£ç·šå¤±æ•— (å¯èƒ½è¢«ç¶²è·¯é™åˆ¶): {e}")
+            logger.error(f"CoinGecko API 連線失敗 (可能被網路限制): {e}")
             return None
         except requests.exceptions.RequestException as e:
-            logger.error(f"CoinGecko API è«‹æ±‚å¤±æ•—: {e}")
+            logger.error(f"CoinGecko API 請求失敗: {e}")
             return None
     
     def get_coin_id(self, symbol: str) -> Optional[str]:
-        """å°‡ä»£è™Ÿè½‰æ›ç‚º CoinGecko ID"""
+        """將代號轉換為 CoinGecko ID"""
         symbol = symbol.upper()
         return CRYPTO_MAP.get(symbol)
     
     def get_current_price(self, symbols: List[str]) -> Optional[Dict[str, Any]]:
         """
-        å–å¾—å³æ™‚åƒ¹æ ¼
+        取得即時價格
         
         Args:
-            symbols: ä»£è™Ÿåˆ—è¡¨ (å¦‚ ["BTC", "ETH"])
+            symbols: 代號列表 (如 ["BTC", "ETH"])
             
         Returns:
             {
@@ -79,7 +79,7 @@ class CoinGeckoClient:
                 "ETH": {"price": 3450, "change_24h": 1.82, ...}
             }
         """
-        # è½‰æ›ä»£è™Ÿ
+        # 轉換代號
         coin_ids = []
         symbol_map = {}
         for symbol in symbols:
@@ -117,17 +117,17 @@ class CoinGeckoClient:
     
     def get_coin_info(self, symbol: str) -> Optional[Dict[str, Any]]:
         """
-        å–å¾—åŠ å¯†è²¨å¹£è©³ç´°è³‡è¨Š
+        取得加密貨幣詳細資訊
         
         Args:
-            symbol: ä»£è™Ÿ (å¦‚ BTC, ETH)
+            symbol: 代號 (如 BTC, ETH)
             
         Returns:
-            åŒ…å«åƒ¹æ ¼ã€å¸‚å€¼ã€æ­·å²é«˜é»žç­‰è³‡è¨Š
+            包含價格、市值、歷史高點等資訊
         """
         coin_id = self.get_coin_id(symbol)
         if not coin_id:
-            logger.warning(f"ä¸æ”¯æ´çš„åŠ å¯†è²¨å¹£: {symbol}")
+            logger.warning(f"不支援的加密貨幣: {symbol}")
             return None
         
         params = {
@@ -173,11 +173,11 @@ class CoinGeckoClient:
         days: int = 365,
     ) -> Optional[pd.DataFrame]:
         """
-        å–å¾—æ­·å²åƒ¹æ ¼è³‡æ–™
+        取得歷史價格資料
         
         Args:
-            symbol: ä»£è™Ÿ (å¦‚ BTC, ETH)
-            days: å¤©æ•¸ (æœ€å¤š 365 å¤©ï¼Œå…è²» API é™åˆ¶)
+            symbol: 代號 (如 BTC, ETH)
+            days: 天數 (最多 365 天，免費 API 限制)
             
         Returns:
             DataFrame with columns: date, price, volume, market_cap
@@ -188,7 +188,7 @@ class CoinGeckoClient:
         
         params = {
             "vs_currency": "usd",
-            "days": min(days, 365),  # å…è²» API é™åˆ¶
+            "days": min(days, 365),  # 免費 API 限制
             "interval": "daily",
         }
         
@@ -196,7 +196,7 @@ class CoinGeckoClient:
         if not data:
             return None
         
-        # è§£æžè³‡æ–™
+        # 解析資料
         prices = data.get("prices", [])
         volumes = data.get("total_volumes", [])
         market_caps = data.get("market_caps", [])
@@ -217,7 +217,7 @@ class CoinGeckoClient:
         df = pd.DataFrame(records)
         df["symbol"] = symbol.upper()
         
-        # ç§»é™¤é‡è¤‡æ—¥æœŸï¼ˆä¿ç•™æœ€å¾Œä¸€ç­†ï¼‰
+        # 移除重複日期（保留最後一筆）
         df = df.drop_duplicates(subset=["date"], keep="last")
         df = df.sort_values("date").reset_index(drop=True)
         
@@ -229,11 +229,11 @@ class CoinGeckoClient:
         days: int = 365,
     ) -> Optional[pd.DataFrame]:
         """
-        å–å¾— OHLC è³‡æ–™ï¼ˆKç·šè³‡æ–™ï¼‰
+        取得 OHLC 資料（K線資料）
         
         Args:
-            symbol: ä»£è™Ÿ
-            days: å¤©æ•¸ (1/7/14/30/90/180/365/max)
+            symbol: 代號
+            days: 天數 (1/7/14/30/90/180/365/max)
             
         Returns:
             DataFrame with columns: date, open, high, low, close
@@ -242,7 +242,7 @@ class CoinGeckoClient:
         if not coin_id:
             return None
         
-        # CoinGecko OHLC åªæ”¯æ´ç‰¹å®šå¤©æ•¸
+        # CoinGecko OHLC 只支援特定天數
         valid_days = [1, 7, 14, 30, 90, 180, 365]
         days = min(valid_days, key=lambda x: abs(x - days))
         
@@ -269,16 +269,16 @@ class CoinGeckoClient:
         df = pd.DataFrame(records)
         df["symbol"] = symbol.upper()
         
-        # ç§»é™¤é‡è¤‡æ—¥æœŸ
+        # 移除重複日期
         df = df.drop_duplicates(subset=["date"], keep="last")
         df = df.sort_values("date").reset_index(drop=True)
         
         return df
     
     def validate_symbol(self, symbol: str) -> bool:
-        """é©—è­‰ä»£è™Ÿæ˜¯å¦æ”¯æ´"""
+        """驗證代號是否支援"""
         return self.get_coin_id(symbol) is not None
 
 
-# å»ºç«‹å…¨åŸŸå®¢æˆ¶ç«¯å¯¦ä¾‹
+# 建立全域客戶端實例
 coingecko = CoinGeckoClient()

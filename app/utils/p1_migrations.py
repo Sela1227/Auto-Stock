@@ -1,12 +1,12 @@
 """
-P1 åŠŸèƒ½è³‡æ–™åº«é·ç§»
+P1 功能資料庫遷移
 ==================
-æ–°å¢žä»¥ä¸‹è¡¨æ ¼ï¼š
-1. stock_info - è‚¡ç¥¨åŸºæœ¬è³‡è¨Šç¨®å­è¡¨
-2. user_tags - ç”¨æˆ¶è‡ªè¨‚æ¨™ç±¤
-3. watchlist_tags - è¿½è¹¤é …ç›®æ¨™ç±¤é—œè¯
+新增以下表格：
+1. stock_info - 股票基本資訊種子表
+2. user_tags - 用戶自訂標籤
+3. watchlist_tags - 追蹤項目標籤關聯
 
-åœ¨ app/database.py çš„ run_migrations() ä¸­å‘¼å«
+在 app/database.py 的 run_migrations() 中呼叫
 """
 
 import logging
@@ -17,69 +17,69 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
-# é è¨­ç¨®å­è³‡æ–™
+# 預設種子資料
 # ============================================================
 
 DEFAULT_STOCK_INFO = [
-    # ç¾Žè‚¡ - ç§‘æŠ€å·¨é ­
-    {"symbol": "AAPL", "name": "Apple Inc.", "name_zh": "è˜‹æžœ", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
-    {"symbol": "MSFT", "name": "Microsoft Corporation", "name_zh": "å¾®è»Ÿ", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    # 美股 - 科技巨頭
+    {"symbol": "AAPL", "name": "Apple Inc.", "name_zh": "蘋果", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    {"symbol": "MSFT", "name": "Microsoft Corporation", "name_zh": "微軟", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
     {"symbol": "GOOGL", "name": "Alphabet Inc.", "name_zh": "Google", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
-    {"symbol": "AMZN", "name": "Amazon.com Inc.", "name_zh": "äºžé¦¬éœ", "market": "us", "exchange": "NASDAQ", "sector": "Consumer Cyclical", "is_popular": True},
-    {"symbol": "NVDA", "name": "NVIDIA Corporation", "name_zh": "è¼é”", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    {"symbol": "AMZN", "name": "Amazon.com Inc.", "name_zh": "亞馬遜", "market": "us", "exchange": "NASDAQ", "sector": "Consumer Cyclical", "is_popular": True},
+    {"symbol": "NVDA", "name": "NVIDIA Corporation", "name_zh": "輝達", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
     {"symbol": "META", "name": "Meta Platforms Inc.", "name_zh": "Meta", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
-    {"symbol": "TSLA", "name": "Tesla Inc.", "name_zh": "ç‰¹æ–¯æ‹‰", "market": "us", "exchange": "NASDAQ", "sector": "Consumer Cyclical", "is_popular": True},
+    {"symbol": "TSLA", "name": "Tesla Inc.", "name_zh": "特斯拉", "market": "us", "exchange": "NASDAQ", "sector": "Consumer Cyclical", "is_popular": True},
     
-    # ç¾Žè‚¡ - é‡‘èž
-    {"symbol": "JPM", "name": "JPMorgan Chase & Co.", "name_zh": "æ‘©æ ¹å¤§é€š", "market": "us", "exchange": "NYSE", "sector": "Financial Services", "is_popular": True},
+    # 美股 - 金融
+    {"symbol": "JPM", "name": "JPMorgan Chase & Co.", "name_zh": "摩根大通", "market": "us", "exchange": "NYSE", "sector": "Financial Services", "is_popular": True},
     {"symbol": "V", "name": "Visa Inc.", "name_zh": "Visa", "market": "us", "exchange": "NYSE", "sector": "Financial Services", "is_popular": True},
-    {"symbol": "MA", "name": "Mastercard Inc.", "name_zh": "è¬äº‹é”å¡", "market": "us", "exchange": "NYSE", "sector": "Financial Services", "is_popular": True},
+    {"symbol": "MA", "name": "Mastercard Inc.", "name_zh": "萬事達卡", "market": "us", "exchange": "NYSE", "sector": "Financial Services", "is_popular": True},
     
-    # ç¾Žè‚¡ - åŠå°Žé«”
-    {"symbol": "AMD", "name": "Advanced Micro Devices", "name_zh": "è¶…å¾®", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
-    {"symbol": "INTC", "name": "Intel Corporation", "name_zh": "è‹±ç‰¹çˆ¾", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
-    {"symbol": "AVGO", "name": "Broadcom Inc.", "name_zh": "åšé€š", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    # 美股 - 半導體
+    {"symbol": "AMD", "name": "Advanced Micro Devices", "name_zh": "超微", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    {"symbol": "INTC", "name": "Intel Corporation", "name_zh": "英特爾", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
+    {"symbol": "AVGO", "name": "Broadcom Inc.", "name_zh": "博通", "market": "us", "exchange": "NASDAQ", "sector": "Technology", "is_popular": True},
     
-    # å°è‚¡ - åŠå°Žé«”
-    {"symbol": "2330.TW", "name": "Taiwan Semiconductor", "name_zh": "å°ç©é›»", "market": "tw", "exchange": "TWSE", "sector": "åŠå°Žé«”", "is_popular": True},
-    {"symbol": "2454.TW", "name": "MediaTek Inc.", "name_zh": "è¯ç™¼ç§‘", "market": "tw", "exchange": "TWSE", "sector": "åŠå°Žé«”", "is_popular": True},
-    {"symbol": "2303.TW", "name": "United Microelectronics", "name_zh": "è¯é›»", "market": "tw", "exchange": "TWSE", "sector": "åŠå°Žé«”", "is_popular": True},
-    {"symbol": "3711.TW", "name": "ASE Technology", "name_zh": "æ—¥æœˆå…‰æŠ•æŽ§", "market": "tw", "exchange": "TWSE", "sector": "åŠå°Žé«”", "is_popular": True},
+    # 台股 - 半導體
+    {"symbol": "2330.TW", "name": "Taiwan Semiconductor", "name_zh": "台積電", "market": "tw", "exchange": "TWSE", "sector": "半導體", "is_popular": True},
+    {"symbol": "2454.TW", "name": "MediaTek Inc.", "name_zh": "聯發科", "market": "tw", "exchange": "TWSE", "sector": "半導體", "is_popular": True},
+    {"symbol": "2303.TW", "name": "United Microelectronics", "name_zh": "聯電", "market": "tw", "exchange": "TWSE", "sector": "半導體", "is_popular": True},
+    {"symbol": "3711.TW", "name": "ASE Technology", "name_zh": "日月光投控", "market": "tw", "exchange": "TWSE", "sector": "半導體", "is_popular": True},
     
-    # å°è‚¡ - é›»å­ä»£å·¥
-    {"symbol": "2317.TW", "name": "Hon Hai Precision", "name_zh": "é´»æµ·", "market": "tw", "exchange": "TWSE", "sector": "é›»å­", "is_popular": True},
-    {"symbol": "2382.TW", "name": "Quanta Computer", "name_zh": "å»£é”", "market": "tw", "exchange": "TWSE", "sector": "é›»å­", "is_popular": True},
-    {"symbol": "2357.TW", "name": "Asustek Computer", "name_zh": "è¯ç¢©", "market": "tw", "exchange": "TWSE", "sector": "é›»å­", "is_popular": True},
+    # 台股 - 電子代工
+    {"symbol": "2317.TW", "name": "Hon Hai Precision", "name_zh": "鴻海", "market": "tw", "exchange": "TWSE", "sector": "電子", "is_popular": True},
+    {"symbol": "2382.TW", "name": "Quanta Computer", "name_zh": "廣達", "market": "tw", "exchange": "TWSE", "sector": "電子", "is_popular": True},
+    {"symbol": "2357.TW", "name": "Asustek Computer", "name_zh": "華碩", "market": "tw", "exchange": "TWSE", "sector": "電子", "is_popular": True},
     
-    # å°è‚¡ - é‡‘èž
-    {"symbol": "2881.TW", "name": "Fubon Financial", "name_zh": "å¯Œé‚¦é‡‘", "market": "tw", "exchange": "TWSE", "sector": "é‡‘èž", "is_popular": True},
-    {"symbol": "2882.TW", "name": "Cathay Financial", "name_zh": "åœ‹æ³°é‡‘", "market": "tw", "exchange": "TWSE", "sector": "é‡‘èž", "is_popular": True},
-    {"symbol": "2884.TW", "name": "E.Sun Financial", "name_zh": "çŽ‰å±±é‡‘", "market": "tw", "exchange": "TWSE", "sector": "é‡‘èž", "is_popular": True},
+    # 台股 - 金融
+    {"symbol": "2881.TW", "name": "Fubon Financial", "name_zh": "富邦金", "market": "tw", "exchange": "TWSE", "sector": "金融", "is_popular": True},
+    {"symbol": "2882.TW", "name": "Cathay Financial", "name_zh": "國泰金", "market": "tw", "exchange": "TWSE", "sector": "金融", "is_popular": True},
+    {"symbol": "2884.TW", "name": "E.Sun Financial", "name_zh": "玉山金", "market": "tw", "exchange": "TWSE", "sector": "金融", "is_popular": True},
     
-    # å°è‚¡ - ETF
-    {"symbol": "0050.TW", "name": "Yuanta Taiwan 50 ETF", "name_zh": "å…ƒå¤§å°ç£50", "market": "tw", "exchange": "TWSE", "sector": "ETF", "is_popular": True},
-    {"symbol": "0056.TW", "name": "Yuanta High Dividend ETF", "name_zh": "å…ƒå¤§é«˜è‚¡æ¯", "market": "tw", "exchange": "TWSE", "sector": "ETF", "is_popular": True},
-    {"symbol": "00878.TW", "name": "Cathay ESG High Dividend ETF", "name_zh": "åœ‹æ³°æ°¸çºŒé«˜è‚¡æ¯", "market": "tw", "exchange": "TWSE", "sector": "ETF", "is_popular": True},
+    # 台股 - ETF
+    {"symbol": "0050.TW", "name": "Yuanta Taiwan 50 ETF", "name_zh": "元大台灣50", "market": "tw", "exchange": "TWSE", "sector": "ETF", "is_popular": True},
+    {"symbol": "0056.TW", "name": "Yuanta High Dividend ETF", "name_zh": "元大高股息", "market": "tw", "exchange": "TWSE", "sector": "ETF", "is_popular": True},
+    {"symbol": "00878.TW", "name": "Cathay ESG High Dividend ETF", "name_zh": "國泰永續高股息", "market": "tw", "exchange": "TWSE", "sector": "ETF", "is_popular": True},
     
-    # åŠ å¯†è²¨å¹£
-    {"symbol": "BTC", "name": "Bitcoin", "name_zh": "æ¯”ç‰¹å¹£", "market": "crypto", "exchange": "CoinGecko", "sector": "Cryptocurrency", "is_popular": True},
-    {"symbol": "ETH", "name": "Ethereum", "name_zh": "ä»¥å¤ªåŠ", "market": "crypto", "exchange": "CoinGecko", "sector": "Cryptocurrency", "is_popular": True},
-    {"symbol": "SOL", "name": "Solana", "name_zh": "ç´¢æ‹‰ç´", "market": "crypto", "exchange": "CoinGecko", "sector": "Cryptocurrency", "is_popular": True},
+    # 加密貨幣
+    {"symbol": "BTC", "name": "Bitcoin", "name_zh": "比特幣", "market": "crypto", "exchange": "CoinGecko", "sector": "Cryptocurrency", "is_popular": True},
+    {"symbol": "ETH", "name": "Ethereum", "name_zh": "以太坊", "market": "crypto", "exchange": "CoinGecko", "sector": "Cryptocurrency", "is_popular": True},
+    {"symbol": "SOL", "name": "Solana", "name_zh": "索拉納", "market": "crypto", "exchange": "CoinGecko", "sector": "Cryptocurrency", "is_popular": True},
     
-    # æŒ‡æ•¸
-    {"symbol": "^GSPC", "name": "S&P 500", "name_zh": "æ¨™æ™®500", "market": "us", "exchange": "INDEX", "sector": "Index", "is_popular": True},
-    {"symbol": "^DJI", "name": "Dow Jones Industrial Average", "name_zh": "é“ç“Šå·¥æ¥­", "market": "us", "exchange": "INDEX", "sector": "Index", "is_popular": True},
-    {"symbol": "^IXIC", "name": "NASDAQ Composite", "name_zh": "ç´æ–¯é”å…‹", "market": "us", "exchange": "INDEX", "sector": "Index", "is_popular": True},
-    {"symbol": "^TWII", "name": "Taiwan Weighted Index", "name_zh": "å°ç£åŠ æ¬Š", "market": "tw", "exchange": "INDEX", "sector": "Index", "is_popular": True},
+    # 指數
+    {"symbol": "^GSPC", "name": "S&P 500", "name_zh": "標普500", "market": "us", "exchange": "INDEX", "sector": "Index", "is_popular": True},
+    {"symbol": "^DJI", "name": "Dow Jones Industrial Average", "name_zh": "道瓊工業", "market": "us", "exchange": "INDEX", "sector": "Index", "is_popular": True},
+    {"symbol": "^IXIC", "name": "NASDAQ Composite", "name_zh": "納斯達克", "market": "us", "exchange": "INDEX", "sector": "Index", "is_popular": True},
+    {"symbol": "^TWII", "name": "Taiwan Weighted Index", "name_zh": "台灣加權", "market": "tw", "exchange": "INDEX", "sector": "Index", "is_popular": True},
 ]
 
 
 def run_p1_migrations(db: Session) -> dict:
     """
-    åŸ·è¡Œ P1 åŠŸèƒ½çš„è³‡æ–™åº«é·ç§»
+    執行 P1 功能的資料庫遷移
     
     Returns:
-        é·ç§»çµæžœ
+        遷移結果
     """
     results = {
         "success": True,
@@ -91,7 +91,7 @@ def run_p1_migrations(db: Session) -> dict:
     
     try:
         # ============================================================
-        # 1. stock_info è¡¨
+        # 1. stock_info 表
         # ============================================================
         try:
             db.execute(text("""
@@ -117,7 +117,7 @@ def run_p1_migrations(db: Session) -> dict:
                 )
             """))
             
-            # å»ºç«‹ç´¢å¼•
+            # 建立索引
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_stock_info_symbol ON stock_info(symbol)"))
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_stock_info_market ON stock_info(market)"))
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_stock_info_sector ON stock_info(sector)"))
@@ -125,16 +125,16 @@ def run_p1_migrations(db: Session) -> dict:
             
             db.commit()
             results["tables_created"].append("stock_info")
-            logger.info("âœ… stock_info è¡¨å·²å»ºç«‹")
+            logger.info("✅ stock_info 表已建立")
         except Exception as e:
             if "already exists" in str(e).lower():
-                logger.info("â„¹ï¸ stock_info è¡¨å·²å­˜åœ¨")
+                logger.info("ℹ️ stock_info 表已存在")
             else:
                 results["errors"].append(f"stock_info: {e}")
-                logger.error(f"âŒ stock_info å»ºç«‹å¤±æ•—: {e}")
+                logger.error(f"❌ stock_info 建立失敗: {e}")
         
         # ============================================================
-        # 2. user_tags è¡¨
+        # 2. user_tags 表
         # ============================================================
         try:
             db.execute(text("""
@@ -150,21 +150,21 @@ def run_p1_migrations(db: Session) -> dict:
                 )
             """))
             
-            # å»ºç«‹ç´¢å¼•
+            # 建立索引
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_user_tags_user_id ON user_tags(user_id)"))
             
             db.commit()
             results["tables_created"].append("user_tags")
-            logger.info("âœ… user_tags è¡¨å·²å»ºç«‹")
+            logger.info("✅ user_tags 表已建立")
         except Exception as e:
             if "already exists" in str(e).lower():
-                logger.info("â„¹ï¸ user_tags è¡¨å·²å­˜åœ¨")
+                logger.info("ℹ️ user_tags 表已存在")
             else:
                 results["errors"].append(f"user_tags: {e}")
-                logger.error(f"âŒ user_tags å»ºç«‹å¤±æ•—: {e}")
+                logger.error(f"❌ user_tags 建立失敗: {e}")
         
         # ============================================================
-        # 3. watchlist_tags é—œè¯è¡¨
+        # 3. watchlist_tags 關聯表
         # ============================================================
         try:
             db.execute(text("""
@@ -177,19 +177,19 @@ def run_p1_migrations(db: Session) -> dict:
             
             db.commit()
             results["tables_created"].append("watchlist_tags")
-            logger.info("âœ… watchlist_tags è¡¨å·²å»ºç«‹")
+            logger.info("✅ watchlist_tags 表已建立")
         except Exception as e:
             if "already exists" in str(e).lower():
-                logger.info("â„¹ï¸ watchlist_tags è¡¨å·²å­˜åœ¨")
+                logger.info("ℹ️ watchlist_tags 表已存在")
             else:
                 results["errors"].append(f"watchlist_tags: {e}")
-                logger.error(f"âŒ watchlist_tags å»ºç«‹å¤±æ•—: {e}")
+                logger.error(f"❌ watchlist_tags 建立失敗: {e}")
         
         # ============================================================
-        # 4. æª¢æŸ¥ watchlist è¡¨æ˜¯å¦æœ‰ target_price æ¬„ä½
+        # 4. 檢查 watchlist 表是否有 target_price 欄位
         # ============================================================
         try:
-            # æª¢æŸ¥æ¬„ä½æ˜¯å¦å­˜åœ¨
+            # 檢查欄位是否存在
             result = db.execute(text("""
                 SELECT column_name FROM information_schema.columns 
                 WHERE table_name = 'watchlist' AND column_name = 'target_price'
@@ -200,26 +200,26 @@ def run_p1_migrations(db: Session) -> dict:
                 """))
                 db.commit()
                 results["columns_added"].append("watchlist.target_price")
-                logger.info("âœ… watchlist.target_price æ¬„ä½å·²æ–°å¢ž")
+                logger.info("✅ watchlist.target_price 欄位已新增")
             else:
-                logger.info("â„¹ï¸ watchlist.target_price æ¬„ä½å·²å­˜åœ¨")
+                logger.info("ℹ️ watchlist.target_price 欄位已存在")
         except Exception as e:
             if "already exists" in str(e).lower():
                 pass
             else:
                 results["errors"].append(f"target_price: {e}")
-                logger.warning(f"âš ï¸ æ–°å¢ž target_price æ¬„ä½å¤±æ•—: {e}")
+                logger.warning(f"⚠️ 新增 target_price 欄位失敗: {e}")
         
         # ============================================================
-        # 5. è‡ªå‹•å¡«å…¥ç¨®å­è³‡æ–™
+        # 5. 自動填入種子資料
         # ============================================================
         try:
-            # æª¢æŸ¥æ˜¯å¦ç‚ºç©ºè¡¨
+            # 檢查是否為空表
             count_result = db.execute(text("SELECT COUNT(*) FROM stock_info"))
             count = count_result.scalar()
             
             if count == 0:
-                logger.info("ðŸ“Š stock_info ç‚ºç©ºï¼Œé–‹å§‹å¡«å…¥ç¨®å­è³‡æ–™...")
+                logger.info("📊 stock_info 為空，開始填入種子資料...")
                 for stock_data in DEFAULT_STOCK_INFO:
                     db.execute(text("""
                         INSERT INTO stock_info (symbol, name, name_zh, market, exchange, sector, is_popular)
@@ -228,25 +228,25 @@ def run_p1_migrations(db: Session) -> dict:
                     """), stock_data)
                 db.commit()
                 results["seed_data"] = len(DEFAULT_STOCK_INFO)
-                logger.info(f"âœ… å·²å¡«å…¥ {len(DEFAULT_STOCK_INFO)} ç­†ç¨®å­è³‡æ–™")
+                logger.info(f"✅ 已填入 {len(DEFAULT_STOCK_INFO)} 筆種子資料")
             else:
-                logger.info(f"â„¹ï¸ stock_info å·²æœ‰ {count} ç­†è³‡æ–™ï¼Œè·³éŽç¨®å­å¡«å…¥")
+                logger.info(f"ℹ️ stock_info 已有 {count} 筆資料，跳過種子填入")
         except Exception as e:
-            logger.warning(f"âš ï¸ ç¨®å­è³‡æ–™å¡«å…¥å¤±æ•—: {e}")
+            logger.warning(f"⚠️ 種子資料填入失敗: {e}")
         
         # ============================================================
-        # ç¸½çµ
+        # 總結
         # ============================================================
         if results["errors"]:
             results["success"] = False
-            logger.warning(f"P1 é·ç§»å®Œæˆï¼Œä½†æœ‰éŒ¯èª¤: {results['errors']}")
+            logger.warning(f"P1 遷移完成，但有錯誤: {results['errors']}")
         else:
-            logger.info(f"âœ… P1 é·ç§»å®Œæˆ: å»ºç«‹ {len(results['tables_created'])} å€‹è¡¨, ç¨®å­ {results['seed_data']} ç­†")
+            logger.info(f"✅ P1 遷移完成: 建立 {len(results['tables_created'])} 個表, 種子 {results['seed_data']} 筆")
         
         return results
         
     except Exception as e:
-        logger.error(f"âŒ P1 é·ç§»å¤±æ•—: {e}")
+        logger.error(f"❌ P1 遷移失敗: {e}")
         db.rollback()
         results["success"] = False
         results["errors"].append(str(e))

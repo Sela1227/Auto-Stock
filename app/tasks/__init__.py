@@ -1,5 +1,5 @@
 """
-æŽ’ç¨‹ä»»å‹™æ¨¡çµ„
+排程任務模組
 """
 from app.tasks.scheduler import scheduler_service, SchedulerService
 

@@ -1,6 +1,6 @@
 """
-å¸‚å ´è³‡æ–™ API è·¯ç”±
-ðŸ”§ P0ä¿®å¾©ï¼šä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+市場資料 API 路由
+🔧 P0修復：使用統一認證模組
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
@@ -13,7 +13,7 @@ from app.services.market_service import MarketService
 from app.tasks.scheduler import scheduler_service
 from app.models.index_price import INDEX_SYMBOLS
 
-# ðŸ”§ ä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+# 🔧 使用統一認證模組
 from app.dependencies import get_optional_user, get_admin_user
 
 logger = logging.getLogger(__name__)
@@ -21,19 +21,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/market", tags=["market"])
 
 
-# ==================== ä¸‰å¤§æŒ‡æ•¸ ====================
+# ==================== 三大指數 ====================
 
 @router.get("/indices")
 async def get_indices(
     db: Session = Depends(get_db),
 ):
     """
-    å–å¾—ä¸‰å¤§æŒ‡æ•¸æœ€æ–°è³‡æ–™
+    取得三大指數最新資料
     
     Returns:
         - S&P 500 (^GSPC)
-        - é“ç“Šå·¥æ¥­ (^DJI)
-        - ç´æ–¯é”å…‹ (^IXIC)
+        - 道瓊工業 (^DJI)
+        - 納斯達克 (^IXIC)
     """
     try:
         market_service = MarketService(db)
@@ -47,7 +47,7 @@ async def get_indices(
             }
         }
     except Exception as e:
-        logger.error(f"å–å¾—æŒ‡æ•¸å¤±æ•—: {e}")
+        logger.error(f"取得指數失敗: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -58,17 +58,17 @@ async def get_index_history(
     db: Session = Depends(get_db),
 ):
     """
-    å–å¾—æŒ‡æ•¸æ­·å²è³‡æ–™
+    取得指數歷史資料
     
     Args:
-        symbol: æŒ‡æ•¸ä»£è™Ÿ (^GSPC, ^DJI, ^IXIC)
-        days: å¤©æ•¸ (é è¨­ 365ï¼Œæœ€å¤š 3650)
+        symbol: 指數代號 (^GSPC, ^DJI, ^IXIC)
+        days: 天數 (預設 365，最多 3650)
     """
-    # é©—è­‰ symbol
+    # 驗證 symbol
     if symbol not in INDEX_SYMBOLS:
         raise HTTPException(
             status_code=400,
-            detail=f"ç„¡æ•ˆçš„æŒ‡æ•¸ä»£è™Ÿï¼Œå¯ç”¨: {list(INDEX_SYMBOLS.keys())}"
+            detail=f"無效的指數代號，可用: {list(INDEX_SYMBOLS.keys())}"
         )
     
     try:
@@ -87,18 +87,18 @@ async def get_index_history(
             }
         }
     except Exception as e:
-        logger.error(f"å–å¾—æŒ‡æ•¸æ­·å²å¤±æ•—: {e}")
+        logger.error(f"取得指數歷史失敗: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== å¸‚å ´æƒ…ç·’ ====================
+# ==================== 市場情緒 ====================
 
 @router.get("/sentiment")
 async def get_sentiment(
     db: Session = Depends(get_db),
 ):
     """
-    å–å¾—å¸‚å ´æƒ…ç·’ï¼ˆç¾Žè‚¡ + å¹£åœˆï¼‰
+    取得市場情緒（美股 + 幣圈）
     """
     try:
         market_service = MarketService(db)
@@ -109,7 +109,7 @@ async def get_sentiment(
             "data": sentiment,
         }
     except Exception as e:
-        logger.error(f"å–å¾—æƒ…ç·’å¤±æ•—: {e}")
+        logger.error(f"取得情緒失敗: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -120,16 +120,16 @@ async def get_sentiment_history(
     db: Session = Depends(get_db),
 ):
     """
-    å–å¾—æƒ…ç·’æ­·å²è³‡æ–™
+    取得情緒歷史資料
     
     Args:
-        market: å¸‚å ´é¡žåž‹ (stock, crypto)
-        days: å¤©æ•¸ (é è¨­ 365ï¼Œæœ€å¤š 365)
+        market: 市場類型 (stock, crypto)
+        days: 天數 (預設 365，最多 365)
     """
     if market not in ["stock", "crypto"]:
         raise HTTPException(
             status_code=400,
-            detail="ç„¡æ•ˆçš„å¸‚å ´é¡žåž‹ï¼Œå¯ç”¨: stock, crypto"
+            detail="無效的市場類型，可用: stock, crypto"
         )
     
     try:
@@ -146,11 +146,11 @@ async def get_sentiment_history(
             }
         }
     except Exception as e:
-        logger.error(f"å–å¾—æƒ…ç·’æ­·å²å¤±æ•—: {e}")
+        logger.error(f"取得情緒歷史失敗: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== ç®¡ç†å“¡åŠŸèƒ½ï¼šæŽ’ç¨‹ä»»å‹™ ====================
+# ==================== 管理員功能：排程任務 ====================
 
 @router.post("/admin/update")
 async def trigger_daily_update(
@@ -158,7 +158,7 @@ async def trigger_daily_update(
     db: Session = Depends(get_db),
 ):
     """
-    [ç®¡ç†å“¡] æ‰‹å‹•è§¸ç™¼æ¯æ—¥æ›´æ–°
+    [管理員] 手動觸發每日更新
     """
     try:
         result = scheduler_service.run_daily_update()
@@ -168,7 +168,7 @@ async def trigger_daily_update(
             "data": result,
         }
     except Exception as e:
-        logger.error(f"åŸ·è¡Œæ›´æ–°å¤±æ•—: {e}")
+        logger.error(f"執行更新失敗: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -179,11 +179,11 @@ async def initialize_historical_data(
     db: Session = Depends(get_db),
 ):
     """
-    [ç®¡ç†å“¡] åˆå§‹åŒ–æ­·å²è³‡æ–™
+    [管理員] 初始化歷史資料
     
-    é¦–æ¬¡éƒ¨ç½²æ™‚åŸ·è¡Œï¼ŒæŠ“å–ï¼š
-    - ä¸‰å¤§æŒ‡æ•¸ N å¹´æ­·å²
-    - å¹£åœˆæƒ…ç·’ 365 å¤©æ­·å²
+    首次部署時執行，抓取：
+    - 三大指數 N 年歷史
+    - 幣圈情緒 365 天歷史
     """
     try:
         result = scheduler_service.initialize_historical_data(years=years)
@@ -193,7 +193,7 @@ async def initialize_historical_data(
             "data": result,
         }
     except Exception as e:
-        logger.error(f"åˆå§‹åŒ–å¤±æ•—: {e}")
+        logger.error(f"初始化失敗: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -204,7 +204,7 @@ async def update_indices(
     db: Session = Depends(get_db),
 ):
     """
-    [ç®¡ç†å“¡] æ›´æ–°ä¸‰å¤§æŒ‡æ•¸è³‡æ–™
+    [管理員] 更新三大指數資料
     """
     try:
         market_service = MarketService(db)
@@ -218,7 +218,7 @@ async def update_indices(
             }
         }
     except Exception as e:
-        logger.error(f"æ›´æ–°æŒ‡æ•¸å¤±æ•—: {e}")
+        logger.error(f"更新指數失敗: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -228,7 +228,7 @@ async def update_sentiment(
     db: Session = Depends(get_db),
 ):
     """
-    [ç®¡ç†å“¡] æ›´æ–°ä»Šæ—¥å¸‚å ´æƒ…ç·’
+    [管理員] 更新今日市場情緒
     """
     try:
         market_service = MarketService(db)
@@ -239,7 +239,7 @@ async def update_sentiment(
             "data": result,
         }
     except Exception as e:
-        logger.error(f"æ›´æ–°æƒ…ç·’å¤±æ•—: {e}")
+        logger.error(f"更新情緒失敗: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -250,7 +250,7 @@ async def init_crypto_sentiment(
     db: Session = Depends(get_db),
 ):
     """
-    [ç®¡ç†å“¡] åˆå§‹åŒ–å¹£åœˆæƒ…ç·’æ­·å²
+    [管理員] 初始化幣圈情緒歷史
     """
     try:
         market_service = MarketService(db)
@@ -264,7 +264,7 @@ async def init_crypto_sentiment(
             }
         }
     except Exception as e:
-        logger.error(f"åˆå§‹åŒ–å¹£åœˆæƒ…ç·’å¤±æ•—: {e}")
+        logger.error(f"初始化幣圈情緒失敗: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -273,7 +273,7 @@ async def get_scheduler_status(
     current_user = Depends(get_admin_user),
 ):
     """
-    [ç®¡ç†å“¡] å–å¾—æŽ’ç¨‹ç‹€æ…‹
+    [管理員] 取得排程狀態
     """
     return {
         "success": True,

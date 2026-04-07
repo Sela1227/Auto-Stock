@@ -1,5 +1,5 @@
 """
-é€šçŸ¥è¨˜éŒ„è³‡æ–™æ¨¡åž‹
+通知記錄資料模型
 """
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Numeric, Text, Index
 from sqlalchemy.sql import func
@@ -8,7 +8,7 @@ from app.database import Base
 
 
 class Notification(Base):
-    """é€šçŸ¥è¨˜éŒ„"""
+    """通知記錄"""
     
     __tablename__ = "notifications"
     
@@ -16,15 +16,15 @@ class Notification(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     symbol = Column(String(10), nullable=False)
     asset_type = Column(String(10), nullable=False)  # stock / crypto
-    alert_type = Column(String(30), nullable=False)  # é€šçŸ¥é¡žåž‹
-    indicator = Column(String(20))  # ç›¸é—œæŒ‡æ¨™
-    message = Column(Text)  # é€šçŸ¥å…§å®¹
-    price_at_trigger = Column(Numeric(18, 8))  # è§¸ç™¼æ™‚åƒ¹æ ¼
+    alert_type = Column(String(30), nullable=False)  # 通知類型
+    indicator = Column(String(20))  # 相關指標
+    message = Column(Text)  # 通知內容
+    price_at_trigger = Column(Numeric(18, 8))  # 觸發時價格
     triggered_at = Column(DateTime, server_default=func.now())
-    sent = Column(Boolean, default=False)  # æ˜¯å¦å·²ç™¼é€
-    sent_at = Column(DateTime)  # ç™¼é€æ™‚é–“
+    sent = Column(Boolean, default=False)  # 是否已發送
+    sent_at = Column(DateTime)  # 發送時間
     
-    # é—œè¯
+    # 關聯
     user = relationship("User")
     
     __table_args__ = (
@@ -33,25 +33,25 @@ class Notification(Base):
         Index('idx_notification_triggered', 'triggered_at'),
     )
     
-    # é€šçŸ¥é¡žåž‹å¸¸æ•¸
+    # 通知類型常數
     ALERT_TYPES = {
-        "ma_golden_cross": "å‡ç·šé»ƒé‡‘äº¤å‰",
-        "ma_death_cross": "å‡ç·šæ­»äº¡äº¤å‰",
-        "approaching_breakout": "æŽ¥è¿‘å‘ä¸Šçªç ´",
-        "approaching_breakdown": "æŽ¥è¿‘å‘ä¸‹è·Œç ´",
-        "breakout": "å·²çªç ´",
-        "breakdown": "å·²è·Œç ´",
-        "rsi_overbought": "RSI è¶…è²·",
-        "rsi_oversold": "RSI è¶…è³£",
-        "macd_golden_cross": "MACD é»ƒé‡‘äº¤å‰",
-        "macd_death_cross": "MACD æ­»äº¡äº¤å‰",
-        "kd_golden_cross": "KD é»ƒé‡‘äº¤å‰",
-        "kd_death_cross": "KD æ­»äº¡äº¤å‰",
-        "bollinger_breakout": "å¸ƒæž—ä¸Šè»Œçªç ´",
-        "bollinger_breakdown": "å¸ƒæž—ä¸‹è»Œè·Œç ´",
-        "volume_surge": "æˆäº¤é‡æš´å¢ž",
-        "sentiment_extreme_fear": "æ¥µåº¦ææ‡¼",
-        "sentiment_extreme_greed": "æ¥µåº¦è²ªå©ª",
+        "ma_golden_cross": "均線黃金交叉",
+        "ma_death_cross": "均線死亡交叉",
+        "approaching_breakout": "接近向上突破",
+        "approaching_breakdown": "接近向下跌破",
+        "breakout": "已突破",
+        "breakdown": "已跌破",
+        "rsi_overbought": "RSI 超買",
+        "rsi_oversold": "RSI 超賣",
+        "macd_golden_cross": "MACD 黃金交叉",
+        "macd_death_cross": "MACD 死亡交叉",
+        "kd_golden_cross": "KD 黃金交叉",
+        "kd_death_cross": "KD 死亡交叉",
+        "bollinger_breakout": "布林上軌突破",
+        "bollinger_breakdown": "布林下軌跌破",
+        "volume_surge": "成交量暴增",
+        "sentiment_extreme_fear": "極度恐懼",
+        "sentiment_extreme_greed": "極度貪婪",
     }
     
     def __repr__(self):

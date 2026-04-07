@@ -1,5 +1,5 @@
 """
-å•†æ¥­é‚è¼¯æœå‹™æ¨¡çµ„
+商業邏輯服務模組
 """
 from app.services.indicator_service import indicator_service, IndicatorService
 from app.services.stock_service import StockService

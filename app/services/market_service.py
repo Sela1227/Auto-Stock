@@ -1,6 +1,6 @@
 """
-å¸‚å ´æœå‹™
-è™•ç†ä¸‰å¤§æŒ‡æ•¸ã€å¸‚å ´æƒ…ç·’çš„è³‡æ–™å­˜å–
+市場服務
+處理三大指數、市場情緒的資料存取
 """
 import pandas as pd
 from datetime import datetime, date, timedelta
@@ -20,15 +20,15 @@ logger = logging.getLogger(__name__)
 
 
 class MarketService:
-    """å¸‚å ´æœå‹™"""
+    """市場服務"""
     
     def __init__(self, db: Session):
         self.db = db
     
-    # ==================== ä¸‰å¤§æŒ‡æ•¸ ====================
+    # ==================== 三大指數 ====================
     
     def get_latest_indices(self) -> Dict[str, Any]:
-        """å–å¾—ä¸‰å¤§æŒ‡æ•¸æœ€æ–°è³‡æ–™ï¼Œå›žå‚³å­—å…¸æ ¼å¼"""
+        """取得四大指數最新資料（只從資料庫讀取，排程才更新）"""
         result = {}
         
         for symbol, info in INDEX_SYMBOLS.items():
@@ -43,27 +43,30 @@ class MarketService:
                 
                 if latest:
                     result[symbol] = latest.to_dict()
-                    continue
-            except Exception as e:
-                logger.warning(f"å¾žè³‡æ–™åº«å–å¾— {symbol} å¤±æ•—: {e}")
-            
-            # Fallback: å¾ž Yahoo Finance API å–å¾—
-            try:
-                df = yahoo_finance.get_index_data(symbol, period="5d")
-                if df is not None and not df.empty:
-                    row = df.iloc[-1]
+                    logger.debug(f"📦 指數快取: {symbol} = {latest.close}")
+                else:
+                    # 沒有快取時回傳 None，不查 API
+                    logger.warning(f"⚠️ 指數 {symbol} 無快取資料，請執行更新")
                     result[symbol] = {
                         "symbol": symbol,
                         "name": info["name"],
                         "name_zh": info["name_zh"],
-                        "date": str(row["date"]),
-                        "close": float(row["close"]),
-                        "change": float(row["change"]) if pd.notna(row.get("change")) else None,
-                        "change_pct": float(row["change_pct"]) if pd.notna(row.get("change_pct")) else None,
+                        "date": None,
+                        "close": None,
+                        "change": None,
+                        "change_pct": None,
                     }
-                    logger.info(f"å¾ž API å–å¾— {symbol}: {result[symbol]['close']}")
             except Exception as e:
-                logger.error(f"å¾ž API å–å¾— {symbol} å¤±æ•—: {e}")
+                logger.error(f"讀取指數 {symbol} 失敗: {e}")
+                result[symbol] = {
+                    "symbol": symbol,
+                    "name": info["name"],
+                    "name_zh": info["name_zh"],
+                    "date": None,
+                    "close": None,
+                    "change": None,
+                    "change_pct": None,
+                }
         
         return result
     
@@ -72,7 +75,7 @@ class MarketService:
         symbol: str,
         days: int = 365,
     ) -> List[Dict[str, Any]]:
-        """å–å¾—æŒ‡æ•¸æ­·å²è³‡æ–™"""
+        """取得指數歷史資料"""
         start_date = date.today() - timedelta(days=days)
         
         stmt = (
@@ -91,15 +94,15 @@ class MarketService:
     
     def save_index_data(self, df: pd.DataFrame, symbol: str) -> int:
         """
-        å„²å­˜æŒ‡æ•¸è³‡æ–™åˆ°è³‡æ–™åº«
+        儲存指數資料到資料庫
         
         Returns:
-            å„²å­˜çš„ç­†æ•¸
+            儲存的筆數
         """
         import math
         
         def clean_value(val):
-            """æ¸…ç†å€¼ï¼Œå°‡ NaN/Inf è½‰ç‚º None"""
+            """清理值，將 NaN/Inf 轉為 None"""
             if val is None:
                 return None
             if pd.isna(val):
@@ -119,7 +122,7 @@ class MarketService:
         index_info = INDEX_SYMBOLS.get(symbol, {})
         
         for _, row in df.iterrows():
-            # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨
+            # 檢查是否已存在
             stmt = select(IndexPrice).where(
                 and_(
                     IndexPrice.symbol == symbol,
@@ -129,7 +132,7 @@ class MarketService:
             existing = self.db.execute(stmt).scalar_one_or_none()
             
             if existing:
-                # æ›´æ–°ç¾æœ‰è³‡æ–™
+                # 更新現有資料
                 existing.open = clean_value(row.get("open"))
                 existing.high = clean_value(row.get("high"))
                 existing.low = clean_value(row.get("low"))
@@ -138,7 +141,7 @@ class MarketService:
                 existing.change = clean_value(row.get("change"))
                 existing.change_pct = clean_value(row.get("change_pct"))
             else:
-                # æ–°å¢žè³‡æ–™
+                # 新增資料
                 price = IndexPrice(
                     symbol=symbol,
                     name=index_info.get("name", symbol),
@@ -159,86 +162,69 @@ class MarketService:
     
     def fetch_and_save_all_indices(self, period: str = "10y") -> Dict[str, int]:
         """
-        æŠ“å–ä¸¦å„²å­˜æ‰€æœ‰ä¸‰å¤§æŒ‡æ•¸è³‡æ–™
+        抓取並儲存所有三大指數資料
         
         Returns:
-            {symbol: å„²å­˜ç­†æ•¸}
+            {symbol: 儲存筆數}
         """
         result = {}
         
         for symbol in INDEX_SYMBOLS.keys():
-            logger.info(f"æŠ“å–æŒ‡æ•¸è³‡æ–™: {symbol}")
+            logger.info(f"抓取指數資料: {symbol}")
             df = yahoo_finance.get_index_data(symbol, period=period)
             
             if df is not None:
                 count = self.save_index_data(df, symbol)
                 result[symbol] = count
-                logger.info(f"{symbol} æ–°å¢ž {count} ç­†è³‡æ–™")
+                logger.info(f"{symbol} 新增 {count} 筆資料")
             else:
                 result[symbol] = 0
-                logger.warning(f"{symbol} æŠ“å–å¤±æ•—")
+                logger.warning(f"{symbol} 抓取失敗")
         
         return result
     
-    # ==================== å¸‚å ´æƒ…ç·’ ====================
+    # ==================== 市場情緒 ====================
     
     def get_latest_sentiment(self) -> Dict[str, Any]:
         """
-        å–å¾—æœ€æ–°çš„å¸‚å ´æƒ…ç·’
+        取得最新的市場情緒（🆕 只從資料庫讀取，排程才更新）
         
-        ðŸ”§ ä¿®å¾©ç‰ˆæœ¬ï¼š
-        - å„ªå…ˆå¾žè³‡æ–™åº«è®€å–ï¼ˆæ¯«ç§’ç´šï¼‰
-        - æª¢æŸ¥è³‡æ–™æ–°é®®åº¦ï¼ˆè¶…éŽ 1 å¤©æ‰é‡æ–°æŠ“å–ï¼‰
-        - è³‡æ–™åº«æ²’æœ‰æ™‚æ‰å‘¼å«å¤–éƒ¨ API
-        - å¾ž API å–å¾—å¾Œæœƒå­˜å…¥è³‡æ–™åº«
+        - 只從資料庫讀取，不主動查外部 API
+        - 資料庫沒有或過期時回傳 None
+        - 排程或手動更新時才會查 API
         """
         result = {}
-        today = date.today()
         
         for market in ["stock", "crypto"]:
-            # 1. å…ˆæŸ¥è³‡æ–™åº«
-            stmt = (
-                select(MarketSentiment)
-                .where(MarketSentiment.market == market)
-                .order_by(desc(MarketSentiment.date))
-                .limit(1)
-            )
-            latest = self.db.execute(stmt).scalar_one_or_none()
-            
-            if latest:
-                # 2. æª¢æŸ¥è³‡æ–™æ–°é®®åº¦ï¼ˆä»Šå¤©æˆ–æ˜¨å¤©çš„è³‡æ–™éƒ½å¯æŽ¥å—ï¼‰
-                if latest.date >= today - timedelta(days=1):
-                    result[market] = latest.to_dict()
-                    logger.debug(f"[Sentiment] {market} å¾žè³‡æ–™åº«è®€å–: {latest.value}")
-                    continue
-                else:
-                    logger.info(f"[Sentiment] {market} è³‡æ–™éŽæœŸ (date={latest.date}), å˜—è©¦æ›´æ–°...")
-            else:
-                logger.info(f"[Sentiment] {market} è³‡æ–™åº«ç„¡è³‡æ–™, å˜—è©¦å¾ž API æŠ“å–...")
-            
-            # 3. è³‡æ–™éŽæœŸæˆ–ä¸å­˜åœ¨ï¼Œå¾ž API æŠ“å–
             try:
-                if market == "crypto":
-                    data = fear_greed.get_crypto_fear_greed()
-                else:
-                    data = fear_greed.get_stock_fear_greed()
+                stmt = (
+                    select(MarketSentiment)
+                    .where(MarketSentiment.market == market)
+                    .order_by(desc(MarketSentiment.date))
+                    .limit(1)
+                )
+                latest = self.db.execute(stmt).scalar_one_or_none()
                 
-                if data and not data.get("is_fallback"):
-                    # ðŸ†• å­˜å…¥è³‡æ–™åº«ï¼ˆä¸‹æ¬¡å°±ä¸ç”¨å†æŠ“äº†ï¼‰
-                    self.save_sentiment(market, data["value"])
-                    result[market] = data
-                    logger.info(f"[Sentiment] {market} å¾ž API æ›´æ–°æˆåŠŸ: {data['value']}")
-                elif latest:
-                    # API å¤±æ•—ä½†æœ‰èˆŠè³‡æ–™ï¼Œè¿”å›žèˆŠè³‡æ–™
-                    result[market] = latest.to_dict()
-                    logger.warning(f"[Sentiment] {market} API å¤±æ•—ï¼Œä½¿ç”¨èˆŠè³‡æ–™")
-                elif data:
-                    # å®Œå…¨æ²’è³‡æ–™ï¼Œè¿”å›ž API çµæžœï¼ˆå¯èƒ½æ˜¯ fallbackï¼‰
-                    result[market] = data
-            except Exception as e:
-                logger.error(f"[Sentiment] {market} æŠ“å–å¤±æ•—: {e}")
                 if latest:
                     result[market] = latest.to_dict()
+                    logger.debug(f"📦 情緒快取: {market} = {latest.value}")
+                else:
+                    # 🆕 沒有快取時回傳 None，不查 API
+                    logger.warning(f"⚠️ 情緒 {market} 無快取資料，請執行更新")
+                    result[market] = {
+                        "market": market,
+                        "value": None,
+                        "label": "無資料",
+                        "date": None,
+                    }
+            except Exception as e:
+                logger.error(f"讀取情緒 {market} 失敗: {e}")
+                result[market] = {
+                    "market": market,
+                    "value": None,
+                    "label": "錯誤",
+                    "date": None,
+                }
         
         return result
 
@@ -248,7 +234,7 @@ class MarketService:
         market: str,
         days: int = 365,
     ) -> List[Dict[str, Any]]:
-        """å–å¾—æƒ…ç·’æ­·å²è³‡æ–™"""
+        """取得情緒歷史資料"""
         start_date = date.today() - timedelta(days=days)
         
         stmt = (
@@ -272,12 +258,12 @@ class MarketService:
         target_date: Optional[date] = None,
     ) -> bool:
         """
-        å„²å­˜å¸‚å ´æƒ…ç·’è³‡æ–™
+        儲存市場情緒資料
         """
         if target_date is None:
             target_date = date.today()
         
-        # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨
+        # 檢查是否已存在
         stmt = select(MarketSentiment).where(
             and_(
                 MarketSentiment.market == market,
@@ -305,12 +291,12 @@ class MarketService:
     
     def fetch_and_save_crypto_history(self, days: int = 365) -> int:
         """
-        æŠ“å–ä¸¦å„²å­˜å¹£åœˆæƒ…ç·’æ­·å²è³‡æ–™
+        抓取並儲存幣圈情緒歷史資料
         
         Returns:
-            å„²å­˜çš„ç­†æ•¸
+            儲存的筆數
         """
-        logger.info(f"æŠ“å–å¹£åœˆæƒ…ç·’æ­·å²: {days} å¤©")
+        logger.info(f"抓取幣圈情緒歷史: {days} 天")
         history = fear_greed.get_crypto_fear_greed_history(days)
         
         count = 0
@@ -318,7 +304,7 @@ class MarketService:
             try:
                 target_date = datetime.strptime(item["date"], "%Y-%m-%d").date()
                 
-                # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨
+                # 檢查是否已存在
                 stmt = select(MarketSentiment).where(
                     and_(
                         MarketSentiment.market == "crypto",
@@ -337,29 +323,29 @@ class MarketService:
                     self.db.add(sentiment)
                     count += 1
             except Exception as e:
-                logger.error(f"å„²å­˜æƒ…ç·’è³‡æ–™å¤±æ•—: {e}")
+                logger.error(f"儲存情緒資料失敗: {e}")
         
         self.db.commit()
-        logger.info(f"å¹£åœˆæƒ…ç·’æ­·å²æ–°å¢ž {count} ç­†")
+        logger.info(f"幣圈情緒歷史新增 {count} 筆")
         return count
     
     def update_today_sentiment(self) -> Dict[str, bool]:
         """
-        æ›´æ–°ä»Šæ—¥çš„å¸‚å ´æƒ…ç·’
+        更新今日的市場情緒
         
         Returns:
             {market: success}
         """
         result = {}
         
-        # ç¾Žè‚¡æƒ…ç·’
+        # 美股情緒
         stock_data = fear_greed.get_stock_fear_greed()
         if stock_data and not stock_data.get("is_fallback"):
             result["stock"] = self.save_sentiment("stock", stock_data["value"])
         else:
             result["stock"] = False
         
-        # å¹£åœˆæƒ…ç·’
+        # 幣圈情緒
         crypto_data = fear_greed.get_crypto_fear_greed()
         if crypto_data and not crypto_data.get("is_fallback"):
             result["crypto"] = self.save_sentiment("crypto", crypto_data["value"])
@@ -368,21 +354,21 @@ class MarketService:
         
         return result
     
-    # ==================== é…æ¯è³‡æ–™ ====================
+    # ==================== 配息資料 ====================
     
     def save_dividends(self, df: pd.DataFrame) -> int:
         """
-        å„²å­˜é…æ¯è³‡æ–™
+        儲存配息資料
         
         Returns:
-            å„²å­˜çš„ç­†æ•¸
+            儲存的筆數
         """
         if df is None or df.empty:
             return 0
         
         count = 0
         for _, row in df.iterrows():
-            # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨
+            # 檢查是否已存在
             stmt = select(DividendHistory).where(
                 and_(
                     DividendHistory.symbol == row["symbol"],
@@ -405,14 +391,14 @@ class MarketService:
     
     def fetch_and_save_dividends(self, symbol: str, period: str = "10y") -> int:
         """
-        æŠ“å–ä¸¦å„²å­˜é…æ¯è³‡æ–™
+        抓取並儲存配息資料
         """
-        logger.info(f"æŠ“å–é…æ¯è³‡æ–™: {symbol}")
+        logger.info(f"抓取配息資料: {symbol}")
         df = yahoo_finance.get_dividends(symbol, period=period)
         
         if df is not None:
             count = self.save_dividends(df)
-            logger.info(f"{symbol} é…æ¯æ–°å¢ž {count} ç­†")
+            logger.info(f"{symbol} 配息新增 {count} 筆")
             return count
         
         return 0
@@ -422,7 +408,7 @@ class MarketService:
         symbol: str,
         years: int = 10,
     ) -> List[Dict[str, Any]]:
-        """å–å¾—é…æ¯æ­·å²"""
+        """取得配息歷史"""
         start_date = date.today() - timedelta(days=years * 365)
         
         stmt = (

@@ -1,11 +1,11 @@
 """
-å ±é…¬çŽ‡æ¯”è¼ƒæœå‹™
-è¨ˆç®—ä¸¦æ¯”è¼ƒå¤šå€‹æ¨™çš„çš„å¹´åŒ–å ±é…¬çŽ‡ (CAGR)
+報酬率比較服務
+計算並比較多個標的的年化報酬率 (CAGR)
 
-ä¿®å¾©ï¼š
-1. å°è‚¡ä»£è™Ÿè‡ªå‹•åŠ  .TW / .TWO
-2. ä½¿ç”¨èª¿æ•´å¾Œåƒ¹æ ¼(adj_close)è¨ˆç®—ï¼Œé¿å…åˆ†å‰²å½±éŸ¿
-3. åŠ å…¥é…æ¯é‚„åŽŸï¼Œåæ˜ çœŸå¯¦å ±é…¬
+修復：
+1. 台股代號自動加 .TW / .TWO
+2. 使用調整後價格(adj_close)計算，避免分割影響
+3. 加入配息還原，反映真實報酬
 """
 import logging
 from datetime import datetime, date, timedelta
@@ -24,90 +24,90 @@ from app.data_sources.coingecko import coingecko, CRYPTO_MAP
 logger = logging.getLogger(__name__)
 
 
-# é è¨­æ¯”è¼ƒçµ„åˆ
+# 預設比較組合
 PRESET_GROUPS = {
     "us_tech": {
-        "name": "ç¾Žåœ‹ç§‘æŠ€è‚¡",
+        "name": "美國科技股",
         "symbols": ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA"],
-        "description": "ç¾Žåœ‹äº”å¤§ç§‘æŠ€å·¨é ­"
+        "description": "美國五大科技巨頭"
     },
     "crypto_major": {
-        "name": "ä¸»æµåŠ å¯†è²¨å¹£",
+        "name": "主流加密貨幣",
         "symbols": ["BTC", "ETH", "SOL", "BNB", "XRP"],
-        "description": "å¸‚å€¼å‰äº”å¤§åŠ å¯†è²¨å¹£"
+        "description": "市值前五大加密貨幣"
     },
     "index": {
-        "name": "å¤§ç›¤æŒ‡æ•¸",
+        "name": "大盤指數",
         "symbols": ["^GSPC", "^IXIC", "^DJI"],
-        "description": "ç¾Žåœ‹ä¸‰å¤§æŒ‡æ•¸"
+        "description": "美國三大指數"
     },
     "etf_popular": {
-        "name": "ç†±é–€ ETF",
+        "name": "熱門 ETF",
         "symbols": ["SPY", "QQQ", "VOO", "VTI", "IWM"],
-        "description": "æœ€å—æ­¡è¿Žçš„ ETF"
+        "description": "最受歡迎的 ETF"
     },
     "dividend": {
-        "name": "é«˜è‚¡æ¯è‚¡ç¥¨",
+        "name": "高股息股票",
         "symbols": ["JNJ", "PG", "KO", "PEP", "VZ"],
-        "description": "ç©©å®šé…æ¯çš„è—ç±Œè‚¡"
+        "description": "穩定配息的藍籌股"
     },
     "tw_etf": {
-        "name": "å°è‚¡ ETF",
+        "name": "台股 ETF",
         "symbols": ["0050", "0056", "00878", "00919", "006208"],
-        "description": "å°ç£ç†±é–€ ETF"
+        "description": "台灣熱門 ETF"
     },
     "tw_tech": {
-        "name": "å°ç£ç§‘æŠ€è‚¡",
+        "name": "台灣科技股",
         "symbols": ["2330", "2454", "2317", "3711", "2308"],
-        "description": "å°ç£ç§‘æŠ€æ¬Šå€¼è‚¡"
+        "description": "台灣科技權值股"
     }
 }
 
-# åŸºæº–æŒ‡æ•¸é¸é …
+# 基準指數選項
 BENCHMARK_OPTIONS = {
     "^GSPC": "S&P 500",
-    "^IXIC": "ç´æ–¯é”å…‹",
-    "^DJI": "é“ç“Šå·¥æ¥­",
-    "": "ç„¡"
+    "^IXIC": "納斯達克",
+    "^DJI": "道瓊工業",
+    "": "無"
 }
 
-# æ”¯æ´çš„åŠ å¯†è²¨å¹£
+# 支援的加密貨幣
 SUPPORTED_CRYPTO = set(k for k in CRYPTO_MAP.keys() if k not in ("BITCOIN", "ETHEREUM"))
 
 
 class CompareService:
-    """å ±é…¬çŽ‡æ¯”è¼ƒæœå‹™"""
+    """報酬率比較服務"""
     
     def __init__(self):
-        self.max_symbols = 5  # æœ€å¤šæ¯”è¼ƒ 5 å€‹
+        self.max_symbols = 5  # 最多比較 5 個
     
     def _normalize_symbol(self, symbol: str) -> str:
         """
-        æ¨™æº–åŒ–è‚¡ç¥¨ä»£è™Ÿ
-        - å°è‚¡ä»£è™Ÿï¼ˆç´”æ•¸å­— 4-6 ä½ï¼‰è‡ªå‹•åŠ  .TW
-        - å…¶ä»–ä¿æŒåŽŸæ¨£
+        標準化股票代號
+        - 台股代號（純數字 4-6 位）自動加 .TW
+        - 其他保持原樣
         """
         symbol = symbol.strip().upper()
         
-        # å¦‚æžœå·²ç¶“æœ‰å¾Œç¶´ï¼Œä¸è™•ç†
+        # 如果已經有後綴，不處理
         if '.' in symbol or symbol.startswith('^'):
             return symbol
         
-        # æª¢æŸ¥æ˜¯å¦ç‚ºåŠ å¯†è²¨å¹£
+        # 檢查是否為加密貨幣
         if symbol in SUPPORTED_CRYPTO:
             return symbol
         
-        # å°è‚¡ä»£è™Ÿï¼š4-6 ä½ç´”æ•¸å­—
+        # 台股代號：4-6 位純數字
         if symbol.isdigit() and 4 <= len(symbol) <= 6:
             return f"{symbol}.TW"
         
         return symbol
     
     def _get_asset_type(self, symbol: str) -> str:
-        """åˆ¤æ–·è³‡ç”¢é¡žåž‹"""
+        """判斷資產類型"""
         symbol_upper = symbol.upper()
         
-        # å…ˆæª¢æŸ¥åŽŸå§‹ä»£è™Ÿæ˜¯å¦ç‚ºåŠ å¯†è²¨å¹£
+        # 先檢查原始代號是否為加密貨幣
         base_symbol = symbol_upper.replace('.TW', '').replace('.TWO', '')
         if base_symbol in SUPPORTED_CRYPTO:
             return "crypto"
@@ -120,7 +120,7 @@ class CompareService:
             return "stock"
     
     def _get_period_days(self, period: str) -> int:
-        """å–å¾—æ™‚é–“é€±æœŸå°æ‡‰çš„å¤©æ•¸"""
+        """取得時間週期對應的天數"""
         period_map = {
             "1y": 365,
             "3y": 365 * 3,
@@ -132,19 +132,19 @@ class CompareService:
     async def _fetch_price_data(
         self,
         symbol: str,
-        days: int = 3650,  # é è¨­æŠ“ 10 å¹´
+        days: int = 3650,  # 預設抓 10 年
     ) -> Tuple[Optional[pd.DataFrame], Optional[Dict]]:
         """
-        æŠ“å–åƒ¹æ ¼è³‡æ–™
+        抓取價格資料
         
         Returns:
-            (DataFrame, info_dict) æˆ– (None, None)
+            (DataFrame, info_dict) 或 (None, None)
         """
         asset_type = self._get_asset_type(symbol)
         
         try:
             if asset_type == "crypto":
-                # åŠ å¯†è²¨å¹£ç”¨ CoinGecko
+                # 加密貨幣用 CoinGecko
                 df = coingecko.get_crypto_history(symbol, days=days)
                 info = coingecko.get_crypto_info(symbol)
                 if info:
@@ -157,22 +157,22 @@ class CompareService:
                     info_dict = {"name": symbol, "type": "crypto", "current_price": None}
                 return df, info_dict
             else:
-                # è‚¡ç¥¨/æŒ‡æ•¸/ETF ç”¨ Yahoo Finance
+                # 股票/指數/ETF 用 Yahoo Finance
                 period = "10y" if days >= 3650 else ("5y" if days >= 1825 else "1y")
                 df = yahoo_finance.get_stock_history(symbol, period=period)
                 
-                # å¦‚æžœ .TW æ‰¾ä¸åˆ°ï¼Œå˜—è©¦ .TWO (ä¸Šæ«ƒè‚¡ç¥¨)
+                # 如果 .TW 找不到，嘗試 .TWO (上櫃股票)
                 if (df is None or df.empty) and symbol.endswith('.TW'):
                     two_symbol = symbol.replace('.TW', '.TWO')
-                    logger.info(f"{symbol} æ‰¾ä¸åˆ°ï¼Œå˜—è©¦ä¸Šæ«ƒè‚¡ç¥¨: {two_symbol}")
+                    logger.info(f"{symbol} 找不到，嘗試上櫃股票: {two_symbol}")
                     df = yahoo_finance.get_stock_history(two_symbol, period=period)
                     if df is not None and not df.empty:
                         symbol = two_symbol
-                        logger.info(f"æˆåŠŸæ‰¾åˆ°ä¸Šæ«ƒè‚¡ç¥¨: {two_symbol}")
+                        logger.info(f"成功找到上櫃股票: {two_symbol}")
                 
                 info = yahoo_finance.get_stock_info(symbol)
                 
-                # å–å¾—ç¾åƒ¹ï¼ˆç”¨åŽŸå§‹æ”¶ç›¤åƒ¹ï¼‰
+                # 取得現價（用原始收盤價）
                 current_price = None
                 if df is not None and not df.empty:
                     current_price = float(df['close'].iloc[-1])
@@ -182,7 +182,7 @@ class CompareService:
                         "name": info.get("name", symbol),
                         "type": asset_type,
                         "current_price": current_price or info.get("current_price"),
-                        "symbol": symbol,  # å¯èƒ½å·²ç¶“æ”¹æˆ .TWO
+                        "symbol": symbol,  # 可能已經改成 .TWO
                     }
                 else:
                     info_dict = {
@@ -195,7 +195,7 @@ class CompareService:
                 return df, info_dict
             
         except Exception as e:
-            logger.error(f"æŠ“å– {symbol} è³‡æ–™å¤±æ•—: {e}")
+            logger.error(f"抓取 {symbol} 資料失敗: {e}")
             return None, None
     
     def _calculate_cagr_with_dividends(
@@ -205,16 +205,16 @@ class CompareService:
         years: int,
     ) -> Optional[float]:
         """
-        è¨ˆç®—å«é…æ¯èª¿æ•´çš„ CAGR
+        計算含配息調整的 CAGR
         
-        ä½¿ç”¨ adj_closeï¼ˆåˆ†å‰²èª¿æ•´ï¼‰+ é…æ¯é‚„åŽŸ
-        é€™å’Œè‚¡ç¥¨æŸ¥è©¢é é¢çš„è¨ˆç®—æ–¹å¼ä¸€è‡´
+        使用 adj_close（分割調整）+ 配息還原
+        這和股票查詢頁面的計算方式一致
         """
         if df is None or df.empty:
             return None
         
         try:
-            # ç¢ºä¿æœ‰ date æ¬„ä½
+            # 確保有 date 欄位
             if 'date' not in df.columns:
                 df = df.reset_index()
                 if 'Date' in df.columns:
@@ -226,13 +226,13 @@ class CompareService:
             current_date = df['date'].iloc[-1]
             target_date = current_date - timedelta(days=years * 365)
             
-            # æ‰¾åˆ°ç›®æ¨™æ—¥æœŸä¹‹å‰çš„è³‡æ–™
+            # 找到目標日期之前的資料
             past_df = df[df['date'] <= target_date]
             
             if past_df.empty or len(past_df) < 10:
                 return None
             
-            # å„ªå…ˆä½¿ç”¨ adj_closeï¼Œæ²’æœ‰å‰‡ç”¨ close
+            # 優先使用 adj_close，沒有則用 close
             price_col = 'adj_close' if 'adj_close' in df.columns else 'close'
             
             start_row = past_df.iloc[-1]
@@ -244,18 +244,18 @@ class CompareService:
             if start_price <= 0:
                 return None
             
-            # å–å¾—é…æ¯è³‡æ–™ä¸¦èª¿æ•´
+            # 取得配息資料並調整
             try:
                 dividends_df = yahoo_finance.get_dividends(symbol, period=f"{years + 1}y")
                 
                 if dividends_df is not None and not dividends_df.empty:
-                    # å»ºç«‹å«é…æ¯èª¿æ•´çš„åƒ¹æ ¼åºåˆ—
+                    # 建立含配息調整的價格序列
                     df_adj = df.copy()
                     df_adj['adj_with_div'] = df_adj[price_col].astype(float)
                     
                     date_to_idx = {row['date']: idx for idx, row in df_adj.iterrows()}
                     
-                    # ç¯©é¸åœ¨è¨ˆç®—ç¯„åœå…§çš„é…æ¯
+                    # 篩選在計算範圍內的配息
                     min_date = df_adj['date'].min()
                     max_date = df_adj['date'].max()
                     
@@ -269,7 +269,7 @@ class CompareService:
                         if min_date < div_date <= max_date:
                             dividends[div_date] = float(row['amount'])
                     
-                    # å¾žæœ€æ–°åˆ°æœ€èˆŠè™•ç†é…æ¯ï¼ˆé…æ¯é‚„åŽŸèª¿æ•´ï¼‰
+                    # 從最新到最舊處理配息（配息還原調整）
                     for div_date, div_amount in sorted(dividends.items(), reverse=True):
                         if div_date in date_to_idx:
                             ex_idx = date_to_idx[div_date]
@@ -279,33 +279,33 @@ class CompareService:
                                     adjustment_factor = prev_price / (prev_price - div_amount)
                                     df_adj.loc[:ex_idx-1, 'adj_with_div'] = df_adj.loc[:ex_idx-1, 'adj_with_div'] / adjustment_factor
                     
-                    # ä½¿ç”¨èª¿æ•´å¾Œçš„åƒ¹æ ¼è¨ˆç®—
+                    # 使用調整後的價格計算
                     start_price = float(df_adj[df_adj['date'] <= target_date].iloc[-1]['adj_with_div'])
                     current_price = float(df_adj.iloc[-1]['adj_with_div'])
                     
-                    logger.debug(f"{symbol} é…æ¯èª¿æ•´: æ‰¾åˆ° {len(dividends)} ç­†é…æ¯")
+                    logger.debug(f"{symbol} 配息調整: 找到 {len(dividends)} 筆配息")
                     
             except Exception as e:
-                logger.warning(f"{symbol} é…æ¯èª¿æ•´å¤±æ•—ï¼Œä½¿ç”¨åŸºæœ¬è¨ˆç®—: {e}")
+                logger.warning(f"{symbol} 配息調整失敗，使用基本計算: {e}")
             
-            # å¯¦éš›å¹´æ•¸ï¼ˆæ›´ç²¾ç¢ºï¼‰
+            # 實際年數（更精確）
             actual_days = (current_date - start_date).days
             actual_years = actual_days / 365.25
             
             if actual_years < 0.5:
                 return None
             
-            # CAGR å…¬å¼
+            # CAGR 公式
             cagr = (current_price / start_price) ** (1 / actual_years) - 1
             
-            # æª¢æŸ¥æœ‰æ•ˆæ€§
+            # 檢查有效性
             if math.isnan(cagr) or math.isinf(cagr):
                 return None
             
             return round(cagr * 100, 2)
             
         except Exception as e:
-            logger.error(f"è¨ˆç®— {symbol} CAGR å¤±æ•—: {e}")
+            logger.error(f"計算 {symbol} CAGR 失敗: {e}")
             return None
     
     def _calculate_custom_cagr(
@@ -314,41 +314,41 @@ class CompareService:
         start_date: date,
         end_date: date,
     ) -> Optional[float]:
-        """è¨ˆç®—è‡ªè¨‚å€é–“çš„ CAGR"""
+        """計算自訂區間的 CAGR"""
         if df is None or df.empty:
             return None
         
         try:
-            # ç¢ºä¿æ—¥æœŸæ¬„ä½
+            # 確保日期欄位
             if 'date' in df.columns:
                 df = df.set_index('date')
             
-            # ç¯©é¸æ—¥æœŸç¯„åœ
+            # 篩選日期範圍
             mask = (df.index >= pd.Timestamp(start_date)) & (df.index <= pd.Timestamp(end_date))
             filtered_df = df[mask]
             
             if len(filtered_df) < 2:
                 return None
             
-            # å„ªå…ˆä½¿ç”¨ adj_close
+            # 優先使用 adj_close
             price_col = 'adj_close' if 'adj_close' in filtered_df.columns else 'close'
             
             start_price = float(filtered_df[price_col].iloc[0])
             end_price = float(filtered_df[price_col].iloc[-1])
             
-            # è¨ˆç®—å¹´æ•¸
+            # 計算年數
             days = (end_date - start_date).days
             years = days / 365.0
             
             if years <= 0 or start_price <= 0:
                 return None
             
-            # CAGR å…¬å¼
+            # CAGR 公式
             cagr = (end_price / start_price) ** (1 / years) - 1
             return round(cagr * 100, 2)
             
         except Exception as e:
-            logger.error(f"è¨ˆç®—è‡ªè¨‚ CAGR å¤±æ•—: {e}")
+            logger.error(f"計算自訂 CAGR 失敗: {e}")
             return None
     
     async def compare_cagr(
@@ -361,35 +361,35 @@ class CompareService:
         sort_order: str = "desc",
     ) -> Dict[str, Any]:
         """
-        æ¯”è¼ƒå¤šå€‹æ¨™çš„çš„å¹´åŒ–å ±é…¬çŽ‡
+        比較多個標的的年化報酬率
         
         Args:
-            symbols: æ¨™çš„ä»£è™Ÿåˆ—è¡¨ (æœ€å¤š 5 å€‹)
-            periods: æ™‚é–“é€±æœŸ ["1y", "3y", "5y", "10y"]
-            custom_range: è‡ªè¨‚å€é–“ {"start": "2020-01-01", "end": "2024-12-31"}
-            benchmark: åŸºæº–æŒ‡æ•¸
-            sort_by: æŽ’åºä¾æ“š
-            sort_order: æŽ’åºæ–¹å‘ "asc" / "desc"
+            symbols: 標的代號列表 (最多 5 個)
+            periods: 時間週期 ["1y", "3y", "5y", "10y"]
+            custom_range: 自訂區間 {"start": "2020-01-01", "end": "2024-12-31"}
+            benchmark: 基準指數
+            sort_by: 排序依據
+            sort_order: 排序方向 "asc" / "desc"
             
         Returns:
-            æ¯”è¼ƒçµæžœ
+            比較結果
         """
-        # é©—è­‰
+        # 驗證
         if not symbols:
-            return {"success": False, "error": "è«‹è‡³å°‘é¸æ“‡ä¸€å€‹æ¨™çš„"}
+            return {"success": False, "error": "請至少選擇一個標的"}
         
         if len(symbols) > self.max_symbols:
-            return {"success": False, "error": f"æœ€å¤šåªèƒ½æ¯”è¼ƒ {self.max_symbols} å€‹æ¨™çš„"}
+            return {"success": False, "error": f"最多只能比較 {self.max_symbols} 個標的"}
         
         if periods is None:
             periods = ["1y", "3y", "5y"]
         
-        # æ­£è¦åŒ–ä»£è™Ÿï¼ˆè™•ç†å°è‚¡ç­‰ï¼‰
+        # 正規化代號（處理台股等）
         symbols = [self._normalize_symbol(s) for s in symbols]
-        logger.info(f"æ¨™æº–åŒ–å¾Œçš„ä»£è™Ÿ: {symbols}")
+        logger.info(f"標準化後的代號: {symbols}")
         
-        # è¨ˆç®—éœ€è¦çš„å¤©æ•¸
-        max_days = 3650  # 10 å¹´
+        # 計算需要的天數
+        max_days = 3650  # 10 年
         if custom_range:
             try:
                 start_date = datetime.strptime(custom_range["start"], "%Y-%m-%d").date()
@@ -401,11 +401,11 @@ class CompareService:
         
         results = []
         
-        # è™•ç†æ¯å€‹æ¨™çš„
+        # 處理每個標的
         for symbol in symbols:
             df, info = await self._fetch_price_data(symbol, max_days)
             
-            # å¦‚æžœæœ‰ symbol æ›´æ–°ï¼ˆä¾‹å¦‚ .TW -> .TWOï¼‰ï¼Œä½¿ç”¨æ›´æ–°å¾Œçš„
+            # 如果有 symbol 更新（例如 .TW -> .TWO），使用更新後的
             actual_symbol = info.get("symbol", symbol) if info else symbol
             
             if df is None or info is None:
@@ -415,11 +415,11 @@ class CompareService:
                     "type": self._get_asset_type(actual_symbol),
                     "current_price": None,
                     "cagr": {p: None for p in periods},
-                    "error": "ç„¡æ³•å–å¾—è³‡æ–™"
+                    "error": "無法取得資料"
                 })
                 continue
             
-            # è¨ˆç®—å„é€±æœŸ CAGRï¼ˆä½¿ç”¨å«é…æ¯çš„è¨ˆç®—ï¼‰
+            # 計算各週期 CAGR（使用含配息的計算）
             cagr_results = {}
             for period in periods:
                 period_years = {"1y": 1, "3y": 3, "5y": 5, "10y": 10}.get(period)
@@ -428,7 +428,7 @@ class CompareService:
                         actual_symbol, df, period_years
                     )
             
-            # è‡ªè¨‚å€é–“
+            # 自訂區間
             if custom_range:
                 cagr_results["custom"] = self._calculate_custom_cagr(
                     df, start_date, end_date
@@ -442,7 +442,7 @@ class CompareService:
                 "cagr": cagr_results,
             })
         
-        # è¨ˆç®—åŸºæº–æŒ‡æ•¸
+        # 計算基準指數
         benchmark_data = None
         if benchmark:
             benchmark_df, benchmark_info = await self._fetch_price_data(benchmark, max_days)
@@ -461,7 +461,7 @@ class CompareService:
                     "cagr": benchmark_cagr,
                 }
                 
-                # è¨ˆç®— vs benchmark
+                # 計算 vs benchmark
                 for result in results:
                     result["vs_benchmark"] = {}
                     for period in periods:
@@ -472,14 +472,14 @@ class CompareService:
                         else:
                             result["vs_benchmark"][period] = None
         
-        # æŽ’åº
+        # 排序
         def get_sort_value(item):
             val = item.get("cagr", {}).get(sort_by)
             return val if val is not None else float('-inf')
         
         results.sort(key=get_sort_value, reverse=(sort_order == "desc"))
         
-        # åŠ å…¥æŽ’å
+        # 加入排名
         for i, result in enumerate(results):
             result["rank"] = i + 1
         
@@ -491,11 +491,11 @@ class CompareService:
             "custom_range": custom_range,
             "sort_by": sort_by,
             "generated_at": datetime.now().isoformat(),
-            "note": "CAGR å·²åŒ…å«åˆ†å‰²èª¿æ•´åŠé…æ¯å†æŠ•å…¥æ•ˆæžœ"
+            "note": "CAGR 已包含分割調整及配息再投入效果"
         }
     
     def get_presets(self) -> List[Dict[str, Any]]:
-        """å–å¾—é è¨­çµ„åˆåˆ—è¡¨"""
+        """取得預設組合列表"""
         return [
             {
                 "id": key,
@@ -508,7 +508,7 @@ class CompareService:
         ]
     
     def get_preset_detail(self, preset_id: str) -> Optional[Dict[str, Any]]:
-        """å–å¾—é è¨­çµ„åˆè©³æƒ…"""
+        """取得預設組合詳情"""
         if preset_id not in PRESET_GROUPS:
             return None
         
@@ -522,13 +522,13 @@ class CompareService:
 
 
 class ComparisonCRUD:
-    """æ¯”è¼ƒçµ„åˆ CRUD æ“ä½œ"""
+    """比較組合 CRUD 操作"""
     
     def __init__(self, db: AsyncSession):
         self.db = db
     
     async def get_user_comparisons(self, user_id: int) -> List[Comparison]:
-        """å–å¾—ç”¨æˆ¶çš„æ¯”è¼ƒçµ„åˆ"""
+        """取得用戶的比較組合"""
         result = await self.db.execute(
             select(Comparison)
             .where(Comparison.user_id == user_id)
@@ -537,7 +537,7 @@ class ComparisonCRUD:
         return result.scalars().all()
     
     async def get_comparison_by_id(self, comparison_id: int, user_id: int) -> Optional[Comparison]:
-        """å–å¾—å–®ä¸€æ¯”è¼ƒçµ„åˆ"""
+        """取得單一比較組合"""
         result = await self.db.execute(
             select(Comparison)
             .where(and_(Comparison.id == comparison_id, Comparison.user_id == user_id))
@@ -551,7 +551,7 @@ class ComparisonCRUD:
         symbols: List[str],
         benchmark: str = None,
     ) -> Comparison:
-        """å»ºç«‹æ¯”è¼ƒçµ„åˆ"""
+        """建立比較組合"""
         comparison = Comparison(
             user_id=user_id,
             name=name,
@@ -570,7 +570,7 @@ class ComparisonCRUD:
         symbols: List[str] = None,
         benchmark: str = None,
     ) -> Comparison:
-        """æ›´æ–°æ¯”è¼ƒçµ„åˆ"""
+        """更新比較組合"""
         if name is not None:
             comparison.name = name
         if symbols is not None:
@@ -583,13 +583,13 @@ class ComparisonCRUD:
         return comparison
     
     async def delete_comparison(self, comparison: Comparison) -> bool:
-        """åˆªé™¤æ¯”è¼ƒçµ„åˆ"""
+        """刪除比較組合"""
         await self.db.delete(comparison)
         await self.db.commit()
         return True
     
     async def count_user_comparisons(self, user_id: int) -> int:
-        """è¨ˆç®—ç”¨æˆ¶çš„æ¯”è¼ƒçµ„åˆæ•¸é‡"""
+        """計算用戶的比較組合數量"""
         result = await self.db.execute(
             select(Comparison)
             .where(Comparison.user_id == user_id)
@@ -597,5 +597,5 @@ class ComparisonCRUD:
         return len(result.scalars().all())
 
 
-# å–®ä¾‹
+# 單例
 compare_service = CompareService()

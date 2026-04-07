@@ -1,6 +1,6 @@
 """
-è‚¡ç¥¨é…æ¯æ­·å²è³‡æ–™æ¨¡åž‹
-ç”¨æ–¼è¨ˆç®—å«æ¯å¹´åŒ–å ±é…¬çŽ‡
+股票配息歷史資料模型
+用於計算含息年化報酬率
 """
 from sqlalchemy import Column, Integer, String, Date, Numeric, DateTime, Index
 from sqlalchemy.sql import func
@@ -8,14 +8,14 @@ from app.database import Base
 
 
 class DividendHistory(Base):
-    """è‚¡ç¥¨é…æ¯æ­·å²"""
+    """股票配息歷史"""
     
     __tablename__ = "dividend_history"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     symbol = Column(String(10), nullable=False, index=True)
-    date = Column(Date, nullable=False, index=True)  # é™¤æ¯æ—¥
-    amount = Column(Numeric(10, 4), nullable=False)  # æ¯è‚¡é…æ¯é‡‘é¡
+    date = Column(Date, nullable=False, index=True)  # 除息日
+    amount = Column(Numeric(10, 4), nullable=False)  # 每股配息金額
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     __table_args__ = (

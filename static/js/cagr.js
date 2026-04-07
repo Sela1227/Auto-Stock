@@ -1,37 +1,37 @@
 // ============================================================
-// å ±é…¬çŽ‡æ¯”è¼ƒ (CAGR) - cagr.js
+// 報酬率比較 (CAGR) - cagr.js
 // ============================================================
 
-// é¸ä¸­çš„æ¨™çš„
+// 選中的標的
 let cagrSelectedSymbols = [];
 
-// é è¨­çµ„åˆ
+// 預設組合
 const CAGR_PRESETS = {
     'mag7': {
-        name: 'ç§‘æŠ€ä¸ƒé›„ (MAG7)',
+        name: '科技七雄 (MAG7)',
         symbols: ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA']
     },
     'indices': {
-        name: 'ç¾Žè‚¡ä¸‰å¤§æŒ‡æ•¸',
+        name: '美股三大指數',
         symbols: ['^GSPC', '^DJI', '^IXIC']
     },
     'tw_etf': {
-        name: 'å°è‚¡ç†±é–€ ETF',
+        name: '台股熱門 ETF',
         symbols: ['0050.TW', '0056.TW', '00878.TW', '00919.TW']
     },
     'crypto': {
-        name: 'åŠ å¯†è²¨å¹£',
+        name: '加密貨幣',
         symbols: ['BTC-USD', 'ETH-USD', 'SOL-USD']
     }
 };
 
-// ==================== åˆå§‹åŒ– ====================
+// ==================== 初始化 ====================
 function initCagr() {
     cagrLoadPresets();
     cagrLoadSavedComparisons();
 }
 
-// ==================== é è¨­çµ„åˆ ====================
+// ==================== 預設組合 ====================
 function cagrLoadPresets() {
     const container = document.getElementById('cagrPresetList');
     if (!container) return;
@@ -40,7 +40,7 @@ function cagrLoadPresets() {
         <button onclick="cagrLoadPreset('${id}')" 
             class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition flex justify-between items-center text-sm">
             <span>${preset.name}</span>
-            <span class="text-xs text-gray-400">${preset.symbols.length}å€‹</span>
+            <span class="text-xs text-gray-400">${preset.symbols.length}個</span>
         </button>
     `).join('');
 }
@@ -48,11 +48,11 @@ function cagrLoadPresets() {
 function cagrLoadPreset(presetId) {
     const preset = CAGR_PRESETS[presetId];
     if (!preset) {
-        showToast('æ‰¾ä¸åˆ°é è¨­çµ„åˆ', 'error');
+        showToast('找不到預設組合', 'error');
         return;
     }
     
-    // é™åˆ¶æœ€å¤š 5 å€‹
+    // 限制最多 5 個
     cagrSelectedSymbols = preset.symbols.slice(0, 5);
     cagrRenderSelectedSymbols();
     cagrRunComparison();
@@ -68,21 +68,21 @@ async function cagrQuickCompare(presetId) {
         const data = await res.json();
         
         if (data.success) {
-            // æ›´æ–°é¸ä¸­çš„æ¨™çš„
+            // 更新選中的標的
             if (data.preset && data.preset.symbols) {
                 cagrSelectedSymbols = data.preset.symbols;
                 cagrRenderSelectedSymbols();
             }
             cagrRenderResult(data);
         } else {
-            showToast('æ¯”è¼ƒå¤±æ•—ï¼š' + (data.error || 'æœªçŸ¥éŒ¯èª¤'), 'error');
+            showToast('比較失敗：' + (data.error || '未知錯誤'), 'error');
         }
     } catch (e) {
-        showToast('æ¯”è¼ƒå¤±æ•—ï¼š' + e.message, 'error');
+        showToast('比較失敗：' + e.message, 'error');
     }
 }
 
-// ==================== æ¨™çš„é¸æ“‡ ====================
+// ==================== 標的選擇 ====================
 function cagrAddSymbol() {
     const input = document.getElementById('cagrSymbolInput');
     const symbol = input.value.trim().toUpperCase();
@@ -90,12 +90,12 @@ function cagrAddSymbol() {
     if (!symbol) return;
     
     if (cagrSelectedSymbols.length >= 5) {
-        showToast('æœ€å¤šåªèƒ½é¸æ“‡ 5 å€‹æ¨™çš„', 'warning');
+        showToast('最多只能選擇 5 個標的', 'warning');
         return;
     }
     
     if (cagrSelectedSymbols.includes(symbol)) {
-        showToast('å·²ç¶“é¸æ“‡éŽæ­¤æ¨™çš„', 'warning');
+        showToast('已經選擇過此標的', 'warning');
         return;
     }
     
@@ -113,35 +113,35 @@ function cagrRenderSelectedSymbols() {
     const container = document.getElementById('cagrSelectedSymbols');
     
     if (cagrSelectedSymbols.length === 0) {
-        container.innerHTML = '<span class="text-gray-400 text-sm">å°šæœªé¸æ“‡</span>';
+        container.innerHTML = '<span class="text-gray-400 text-sm">尚未選擇</span>';
         return;
     }
     
     container.innerHTML = cagrSelectedSymbols.map(symbol => `
         <span class="inline-flex items-center px-3 py-1 bg-gray-200 rounded-full text-sm m-1">
             ${symbol}
-            <button onclick="cagrRemoveSymbol('${symbol}')" class="ml-2 text-gray-400 hover:text-red-500" title="ç§»é™¤">
+            <button onclick="cagrRemoveSymbol('${symbol}')" class="ml-2 text-gray-400 hover:text-red-500" title="移除">
                 <i class="fas fa-times"></i>
             </button>
         </span>
     `).join('');
 }
 
-// ==================== åŸ·è¡Œæ¯”è¼ƒ ====================
+// ==================== 執行比較 ====================
 async function cagrRunComparison() {
     if (cagrSelectedSymbols.length === 0) {
-        showToast('è«‹è‡³å°‘é¸æ“‡ä¸€å€‹æ¨™çš„', 'warning');
+        showToast('請至少選擇一個標的', 'warning');
         return;
     }
     
     cagrShowLoading();
     
-    // å–å¾—å‹¾é¸çš„é€±æœŸ
+    // 取得勾選的週期
     const periods = Array.from(document.querySelectorAll('.cagr-period-check:checked'))
         .map(cb => cb.value);
     
     if (periods.length === 0) {
-        showToast('è«‹è‡³å°‘é¸æ“‡ä¸€å€‹æ™‚é–“é€±æœŸ', 'warning');
+        showToast('請至少選擇一個時間週期', 'warning');
         return;
     }
     
@@ -170,16 +170,16 @@ async function cagrRunComparison() {
         if (data.success) {
             cagrRenderResult(data);
         } else {
-            showToast('æ¯”è¼ƒå¤±æ•—ï¼š' + (data.detail || data.error || 'æœªçŸ¥éŒ¯èª¤'), 'error');
+            showToast('比較失敗：' + (data.detail || data.error || '未知錯誤'), 'error');
             document.getElementById('cagrComparisonResult').innerHTML = `
                 <div class="text-center py-8 text-red-500">
                     <i class="fas fa-exclamation-circle text-4xl mb-2"></i>
-                    <p>${data.detail || data.error || 'æ¯”è¼ƒå¤±æ•—'}</p>
+                    <p>${data.detail || data.error || '比較失敗'}</p>
                 </div>
             `;
         }
     } catch (e) {
-        showToast('æ¯”è¼ƒå¤±æ•—ï¼š' + e.message, 'error');
+        showToast('比較失敗：' + e.message, 'error');
     }
 }
 
@@ -187,32 +187,32 @@ function cagrShowLoading() {
     document.getElementById('cagrComparisonResult').innerHTML = `
         <div class="text-center py-12">
             <i class="fas fa-spinner fa-spin text-4xl text-blue-500 mb-4"></i>
-            <p class="text-gray-500">æ­£åœ¨è¨ˆç®—å ±é…¬çŽ‡...</p>
-            <p class="text-gray-400 text-sm mt-1">é¦–æ¬¡æŸ¥è©¢å¯èƒ½éœ€è¦è¼ƒé•·æ™‚é–“</p>
+            <p class="text-gray-500">正在計算報酬率...</p>
+            <p class="text-gray-400 text-sm mt-1">首次查詢可能需要較長時間</p>
         </div>
     `;
 }
 
-// ==================== æ¸²æŸ“çµæžœ ====================
+// ==================== 渲染結果 ====================
 function cagrRenderResult(data) {
     const container = document.getElementById('cagrComparisonResult');
     const periods = data.periods || ['1y', '3y', '5y'];
     
-    // æ›´æ–°æ™‚é–“
+    // 更新時間
     if (data.generated_at) {
         const time = new Date(data.generated_at).toLocaleString('zh-TW');
-        document.getElementById('cagrResultTime').textContent = `æ›´æ–°ï¼š${time}`;
+        document.getElementById('cagrResultTime').textContent = `更新：${time}`;
     }
     
-    // å»ºç«‹è¡¨æ ¼
+    // 建立表格
     let html = `
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
                     <tr class="bg-gray-50">
-                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">æŽ’å</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">æ¨™çš„</th>
-                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">ç¾åƒ¹</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">排名</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">標的</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">現價</th>
                         ${periods.map(p => `
                             <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">${cagrFormatPeriod(p)}</th>
                         `).join('')}
@@ -223,8 +223,8 @@ function cagrRenderResult(data) {
     
     data.comparison.forEach((item, index) => {
         const rankClass = index === 0 ? 'bg-yellow-100' : index === 1 ? 'bg-gray-100' : index === 2 ? 'bg-orange-100' : '';
-        const rankIcon = index === 0 ? 'ðŸ¥‡' : index === 1 ? 'ðŸ¥ˆ' : index === 2 ? 'ðŸ¥‰' : `${index + 1}`;
-        const typeIcon = item.type === 'crypto' ? 'ðŸª™' : item.type === 'index' ? 'ðŸ“ˆ' : 'ðŸ“Š';
+        const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`;
+        const typeIcon = item.type === 'crypto' ? '🪙' : item.type === 'index' ? '📈' : '📊';
         
         html += `
             <tr class="hover:bg-gray-50">
@@ -265,11 +265,11 @@ function cagrRenderResult(data) {
     
     html += '</tbody></table></div>';
     
-    // åŸºæº–æŒ‡æ•¸è³‡è¨Š
+    // 基準指數資訊
     if (data.benchmark) {
         html += `
             <div class="mt-4 p-3 bg-gray-50 rounded-lg text-sm">
-                <span class="text-gray-500">ðŸ“Œ åŸºæº–æŒ‡æ•¸ï¼š</span>
+                <span class="text-gray-500">📌 基準指數：</span>
                 <span class="font-medium">${data.benchmark.name} (${data.benchmark.symbol})</span>
                 <span class="ml-4 text-gray-500">
                     ${periods.map(p => `${cagrFormatPeriod(p)}: ${cagrFormatCAGR(data.benchmark.cagr[p], true)}`).join(' | ')}
@@ -282,7 +282,7 @@ function cagrRenderResult(data) {
 }
 
 function cagrFormatPeriod(period) {
-    const map = { '1y': '1å¹´', '3y': '3å¹´', '5y': '5å¹´', '10y': '10å¹´', 'custom': 'è‡ªè¨‚' };
+    const map = { '1y': '1年', '3y': '3年', '5y': '5年', '10y': '10年', 'custom': '自訂' };
     return map[period] || period;
 }
 
@@ -308,20 +308,20 @@ function cagrFormatNumber(num) {
     return num.toFixed(2);
 }
 
-// ==================== å„²å­˜çµ„åˆ ====================
+// ==================== 儲存組合 ====================
 async function cagrSaveCurrentComparison() {
     const token = localStorage.getItem('token');
     if (!token) {
-        showToast('è«‹å…ˆç™»å…¥', 'warning');
+        showToast('請先登入', 'warning');
         return;
     }
     
     if (cagrSelectedSymbols.length === 0) {
-        showToast('è«‹å…ˆé¸æ“‡æ¨™çš„', 'warning');
+        showToast('請先選擇標的', 'warning');
         return;
     }
     
-    const name = prompt('è«‹è¼¸å…¥çµ„åˆåç¨±ï¼š');
+    const name = prompt('請輸入組合名稱：');
     if (!name) return;
     
     try {
@@ -341,13 +341,13 @@ async function cagrSaveCurrentComparison() {
         const data = await res.json();
         
         if (data.success) {
-            showToast('çµ„åˆå·²å„²å­˜', 'success');
+            showToast('組合已儲存', 'success');
             cagrLoadSavedComparisons();
         } else {
-            showToast('å„²å­˜å¤±æ•—ï¼š' + (data.detail || 'æœªçŸ¥éŒ¯èª¤'), 'error');
+            showToast('儲存失敗：' + (data.detail || '未知錯誤'), 'error');
         }
     } catch (e) {
-        showToast('å„²å­˜å¤±æ•—ï¼š' + e.message, 'error');
+        showToast('儲存失敗：' + e.message, 'error');
     }
 }
 
@@ -377,7 +377,7 @@ async function cagrLoadSavedComparisons() {
             `).join('');
         }
     } catch (e) {
-        console.error('è¼‰å…¥å„²å­˜çµ„åˆå¤±æ•—', e);
+        console.error('載入儲存組合失敗', e);
     }
 }
 
@@ -388,7 +388,7 @@ function cagrLoadSavedComparison(id, symbols) {
 }
 
 async function cagrDeleteSavedComparison(id) {
-    if (!confirm('ç¢ºå®šè¦åˆªé™¤æ­¤çµ„åˆï¼Ÿ')) return;
+    if (!confirm('確定要刪除此組合？')) return;
     
     const token = localStorage.getItem('token');
     try {
@@ -400,16 +400,16 @@ async function cagrDeleteSavedComparison(id) {
         const data = await res.json();
         
         if (data.success) {
-            showToast('å·²åˆªé™¤', 'success');
+            showToast('已刪除', 'success');
             cagrLoadSavedComparisons();
         }
     } catch (e) {
-        showToast('åˆªé™¤å¤±æ•—', 'error');
+        showToast('刪除失敗', 'error');
     }
 }
 
-// é é¢è¼‰å…¥æ™‚åˆå§‹åŒ–
+// 頁面載入時初始化
 document.addEventListener('DOMContentLoaded', function() {
-    // å»¶é²åˆå§‹åŒ–ï¼Œè®“å…¶ä»–æ¨¡çµ„å…ˆè¼‰å…¥
+    // 延遲初始化，讓其他模組先載入
     setTimeout(initCagr, 100);
 });

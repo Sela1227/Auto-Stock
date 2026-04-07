@@ -1,40 +1,40 @@
 /**
- * æœå°‹æ ¸å¿ƒæ¨¡çµ„ (P2 æ‹†åˆ† + æ•ˆèƒ½å„ªåŒ–ç‰ˆ)
+ * 搜尋核心模組 (P2 拆分 + 效能優化版)
  * 
- * è·è²¬ï¼š
- * - æœå°‹é‚è¼¯
- * - API è«‹æ±‚
- * - å¿«å–ç®¡ç†
+ * 職責：
+ * - 搜尋邏輯
+ * - API 請求
+ * - 快取管理
  * 
- * â­ æ•ˆèƒ½å„ªåŒ–ï¼š
- * - å¿«å–æ™‚é–“å»¶é•·åˆ° 30 åˆ†é˜
- * - ä½¿ç”¨ sessionStorage æŒä¹…åŒ–ï¼ˆé é¢åˆ·æ–°å¾Œä¿ç•™ï¼‰
- * - ç•¶æ—¥æœ‰æ•ˆæœŸåˆ¤æ–·
+ * ⭐ 效能優化：
+ * - 快取時間延長到 30 分鐘
+ * - 使用 sessionStorage 持久化（頁面刷新後保留）
+ * - 當日有效期判斷
  * 
- * ä¾è³´ï¼šcore.js, state.js
- * è¢«ä¾è³´ï¼šsearch-render.js
+ * 依賴：core.js, state.js
+ * 被依賴：search-render.js
  */
 
 (function() {
     'use strict';
 
     // ============================================================
-    // å¿«å–ç³»çµ±ï¼ˆå„ªåŒ–ç‰ˆï¼‰
+    // 快取系統（優化版）
     // ============================================================
     
     const stockCache = new Map();
-    const CACHE_TTL = 30 * 60 * 1000; // â­ å»¶é•·åˆ° 30 åˆ†é˜
+    const CACHE_TTL = 30 * 60 * 1000; // ⭐ 延長到 30 分鐘
     const STORAGE_KEY = 'sela_stock_cache';
 
     /**
-     * å–å¾—ä»Šæ—¥æ—¥æœŸå­—ä¸² (ç”¨æ–¼åˆ¤æ–·å¿«å–æ˜¯å¦ç•¶æ—¥æœ‰æ•ˆ)
+     * 取得今日日期字串 (用於判斷快取是否當日有效)
      */
     function getTodayStr() {
         return new Date().toISOString().split('T')[0];
     }
 
     /**
-     * å•Ÿå‹•æ™‚å¾ž sessionStorage æ¢å¾©å¿«å–
+     * 啟動時從 sessionStorage 恢復快取
      */
     function restoreCacheFromStorage() {
         try {
@@ -44,17 +44,17 @@
             const parsed = JSON.parse(stored);
             const today = getTodayStr();
 
-            // åªæ¢å¾©ç•¶æ—¥çš„å¿«å–
+            // 只恢復當日的快取
             if (parsed.date !== today) {
                 sessionStorage.removeItem(STORAGE_KEY);
-                console.log('ðŸ“¦ å¿«å–å·²éŽæœŸï¼ˆéžç•¶æ—¥ï¼‰ï¼Œå·²æ¸…é™¤');
+                console.log('📦 快取已過期（非當日），已清除');
                 return;
             }
 
-            // æ¢å¾©å¿«å–
+            // 恢復快取
             let restored = 0;
             for (const [symbol, entry] of Object.entries(parsed.data)) {
-                // æª¢æŸ¥ TTL æ˜¯å¦éŽæœŸ
+                // 檢查 TTL 是否過期
                 if (Date.now() - entry.timestamp < CACHE_TTL) {
                     stockCache.set(symbol, entry);
                     restored++;
@@ -62,16 +62,16 @@
             }
 
             if (restored > 0) {
-                console.log(`ðŸ“¦ å·²å¾ž sessionStorage æ¢å¾© ${restored} ç­†å¿«å–`);
+                console.log(`📦 已從 sessionStorage 恢復 ${restored} 筆快取`);
             }
         } catch (e) {
-            console.warn('æ¢å¾©å¿«å–å¤±æ•—:', e);
+            console.warn('恢復快取失敗:', e);
             sessionStorage.removeItem(STORAGE_KEY);
         }
     }
 
     /**
-     * å°‡å¿«å–åŒæ­¥åˆ° sessionStorage
+     * 將快取同步到 sessionStorage
      */
     function syncCacheToStorage() {
         try {
@@ -85,18 +85,18 @@
                 data: data
             }));
         } catch (e) {
-            // sessionStorage å¯èƒ½å·²æ»¿ï¼Œå¿½ç•¥éŒ¯èª¤
-            console.warn('åŒæ­¥å¿«å–åˆ° storage å¤±æ•—:', e);
+            // sessionStorage 可能已滿，忽略錯誤
+            console.warn('同步快取到 storage 失敗:', e);
         }
     }
 
-    // å•Ÿå‹•æ™‚æ¢å¾©å¿«å–
+    // 啟動時恢復快取
     restoreCacheFromStorage();
 
     function getFromCache(symbol) {
         const cached = stockCache.get(symbol.toUpperCase());
         if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-            console.log(`ðŸ“¦ å¿«å–å‘½ä¸­: ${symbol} (å‰©é¤˜ ${Math.round((CACHE_TTL - (Date.now() - cached.timestamp)) / 1000)}ç§’)`);
+            console.log(`📦 快取命中: ${symbol} (剩餘 ${Math.round((CACHE_TTL - (Date.now() - cached.timestamp)) / 1000)}秒)`);
             return cached.data;
         }
         return null;
@@ -107,17 +107,17 @@
             data: data,
             timestamp: Date.now()
         });
-        console.log(`ðŸ’¾ å·²å¿«å–: ${symbol}`);
+        console.log(`💾 已快取: ${symbol}`);
         
-        // åŒæ­¥åˆ° sessionStorage
+        // 同步到 sessionStorage
         syncCacheToStorage();
     }
 
     function clearStockCache() {
         stockCache.clear();
         sessionStorage.removeItem(STORAGE_KEY);
-        console.log('ðŸ—‘ï¸ è‚¡ç¥¨å¿«å–å·²æ¸…é™¤');
-        showToast('å¿«å–å·²æ¸…é™¤');
+        console.log('🗑️ 股票快取已清除');
+        showToast('快取已清除');
     }
 
     function getStockCacheStats() {
@@ -134,14 +134,14 @@
     }
 
     // ============================================================
-    // æœå°‹åŠŸèƒ½
+    // 搜尋功能
     // ============================================================
 
     function searchStock() {
         const input = $('searchSymbol');
         let symbol = input?.value?.trim().toUpperCase();
         if (!symbol) {
-            showToast('è«‹è¼¸å…¥è‚¡ç¥¨ä»£è™Ÿ');
+            showToast('請輸入股票代號');
             return;
         }
         searchSymbol(symbol);
@@ -157,23 +157,23 @@
         const input = $('searchSymbol');
         if (input) input.value = symbol;
 
-        // æª¢æŸ¥å‰ç«¯å¿«å–
+        // 檢查前端快取
         if (!forceRefresh) {
             const cached = getFromCache(symbol);
             if (cached) {
                 container.classList.remove('hidden');
-                // è§¸ç™¼æ¸²æŸ“ï¼ˆç”± search-render.js è™•ç†ï¼‰
+                // 觸發渲染（由 search-render.js 處理）
                 renderSearchResult(cached, symbol);
                 return;
             }
         }
 
-        // é¡¯ç¤ºè¼‰å…¥ä¸­
+        // 顯示載入中
         container.classList.remove('hidden');
         setHtml('searchResult', `
             <div class="bg-white rounded-xl shadow p-6 text-center">
                 <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
-                <p class="mt-2 text-gray-500 text-sm">æŸ¥è©¢ä¸­...ï¼ˆé¦–æ¬¡æŸ¥è©¢å¯èƒ½éœ€è¦ 10-30 ç§’ï¼‰</p>
+                <p class="mt-2 text-gray-500 text-sm">查詢中...（首次查詢可能需要 10-30 秒）</p>
             </div>
         `);
 
@@ -198,9 +198,9 @@
                 endpoint += '?refresh=true';
             }
 
-            console.log(`æŸ¥è©¢: ${endpoint}, é¡žåž‹: ${isCrypto ? 'åŠ å¯†è²¨å¹£' : isTaiwan ? 'å°è‚¡' : 'ç¾Žè‚¡'}`);
+            console.log(`查詢: ${endpoint}, 類型: ${isCrypto ? '加密貨幣' : isTaiwan ? '台股' : '美股'}`);
 
-            // è¨­ç½®è¼‰å…¥ç‹€æ…‹
+            // 設置載入狀態
             if (window.AppState) {
                 AppState.setLoading(true);
             }
@@ -212,7 +212,7 @@
             clearTimeout(timeoutId);
 
             const data = await res.json();
-            console.log('API å›žæ‡‰:', data);
+            console.log('API 回應:', data);
 
             if (window.AppState) {
                 AppState.setLoading(false);
@@ -221,9 +221,9 @@
             if (!res.ok) {
                 setHtml('searchResult', `
                     <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
-                        <p class="font-medium">æŸ¥è©¢å¤±æ•—</p>
+                        <p class="font-medium">查詢失敗</p>
                         <p class="text-sm mt-2">${data.detail || 'HTTP ' + res.status}</p>
-                        ${isCrypto ? '<p class="text-xs mt-2 text-gray-500">æ³¨æ„ï¼šåŠ å¯†è²¨å¹£æŸ¥è©¢å¯èƒ½å›  API é™åˆ¶æš«æ™‚ç„¡æ³•ä½¿ç”¨</p>' : ''}
+                        ${isCrypto ? '<p class="text-xs mt-2 text-gray-500">注意：加密貨幣查詢可能因 API 限制暫時無法使用</p>' : ''}
                     </div>
                 `);
                 return;
@@ -232,16 +232,16 @@
             if (!data.success) {
                 setHtml('searchResult', `
                     <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
-                        ${data.detail || 'æŸ¥è©¢å¤±æ•—'}
+                        ${data.detail || '查詢失敗'}
                     </div>
                 `);
                 return;
             }
 
-            // å­˜å…¥å¿«å–
+            // 存入快取
             saveToCache(symbol, data);
             
-            // åŒæ­¥åˆ° AppState
+            // 同步到 AppState
             if (window.AppState) {
                 AppState.setCurrentStock({
                     symbol: data.symbol,
@@ -252,7 +252,7 @@
                 });
             }
 
-            // æ¸²æŸ“çµæžœï¼ˆç”± search-render.js è™•ç†ï¼‰
+            // 渲染結果（由 search-render.js 處理）
             renderSearchResult(data, symbol);
 
         } catch (e) {
@@ -265,13 +265,13 @@
             if (e.name === 'AbortError') {
                 setHtml('searchResult', `
                     <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
-                        æŸ¥è©¢è¶…æ™‚ï¼Œè«‹ç¨å¾Œå†è©¦
+                        查詢超時，請稍後再試
                     </div>
                 `);
             } else {
                 setHtml('searchResult', `
                     <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
-                        æŸ¥è©¢å¤±æ•—: ${e.message}
+                        查詢失敗: ${e.message}
                     </div>
                 `);
             }
@@ -279,7 +279,7 @@
     }
 
     // ============================================================
-    // å¿«é€ŸåŠ å…¥è¿½è¹¤æ¸…å–®
+    // 快速加入追蹤清單
     // ============================================================
 
     async function quickAddToWatchlist(symbol, type = 'stock') {
@@ -292,9 +292,9 @@
             const data = await res.json();
 
             if (res.ok && data.success) {
-                showToast(`å·²åŠ å…¥è¿½è¹¤: ${symbol}`);
+                showToast(`已加入追蹤: ${symbol}`);
                 
-                // æ¨‚è§€æ›´æ–° AppState
+                // 樂觀更新 AppState
                 if (window.AppState) {
                     AppState.addToWatchlist({
                         symbol: symbol.toUpperCase(),
@@ -303,19 +303,19 @@
                     });
                 }
             } else {
-                showToast(data.detail || 'åŠ å…¥å¤±æ•—', 'error');
+                showToast(data.detail || '加入失敗', 'error');
             }
         } catch (e) {
             console.error('Add to watchlist error:', e);
-            showToast('åŠ å…¥å¤±æ•—', 'error');
+            showToast('加入失敗', 'error');
         }
     }
 
     // ============================================================
-    // å°Žå‡º
+    // 導出
     // ============================================================
 
-    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    // 掛載到 SELA 命名空間
     if (window.SELA) {
         window.SELA.search = {
             searchStock,
@@ -326,12 +326,12 @@
         };
     }
 
-    // å…¨åŸŸå°Žå‡ºï¼ˆå‘å¾Œå…¼å®¹ï¼‰
+    // 全域導出（向後兼容）
     window.searchStock = searchStock;
     window.searchSymbol = searchSymbol;
     window.quickAddToWatchlist = quickAddToWatchlist;
     window.clearStockCache = clearStockCache;
     window.getStockCacheStats = getStockCacheStats;
 
-    console.log('ðŸ” search-core.js æœå°‹æ ¸å¿ƒæ¨¡çµ„å·²è¼‰å…¥ (å„ªåŒ–ç‰ˆ: 30åˆ†é˜å¿«å– + sessionStorage æŒä¹…åŒ–)');
+    console.log('🔍 search-core.js 搜尋核心模組已載入 (優化版: 30分鐘快取 + sessionStorage 持久化)');
 })();

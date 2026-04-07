@@ -1,14 +1,14 @@
 """
-è¿½è¹¤æ¸…å–® API è·¯ç”±
+追蹤清單 API 路由
 
-ðŸš€ æ•ˆèƒ½å„ªåŒ–ç‰ˆ - 2026-01-17
-- éžé–‹ç›¤æ™‚é–“ç›´æŽ¥ä½¿ç”¨å¿«å–ï¼ˆé«”æ„Ÿé€Ÿåº¦å¤§å¹…æå‡ï¼‰
-- å›žå‚³å¸‚å ´ç‹€æ…‹ï¼Œè®“å‰ç«¯çŸ¥é“æ˜¯å¦ç‚ºé–‹ç›¤æ™‚é–“
-- æ‰¹é‡è¼‰å…¥æ¨™ç±¤ï¼Œæ¶ˆé™¤ N+1 å•é¡Œ
+🚀 效能優化版 - 2026-01-17
+- 非開盤時間直接使用快取（體感速度大幅提升）
+- 回傳市場狀態，讓前端知道是否為開盤時間
+- 批量載入標籤，消除 N+1 問題
 
-ðŸ†• ç›®æ¨™åƒ¹å¼·åŒ– - 2026-01-17
-- æ–°å¢ž target_direction æ¬„ä½ï¼ˆabove/belowï¼‰
-- æ”¯æ´ã€Œé«˜æ–¼æ™‚æé†’ã€å’Œã€Œä½Žæ–¼æ™‚æé†’ã€å…©ç¨®æ¨¡å¼
+🆕 目標價強化 - 2026-01-17
+- 新增 target_direction 欄位（above/below）
+- 支援「高於時提醒」和「低於時提醒」兩種模式
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
@@ -36,20 +36,20 @@ from app.schemas.schemas import (
 from app.models.user import User
 from app.models.watchlist import Watchlist
 from app.models.price_cache import StockPriceCache
-from app.models.watchlist_tag import UserTag, watchlist_tags  # â­ æ–°å¢ž
+from app.models.watchlist_tag import UserTag, watchlist_tags  # ⭐ 新增
 
-# ðŸ”§ ä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+# 🔧 使用統一認證模組
 from app.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/watchlist", tags=["è¿½è¹¤æ¸…å–®"])
+router = APIRouter(prefix="/api/watchlist", tags=["追蹤清單"])
 
 
 # Schemas
 class TargetPriceUpdate(BaseModel):
     target_price: Optional[float] = None
-    target_direction: Optional[str] = "above"  # ðŸ†• above=é«˜æ–¼æ™‚æé†’, below=ä½Žæ–¼æ™‚æé†’
+    target_direction: Optional[str] = "above"  # 🆕 above=高於時提醒, below=低於時提醒
 
 
 class WatchlistImportItem(BaseModel):
@@ -57,7 +57,7 @@ class WatchlistImportItem(BaseModel):
     asset_type: Optional[str] = "stock"
     note: Optional[str] = None
     target_price: Optional[float] = None
-    target_direction: Optional[str] = "above"  # ðŸ†•
+    target_direction: Optional[str] = "above"  # 🆕
 
 
 class WatchlistImportRequest(BaseModel):
@@ -65,27 +65,27 @@ class WatchlistImportRequest(BaseModel):
 
 
 # ============================================================
-# ðŸ†• ç†±é–€è¿½è¹¤çµ±è¨ˆ API
+# 🆕 熱門追蹤統計 API
 # ============================================================
 
-@router.get("/popular", summary="ç†±é–€è¿½è¹¤çµ±è¨ˆ")
+@router.get("/popular", summary="熱門追蹤統計")
 async def get_popular_watchlist(
     limit: int = 10,
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    å–å¾—æœ€å¤šäººè¿½è¹¤çš„è‚¡ç¥¨æŽ’è¡Œ
+    取得最多人追蹤的股票排行
     
-    - ä¸éœ€è¦ç™»å…¥
-    - è¿”å›žå‰ N å€‹æœ€å¤šäººè¿½è¹¤çš„æ¨™çš„
-    - åŒ…å«è¿½è¹¤äººæ•¸çµ±è¨ˆ
+    - 不需要登入
+    - 返回前 N 個最多人追蹤的標的
+    - 包含追蹤人數統計
     """
-    logger.info(f"API: ç†±é–€è¿½è¹¤çµ±è¨ˆ - limit={limit}")
+    logger.info(f"API: 熱門追蹤統計 - limit={limit}")
 
     try:
         from sqlalchemy import func
         
-        # æŒ‰ symbol åˆ†çµ„ï¼Œè¨ˆç®—è¿½è¹¤äººæ•¸
+        # 按 symbol 分組，計算追蹤人數
         stmt = (
             select(
                 Watchlist.symbol,
@@ -115,30 +115,30 @@ async def get_popular_watchlist(
         }
 
     except Exception as e:
-        logger.error(f"å–å¾—ç†±é–€è¿½è¹¤çµ±è¨ˆå¤±æ•—: {e}", exc_info=True)
+        logger.error(f"取得熱門追蹤統計失敗: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================
-# åŒ¯å‡ºåŒ¯å…¥ API
+# 匯出匯入 API
 # ============================================================
 
-@router.get("/export", summary="åŒ¯å‡ºè¿½è¹¤æ¸…å–®")
+@router.get("/export", summary="匯出追蹤清單")
 async def export_watchlist(
     format: str = "json",
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    åŒ¯å‡ºç”¨æˆ¶çš„è¿½è¹¤æ¸…å–®
+    匯出用戶的追蹤清單
     
-    - format: json æˆ– csv
-    - åŒ…å« symbol, asset_type, note, target_price, target_direction
+    - format: json 或 csv
+    - 包含 symbol, asset_type, note, target_price, target_direction
     """
-    logger.info(f"API: åŒ¯å‡ºè¿½è¹¤æ¸…å–® - user_id={user.id}, format={format}")
+    logger.info(f"API: 匯出追蹤清單 - user_id={user.id}, format={format}")
 
     try:
-        # å–å¾—ç”¨æˆ¶çš„è¿½è¹¤æ¸…å–®
+        # 取得用戶的追蹤清單
         stmt = (
             select(Watchlist)
             .where(Watchlist.user_id == user.id)
@@ -148,9 +148,9 @@ async def export_watchlist(
         items = list(result.scalars().all())
 
         if not items:
-            raise HTTPException(status_code=404, detail="è¿½è¹¤æ¸…å–®ç‚ºç©º")
+            raise HTTPException(status_code=404, detail="追蹤清單為空")
 
-        # æº–å‚™åŒ¯å‡ºè³‡æ–™
+        # 準備匯出資料
         export_data = []
         for item in items:
             export_data.append({
@@ -158,16 +158,16 @@ async def export_watchlist(
                 "asset_type": item.asset_type,
                 "note": item.note or "",
                 "target_price": float(item.target_price) if item.target_price else None,
-                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # ðŸ†•
+                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # 🆕
                 "added_at": item.added_at.isoformat() if item.added_at else None,
             })
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         if format.lower() == "csv":
-            # CSV æ ¼å¼
+            # CSV 格式
             output = io.StringIO()
-            writer = csv.DictWriter(output, fieldnames=["symbol", "asset_type", "note", "target_price", "target_direction", "added_at"])  # ðŸ†•
+            writer = csv.DictWriter(output, fieldnames=["symbol", "asset_type", "note", "target_price", "target_direction", "added_at"])  # 🆕
             writer.writeheader()
             writer.writerows(export_data)
             
@@ -179,7 +179,7 @@ async def export_watchlist(
                 }
             )
         else:
-            # JSON æ ¼å¼
+            # JSON 格式
             json_str = json.dumps({
                 "export_time": datetime.now().isoformat(),
                 "total": len(export_data),
@@ -197,26 +197,26 @@ async def export_watchlist(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"åŒ¯å‡ºè¿½è¹¤æ¸…å–®å¤±æ•—: {e}", exc_info=True)
+        logger.error(f"匯出追蹤清單失敗: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/import", summary="åŒ¯å…¥è¿½è¹¤æ¸…å–®")
+@router.post("/import", summary="匯入追蹤清單")
 async def import_watchlist(
     data: WatchlistImportRequest,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    åŒ¯å…¥è¿½è¹¤æ¸…å–®
+    匯入追蹤清單
     
-    - å·²å­˜åœ¨çš„ symbol æœƒè·³éŽ
-    - è¿”å›žæˆåŠŸ/è·³éŽ/å¤±æ•—çš„çµ±è¨ˆ
+    - 已存在的 symbol 會跳過
+    - 返回成功/跳過/失敗的統計
     """
-    logger.info(f"API: åŒ¯å…¥è¿½è¹¤æ¸…å–® - user_id={user.id}, items={len(data.items)}")
+    logger.info(f"API: 匯入追蹤清單 - user_id={user.id}, items={len(data.items)}")
 
     try:
-        # å–å¾—ç¾æœ‰è¿½è¹¤æ¸…å–®
+        # 取得現有追蹤清單
         stmt = select(Watchlist.symbol).where(Watchlist.user_id == user.id)
         result = await db.execute(stmt)
         existing_symbols = set(row[0] for row in result.all())
@@ -236,7 +236,7 @@ async def import_watchlist(
                 continue
 
             try:
-                # æ–°å¢žè¿½è¹¤
+                # 新增追蹤
                 new_item = Watchlist(
                     user_id=user.id,
                     symbol=symbol,
@@ -244,7 +244,7 @@ async def import_watchlist(
                     note=item.note,
                     target_price=item.target_price,
                 )
-                # ðŸ†• è¨­å®š target_directionï¼ˆå¦‚æžœæ¨¡åž‹æ”¯æ´ï¼‰
+                # 🆕 設定 target_direction（如果模型支援）
                 if hasattr(new_item, 'target_direction'):
                     new_item.target_direction = item.target_direction or "above"
                 db.add(new_item)
@@ -257,7 +257,7 @@ async def import_watchlist(
 
         return {
             "success": True,
-            "message": f"åŒ¯å…¥å®Œæˆï¼šæ–°å¢ž {len(added)} ç­†ï¼Œè·³éŽ {len(skipped)} ç­†",
+            "message": f"匯入完成：新增 {len(added)} 筆，跳過 {len(skipped)} 筆",
             "data": {
                 "added": added,
                 "skipped": skipped,
@@ -269,41 +269,32 @@ async def import_watchlist(
         }
 
     except Exception as e:
-        logger.error(f"åŒ¯å…¥è¿½è¹¤æ¸…å–®å¤±æ•—: {e}", exc_info=True)
+        logger.error(f"匯入追蹤清單失敗: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
 # ============================================================
-# åƒ¹æ ¼å¿«å– APIï¼ˆâ­ å„ªåŒ–ç‰ˆï¼šåŒ…å«æ¨™ç±¤ + å¸‚å ´ç‹€æ…‹ï¼‰
+# 🆕 基本資料 API（快速版，用於分階段載入）
 # ============================================================
 
-@router.get("/with-prices", summary="è¿½è¹¤æ¸…å–®ï¼ˆå«å³æ™‚åƒ¹æ ¼ï¼‰")
-async def get_watchlist_with_prices(
+@router.get("/basic", summary="追蹤清單（基本資料，快速）")
+async def get_watchlist_basic(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    å–å¾—ç”¨æˆ¶è¿½è¹¤æ¸…å–®ï¼ŒåŒ…å«å³æ™‚åƒ¹æ ¼ï¼ˆå¾žå¿«å–è®€å–ï¼‰
+    取得用戶追蹤清單基本資料（不含價格，毫秒級回應）
     
-    ðŸš€ æ•ˆèƒ½å„ªåŒ–ç‰ˆ 2026-01-17ï¼š
-    - éžé–‹ç›¤æ™‚é–“ç›´æŽ¥ä½¿ç”¨å¿«å–ï¼ˆæ¯«ç§’ç´šå›žæ‡‰ï¼‰
-    - å›žå‚³å¸‚å ´ç‹€æ…‹ï¼Œè®“å‰ç«¯çŸ¥é“è³‡æ–™çš„æ™‚æ•ˆæ€§
-    - ä¸€æ¬¡æ€§è¼‰å…¥æ‰€æœ‰æ¨™ç±¤ï¼Œæ¶ˆé™¤ N+1 å•é¡Œ
-    
-    - åƒ¹æ ¼ä¾†è‡ª stock_price_cache è¡¨
-    - æ¯ 10 åˆ†é˜ç”±æŽ’ç¨‹æ›´æ–°
-    - å›žæ‡‰æ™‚é–“ï¼šæ¯«ç§’ç´š
-    - åŒ…å«ç›®æ¨™åƒ¹åŠæ˜¯å¦é”æ¨™
-    - åŒ…å«è©²é …ç›®çš„æ‰€æœ‰æ¨™ç±¤
+    🚀 效能優化：用於分階段載入的第一階段
+    - 只查 watchlist 表和標籤
+    - 不查 stock_price_cache
+    - 價格欄位回傳 null，前端顯示「載入中」
     """
-    logger.info(f"API: è¿½è¹¤æ¸…å–®(å«åƒ¹æ ¼) - user_id={user.id}")
+    logger.info(f"API: 追蹤清單(基本) - user_id={user.id}")
 
     try:
-        # ðŸ†• å–å¾—å¸‚å ´ç‹€æ…‹
-        from app.services.price_cache_service import get_market_status
-        market_status = get_market_status()
-        
-        # 1. å–å¾—ç”¨æˆ¶çš„è¿½è¹¤æ¸…å–®
+        # 1. 取得用戶的追蹤清單
         stmt = (
             select(Watchlist)
             .where(Watchlist.user_id == user.id)
@@ -317,21 +308,11 @@ async def get_watchlist_with_prices(
                 "success": True,
                 "data": [],
                 "total": 0,
-                "market_status": market_status,  # ðŸ†•
             }
 
-        # 2. å–å¾—æ‰€æœ‰ symbol å’Œ watchlist_id
-        symbols = [item.symbol for item in watchlist_items]
         watchlist_ids = [item.id for item in watchlist_items]
 
-        # 3. å¾žå¿«å–æ‰¹æ¬¡å–å¾—åƒ¹æ ¼
-        cache_stmt = select(StockPriceCache).where(
-            StockPriceCache.symbol.in_(symbols)
-        )
-        cache_result = await db.execute(cache_stmt)
-        cache_map = {c.symbol: c for c in cache_result.scalars().all()}
-
-        # 4. â­ æ‰¹æ¬¡å–å¾—æ‰€æœ‰æ¨™ç±¤é—œè¯ï¼ˆæ¶ˆé™¤ N+1 å•é¡Œï¼‰
+        # 2. 批次取得所有標籤關聯
         tags_map = {}
         try:
             tags_stmt = (
@@ -344,7 +325,6 @@ async def get_watchlist_with_prices(
             )
             tags_result = await db.execute(tags_stmt)
             
-            # å»ºç«‹ watchlist_id -> tags çš„æ˜ å°„
             for row in tags_result:
                 wl_id = row[0]
                 tag = row[1]
@@ -357,27 +337,150 @@ async def get_watchlist_with_prices(
                     "icon": tag.icon,
                 })
         except Exception as e:
-            logger.warning(f"è¼‰å…¥æ¨™ç±¤å¤±æ•—ï¼ˆå¯èƒ½æ˜¯æ–°ç³»çµ±å°šæœªå»ºç«‹æ¨™ç±¤è¡¨ï¼‰: {e}")
-            # æ¨™ç±¤è¼‰å…¥å¤±æ•—ä¸å½±éŸ¿ä¸»è¦åŠŸèƒ½
+            logger.warning(f"載入標籤失敗: {e}")
 
-        # 5. çµ„åˆè³‡æ–™
+        # 3. 組合資料（不含價格）
+        data = []
+        for item in watchlist_items:
+            target_price = float(item.target_price) if item.target_price else None
+            target_direction = getattr(item, 'target_direction', 'above') or 'above'
+
+            data.append({
+                "id": item.id,
+                "symbol": item.symbol,
+                "asset_type": item.asset_type,
+                "note": item.note,
+                "target_price": target_price,
+                "target_direction": target_direction,
+                "target_reached": False,  # 沒有價格無法判斷
+                "added_at": item.added_at.isoformat() if item.added_at else None,
+                # 價格欄位全部 null（前端會顯示「載入中」）
+                "name": None,
+                "price": None,
+                "change": None,
+                "change_pct": None,
+                "ma20": None,
+                "price_updated_at": None,
+                # 標籤
+                "tags": tags_map.get(item.id, []),
+            })
+
+        return {
+            "success": True,
+            "data": data,
+            "total": len(data),
+        }
+
+    except Exception as e:
+        logger.error(f"取得追蹤清單(基本)失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# 價格快取 API（⭐ 優化版：包含標籤 + 市場狀態）
+# ============================================================
+
+@router.get("/with-prices", summary="追蹤清單（含即時價格）")
+async def get_watchlist_with_prices(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    取得用戶追蹤清單，包含即時價格（從快取讀取）
+    
+    🚀 效能優化版 2026-01-17：
+    - 非開盤時間直接使用快取（毫秒級回應）
+    - 回傳市場狀態，讓前端知道資料的時效性
+    - 一次性載入所有標籤，消除 N+1 問題
+    
+    - 價格來自 stock_price_cache 表
+    - 每 10 分鐘由排程更新
+    - 回應時間：毫秒級
+    - 包含目標價及是否達標
+    - 包含該項目的所有標籤
+    """
+    logger.info(f"API: 追蹤清單(含價格) - user_id={user.id}")
+
+    try:
+        # 🆕 取得市場狀態
+        from app.services.price_cache_service import get_market_status
+        market_status = get_market_status()
+        
+        # 1. 取得用戶的追蹤清單
+        stmt = (
+            select(Watchlist)
+            .where(Watchlist.user_id == user.id)
+            .order_by(Watchlist.added_at.desc())
+        )
+        result = await db.execute(stmt)
+        watchlist_items = list(result.scalars().all())
+
+        if not watchlist_items:
+            return {
+                "success": True,
+                "data": [],
+                "total": 0,
+                "market_status": market_status,  # 🆕
+            }
+
+        # 2. 取得所有 symbol 和 watchlist_id
+        symbols = [item.symbol for item in watchlist_items]
+        watchlist_ids = [item.id for item in watchlist_items]
+
+        # 3. 從快取批次取得價格
+        cache_stmt = select(StockPriceCache).where(
+            StockPriceCache.symbol.in_(symbols)
+        )
+        cache_result = await db.execute(cache_stmt)
+        cache_map = {c.symbol: c for c in cache_result.scalars().all()}
+
+        # 4. ⭐ 批次取得所有標籤關聯（消除 N+1 問題）
+        tags_map = {}
+        try:
+            tags_stmt = (
+                select(
+                    watchlist_tags.c.watchlist_id,
+                    UserTag
+                )
+                .join(UserTag, UserTag.id == watchlist_tags.c.tag_id)
+                .where(watchlist_tags.c.watchlist_id.in_(watchlist_ids))
+            )
+            tags_result = await db.execute(tags_stmt)
+            
+            # 建立 watchlist_id -> tags 的映射
+            for row in tags_result:
+                wl_id = row[0]
+                tag = row[1]
+                if wl_id not in tags_map:
+                    tags_map[wl_id] = []
+                tags_map[wl_id].append({
+                    "id": tag.id,
+                    "name": tag.name,
+                    "color": tag.color,
+                    "icon": tag.icon,
+                })
+        except Exception as e:
+            logger.warning(f"載入標籤失敗（可能是新系統尚未建立標籤表）: {e}")
+            # 標籤載入失敗不影響主要功能
+
+        # 5. 組合資料
         data = []
         for item in watchlist_items:
             cache = cache_map.get(item.symbol)
             
-            # MA20 å€¼
+            # MA20 值
             ma20_value = float(cache.ma20) if cache and cache.ma20 else None
             
-            # ç›®æ¨™åƒ¹åˆ¤æ–·
+            # 目標價判斷
             target_price = float(item.target_price) if item.target_price else None
             current_price = float(cache.price) if cache and cache.price else None
             target_reached = False
             
-            # ðŸ†• å–å¾— target_directionï¼Œé è¨­ç‚º above
+            # 🆕 取得 target_direction，預設為 above
             target_direction = getattr(item, 'target_direction', 'above') or 'above'
             
             if current_price and target_price:
-                # ðŸ†• æ ¹æ“šæ–¹å‘åˆ¤æ–·æ˜¯å¦é”æ¨™
+                # 🆕 根據方向判斷是否達標
                 if target_direction == 'below':
                     target_reached = current_price <= target_price
                 else:
@@ -389,17 +492,17 @@ async def get_watchlist_with_prices(
                 "asset_type": item.asset_type,
                 "note": item.note,
                 "target_price": target_price,
-                "target_direction": target_direction,  # ðŸ†•
+                "target_direction": target_direction,  # 🆕
                 "target_reached": target_reached,
                 "added_at": item.added_at.isoformat() if item.added_at else None,
-                # åƒ¹æ ¼è³‡è¨Šï¼ˆå¾žå¿«å–ï¼‰
+                # 價格資訊（從快取）
                 "name": cache.name if cache else None,
                 "price": current_price,
                 "change": float(cache.change) if cache and cache.change else None,
                 "change_pct": float(cache.change_pct) if cache and cache.change_pct else None,
                 "ma20": ma20_value,
                 "price_updated_at": cache.updated_at.isoformat() if cache and cache.updated_at else None,
-                # â­ æ¨™ç±¤è³‡è¨Šï¼ˆæ‰¹é‡è¼‰å…¥ï¼‰
+                # ⭐ 標籤資訊（批量載入）
                 "tags": tags_map.get(item.id, []),
             })
 
@@ -407,19 +510,19 @@ async def get_watchlist_with_prices(
             "success": True,
             "data": data,
             "total": len(data),
-            "market_status": market_status,  # ðŸ†• å›žå‚³å¸‚å ´ç‹€æ…‹
+            "market_status": market_status,  # 🆕 回傳市場狀態
         }
 
     except Exception as e:
-        logger.error(f"å–å¾—è¿½è¹¤æ¸…å–®(å«åƒ¹æ ¼)å¤±æ•—: {e}", exc_info=True)
+        logger.error(f"取得追蹤清單(含價格)失敗: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/cache-status", summary="å¿«å–ç‹€æ…‹")
+@router.get("/cache-status", summary="快取狀態")
 async def get_cache_status(
     db: AsyncSession = Depends(get_async_session),
 ):
-    """æŸ¥çœ‹åƒ¹æ ¼å¿«å–ç‹€æ…‹"""
+    """查看價格快取狀態"""
     try:
         from app.services.price_cache_service import get_market_status
 
@@ -431,7 +534,7 @@ async def get_cache_status(
             return {
                 "success": True,
                 "total_cached": 0,
-                "message": "å¿«å–ç‚ºç©ºï¼Œè«‹ç­‰å¾…æŽ’ç¨‹æ›´æ–°",
+                "message": "快取為空，請等待排程更新",
                 "market_status": get_market_status(),
             }
 
@@ -452,15 +555,15 @@ async def get_cache_status(
         }
 
     except Exception as e:
-        logger.error(f"æŸ¥è©¢å¿«å–ç‹€æ…‹å¤±æ•—: {e}")
+        logger.error(f"查詢快取狀態失敗: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================
-# ç›®æ¨™åƒ¹ API
+# 目標價 API
 # ============================================================
 
-@router.put("/{item_id}/target-price", summary="è¨­å®šç›®æ¨™åƒ¹")
+@router.put("/{item_id}/target-price", summary="設定目標價")
 async def set_target_price(
     item_id: int,
     data: TargetPriceUpdate,
@@ -468,16 +571,16 @@ async def set_target_price(
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    è¨­å®šè¿½è¹¤æ¨™çš„çš„ç›®æ¨™åƒ¹æ ¼
+    設定追蹤標的的目標價格
     
-    - è¨­å®šå¾Œï¼Œç•¶ç¾åƒ¹é”åˆ°ç›®æ¨™åƒ¹æœƒè®Šè‰²æé†’
-    - target_direction: "above" (é«˜æ–¼æ™‚æé†’) æˆ– "below" (ä½Žæ–¼æ™‚æé†’)
-    - å‚³å…¥ null å¯æ¸…é™¤ç›®æ¨™åƒ¹
+    - 設定後，當現價達到目標價會變色提醒
+    - target_direction: "above" (高於時提醒) 或 "below" (低於時提醒)
+    - 傳入 null 可清除目標價
     """
-    logger.info(f"API: è¨­å®šç›®æ¨™åƒ¹ - user_id={user.id}, item_id={item_id}, target={data.target_price}, direction={data.target_direction}")
+    logger.info(f"API: 設定目標價 - user_id={user.id}, item_id={item_id}, target={data.target_price}, direction={data.target_direction}")
 
     try:
-        # æŸ¥è©¢è©²è¿½è¹¤é …ç›®
+        # 查詢該追蹤項目
         stmt = select(Watchlist).where(
             Watchlist.id == item_id,
             Watchlist.user_id == user.id
@@ -486,46 +589,46 @@ async def set_target_price(
         item = result.scalar_one_or_none()
 
         if not item:
-            raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è©²è¿½è¹¤é …ç›®")
+            raise HTTPException(status_code=404, detail="找不到該追蹤項目")
 
-        # æ›´æ–°ç›®æ¨™åƒ¹
+        # 更新目標價
         item.target_price = data.target_price
-        # ðŸ†• æ›´æ–°æ–¹å‘ï¼ˆå¦‚æžœæ¨¡åž‹æ”¯æ´ï¼‰
+        # 🆕 更新方向（如果模型支援）
         if hasattr(item, 'target_direction'):
             item.target_direction = data.target_direction or "above"
         await db.commit()
 
         return {
             "success": True,
-            "message": "ç›®æ¨™åƒ¹å·²æ›´æ–°" if data.target_price else "ç›®æ¨™åƒ¹å·²æ¸…é™¤",
+            "message": "目標價已更新" if data.target_price else "目標價已清除",
             "data": {
                 "id": item.id,
                 "symbol": item.symbol,
                 "target_price": float(item.target_price) if item.target_price else None,
-                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # ðŸ†•
+                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # 🆕
             }
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"è¨­å®šç›®æ¨™åƒ¹å¤±æ•—: {e}", exc_info=True)
+        logger.error(f"設定目標價失敗: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================
-# åŽŸæœ‰çš„ç«¯é»ž
+# 原有的端點
 # ============================================================
 
-@router.get("", summary="å–å¾—è¿½è¹¤æ¸…å–®", response_model=WatchlistListResponse)
+@router.get("", summary="取得追蹤清單", response_model=WatchlistListResponse)
 async def get_watchlist(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    å–å¾—ç”¨æˆ¶çš„è¿½è¹¤æ¸…å–®
+    取得用戶的追蹤清單
     """
-    logger.info(f"API: å–å¾—è¿½è¹¤æ¸…å–® - user_id={user.id}, line_id={user.line_user_id}")
+    logger.info(f"API: 取得追蹤清單 - user_id={user.id}, line_id={user.line_user_id}")
 
     service = WatchlistService(db)
     items = await service.get_watchlist(user.id)
@@ -537,19 +640,19 @@ async def get_watchlist(
     )
 
 
-@router.post("", summary="æ–°å¢žè¿½è¹¤", response_model=WatchlistResponse)
+@router.post("", summary="新增追蹤", response_model=WatchlistResponse)
 async def add_to_watchlist(
     data: WatchlistAdd,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    æ–°å¢žæ¨™çš„åˆ°è¿½è¹¤æ¸…å–®
+    新增標的到追蹤清單
     
-    - **symbol**: è‚¡ç¥¨ä»£è™Ÿ (å¦‚ AAPL) æˆ–åŠ å¯†è²¨å¹£ (å¦‚ BTC)
-    - **note**: è‡ªè¨‚å‚™è¨»ï¼ˆé¸å¡«ï¼‰
+    - **symbol**: 股票代號 (如 AAPL) 或加密貨幣 (如 BTC)
+    - **note**: 自訂備註（選填）
     """
-    logger.info(f"API: æ–°å¢žè¿½è¹¤ - user_id={user.id}, line_id={user.line_user_id}, symbol={data.symbol}")
+    logger.info(f"API: 新增追蹤 - user_id={user.id}, line_id={user.line_user_id}, symbol={data.symbol}")
 
     service = WatchlistService(db)
     result = await service.add_to_watchlist(
@@ -571,16 +674,16 @@ async def add_to_watchlist(
     )
 
 
-@router.delete("/{symbol}", summary="ç§»é™¤è¿½è¹¤", response_model=ResponseBase)
+@router.delete("/{symbol}", summary="移除追蹤", response_model=ResponseBase)
 async def remove_from_watchlist(
     symbol: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    å¾žè¿½è¹¤æ¸…å–®ç§»é™¤æ¨™çš„
+    從追蹤清單移除標的
     """
-    logger.info(f"API: ç§»é™¤è¿½è¹¤ - user_id={user.id}, line_id={user.line_user_id}, symbol={symbol}")
+    logger.info(f"API: 移除追蹤 - user_id={user.id}, line_id={user.line_user_id}, symbol={symbol}")
 
     service = WatchlistService(db)
     result = await service.remove_from_watchlist(
@@ -600,7 +703,7 @@ async def remove_from_watchlist(
     )
 
 
-@router.put("/{symbol}", summary="æ›´æ–°å‚™è¨»", response_model=ResponseBase)
+@router.put("/{symbol}", summary="更新備註", response_model=ResponseBase)
 async def update_watchlist_note(
     symbol: str,
     data: WatchlistUpdate,
@@ -608,9 +711,9 @@ async def update_watchlist_note(
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    æ›´æ–°è¿½è¹¤æ¨™çš„çš„å‚™è¨»
+    更新追蹤標的的備註
     """
-    logger.info(f"API: æ›´æ–°å‚™è¨» - user_id={user.id}, symbol={symbol}")
+    logger.info(f"API: 更新備註 - user_id={user.id}, symbol={symbol}")
 
     service = WatchlistService(db)
     result = await service.update_note(
@@ -631,17 +734,17 @@ async def update_watchlist_note(
     )
 
 
-@router.get("/overview", summary="è¿½è¹¤æ¸…å–®ç¸½è¦½")
+@router.get("/overview", summary="追蹤清單總覽")
 async def get_watchlist_overview(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
-    å–å¾—è¿½è¹¤æ¸…å–®ç¸½è¦½
+    取得追蹤清單總覽
     
-    åŒ…å«æ‰€æœ‰è¿½è¹¤æ¨™çš„çš„åŸºæœ¬è³‡è¨Š
+    包含所有追蹤標的的基本資訊
     """
-    logger.info(f"API: è¿½è¹¤æ¸…å–®ç¸½è¦½ - user_id={user.id}, line_id={user.line_user_id}")
+    logger.info(f"API: 追蹤清單總覽 - user_id={user.id}, line_id={user.line_user_id}")
 
     service = WatchlistService(db)
     items = await service.get_watchlist(user.id)
@@ -655,7 +758,7 @@ async def get_watchlist_overview(
                 "asset_type": item.asset_type,
                 "note": item.note,
                 "target_price": float(item.target_price) if item.target_price else None,
-                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # ðŸ†•
+                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # 🆕
                 "added_at": item.added_at.isoformat() if item.added_at else None,
             }
             for item in items

@@ -1,5 +1,5 @@
 """
-å¤–éƒ¨è³‡æ–™ä¾†æºæ¨¡çµ„
+外部資料來源模組
 """
 from app.data_sources.yahoo_finance import yahoo_finance
 from app.data_sources.coingecko import coingecko

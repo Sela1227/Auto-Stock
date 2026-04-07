@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-è‚¡ç¥¨åˆ†æžç³»çµ± CLI
-å‘½ä»¤åˆ—æŸ¥è©¢ä»‹é¢
+股票分析系統 CLI
+命令列查詢介面
 """
 import sys
 import argparse
@@ -21,28 +21,28 @@ from app.config import settings
 
 console = Console()
 
-# æ”¯æ´çš„åŠ å¯†è²¨å¹£ä»£è™Ÿ
+# 支援的加密貨幣代號
 SUPPORTED_CRYPTO = set(k for k in CRYPTO_MAP.keys() if k not in ("BITCOIN", "ETHEREUM"))
 
 
 def print_header():
-    """é¡¯ç¤ºæ¨™é¡Œ"""
+    """顯示標題"""
     console.print()
     console.print(Panel.fit(
-        "[bold orange1]ðŸ“ˆ è‚¡ç¥¨æŠ€è¡“åˆ†æžç³»çµ±[/bold orange1]\n"
-        f"[dim]ç‰ˆæœ¬ {settings.APP_VERSION}[/dim]",
+        "[bold orange1]📈 股票技術分析系統[/bold orange1]\n"
+        f"[dim]版本 {settings.APP_VERSION}[/dim]",
         border_style="orange1",
     ))
     console.print()
 
 
 def is_crypto(symbol: str) -> bool:
-    """åˆ¤æ–·æ˜¯å¦ç‚ºåŠ å¯†è²¨å¹£"""
+    """判斷是否為加密貨幣"""
     return symbol.upper() in SUPPORTED_CRYPTO
 
 
 def print_stock_analysis(analysis: dict):
-    """é¡¯ç¤ºè‚¡ç¥¨åˆ†æžå ±å‘Š"""
+    """顯示股票分析報告"""
     symbol = analysis["symbol"]
     name = analysis["name"]
     price_info = analysis["price"]
@@ -52,43 +52,43 @@ def print_stock_analysis(analysis: dict):
     signals = analysis["signals"]
     score = analysis["score"]
     
-    # æ¨™é¡Œ
+    # 標題
     console.print(Panel(
         f"[bold]{symbol}[/bold] - {name}",
         border_style="blue",
     ))
     
-    # åƒ¹æ ¼è³‡è¨Š
-    price_table = Table(title="ðŸ’° åƒ¹æ ¼è³‡è¨Š", box=box.ROUNDED, show_header=False)
-    price_table.add_column("é …ç›®", style="cyan")
-    price_table.add_column("æ•¸å€¼", justify="right")
+    # 價格資訊
+    price_table = Table(title="💰 價格資訊", box=box.ROUNDED, show_header=False)
+    price_table.add_column("項目", style="cyan")
+    price_table.add_column("數值", justify="right")
     
     current_price = price_info["current"]
-    price_table.add_row("ç¾åƒ¹", f"[bold green]${current_price:,.2f}[/bold green]")
+    price_table.add_row("現價", f"[bold green]${current_price:,.2f}[/bold green]")
     
     if price_info.get("high_52w"):
-        price_table.add_row("52é€±æœ€é«˜", f"${price_info['high_52w']:,.2f}")
+        price_table.add_row("52週最高", f"${price_info['high_52w']:,.2f}")
     if price_info.get("low_52w"):
-        price_table.add_row("52é€±æœ€ä½Ž", f"${price_info['low_52w']:,.2f}")
+        price_table.add_row("52週最低", f"${price_info['low_52w']:,.2f}")
     if price_info.get("from_high_pct"):
         pct = price_info["from_high_pct"]
         color = "red" if pct < 0 else "green"
-        price_table.add_row("è·é«˜é»ž", f"[{color}]{pct:+.2f}%[/{color}]")
+        price_table.add_row("距高點", f"[{color}]{pct:+.2f}%[/{color}]")
     if price_info.get("from_low_pct"):
         pct = price_info["from_low_pct"]
         color = "green" if pct > 0 else "red"
-        price_table.add_row("è·ä½Žé»ž", f"[{color}]{pct:+.2f}%[/{color}]")
+        price_table.add_row("距低點", f"[{color}]{pct:+.2f}%[/{color}]")
     
     console.print(price_table)
     console.print()
     
-    # æ¼²è·Œå¹…
-    change_table = Table(title="ðŸ“Š æ¼²è·Œå¹…", box=box.ROUNDED)
-    change_table.add_column("æ—¥", justify="center")
-    change_table.add_column("é€±", justify="center")
-    change_table.add_column("æœˆ", justify="center")
-    change_table.add_column("å­£", justify="center")
-    change_table.add_column("å¹´", justify="center")
+    # 漲跌幅
+    change_table = Table(title="📊 漲跌幅", box=box.ROUNDED)
+    change_table.add_column("日", justify="center")
+    change_table.add_column("週", justify="center")
+    change_table.add_column("月", justify="center")
+    change_table.add_column("季", justify="center")
+    change_table.add_column("年", justify="center")
     
     def format_change(val):
         if val is None:
@@ -107,46 +107,46 @@ def print_stock_analysis(analysis: dict):
     console.print(change_table)
     console.print()
     
-    # æˆäº¤é‡
+    # 成交量
     if volume_info:
-        vol_table = Table(title="ðŸ“ˆ æˆäº¤é‡", box=box.ROUNDED, show_header=False)
-        vol_table.add_column("é …ç›®", style="cyan")
-        vol_table.add_column("æ•¸å€¼", justify="right")
+        vol_table = Table(title="📈 成交量", box=box.ROUNDED, show_header=False)
+        vol_table.add_column("項目", style="cyan")
+        vol_table.add_column("數值", justify="right")
         
-        vol_table.add_row("ä»Šæ—¥æˆäº¤é‡", f"{volume_info.get('today', 0):,}")
+        vol_table.add_row("今日成交量", f"{volume_info.get('today', 0):,}")
         if volume_info.get("avg_20d"):
-            vol_table.add_row("20æ—¥å‡é‡", f"{volume_info['avg_20d']:,}")
+            vol_table.add_row("20日均量", f"{volume_info['avg_20d']:,}")
         if volume_info.get("ratio"):
             ratio = volume_info["ratio"]
             color = "yellow" if ratio >= 2.0 else ("green" if ratio >= 1.0 else "dim")
-            vol_table.add_row("é‡æ¯”", f"[{color}]{ratio:.2f}[/{color}]")
+            vol_table.add_row("量比", f"[{color}]{ratio:.2f}[/{color}]")
         
         console.print(vol_table)
         console.print()
     
-    # æŠ€è¡“æŒ‡æ¨™
+    # 技術指標
     _print_indicators(indicators)
     
-    # è¨Šè™Ÿ
+    # 訊號
     if signals:
         signal_panel = Panel(
-            "\n".join([f"â€¢ {s['description']}" for s in signals]),
-            title="âš¡ æœ€æ–°è¨Šè™Ÿ",
+            "\n".join([f"• {s['description']}" for s in signals]),
+            title="⚡ 最新訊號",
             border_style="yellow",
         )
         console.print(signal_panel)
         console.print()
     
-    # ç¶œåˆè©•åˆ†
+    # 綜合評分
     _print_score(score)
     
-    # æ›´æ–°æ™‚é–“
+    # 更新時間
     console.print()
-    console.print(f"[dim]æ›´æ–°æ™‚é–“: {analysis.get('updated_at', '-')}[/dim]")
+    console.print(f"[dim]更新時間: {analysis.get('updated_at', '-')}[/dim]")
 
 
 def print_crypto_analysis(analysis: dict):
-    """é¡¯ç¤ºåŠ å¯†è²¨å¹£åˆ†æžå ±å‘Š"""
+    """顯示加密貨幣分析報告"""
     symbol = analysis["symbol"]
     name = analysis["name"]
     price_info = analysis["price"]
@@ -156,55 +156,55 @@ def print_crypto_analysis(analysis: dict):
     signals = analysis["signals"]
     score = analysis["score"]
     
-    # æ¨™é¡Œ
+    # 標題
     console.print(Panel(
-        f"[bold]{symbol}[/bold] - {name} [dim](åŠ å¯†è²¨å¹£)[/dim]",
+        f"[bold]{symbol}[/bold] - {name} [dim](加密貨幣)[/dim]",
         border_style="yellow",
     ))
     
-    # åƒ¹æ ¼è³‡è¨Š
-    price_table = Table(title="ðŸ’° åƒ¹æ ¼è³‡è¨Š", box=box.ROUNDED, show_header=False)
-    price_table.add_column("é …ç›®", style="cyan")
-    price_table.add_column("æ•¸å€¼", justify="right")
+    # 價格資訊
+    price_table = Table(title="💰 價格資訊", box=box.ROUNDED, show_header=False)
+    price_table.add_column("項目", style="cyan")
+    price_table.add_column("數值", justify="right")
     
     current_price = price_info["current"]
     if current_price >= 1000:
-        price_table.add_row("ç¾åƒ¹", f"[bold green]${current_price:,.2f}[/bold green]")
+        price_table.add_row("現價", f"[bold green]${current_price:,.2f}[/bold green]")
     else:
-        price_table.add_row("ç¾åƒ¹", f"[bold green]${current_price:,.4f}[/bold green]")
+        price_table.add_row("現價", f"[bold green]${current_price:,.4f}[/bold green]")
     
     if price_info.get("ath"):
-        price_table.add_row("æ­·å²æœ€é«˜ (ATH)", f"${price_info['ath']:,.2f}")
+        price_table.add_row("歷史最高 (ATH)", f"${price_info['ath']:,.2f}")
     if price_info.get("from_ath_pct"):
         pct = price_info["from_ath_pct"]
         color = "red" if pct < 0 else "green"
-        price_table.add_row("è· ATH", f"[{color}]{pct:+.2f}%[/{color}]")
+        price_table.add_row("距 ATH", f"[{color}]{pct:+.2f}%[/{color}]")
     if price_info.get("high_24h"):
-        price_table.add_row("24H æœ€é«˜", f"${price_info['high_24h']:,.2f}")
+        price_table.add_row("24H 最高", f"${price_info['high_24h']:,.2f}")
     if price_info.get("low_24h"):
-        price_table.add_row("24H æœ€ä½Ž", f"${price_info['low_24h']:,.2f}")
+        price_table.add_row("24H 最低", f"${price_info['low_24h']:,.2f}")
     
     console.print(price_table)
     console.print()
     
-    # å¸‚å ´è³‡è¨Š
+    # 市場資訊
     if market_info:
-        market_table = Table(title="ðŸŒ å¸‚å ´è³‡è¨Š", box=box.ROUNDED, show_header=False)
-        market_table.add_column("é …ç›®", style="cyan")
-        market_table.add_column("æ•¸å€¼", justify="right")
+        market_table = Table(title="🌐 市場資訊", box=box.ROUNDED, show_header=False)
+        market_table.add_column("項目", style="cyan")
+        market_table.add_column("數值", justify="right")
         
         if market_info.get("market_cap"):
-            market_table.add_row("å¸‚å€¼", f"${market_info['market_cap']:,.0f}")
+            market_table.add_row("市值", f"${market_info['market_cap']:,.0f}")
         if market_info.get("market_cap_rank"):
-            market_table.add_row("å¸‚å€¼æŽ’å", f"#{market_info['market_cap_rank']}")
+            market_table.add_row("市值排名", f"#{market_info['market_cap_rank']}")
         if market_info.get("volume_24h"):
-            market_table.add_row("24H æˆäº¤é‡", f"${market_info['volume_24h']:,.0f}")
+            market_table.add_row("24H 成交量", f"${market_info['volume_24h']:,.0f}")
         
         console.print(market_table)
         console.print()
     
-    # æ¼²è·Œå¹…
-    change_table = Table(title="ðŸ“Š æ¼²è·Œå¹…", box=box.ROUNDED)
+    # 漲跌幅
+    change_table = Table(title="📊 漲跌幅", box=box.ROUNDED)
     change_table.add_column("24H", justify="center")
     change_table.add_column("7D", justify="center")
     change_table.add_column("30D", justify="center")
@@ -226,54 +226,54 @@ def print_crypto_analysis(analysis: dict):
     console.print(change_table)
     console.print()
     
-    # æŠ€è¡“æŒ‡æ¨™
+    # 技術指標
     _print_crypto_indicators(indicators)
     
-    # è¨Šè™Ÿ
+    # 訊號
     if signals:
         signal_panel = Panel(
-            "\n".join([f"â€¢ {s['description']}" for s in signals]),
-            title="âš¡ æœ€æ–°è¨Šè™Ÿ",
+            "\n".join([f"• {s['description']}" for s in signals]),
+            title="⚡ 最新訊號",
             border_style="yellow",
         )
         console.print(signal_panel)
         console.print()
     
-    # ç¶œåˆè©•åˆ†
+    # 綜合評分
     _print_score(score)
     
-    # æ›´æ–°æ™‚é–“
+    # 更新時間
     console.print()
-    console.print(f"[dim]æ›´æ–°æ™‚é–“: {analysis.get('updated_at', '-')}[/dim]")
+    console.print(f"[dim]更新時間: {analysis.get('updated_at', '-')}[/dim]")
 
 
 def _print_indicators(indicators: dict):
-    """åˆ—å°æŠ€è¡“æŒ‡æ¨™ï¼ˆè‚¡ç¥¨ç‰ˆï¼‰"""
-    ind_table = Table(title="ðŸ“ æŠ€è¡“æŒ‡æ¨™", box=box.ROUNDED)
-    ind_table.add_column("æŒ‡æ¨™", style="cyan")
-    ind_table.add_column("æ•¸å€¼", justify="right")
-    ind_table.add_column("ç‹€æ…‹", justify="center")
+    """列印技術指標（股票版）"""
+    ind_table = Table(title="📐 技術指標", box=box.ROUNDED)
+    ind_table.add_column("指標", style="cyan")
+    ind_table.add_column("數值", justify="right")
+    ind_table.add_column("狀態", justify="center")
     
     # MA
     ma = indicators.get("ma", {})
     alignment = ma.get("alignment", "neutral")
     alignment_text = {
-        "bullish": "[green]å¤šé ­æŽ’åˆ—[/green]",
-        "bearish": "[red]ç©ºé ­æŽ’åˆ—[/red]",
-        "neutral": "[yellow]ç›¤æ•´[/yellow]",
+        "bullish": "[green]多頭排列[/green]",
+        "bearish": "[red]空頭排列[/red]",
+        "neutral": "[yellow]盤整[/yellow]",
     }.get(alignment, alignment)
     
     for ma_key in [f"ma{settings.MA_SHORT}", f"ma{settings.MA_MID}", f"ma{settings.MA_LONG}"]:
         val = ma.get(ma_key)
         pos = ma.get(f"price_vs_{ma_key}")
-        pos_text = "[green]â–²[/green]" if pos == "above" else "[red]â–¼[/red]" if pos == "below" else ""
+        pos_text = "[green]▲[/green]" if pos == "above" else "[red]▼[/red]" if pos == "below" else ""
         ind_table.add_row(
             ma_key.upper(),
             f"${val:,.2f}" if val else "-",
             pos_text,
         )
     
-    ind_table.add_row("æŽ’åˆ—", "", alignment_text)
+    ind_table.add_row("排列", "", alignment_text)
     
     # RSI
     rsi = indicators.get("rsi", {})
@@ -281,9 +281,9 @@ def _print_indicators(indicators: dict):
     rsi_status = rsi.get("status", "")
     rsi_color = "red" if rsi_status == "overbought" else "green" if rsi_status == "oversold" else "white"
     rsi_status_text = {
-        "overbought": "[red]è¶…è²·[/red]",
-        "oversold": "[green]è¶…è³£[/green]",
-        "neutral": "ä¸­æ€§",
+        "overbought": "[red]超買[/red]",
+        "oversold": "[green]超賣[/green]",
+        "neutral": "中性",
     }.get(rsi_status, rsi_status)
     
     ind_table.add_row(
@@ -299,24 +299,24 @@ def _print_indicators(indicators: dict):
     macd_color = "green" if macd_status == "bullish" else "red"
     
     ind_table.add_row(
-        "MACD æŸ±",
+        "MACD 柱",
         f"[{macd_color}]{macd_hist:.4f}[/{macd_color}]" if macd_hist is not None else "-",
-        f"[{macd_color}]{'å¤š' if macd_status == 'bullish' else 'ç©º'}[/{macd_color}]",
+        f"[{macd_color}]{'多' if macd_status == 'bullish' else '空'}[/{macd_color}]",
     )
     
     # Bollinger
     bb = indicators.get("bollinger", {})
     bb_pos = bb.get("position", "")
     bb_pos_text = {
-        "above_upper": "[red]è¶…å‡ºä¸Šè»Œ[/red]",
-        "below_lower": "[green]è·Œç ´ä¸‹è»Œ[/green]",
-        "upper_half": "é€šé“ä¸ŠåŠ",
-        "lower_half": "é€šé“ä¸‹åŠ",
+        "above_upper": "[red]超出上軌[/red]",
+        "below_lower": "[green]跌破下軌[/green]",
+        "upper_half": "通道上半",
+        "lower_half": "通道下半",
     }.get(bb_pos, bb_pos)
     
     ind_table.add_row(
-        "å¸ƒæž—",
-        f"â†‘{bb.get('upper'):.2f} â†“{bb.get('lower'):.2f}" if bb.get("upper") else "-",
+        "布林",
+        f"↑{bb.get('upper'):.2f} ↓{bb.get('lower'):.2f}" if bb.get("upper") else "-",
         bb_pos_text,
     )
     
@@ -325,19 +325,19 @@ def _print_indicators(indicators: dict):
 
 
 def _print_crypto_indicators(indicators: dict):
-    """åˆ—å°æŠ€è¡“æŒ‡æ¨™ï¼ˆåŠ å¯†è²¨å¹£ç‰ˆï¼‰"""
-    ind_table = Table(title="ðŸ“ æŠ€è¡“æŒ‡æ¨™", box=box.ROUNDED)
-    ind_table.add_column("æŒ‡æ¨™", style="cyan")
-    ind_table.add_column("æ•¸å€¼", justify="right")
-    ind_table.add_column("ç‹€æ…‹", justify="center")
+    """列印技術指標（加密貨幣版）"""
+    ind_table = Table(title="📐 技術指標", box=box.ROUNDED)
+    ind_table.add_column("指標", style="cyan")
+    ind_table.add_column("數值", justify="right")
+    ind_table.add_column("狀態", justify="center")
     
-    # MAï¼ˆå¹£åœˆé€±æœŸï¼‰
+    # MA（幣圈週期）
     ma = indicators.get("ma", {})
     alignment = ma.get("alignment", "neutral")
     alignment_text = {
-        "bullish": "[green]å¤šé ­æŽ’åˆ—[/green]",
-        "bearish": "[red]ç©ºé ­æŽ’åˆ—[/red]",
-        "neutral": "[yellow]ç›¤æ•´[/yellow]",
+        "bullish": "[green]多頭排列[/green]",
+        "bearish": "[red]空頭排列[/red]",
+        "neutral": "[yellow]盤整[/yellow]",
     }.get(alignment, alignment)
     
     for ma_key in ["ma7", "ma25", "ma99"]:
@@ -348,7 +348,7 @@ def _print_crypto_indicators(indicators: dict):
             "",
         )
     
-    ind_table.add_row("æŽ’åˆ—", "", alignment_text)
+    ind_table.add_row("排列", "", alignment_text)
     
     # RSI
     rsi = indicators.get("rsi", {})
@@ -356,9 +356,9 @@ def _print_crypto_indicators(indicators: dict):
     rsi_status = rsi.get("status", "")
     rsi_color = "red" if rsi_status == "overbought" else "green" if rsi_status == "oversold" else "white"
     rsi_status_text = {
-        "overbought": "[red]è¶…è²·[/red]",
-        "oversold": "[green]è¶…è³£[/green]",
-        "neutral": "ä¸­æ€§",
+        "overbought": "[red]超買[/red]",
+        "oversold": "[green]超賣[/green]",
+        "neutral": "中性",
     }.get(rsi_status, rsi_status)
     
     ind_table.add_row(
@@ -376,7 +376,7 @@ def _print_crypto_indicators(indicators: dict):
     ind_table.add_row(
         "MACD",
         f"[{macd_color}]{macd_hist:.2f}[/{macd_color}]" if macd_hist is not None else "-",
-        f"[{macd_color}]{'å¤š' if macd_status == 'bullish' else 'ç©º'}[/{macd_color}]",
+        f"[{macd_color}]{'多' if macd_status == 'bullish' else '空'}[/{macd_color}]",
     )
     
     console.print(ind_table)
@@ -384,45 +384,45 @@ def _print_crypto_indicators(indicators: dict):
 
 
 def _print_score(score: dict):
-    """åˆ—å°ç¶œåˆè©•åˆ†"""
+    """列印綜合評分"""
     buy_score = score.get("buy_score", 0)
     sell_score = score.get("sell_score", 0)
     rating = score.get("rating", "neutral")
     details = score.get("details", [])
     
     rating_text = {
-        "strong_buy": "[bold green]å¼·çƒˆè²·é€² â­â­â­â­â­[/bold green]",
-        "buy": "[green]è²·é€² â­â­â­â­[/green]",
-        "neutral": "[yellow]ä¸­æ€§ â­â­â­[/yellow]",
-        "sell": "[red]è³£å‡º â­â­[/red]",
-        "strong_sell": "[bold red]å¼·çƒˆè³£å‡º â­[/bold red]",
-        "insufficient_data": "[dim]è³‡æ–™ä¸è¶³[/dim]",
+        "strong_buy": "[bold green]強烈買進 ⭐⭐⭐⭐⭐[/bold green]",
+        "buy": "[green]買進 ⭐⭐⭐⭐[/green]",
+        "neutral": "[yellow]中性 ⭐⭐⭐[/yellow]",
+        "sell": "[red]賣出 ⭐⭐[/red]",
+        "strong_sell": "[bold red]強烈賣出 ⭐[/bold red]",
+        "insufficient_data": "[dim]資料不足[/dim]",
     }.get(rating, rating)
     
-    score_content = f"è²·é€²è¨Šè™Ÿ: {buy_score} / è³£å‡ºè¨Šè™Ÿ: {sell_score}\n"
-    score_content += f"ç¶œåˆè©•ç­‰: {rating_text}\n\n"
+    score_content = f"買進訊號: {buy_score} / 賣出訊號: {sell_score}\n"
+    score_content += f"綜合評等: {rating_text}\n\n"
     if details:
         score_content += "\n".join(details)
     
     console.print(Panel(
         score_content,
-        title="ðŸŽ¯ ç¶œåˆè©•åˆ†",
+        title="🎯 綜合評分",
         border_style="magenta",
     ))
 
 
 def print_sentiment(sentiment: dict):
-    """é¡¯ç¤ºå¸‚å ´æƒ…ç·’"""
+    """顯示市場情緒"""
     console.print(Panel.fit(
-        "[bold]ðŸ“Š å¸‚å ´æƒ…ç·’æŒ‡æ•¸[/bold]",
+        "[bold]📊 市場情緒指數[/bold]",
         border_style="cyan",
     ))
     
     sent_table = Table(box=box.ROUNDED)
-    sent_table.add_column("å¸‚å ´", style="cyan")
-    sent_table.add_column("æŒ‡æ•¸", justify="center")
-    sent_table.add_column("ç‹€æ…‹", justify="center")
-    sent_table.add_column("å»ºè­°", justify="left")
+    sent_table.add_column("市場", style="cyan")
+    sent_table.add_column("指數", justify="center")
+    sent_table.add_column("狀態", justify="center")
+    sent_table.add_column("建議", justify="left")
     
     from app.data_sources.fear_greed import fear_greed as fg_client
     
@@ -433,24 +433,24 @@ def print_sentiment(sentiment: dict):
         value = data.get("value", 0)
         classification_zh = data.get("classification_zh", "")
         
-        # æ ¹æ“šæ•¸å€¼æ±ºå®šé¡è‰²
+        # 根據數值決定顏色
         if value <= 25:
             color = "green"
-            emoji = "ðŸ˜±"
+            emoji = "😱"
         elif value <= 45:
             color = "cyan"
-            emoji = "ðŸ˜Ÿ"
+            emoji = "😟"
         elif value <= 55:
             color = "yellow"
-            emoji = "ðŸ˜"
+            emoji = "😐"
         elif value <= 75:
             color = "orange1"
-            emoji = "ðŸ˜Š"
+            emoji = "😊"
         else:
             color = "red"
-            emoji = "ðŸ¤‘"
+            emoji = "🤑"
         
-        market_name = "ç¾Žè‚¡" if market == "stock" else "åŠ å¯†è²¨å¹£"
+        market_name = "美股" if market == "stock" else "加密貨幣"
         advice = fg_client.get_sentiment_advice(value)
         
         sent_table.add_row(
@@ -464,30 +464,30 @@ def print_sentiment(sentiment: dict):
 
 
 def cmd_query(args):
-    """æŸ¥è©¢è‚¡ç¥¨æˆ–åŠ å¯†è²¨å¹£"""
+    """查詢股票或加密貨幣"""
     symbol = args.symbol.upper()
     
     db = get_sync_session()
     try:
         if is_crypto(symbol):
-            # åŠ å¯†è²¨å¹£
-            with console.status(f"[bold green]æ­£åœ¨åˆ†æž {symbol} (åŠ å¯†è²¨å¹£)..."):
+            # 加密貨幣
+            with console.status(f"[bold green]正在分析 {symbol} (加密貨幣)..."):
                 service = CryptoService(db)
                 analysis = service.get_crypto_analysis(symbol, force_refresh=args.refresh)
                 
                 if analysis is None:
-                    console.print(f"[red]âŒ æ‰¾ä¸åˆ°åŠ å¯†è²¨å¹£: {symbol}[/red]")
+                    console.print(f"[red]❌ 找不到加密貨幣: {symbol}[/red]")
                     return 1
                 
                 print_crypto_analysis(analysis)
         else:
-            # è‚¡ç¥¨
-            with console.status(f"[bold green]æ­£åœ¨åˆ†æž {symbol}..."):
+            # 股票
+            with console.status(f"[bold green]正在分析 {symbol}..."):
                 service = StockService(db)
                 analysis = service.get_stock_analysis(symbol, force_refresh=args.refresh)
                 
                 if analysis is None:
-                    console.print(f"[red]âŒ æ‰¾ä¸åˆ°è‚¡ç¥¨: {symbol}[/red]")
+                    console.print(f"[red]❌ 找不到股票: {symbol}[/red]")
                     return 1
                 
                 print_stock_analysis(analysis)
@@ -498,15 +498,15 @@ def cmd_query(args):
 
 
 def cmd_sentiment(args):
-    """æŸ¥è©¢å¸‚å ´æƒ…ç·’"""
-    with console.status("[bold green]æ­£åœ¨å–å¾—å¸‚å ´æƒ…ç·’..."):
+    """查詢市場情緒"""
+    with console.status("[bold green]正在取得市場情緒..."):
         db = get_sync_session()
         try:
             service = CryptoService(db)
             sentiment = service.get_market_sentiment("all")
             
             if not sentiment:
-                console.print("[yellow]âš ï¸ ç„¡æ³•å–å¾—å¸‚å ´æƒ…ç·’è³‡æ–™[/yellow]")
+                console.print("[yellow]⚠️ 無法取得市場情緒資料[/yellow]")
                 return 1
             
             print_sentiment(sentiment)
@@ -516,25 +516,25 @@ def cmd_sentiment(args):
 
 
 def cmd_chart(args):
-    """ç”Ÿæˆåœ–è¡¨"""
+    """生成圖表"""
     symbol = args.symbol.upper()
     
     db = get_sync_session()
     try:
         if is_crypto(symbol):
             service = CryptoService(db)
-            with console.status(f"[bold green]æ­£åœ¨ç”Ÿæˆ {symbol} åœ–è¡¨..."):
+            with console.status(f"[bold green]正在生成 {symbol} 圖表..."):
                 df = service.get_crypto_data(symbol)
         else:
             service = StockService(db)
-            with console.status(f"[bold green]æ­£åœ¨ç”Ÿæˆ {symbol} åœ–è¡¨..."):
+            with console.status(f"[bold green]正在生成 {symbol} 圖表..."):
                 df = service.get_stock_data(symbol)
         
         if df is None:
-            console.print(f"[red]âŒ ç„¡æ³•å–å¾—è³‡æ–™: {symbol}[/red]")
+            console.print(f"[red]❌ 無法取得資料: {symbol}[/red]")
             return 1
         
-        # ç”Ÿæˆåœ–è¡¨
+        # 生成圖表
         chart_path = chart_service.plot_stock_analysis(
             df,
             symbol,
@@ -542,7 +542,7 @@ def cmd_chart(args):
             show_kd=args.kd,
         )
         
-        console.print(f"[green]âœ… åœ–è¡¨å·²å„²å­˜: {chart_path}[/green]")
+        console.print(f"[green]✅ 圖表已儲存: {chart_path}[/green]")
         return 0
         
     finally:
@@ -550,82 +550,82 @@ def cmd_chart(args):
 
 
 def cmd_refresh(args):
-    """æ›´æ–°è³‡æ–™"""
+    """更新資料"""
     symbol = args.symbol.upper()
     
     db = get_sync_session()
     try:
         if is_crypto(symbol):
-            with console.status(f"[bold green]æ­£åœ¨æ›´æ–° {symbol}..."):
+            with console.status(f"[bold green]正在更新 {symbol}..."):
                 service = CryptoService(db)
                 success = service.fetch_and_cache_crypto(symbol)
         else:
-            with console.status(f"[bold green]æ­£åœ¨æ›´æ–° {symbol}..."):
+            with console.status(f"[bold green]正在更新 {symbol}..."):
                 service = StockService(db)
                 success = service.fetch_and_cache_stock(symbol)
         
         if success:
-            console.print(f"[green]âœ… å·²æ›´æ–° {symbol} è³‡æ–™[/green]")
+            console.print(f"[green]✅ 已更新 {symbol} 資料[/green]")
             return 0
         else:
-            console.print(f"[red]âŒ æ›´æ–°å¤±æ•—: {symbol}[/red]")
+            console.print(f"[red]❌ 更新失敗: {symbol}[/red]")
             return 1
     finally:
         db.close()
 
 
 def cmd_init(args):
-    """åˆå§‹åŒ–è³‡æ–™åº«"""
-    with console.status("[bold green]æ­£åœ¨åˆå§‹åŒ–è³‡æ–™åº«..."):
+    """初始化資料庫"""
+    with console.status("[bold green]正在初始化資料庫..."):
         init_db_sync()
-    console.print("[green]âœ… è³‡æ–™åº«åˆå§‹åŒ–å®Œæˆ[/green]")
+    console.print("[green]✅ 資料庫初始化完成[/green]")
     return 0
 
 
 def main():
-    """ä¸»ç¨‹å¼"""
+    """主程式"""
     parser = argparse.ArgumentParser(
-        description="è‚¡ç¥¨æŠ€è¡“åˆ†æžç³»çµ±",
+        description="股票技術分析系統",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     
-    subparsers = parser.add_subparsers(dest="command", help="å¯ç”¨æŒ‡ä»¤")
+    subparsers = parser.add_subparsers(dest="command", help="可用指令")
     
-    # init æŒ‡ä»¤
-    init_parser = subparsers.add_parser("init", help="åˆå§‹åŒ–è³‡æ–™åº«")
+    # init 指令
+    init_parser = subparsers.add_parser("init", help="初始化資料庫")
     init_parser.set_defaults(func=cmd_init)
     
-    # query æŒ‡ä»¤
-    query_parser = subparsers.add_parser("query", help="æŸ¥è©¢è‚¡ç¥¨æˆ–åŠ å¯†è²¨å¹£")
-    query_parser.add_argument("symbol", help="ä»£è™Ÿ (è‚¡ç¥¨å¦‚ AAPL, åŠ å¯†è²¨å¹£å¦‚ BTC)")
-    query_parser.add_argument("-r", "--refresh", action="store_true", help="å¼·åˆ¶æ›´æ–°è³‡æ–™")
+    # query 指令
+    query_parser = subparsers.add_parser("query", help="查詢股票或加密貨幣")
+    query_parser.add_argument("symbol", help="代號 (股票如 AAPL, 加密貨幣如 BTC)")
+    query_parser.add_argument("-r", "--refresh", action="store_true", help="強制更新資料")
     query_parser.set_defaults(func=cmd_query)
     
-    # sentiment æŒ‡ä»¤
-    sentiment_parser = subparsers.add_parser("sentiment", help="æŸ¥è©¢å¸‚å ´æƒ…ç·’")
+    # sentiment 指令
+    sentiment_parser = subparsers.add_parser("sentiment", help="查詢市場情緒")
     sentiment_parser.set_defaults(func=cmd_sentiment)
     
-    # chart æŒ‡ä»¤
-    chart_parser = subparsers.add_parser("chart", help="ç”ŸæˆæŠ€è¡“åˆ†æžåœ–è¡¨")
-    chart_parser.add_argument("symbol", help="ä»£è™Ÿ")
-    chart_parser.add_argument("-d", "--days", type=int, default=120, help="é¡¯ç¤ºå¤©æ•¸ (é è¨­ 120)")
-    chart_parser.add_argument("--kd", action="store_true", help="é¡¯ç¤º KD æŒ‡æ¨™")
+    # chart 指令
+    chart_parser = subparsers.add_parser("chart", help="生成技術分析圖表")
+    chart_parser.add_argument("symbol", help="代號")
+    chart_parser.add_argument("-d", "--days", type=int, default=120, help="顯示天數 (預設 120)")
+    chart_parser.add_argument("--kd", action="store_true", help="顯示 KD 指標")
     chart_parser.set_defaults(func=cmd_chart)
     
-    # refresh æŒ‡ä»¤
-    refresh_parser = subparsers.add_parser("refresh", help="æ›´æ–°è³‡æ–™")
-    refresh_parser.add_argument("symbol", help="ä»£è™Ÿ")
+    # refresh 指令
+    refresh_parser = subparsers.add_parser("refresh", help="更新資料")
+    refresh_parser.add_argument("symbol", help="代號")
     refresh_parser.set_defaults(func=cmd_refresh)
     
-    # è§£æžåƒæ•¸
+    # 解析參數
     args = parser.parse_args()
     
     print_header()
     
     if not args.command:
-        # äº’å‹•æ¨¡å¼
-        console.print("[cyan]è¼¸å…¥ä»£è™Ÿé€²è¡ŒæŸ¥è©¢ (è‚¡ç¥¨å¦‚ AAPLï¼ŒåŠ å¯†è²¨å¹£å¦‚ BTC)[/cyan]")
-        console.print("[cyan]è¼¸å…¥ 'sentiment' æŸ¥çœ‹å¸‚å ´æƒ…ç·’ï¼Œ'q' é›¢é–‹[/cyan]")
+        # 互動模式
+        console.print("[cyan]輸入代號進行查詢 (股票如 AAPL，加密貨幣如 BTC)[/cyan]")
+        console.print("[cyan]輸入 'sentiment' 查看市場情緒，'q' 離開[/cyan]")
         console.print()
         
         init_db_sync()
@@ -636,10 +636,10 @@ def main():
         try:
             while True:
                 try:
-                    user_input = console.input("[bold]ä»£è™Ÿ> [/bold]").strip().upper()
+                    user_input = console.input("[bold]代號> [/bold]").strip().upper()
                     
                     if user_input in ("Q", "QUIT", "EXIT"):
-                        console.print("[yellow]å†è¦‹ï¼[/yellow]")
+                        console.print("[yellow]再見！[/yellow]")
                         break
                     
                     if not user_input:
@@ -650,37 +650,37 @@ def main():
                         if sentiment:
                             print_sentiment(sentiment)
                         else:
-                            console.print("[yellow]âš ï¸ ç„¡æ³•å–å¾—å¸‚å ´æƒ…ç·’[/yellow]")
+                            console.print("[yellow]⚠️ 無法取得市場情緒[/yellow]")
                         console.print()
                         continue
                     
-                    # æŸ¥è©¢è‚¡ç¥¨æˆ–åŠ å¯†è²¨å¹£
+                    # 查詢股票或加密貨幣
                     if is_crypto(user_input):
-                        with console.status(f"[bold green]æ­£åœ¨åˆ†æž {user_input}..."):
+                        with console.status(f"[bold green]正在分析 {user_input}..."):
                             analysis = crypto_service.get_crypto_analysis(user_input)
                         if analysis:
                             print_crypto_analysis(analysis)
                         else:
-                            console.print(f"[red]âŒ æ‰¾ä¸åˆ°: {user_input}[/red]")
+                            console.print(f"[red]❌ 找不到: {user_input}[/red]")
                     else:
-                        with console.status(f"[bold green]æ­£åœ¨åˆ†æž {user_input}..."):
+                        with console.status(f"[bold green]正在分析 {user_input}..."):
                             analysis = stock_service.get_stock_analysis(user_input)
                         if analysis:
                             print_stock_analysis(analysis)
                         else:
-                            console.print(f"[red]âŒ æ‰¾ä¸åˆ°: {user_input}[/red]")
+                            console.print(f"[red]❌ 找不到: {user_input}[/red]")
                     
                     console.print()
                     
                 except KeyboardInterrupt:
-                    console.print("\n[yellow]å†è¦‹ï¼[/yellow]")
+                    console.print("\n[yellow]再見！[/yellow]")
                     break
         finally:
             db.close()
         
         return 0
     
-    # åŸ·è¡ŒæŒ‡ä»¤
+    # 執行指令
     return args.func(args)
 
 

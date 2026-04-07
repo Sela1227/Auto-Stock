@@ -1,5 +1,5 @@
 /**
- * è¨‚é–±ç²¾é¸æ¨¡çµ„
+ * 訂閱精選模組
  */
 
 (function() {
@@ -8,7 +8,7 @@
     let subscriptionSources = [];
     
     /**
-     * è¼‰å…¥è¨‚é–±è³‡æ–™
+     * 載入訂閱資料
      */
     async function loadSubscriptionData() {
         const container = document.getElementById('subscriptionSourcesList');
@@ -18,7 +18,7 @@
         if (!container) return;
         
         try {
-            // è¼‰å…¥æ‰€æœ‰è¨‚é–±ä¾†æº
+            // 載入所有訂閱來源
             const sourcesRes = await fetch('/api/subscription/sources');
             const sourcesData = await sourcesRes.json();
             
@@ -26,13 +26,13 @@
                 subscriptionSources = sourcesData.data || [];
             }
             
-            // è¼‰å…¥ç”¨æˆ¶è¨‚é–±ç‹€æ…‹
+            // 載入用戶訂閱狀態
             const myRes = await apiRequest('/api/subscription/my');
             const myData = await myRes.json();
             const mySubscriptions = myData.success ? (myData.data || []).map(s => s.source_id) : [];
             
             if (subscriptionSources.length === 0) {
-                container.innerHTML = '<p class="text-gray-400 text-center py-4">å°šç„¡è¨‚é–±ä¾†æº</p>';
+                container.innerHTML = '<p class="text-gray-400 text-center py-4">尚無訂閱來源</p>';
             } else {
                 container.innerHTML = '';
                 for (const source of subscriptionSources) {
@@ -51,54 +51,54 @@
                                         ? 'bg-green-100 text-green-700 hover:bg-green-200' 
                                         : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}">
                                 <i class="fas fa-${isSubscribed ? 'check' : 'plus'} mr-1"></i>
-                                ${isSubscribed ? 'å·²è¨‚é–±' : 'è¨‚é–±'}
+                                ${isSubscribed ? '已訂閱' : '訂閱'}
                             </button>
                         </div>
                     `;
                 }
             }
             
-            // è¼‰å…¥ç²¾é¸è‚¡ç¥¨
+            // 載入精選股票
             await loadSubscriptionPicks();
             
         } catch (e) {
-            console.error('è¼‰å…¥è¨‚é–±è³‡æ–™å¤±æ•—:', e);
-            container.innerHTML = '<p class="text-red-500 text-center py-4">è¼‰å…¥å¤±æ•—</p>';
+            console.error('載入訂閱資料失敗:', e);
+            container.innerHTML = '<p class="text-red-500 text-center py-4">載入失敗</p>';
         }
     }
     
     /**
-     * åˆ‡æ›è¨‚é–±ç‹€æ…‹
+     * 切換訂閱狀態
      */
     async function toggleSubscription(sourceId, isCurrentlySubscribed) {
-        console.log('toggleSubscription è¢«å‘¼å«:', sourceId, isCurrentlySubscribed);
+        console.log('toggleSubscription 被呼叫:', sourceId, isCurrentlySubscribed);
         
         try {
             const endpoint = isCurrentlySubscribed
                 ? `/api/subscription/unsubscribe/${sourceId}`
                 : `/api/subscription/subscribe/${sourceId}`;
             
-            console.log('å‘¼å« API:', endpoint);
+            console.log('呼叫 API:', endpoint);
             
             const res = await apiRequest(endpoint, { method: 'POST' });
             const data = await res.json();
             
-            console.log('API å›žæ‡‰:', data);
+            console.log('API 回應:', data);
             
             if (data.success) {
-                showToast(isCurrentlySubscribed ? 'å·²å–æ¶ˆè¨‚é–±' : 'å·²è¨‚é–±');
+                showToast(isCurrentlySubscribed ? '已取消訂閱' : '已訂閱');
                 loadSubscriptionData();
             } else {
-                showToast(data.detail || 'æ“ä½œå¤±æ•—');
+                showToast(data.detail || '操作失敗');
             }
         } catch (e) {
-            console.error('åˆ‡æ›è¨‚é–±å¤±æ•—:', e);
-            showToast('æ“ä½œå¤±æ•—: ' + e.message);
+            console.error('切換訂閱失敗:', e);
+            showToast('操作失敗: ' + e.message);
         }
     }
     
     /**
-     * è¼‰å…¥ç²¾é¸è‚¡ç¥¨
+     * 載入精選股票
      */
     async function loadSubscriptionPicks() {
         const container = document.getElementById('subscriptionPicksList');
@@ -110,13 +110,13 @@
             const res = await apiRequest('/api/subscription/picks');
             const data = await res.json();
             
-            console.log('ç²¾é¸è‚¡ç¥¨è³‡æ–™:', data);
+            console.log('精選股票資料:', data);
             
             if (data.success && data.data && data.data.length > 0) {
-                if (countEl) countEl.textContent = `å…± ${data.data.length} æª”`;
+                if (countEl) countEl.textContent = `共 ${data.data.length} 檔`;
                 
                 container.innerHTML = data.data.map(p => {
-                    // ðŸ†• å„ªå…ˆä½¿ç”¨æ–‡ç« ç™¼ä½ˆæ—¥æœŸ article_date
+                    // 🆕 優先使用文章發佈日期 article_date
                     let timeStr = '';
                     const dateField = p.article_date || p.mentioned_at || p.first_seen_at;
                     if (dateField) {
@@ -126,7 +126,7 @@
                                 timeStr = d.toLocaleDateString('zh-TW');
                             }
                         } catch (e) {
-                            console.warn('æ—¥æœŸè§£æžå¤±æ•—:', dateField);
+                            console.warn('日期解析失敗:', dateField);
                         }
                     }
                     
@@ -139,11 +139,11 @@
                             </div>
                             <div>
                                 <p class="font-medium text-gray-800">${p.symbol}</p>
-                                <p class="text-xs text-gray-500">${p.source_name || ''}${timeStr ? ' Â· ' + timeStr : ''}</p>
+                                <p class="text-xs text-gray-500">${p.source_name || ''}${timeStr ? ' · ' + timeStr : ''}</p>
                             </div>
                         </div>
                         <div class="text-right">
-                            <span class="text-xs text-gray-400">æåŠ ${p.mention_count || 1} æ¬¡</span>
+                            <span class="text-xs text-gray-400">提及 ${p.mention_count || 1} 次</span>
                             <button onclick="event.stopPropagation(); quickAddToWatchlist('${p.symbol}', 'stock')" 
                                     class="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-600 rounded hover:bg-orange-200">
                                 <i class="fas fa-plus"></i>
@@ -153,16 +153,16 @@
                 `}).join('');
             } else {
                 if (countEl) countEl.textContent = '';
-                container.innerHTML = '<p class="text-gray-400 text-center py-4">å°šç„¡ç²¾é¸è‚¡ç¥¨ï¼Œè«‹å…ˆæ›´æ–°è¨‚é–±</p>';
+                container.innerHTML = '<p class="text-gray-400 text-center py-4">尚無精選股票，請先更新訂閱</p>';
             }
         } catch (e) {
-            console.error('è¼‰å…¥ç²¾é¸è‚¡ç¥¨å¤±æ•—:', e);
-            container.innerHTML = '<p class="text-gray-400 text-center py-4">è¼‰å…¥å¤±æ•—</p>';
+            console.error('載入精選股票失敗:', e);
+            container.innerHTML = '<p class="text-gray-400 text-center py-4">載入失敗</p>';
         }
     }
     
     /**
-     * é‡æ–°æ•´ç†
+     * 重新整理
      */
     async function refreshSubscriptionPicks() {
         const btn = event?.target?.closest('button');
@@ -172,17 +172,17 @@
         await loadSubscriptionData();
         
         if (icon) setTimeout(() => icon.classList.remove('fa-spin'), 500);
-        showToast('å·²æ›´æ–°');
+        showToast('已更新');
     }
     
     /**
-     * ðŸ†• ç®¡ç†å“¡ï¼šæ‰‹å‹•æŠ“å–è¨‚é–±ï¼ˆå›žæº¯ 30 å¤©ï¼‰
+     * 🆕 管理員：手動抓取訂閱（回溯 30 天）
      */
     async function adminFetchSubscriptions(backfill = true) {
         const btn = event?.target?.closest('button');
         if (btn) btn.disabled = true;
         
-        showToast('æ­£åœ¨æŠ“å–è¨‚é–±å…§å®¹...');
+        showToast('正在抓取訂閱內容...');
         
         try {
             const res = await apiRequest(`/api/subscription/admin/fetch?backfill=${backfill}`, { 
@@ -190,29 +190,29 @@
             });
             const data = await res.json();
             
-            console.log('æŠ“å–çµæžœ:', data);
+            console.log('抓取結果:', data);
             
             if (data.success) {
                 const result = data.data || {};
-                showToast(`æŠ“å–å®Œæˆï¼šæ–°å¢ž ${result.total_new || 0}ï¼Œæ›´æ–° ${result.total_updated || 0}`);
+                showToast(`抓取完成：新增 ${result.total_new || 0}，更新 ${result.total_updated || 0}`);
                 await loadSubscriptionPicks();
             } else {
-                showToast(data.detail || 'æŠ“å–å¤±æ•—');
+                showToast(data.detail || '抓取失敗');
             }
         } catch (e) {
-            console.error('æŠ“å–è¨‚é–±å¤±æ•—:', e);
-            showToast('æŠ“å–å¤±æ•—: ' + e.message);
+            console.error('抓取訂閱失敗:', e);
+            showToast('抓取失敗: ' + e.message);
         } finally {
             if (btn) btn.disabled = false;
         }
     }
     
-    // å°Žå‡ºåˆ°å…¨åŸŸ
+    // 導出到全域
     window.loadSubscriptionData = loadSubscriptionData;
     window.loadSubscriptionPicks = loadSubscriptionPicks;
     window.toggleSubscription = toggleSubscription;
     window.refreshSubscriptionPicks = refreshSubscriptionPicks;
     window.adminFetchSubscriptions = adminFetchSubscriptions;
     
-    console.log('ðŸ“¡ subscription.js æ¨¡çµ„å·²è¼‰å…¥');
+    console.log('📡 subscription.js 模組已載入');
 })();

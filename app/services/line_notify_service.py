@@ -1,6 +1,6 @@
 """
-LINE Messaging API æŽ¨æ’­æœå‹™
-ç™¼é€æŠ€è¡“è¨Šè™Ÿé€šçŸ¥çµ¦ç”¨æˆ¶
+LINE Messaging API 推播服務
+發送技術訊號通知給用戶
 """
 import httpx
 import logging
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class LineNotifyService:
-    """LINE Messaging API æŽ¨æ’­æœå‹™"""
+    """LINE Messaging API 推播服務"""
     
     PUSH_URL = "https://api.line.me/v2/bot/message/push"
     MULTICAST_URL = "https://api.line.me/v2/bot/message/multicast"
@@ -24,10 +24,10 @@ class LineNotifyService:
         self.enabled = bool(self.channel_access_token)
         
         if not self.enabled:
-            logger.warning("LINE Messaging API æœªè¨­å®š Channel Access Tokenï¼ŒæŽ¨æ’­åŠŸèƒ½åœç”¨")
+            logger.warning("LINE Messaging API 未設定 Channel Access Token，推播功能停用")
     
     def _get_headers(self) -> Dict[str, str]:
-        """å–å¾— API è«‹æ±‚æ¨™é ­"""
+        """取得 API 請求標頭"""
         return {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.channel_access_token}",
@@ -39,21 +39,21 @@ class LineNotifyService:
         message: str
     ) -> bool:
         """
-        æŽ¨é€æ–‡å­—è¨Šæ¯çµ¦å–®ä¸€ç”¨æˆ¶
+        推送文字訊息給單一用戶
         
         Args:
             user_id: LINE User ID
-            message: è¨Šæ¯å…§å®¹
+            message: 訊息內容
             
         Returns:
-            æ˜¯å¦æˆåŠŸ
+            是否成功
         """
         if not self.enabled:
-            logger.warning("LINE æŽ¨æ’­æœªå•Ÿç”¨")
+            logger.warning("LINE 推播未啟用")
             return False
         
         if not user_id or not message:
-            logger.warning("user_id æˆ– message ç‚ºç©º")
+            logger.warning("user_id 或 message 為空")
             return False
         
         payload = {
@@ -76,14 +76,14 @@ class LineNotifyService:
                 )
                 
                 if response.status_code == 200:
-                    logger.info(f"LINE æŽ¨æ’­æˆåŠŸ: user={user_id[:10]}...")
+                    logger.info(f"LINE 推播成功: user={user_id[:10]}...")
                     return True
                 else:
-                    logger.error(f"LINE æŽ¨æ’­å¤±æ•—: {response.status_code} - {response.text}")
+                    logger.error(f"LINE 推播失敗: {response.status_code} - {response.text}")
                     return False
                     
         except Exception as e:
-            logger.error(f"LINE æŽ¨æ’­ä¾‹å¤–: {e}")
+            logger.error(f"LINE 推播例外: {e}")
             return False
     
     async def push_flex_message(
@@ -93,18 +93,18 @@ class LineNotifyService:
         flex_content: Dict[str, Any]
     ) -> bool:
         """
-        æŽ¨é€ Flex Message çµ¦å–®ä¸€ç”¨æˆ¶
+        推送 Flex Message 給單一用戶
         
         Args:
             user_id: LINE User ID
-            alt_text: æ›¿ä»£æ–‡å­—ï¼ˆæ‰‹æ©Ÿé€šçŸ¥é¡¯ç¤ºï¼‰
-            flex_content: Flex Message å…§å®¹
+            alt_text: 替代文字（手機通知顯示）
+            flex_content: Flex Message 內容
             
         Returns:
-            æ˜¯å¦æˆåŠŸ
+            是否成功
         """
         if not self.enabled:
-            logger.warning("LINE æŽ¨æ’­æœªå•Ÿç”¨")
+            logger.warning("LINE 推播未啟用")
             return False
         
         payload = {
@@ -128,14 +128,14 @@ class LineNotifyService:
                 )
                 
                 if response.status_code == 200:
-                    logger.info(f"LINE Flex æŽ¨æ’­æˆåŠŸ: user={user_id[:10]}...")
+                    logger.info(f"LINE Flex 推播成功: user={user_id[:10]}...")
                     return True
                 else:
-                    logger.error(f"LINE Flex æŽ¨æ’­å¤±æ•—: {response.status_code} - {response.text}")
+                    logger.error(f"LINE Flex 推播失敗: {response.status_code} - {response.text}")
                     return False
                     
         except Exception as e:
-            logger.error(f"LINE Flex æŽ¨æ’­ä¾‹å¤–: {e}")
+            logger.error(f"LINE Flex 推播例外: {e}")
             return False
     
     async def multicast_text_message(
@@ -144,25 +144,25 @@ class LineNotifyService:
         message: str
     ) -> bool:
         """
-        æŽ¨é€æ–‡å­—è¨Šæ¯çµ¦å¤šå€‹ç”¨æˆ¶ï¼ˆæœ€å¤š 500 äººï¼‰
+        推送文字訊息給多個用戶（最多 500 人）
         
         Args:
-            user_ids: LINE User ID åˆ—è¡¨
-            message: è¨Šæ¯å…§å®¹
+            user_ids: LINE User ID 列表
+            message: 訊息內容
             
         Returns:
-            æ˜¯å¦æˆåŠŸ
+            是否成功
         """
         if not self.enabled:
-            logger.warning("LINE æŽ¨æ’­æœªå•Ÿç”¨")
+            logger.warning("LINE 推播未啟用")
             return False
         
         if not user_ids or not message:
             return False
         
-        # LINE API é™åˆ¶æœ€å¤š 500 äºº
+        # LINE API 限制最多 500 人
         if len(user_ids) > 500:
-            logger.warning(f"ç”¨æˆ¶æ•¸è¶…éŽ 500ï¼ŒåªæŽ¨é€å‰ 500 äºº")
+            logger.warning(f"用戶數超過 500，只推送前 500 人")
             user_ids = user_ids[:500]
         
         payload = {
@@ -185,28 +185,28 @@ class LineNotifyService:
                 )
                 
                 if response.status_code == 200:
-                    logger.info(f"LINE ç¾¤ç™¼æˆåŠŸ: {len(user_ids)} äºº")
+                    logger.info(f"LINE 群發成功: {len(user_ids)} 人")
                     return True
                 else:
-                    logger.error(f"LINE ç¾¤ç™¼å¤±æ•—: {response.status_code} - {response.text}")
+                    logger.error(f"LINE 群發失敗: {response.status_code} - {response.text}")
                     return False
                     
         except Exception as e:
-            logger.error(f"LINE ç¾¤ç™¼ä¾‹å¤–: {e}")
+            logger.error(f"LINE 群發例外: {e}")
             return False
     
     async def broadcast_text_message(self, message: str) -> bool:
         """
-        å»£æ’­è¨Šæ¯çµ¦æ‰€æœ‰å¥½å‹
+        廣播訊息給所有好友
         
         Args:
-            message: è¨Šæ¯å…§å®¹
+            message: 訊息內容
             
         Returns:
-            æ˜¯å¦æˆåŠŸ
+            是否成功
         """
         if not self.enabled:
-            logger.warning("LINE æŽ¨æ’­æœªå•Ÿç”¨")
+            logger.warning("LINE 推播未啟用")
             return False
         
         payload = {
@@ -228,14 +228,14 @@ class LineNotifyService:
                 )
                 
                 if response.status_code == 200:
-                    logger.info("LINE å»£æ’­æˆåŠŸ")
+                    logger.info("LINE 廣播成功")
                     return True
                 else:
-                    logger.error(f"LINE å»£æ’­å¤±æ•—: {response.status_code} - {response.text}")
+                    logger.error(f"LINE 廣播失敗: {response.status_code} - {response.text}")
                     return False
                     
         except Exception as e:
-            logger.error(f"LINE å»£æ’­ä¾‹å¤–: {e}")
+            logger.error(f"LINE 廣播例外: {e}")
             return False
     
     def create_signal_flex_message(
@@ -244,24 +244,24 @@ class LineNotifyService:
         signals: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """
-        å»ºç«‹è¨Šè™Ÿé€šçŸ¥çš„ Flex Message
+        建立訊號通知的 Flex Message
         
         Args:
-            symbol: è‚¡ç¥¨ä»£è™Ÿ
-            signals: è¨Šè™Ÿåˆ—è¡¨
+            symbol: 股票代號
+            signals: 訊號列表
             
         Returns:
-            Flex Message å…§å®¹
+            Flex Message 內容
         """
-        # è¨Šè™Ÿé¡è‰²å°ç…§
+        # 訊號顏色對照
         signal_colors = {
-            "golden": "#00C853",  # ç¶ è‰²
-            "death": "#FF1744",   # ç´…è‰²
-            "overbought": "#FF9800",  # æ©™è‰²
+            "golden": "#00C853",  # 綠色
+            "death": "#FF1744",   # 紅色
+            "overbought": "#FF9800",  # 橙色
             "oversold": "#00C853",
             "breakout": "#00C853",
             "breakdown": "#FF1744",
-            "surge": "#2196F3",   # è—è‰²
+            "surge": "#2196F3",   # 藍色
             "fear": "#FF9800",
             "greed": "#FF1744",
         }
@@ -272,7 +272,7 @@ class LineNotifyService:
                     return color
             return "#666666"
         
-        # å»ºç«‹è¨Šè™Ÿåˆ—è¡¨
+        # 建立訊號列表
         signal_boxes = []
         for s in signals:
             signal_type = s.get("signal_type", "")
@@ -285,7 +285,7 @@ class LineNotifyService:
                 "contents": [
                     {
                         "type": "text",
-                        "text": "â—",
+                        "text": "●",
                         "size": "sm",
                         "color": color,
                         "flex": 0
@@ -302,7 +302,7 @@ class LineNotifyService:
                 "margin": "sm"
             })
         
-        # Flex Message çµæ§‹
+        # Flex Message 結構
         flex_content = {
             "type": "bubble",
             "size": "kilo",
@@ -312,7 +312,7 @@ class LineNotifyService:
                 "contents": [
                     {
                         "type": "text",
-                        "text": f"ðŸ“Š {symbol}",
+                        "text": f"📊 {symbol}",
                         "weight": "bold",
                         "size": "lg",
                         "color": "#FFFFFF"
@@ -346,5 +346,5 @@ class LineNotifyService:
         return flex_content
 
 
-# å–®ä¾‹
+# 單例
 line_notify_service = LineNotifyService()

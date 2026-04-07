@@ -1,15 +1,15 @@
 /**
- * è¨­å®šæ¨¡çµ„
- * åŒ…å«ï¼šæŒ‡æ¨™è¨­å®šã€é€šçŸ¥è¨­å®šã€åƒæ•¸èª¿æ•´
+ * 設定模組
+ * 包含：指標設定、通知設定、參數調整
  * 
- * ðŸ”§ ä¿®å¾©ç‰ˆ - æ–°å¢žæ¨™ç±¤ç®¡ç†è¼‰å…¥
+ * 🔧 修復版 - 新增標籤管理載入
  */
 
 (function() {
     'use strict';
     
     // ============================================================
-    // æ¨¡æ¿å®šç¾©
+    // 模板定義
     // ============================================================
     
     const TEMPLATES = {
@@ -32,11 +32,11 @@
     };
     
     // ============================================================
-    // æŒ‡æ¨™è¨­å®š
+    // 指標設定
     // ============================================================
     
     function loadSettings() {
-        // è¼‰å…¥æŒ‡æ¨™è¨­å®š
+        // 載入指標設定
         const indicators = storage.get('indicatorSettings', {
             ma: true, rsi: true, macd: true, kd: false, 
             bollinger: true, obv: false, volume: true
@@ -47,7 +47,7 @@
             if (el) el.checked = val;
         });
         
-        // è¼‰å…¥é€šçŸ¥è¨­å®š
+        // 載入通知設定
         const alerts = storage.get('alertSettings', {
             ma_cross: true, ma_breakout: true, rsi: true, macd: true,
             kd: false, bollinger: false, volume: false, sentiment: true
@@ -58,7 +58,7 @@
             if (el) el.checked = val;
         });
         
-        // è¼‰å…¥åƒæ•¸è¨­å®š
+        // 載入參數設定
         const params = storage.get('paramSettings', {
             ma_short: 20, ma_mid: 50, ma_long: 200,
             rsi_period: 14, rsi_overbought: 70, rsi_oversold: 30,
@@ -71,11 +71,11 @@
             if (el) el.value = val;
         });
         
-        // æ›´æ–°æ¨¡æ¿æŒ‰éˆ•ç‹€æ…‹
+        // 更新模板按鈕狀態
         updateTemplateButtons();
         
         // ============================================================
-        // ðŸ†• è¼‰å…¥æ¨™ç±¤ç®¡ç†
+        // 🆕 載入標籤管理
         // ============================================================
         if (typeof loadTags === 'function' && typeof renderTagManager === 'function') {
             loadTags().then(() => {
@@ -92,7 +92,7 @@
         });
         
         storage.set('indicatorSettings', indicators);
-        showToast('æŒ‡æ¨™è¨­å®šå·²å„²å­˜');
+        showToast('指標設定已儲存');
         updateTemplateButtons();
     }
     
@@ -104,7 +104,7 @@
         });
         
         storage.set('alertSettings', alerts);
-        showToast('é€šçŸ¥è¨­å®šå·²å„²å­˜');
+        showToast('通知設定已儲存');
         updateTemplateButtons();
     }
     
@@ -123,43 +123,43 @@
         });
         
         storage.set('paramSettings', params);
-        showToast('åƒæ•¸è¨­å®šå·²å„²å­˜');
+        showToast('參數設定已儲存');
     }
     
     // ============================================================
-    // æ¨¡æ¿åŠŸèƒ½
+    // 模板功能
     // ============================================================
     
     function applyTemplate(name) {
         const template = TEMPLATES[name];
         if (!template) return;
         
-        // å¥—ç”¨æŒ‡æ¨™è¨­å®š
+        // 套用指標設定
         Object.entries(template.indicators).forEach(([key, val]) => {
             const el = document.getElementById(`show_${key}`);
             if (el) el.checked = val;
         });
         
-        // å¥—ç”¨é€šçŸ¥è¨­å®š
+        // 套用通知設定
         Object.entries(template.alerts).forEach(([key, val]) => {
             const el = document.getElementById(`alert_${key}`);
             if (el) el.checked = val;
         });
         
-        // å„²å­˜è¨­å®š
+        // 儲存設定
         storage.set('indicatorSettings', template.indicators);
         storage.set('alertSettings', template.alerts);
         
-        showToast(`å·²å¥—ç”¨ã€Œ${getTemplateName(name)}ã€æ¨¡æ¿`);
+        showToast(`已套用「${getTemplateName(name)}」模板`);
         updateTemplateButtons();
     }
     
     function getTemplateName(name) {
         const names = {
-            minimal: 'æ¥µç°¡',
-            standard: 'æ¨™æº–',
-            full: 'å®Œæ•´',
-            short_term: 'çŸ­ç·š'
+            minimal: '極簡',
+            standard: '標準',
+            full: '完整',
+            short_term: '短線'
         };
         return names[name] || name;
     }
@@ -177,7 +177,7 @@
             if (el) currentAlerts[key] = el.checked;
         });
         
-        // æª¢æŸ¥åŒ¹é…çš„æ¨¡æ¿
+        // 檢查匹配的模板
         document.querySelectorAll('.template-btn').forEach(btn => {
             const templateName = btn.dataset.template;
             const template = TEMPLATES[templateName];
@@ -202,7 +202,7 @@
     }
     
     // ============================================================
-    // åŒ¯çŽ‡è¨­å®š
+    // 匯率設定
     // ============================================================
     
     async function updateExchangeRate() {
@@ -210,7 +210,7 @@
         const rate = parseFloat(input?.value);
         
         if (!rate || rate <= 0) {
-            showToast('è«‹è¼¸å…¥æœ‰æ•ˆçš„åŒ¯çŽ‡');
+            showToast('請輸入有效的匯率');
             return;
         }
         
@@ -223,40 +223,40 @@
             const data = await res.json();
             
             if (data.success) {
-                showToast('åŒ¯çŽ‡å·²æ›´æ–°');
+                showToast('匯率已更新');
                 if (typeof loadPortfolioSummary === 'function') {
                     loadPortfolioSummary();
                 }
             } else {
-                showToast(data.detail || 'æ›´æ–°å¤±æ•—');
+                showToast(data.detail || '更新失敗');
             }
         } catch (e) {
-            console.error('æ›´æ–°åŒ¯çŽ‡å¤±æ•—:', e);
-            showToast('æ›´æ–°å¤±æ•—');
+            console.error('更新匯率失敗:', e);
+            showToast('更新失敗');
         }
     }
     
     // ============================================================
-    // ðŸ†• ç®¡ç†å“¡å·¥å…·
+    // 🆕 管理員工具
     // ============================================================
     
     async function adminUpdatePriceCache() {
         const btn = event?.target?.closest('button');
         if (btn) btn.disabled = true;
-        showToast('æ­£åœ¨æ›´æ–°åƒ¹æ ¼å¿«å–...');
+        showToast('正在更新價格快取...');
         
         try {
             const res = await apiRequest('/api/admin/update-price-cache', { method: 'POST' });
             const data = await res.json();
             
             if (data.success) {
-                showToast(`åƒ¹æ ¼å¿«å–å·²æ›´æ–°ï¼š${data.total_updated || 0} ç­†`);
+                showToast(`價格快取已更新：${data.total_updated || 0} 筆`);
             } else {
-                showToast(data.detail || 'æ›´æ–°å¤±æ•—');
+                showToast(data.detail || '更新失敗');
             }
         } catch (e) {
-            console.error('æ›´æ–°åƒ¹æ ¼å¿«å–å¤±æ•—:', e);
-            showToast('æ›´æ–°å¤±æ•—');
+            console.error('更新價格快取失敗:', e);
+            showToast('更新失敗');
         } finally {
             if (btn) btn.disabled = false;
         }
@@ -265,20 +265,20 @@
     async function adminUpdateExchangeRate() {
         const btn = event?.target?.closest('button');
         if (btn) btn.disabled = true;
-        showToast('æ­£åœ¨æ›´æ–°åŒ¯çŽ‡...');
+        showToast('正在更新匯率...');
         
         try {
             const res = await apiRequest('/api/admin/update-exchange-rate', { method: 'POST' });
             const data = await res.json();
             
             if (data.success) {
-                showToast(`åŒ¯çŽ‡å·²æ›´æ–°ï¼š${data.rate || ''}`);
+                showToast(`匯率已更新：${data.rate || ''}`);
             } else {
-                showToast(data.detail || 'æ›´æ–°å¤±æ•—');
+                showToast(data.detail || '更新失敗');
             }
         } catch (e) {
-            console.error('æ›´æ–°åŒ¯çŽ‡å¤±æ•—:', e);
-            showToast('æ›´æ–°å¤±æ•—');
+            console.error('更新匯率失敗:', e);
+            showToast('更新失敗');
         } finally {
             if (btn) btn.disabled = false;
         }
@@ -287,7 +287,7 @@
     async function adminFetchSubscriptions() {
         const btn = event?.target?.closest('button');
         if (btn) btn.disabled = true;
-        showToast('æ­£åœ¨æŠ“å–è¨‚é–±å…§å®¹ï¼ˆå›žæº¯ 30 å¤©ï¼‰...');
+        showToast('正在抓取訂閱內容（回溯 30 天）...');
         
         try {
             const res = await apiRequest('/api/subscription/admin/fetch?backfill=true', { method: 'POST' });
@@ -295,23 +295,23 @@
             
             if (data.success) {
                 const result = data.data || {};
-                showToast(`æŠ“å–å®Œæˆï¼šæ–°å¢ž ${result.total_new || 0}ï¼Œæ›´æ–° ${result.total_updated || 0}`);
+                showToast(`抓取完成：新增 ${result.total_new || 0}，更新 ${result.total_updated || 0}`);
                 if (typeof loadSubscriptionPicks === 'function') {
                     loadSubscriptionPicks();
                 }
             } else {
-                showToast(data.detail || 'æŠ“å–å¤±æ•—');
+                showToast(data.detail || '抓取失敗');
             }
         } catch (e) {
-            console.error('æŠ“å–è¨‚é–±å¤±æ•—:', e);
-            showToast('æŠ“å–å¤±æ•—');
+            console.error('抓取訂閱失敗:', e);
+            showToast('抓取失敗');
         } finally {
             if (btn) btn.disabled = false;
         }
     }
     
     // ============================================================
-    // å°Žå‡ºåˆ°å…¨åŸŸ
+    // 導出到全域
     // ============================================================
     
     window.loadSettings = loadSettings;
@@ -324,5 +324,5 @@
     window.adminUpdateExchangeRate = adminUpdateExchangeRate;
     window.adminFetchSubscriptions = adminFetchSubscriptions;
     
-    console.log('âš™ï¸ settings.js æ¨¡çµ„å·²è¼‰å…¥');
+    console.log('⚙️ settings.js 模組已載入');
 })();

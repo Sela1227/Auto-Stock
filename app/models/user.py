@@ -1,5 +1,5 @@
 """
-ç”¨æˆ¶è³‡æ–™æ¨¡åž‹
+用戶資料模型
 """
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey
 from sqlalchemy.sql import func
@@ -8,7 +8,7 @@ from app.database import Base
 
 
 class User(Base):
-    """ç”¨æˆ¶è³‡æ–™"""
+    """用戶資料"""
     
     __tablename__ = "users"
     
@@ -18,14 +18,14 @@ class User(Base):
     picture_url = Column(String(500))
     email = Column(String(200))
     is_active = Column(Boolean, default=True)
-    is_admin = Column(Boolean, default=False)  # ç®¡ç†å“¡
-    is_blocked = Column(Boolean, default=False)  # å°éŽ–
-    blocked_reason = Column(String(200))  # å°éŽ–åŽŸå› 
-    blocked_at = Column(DateTime)  # å°éŽ–æ™‚é–“
+    is_admin = Column(Boolean, default=False)  # 管理員
+    is_blocked = Column(Boolean, default=False)  # 封鎖
+    blocked_reason = Column(String(200))  # 封鎖原因
+    blocked_at = Column(DateTime)  # 封鎖時間
     created_at = Column(DateTime, server_default=func.now())
     last_login = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
-    # é—œè¯
+    # 關聯
     watchlists = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")
     indicator_settings = relationship("UserIndicatorSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
     alert_settings = relationship("UserAlertSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
@@ -52,7 +52,7 @@ class User(Base):
 
 
 class LoginLog(Base):
-    """ç™»å…¥æ—¥èªŒ"""
+    """登入日誌"""
     
     __tablename__ = "login_logs"
     
@@ -63,7 +63,7 @@ class LoginLog(Base):
     user_agent = Column(String(500))
     created_at = Column(DateTime, server_default=func.now())
     
-    # é—œè¯
+    # 關聯
     user = relationship("User", back_populates="login_logs")
     
     def to_dict(self):
@@ -78,7 +78,7 @@ class LoginLog(Base):
 
 
 class TokenBlacklist(Base):
-    """Token é»‘åå–®ï¼ˆç”¨æ–¼è¸¢å‡ºç”¨æˆ¶ï¼‰"""
+    """Token 黑名單（用於踢出用戶）"""
     
     __tablename__ = "token_blacklist"
     
@@ -87,7 +87,7 @@ class TokenBlacklist(Base):
     user_id = Column(Integer, index=True)
     reason = Column(String(100))  # kicked, logout, blocked
     created_at = Column(DateTime, server_default=func.now())
-    expires_at = Column(DateTime)  # Token éŽæœŸæ™‚é–“ï¼ˆéŽæœŸå¾Œå¯æ¸…ç†ï¼‰
+    expires_at = Column(DateTime)  # Token 過期時間（過期後可清理）
     
     def to_dict(self):
         return {
@@ -100,7 +100,7 @@ class TokenBlacklist(Base):
 
 
 class SystemConfig(Base):
-    """ç³»çµ±è¨­å®š"""
+    """系統設定"""
     
     __tablename__ = "system_config"
     

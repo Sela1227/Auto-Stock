@@ -1,6 +1,6 @@
 """
-æŽ’ç¨‹ä»»å‹™æœå‹™
-æ¯æ—¥è‡ªå‹•æ›´æ–°è‚¡åƒ¹ã€æŒ‡æ•¸ã€æƒ…ç·’è³‡æ–™ï¼Œä¸¦ç™¼é€è¨Šè™Ÿé€šçŸ¥
+排程任務服務
+每日自動更新股價、指數、情緒資料，並發送訊號通知
 """
 import asyncio
 from datetime import datetime, date, timedelta
@@ -25,18 +25,18 @@ logger = logging.getLogger(__name__)
 
 
 class SchedulerService:
-    """æŽ’ç¨‹ä»»å‹™æœå‹™"""
+    """排程任務服務"""
     
-    # é‡è¦è¨Šè™Ÿé¡žåž‹ï¼ˆåªé€šçŸ¥é€™äº›ï¼‰
+    # 重要訊號類型（只通知這些）
     IMPORTANT_SIGNAL_TYPES = [
-        # äº¤å‰è¨Šè™Ÿ
+        # 交叉訊號
         SignalType.MA_GOLDEN_CROSS,
         SignalType.MA_DEATH_CROSS,
         SignalType.MACD_GOLDEN_CROSS,
         SignalType.MACD_DEATH_CROSS,
         SignalType.KD_GOLDEN_CROSS,
         SignalType.KD_DEATH_CROSS,
-        # RSI æ¥µç«¯å€¼
+        # RSI 極端值
         SignalType.RSI_OVERBOUGHT,
         SignalType.RSI_OVERSOLD,
     ]
@@ -46,25 +46,25 @@ class SchedulerService:
         self.last_result: Dict[str, Any] = {}
     
     def _get_db(self) -> Session:
-        """å–å¾—è³‡æ–™åº« session"""
+        """取得資料庫 session"""
         return SyncSessionLocal()
     
     def run_daily_update(self) -> Dict[str, Any]:
         """
-        åŸ·è¡Œæ¯æ—¥æ›´æ–°ä»»å‹™
+        執行每日更新任務
         
-        åŒ…å«ï¼š
-        1. æ›´æ–°æ‰€æœ‰è¿½è¹¤è‚¡ç¥¨çš„åƒ¹æ ¼
-        2. æ›´æ–°ä¸‰å¤§æŒ‡æ•¸
-        3. æ›´æ–°å¸‚å ´æƒ…ç·’
-        4. åµæ¸¬è¨Šè™Ÿä¸¦ç™¼é€é€šçŸ¥
+        包含：
+        1. 更新所有追蹤股票的價格
+        2. 更新三大指數
+        3. 更新市場情緒
+        4. 偵測訊號並發送通知
         
         Returns:
-            åŸ·è¡Œçµæžœæ‘˜è¦
+            執行結果摘要
         """
         logger.info("=" * 50)
-        logger.info("é–‹å§‹åŸ·è¡Œæ¯æ—¥æ›´æ–°ä»»å‹™")
-        logger.info(f"åŸ·è¡Œæ™‚é–“: {datetime.now()}")
+        logger.info("開始執行每日更新任務")
+        logger.info(f"執行時間: {datetime.now()}")
         logger.info("=" * 50)
         
         result = {
@@ -80,22 +80,22 @@ class SchedulerService:
         db = self._get_db()
         
         try:
-            # 1. æ›´æ–°è¿½è¹¤è‚¡ç¥¨
+            # 1. 更新追蹤股票
             stocks_result = self._update_watchlist_stocks(db)
             result["stocks_updated"] = stocks_result["count"]
             if stocks_result.get("errors"):
                 result["errors"].extend(stocks_result["errors"])
             
-            # 2. æ›´æ–°ä¸‰å¤§æŒ‡æ•¸
+            # 2. 更新三大指數
             market_service = MarketService(db)
             indices_result = self._update_indices(market_service)
             result["indices_updated"] = indices_result
             
-            # 3. æ›´æ–°å¸‚å ´æƒ…ç·’
+            # 3. 更新市場情緒
             sentiment_result = market_service.update_today_sentiment()
             result["sentiment_updated"] = sentiment_result
             
-            # 4. åµæ¸¬è¨Šè™Ÿä¸¦ç™¼é€é€šçŸ¥
+            # 4. 偵測訊號並發送通知
             signal_result = self._detect_and_notify(db)
             result["signals_detected"] = signal_result.get("signals_count", 0)
             result["notifications_sent"] = signal_result.get("notifications_sent", 0)
@@ -106,16 +106,16 @@ class SchedulerService:
             result["success"] = True
             
             logger.info("=" * 50)
-            logger.info("æ¯æ—¥æ›´æ–°ä»»å‹™å®Œæˆ")
-            logger.info(f"è‚¡ç¥¨æ›´æ–°: {result['stocks_updated']} æª”")
-            logger.info(f"æŒ‡æ•¸æ›´æ–°: {result['indices_updated']}")
-            logger.info(f"æƒ…ç·’æ›´æ–°: {result['sentiment_updated']}")
-            logger.info(f"è¨Šè™Ÿåµæ¸¬: {result['signals_detected']} å€‹")
-            logger.info(f"é€šçŸ¥ç™¼é€: {result['notifications_sent']} äºº")
+            logger.info("每日更新任務完成")
+            logger.info(f"股票更新: {result['stocks_updated']} 檔")
+            logger.info(f"指數更新: {result['indices_updated']}")
+            logger.info(f"情緒更新: {result['sentiment_updated']}")
+            logger.info(f"訊號偵測: {result['signals_detected']} 個")
+            logger.info(f"通知發送: {result['notifications_sent']} 人")
             logger.info("=" * 50)
             
         except Exception as e:
-            logger.error(f"æ¯æ—¥æ›´æ–°ä»»å‹™å¤±æ•—: {e}")
+            logger.error(f"每日更新任務失敗: {e}")
             result["errors"].append(str(e))
             result["success"] = False
         finally:
@@ -128,12 +128,12 @@ class SchedulerService:
     
     def _detect_and_notify(self, db: Session) -> Dict[str, Any]:
         """
-        åµæ¸¬è¨Šè™Ÿä¸¦ç™¼é€é€šçŸ¥
+        偵測訊號並發送通知
         
-        æµç¨‹ï¼š
-        1. å–å¾—æ‰€æœ‰ç”¨æˆ¶çš„è¿½è¹¤æ¸…å–®ï¼ˆè¯é›†ï¼‰
-        2. å°æ¯æ”¯è‚¡ç¥¨è¨ˆç®—æŒ‡æ¨™ä¸¦åµæ¸¬è¨Šè™Ÿ
-        3. æ ¹æ“šç”¨æˆ¶è¨­å®šç™¼é€é€šçŸ¥
+        流程：
+        1. 取得所有用戶的追蹤清單（聯集）
+        2. 對每支股票計算指標並偵測訊號
+        3. 根據用戶設定發送通知
         """
         result = {
             "signals_count": 0,
@@ -141,88 +141,88 @@ class SchedulerService:
             "errors": [],
         }
         
-        logger.info("é–‹å§‹åµæ¸¬è¨Šè™Ÿ...")
+        logger.info("開始偵測訊號...")
         
         try:
-            # 1. å–å¾—æ‰€æœ‰è¿½è¹¤çš„è‚¡ç¥¨
+            # 1. 取得所有追蹤的股票
             stmt = select(distinct(Watchlist.symbol)).where(Watchlist.asset_type == "stock")
             symbols = db.execute(stmt).scalars().all()
-            logger.info(f"éœ€è¦åµæ¸¬çš„è‚¡ç¥¨: {len(symbols)} æª”")
+            logger.info(f"需要偵測的股票: {len(symbols)} 檔")
             
-            # 2. å°æ¯æ”¯è‚¡ç¥¨åµæ¸¬è¨Šè™Ÿ
+            # 2. 對每支股票偵測訊號
             all_signals = {}  # {symbol: [signals]}
             
             for symbol in symbols:
                 try:
                     signals = self._detect_signals_for_symbol(symbol)
                     
-                    # åªä¿ç•™äº¤å‰è¨Šè™Ÿ
+                    # 只保留交叉訊號
                     cross_signals = [s for s in signals if s.signal_type in self.IMPORTANT_SIGNAL_TYPES]
                     
                     if cross_signals:
                         all_signals[symbol] = cross_signals
                         result["signals_count"] += len(cross_signals)
-                        logger.info(f"{symbol}: åµæ¸¬åˆ° {len(cross_signals)} å€‹äº¤å‰è¨Šè™Ÿ")
+                        logger.info(f"{symbol}: 偵測到 {len(cross_signals)} 個交叉訊號")
                 
                 except Exception as e:
-                    logger.error(f"åµæ¸¬ {symbol} è¨Šè™Ÿå¤±æ•—: {e}")
+                    logger.error(f"偵測 {symbol} 訊號失敗: {e}")
                     result["errors"].append(f"{symbol}: {str(e)}")
             
-            logger.info(f"å…±åµæ¸¬åˆ° {result['signals_count']} å€‹äº¤å‰è¨Šè™Ÿ")
+            logger.info(f"共偵測到 {result['signals_count']} 個交叉訊號")
             
             if not all_signals:
-                logger.info("ä»Šæ—¥ç„¡äº¤å‰è¨Šè™Ÿï¼Œä¸ç™¼é€é€šçŸ¥")
+                logger.info("今日無交叉訊號，不發送通知")
                 return result
             
-            # 3. å–å¾—éœ€è¦é€šçŸ¥çš„ç”¨æˆ¶
+            # 3. 取得需要通知的用戶
             users_to_notify = self._get_users_to_notify(db, all_signals)
-            logger.info(f"éœ€è¦é€šçŸ¥çš„ç”¨æˆ¶: {len(users_to_notify)} äºº")
+            logger.info(f"需要通知的用戶: {len(users_to_notify)} 人")
             
-            # 4. ç™¼é€é€šçŸ¥
+            # 4. 發送通知
             for user_id, user_data in users_to_notify.items():
                 try:
                     success = self._send_notification(db, user_data)
                     if success:
                         result["notifications_sent"] += 1
                 except Exception as e:
-                    logger.error(f"ç™¼é€é€šçŸ¥çµ¦ç”¨æˆ¶ {user_id} å¤±æ•—: {e}")
+                    logger.error(f"發送通知給用戶 {user_id} 失敗: {e}")
                     result["errors"].append(f"notify user {user_id}: {str(e)}")
             
         except Exception as e:
-            logger.error(f"è¨Šè™Ÿåµæ¸¬å¤±æ•—: {e}")
+            logger.error(f"訊號偵測失敗: {e}")
             result["errors"].append(str(e))
         
         return result
     
     def _detect_signals_for_symbol(self, symbol: str) -> List:
-        """å°å–®ä¸€è‚¡ç¥¨åµæ¸¬è¨Šè™Ÿ"""
+        """對單一股票偵測訊號"""
         from app.services.indicator_service import indicator_service, SignalType as IndicatorSignalType
         
-        # å–å¾—è‚¡ç¥¨è³‡æ–™
+        # 取得股票資料
         df = yahoo_finance.get_stock_history(symbol, period="3mo")
         
         if df is None or df.empty:
             return []
         
-        # è¨ˆç®—æŒ‡æ¨™
+        # 計算指標
         df = indicator_service.calculate_all_indicators(df)
         
         if df is None or df.empty:
             return []
         
-        # å–å¾—è¨Šè™Ÿ
+        # 取得訊號
         indicator_signals = indicator_service.get_all_signals(df)
         
         if not indicator_signals:
             return []
         
-        # è½‰æ›è¨Šè™Ÿæ ¼å¼ï¼ˆå¾ž indicator_service.Signal åˆ° signal_service.Signalï¼‰
+        # 轉換訊號格式（從 indicator_service.Signal 到 signal_service.Signal）
         from app.services.signal_service import Signal, SignalType
         
         signals = []
         current_price = float(df.iloc[-1]['close']) if 'close' in df.columns else 0
         
-        # è¨Šè™Ÿé¡žåž‹å°ç…§
+        # 訊號類型對照
         type_mapping = {
             IndicatorSignalType.GOLDEN_CROSS: SignalType.MA_GOLDEN_CROSS,
             IndicatorSignalType.DEATH_CROSS: SignalType.MA_DEATH_CROSS,
@@ -254,7 +254,7 @@ class SchedulerService:
     
     def _get_users_to_notify(self, db: Session, all_signals: Dict) -> Dict:
         """
-        å–å¾—éœ€è¦é€šçŸ¥çš„ç”¨æˆ¶
+        取得需要通知的用戶
         
         Returns:
             {user_id: {
@@ -265,27 +265,27 @@ class SchedulerService:
         """
         users_to_notify = {}
         
-        # å–å¾—æ‰€æœ‰ç”¨æˆ¶å’Œä»–å€‘çš„è¿½è¹¤æ¸…å–®
+        # 取得所有用戶和他們的追蹤清單
         stmt = select(User).where(User.is_active == True, User.is_blocked == False)
         users = db.execute(stmt).scalars().all()
         
         for user in users:
-            # å–å¾—ç”¨æˆ¶çš„è¿½è¹¤æ¸…å–®
+            # 取得用戶的追蹤清單
             watchlist_stmt = select(Watchlist.symbol).where(
                 Watchlist.user_id == user.id,
                 Watchlist.asset_type == "stock"
             )
             user_symbols = set(db.execute(watchlist_stmt).scalars().all())
             
-            # å–å¾—ç”¨æˆ¶çš„é€šçŸ¥è¨­å®šï¼ˆæª¢æŸ¥æ˜¯å¦é–‹å•Ÿäº¤å‰é€šçŸ¥ï¼‰
+            # 取得用戶的通知設定（檢查是否開啟交叉通知）
             alert_stmt = select(UserAlertSettings).where(UserAlertSettings.user_id == user.id)
             alert_settings = db.execute(alert_stmt).scalar_one_or_none()
             
-            # é è¨­é–‹å•Ÿ MA å’Œ MACD äº¤å‰é€šçŸ¥
+            # 預設開啟 MA 和 MACD 交叉通知
             alert_ma = True
             alert_macd = True
             alert_kd = False
-            alert_rsi = True  # é è¨­é–‹å•Ÿ RSI
+            alert_rsi = True  # 預設開啟 RSI
             
             if alert_settings:
                 alert_ma = alert_settings.alert_ma_cross
@@ -293,14 +293,14 @@ class SchedulerService:
                 alert_kd = alert_settings.alert_kd
                 alert_rsi = alert_settings.alert_rsi
             
-            # æ‰¾å‡ºç”¨æˆ¶è¿½è¹¤ä¸­æœ‰è¨Šè™Ÿçš„è‚¡ç¥¨
+            # 找出用戶追蹤中有訊號的股票
             user_signals = []
             for symbol, signals in all_signals.items():
                 if symbol not in user_symbols:
                     continue
                 
                 for signal in signals:
-                    # æª¢æŸ¥ç”¨æˆ¶æ˜¯å¦é–‹å•Ÿè©²é¡žåž‹çš„é€šçŸ¥
+                    # 檢查用戶是否開啟該類型的通知
                     if signal.signal_type in [SignalType.MA_GOLDEN_CROSS, SignalType.MA_DEATH_CROSS]:
                         if not alert_ma:
                             continue
@@ -314,7 +314,7 @@ class SchedulerService:
                         if not alert_rsi:
                             continue
                     
-                    # æª¢æŸ¥ 24 å°æ™‚å…§æ˜¯å¦å·²é€šçŸ¥éŽ
+                    # 檢查 24 小時內是否已通知過
                     if self._has_recent_notification(db, user.id, symbol, signal.signal_type.value):
                         continue
                     
@@ -331,7 +331,7 @@ class SchedulerService:
         return users_to_notify
     
     def _has_recent_notification(self, db: Session, user_id: int, symbol: str, alert_type: str) -> bool:
-        """æª¢æŸ¥ 24 å°æ™‚å…§æ˜¯å¦å·²ç™¼é€éŽç›¸åŒé€šçŸ¥"""
+        """檢查 24 小時內是否已發送過相同通知"""
         cutoff = datetime.now() - timedelta(hours=24)
         
         stmt = select(Notification).where(
@@ -345,7 +345,7 @@ class SchedulerService:
         return existing is not None
     
     def _send_notification(self, db: Session, user_data: Dict) -> bool:
-        """ç™¼é€é€šçŸ¥çµ¦ç”¨æˆ¶"""
+        """發送通知給用戶"""
         from app.services.line_notify_service import line_notify_service
         
         line_user_id = user_data["line_user_id"]
@@ -354,7 +354,7 @@ class SchedulerService:
         if not line_user_id or not signals:
             return False
         
-        # åˆ†é¡žè¨Šè™Ÿ
+        # 分類訊號
         bullish = []
         bearish = []
         
@@ -367,7 +367,7 @@ class SchedulerService:
                 "signal_type": signal.signal_type.value,
             }
             
-            # åˆ¤æ–·å¤šç©º
+            # 判斷多空
             if signal.signal_type in [
                 SignalType.MA_GOLDEN_CROSS, 
                 SignalType.MACD_GOLDEN_CROSS, 
@@ -378,10 +378,10 @@ class SchedulerService:
             else:
                 bearish.append(item)
         
-        # æ ¼å¼åŒ–è¨Šæ¯
+        # 格式化訊息
         message = self._format_notification_message(bullish, bearish)
         
-        # ç™¼é€è¨Šæ¯ï¼ˆä½¿ç”¨ asyncio åŸ·è¡Œï¼‰
+        # 發送訊息（使用 asyncio 執行）
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -390,10 +390,10 @@ class SchedulerService:
             )
             loop.close()
         except Exception as e:
-            logger.error(f"ç™¼é€ LINE è¨Šæ¯å¤±æ•—: {e}")
+            logger.error(f"發送 LINE 訊息失敗: {e}")
             success = False
         
-        # è¨˜éŒ„é€šçŸ¥
+        # 記錄通知
         for signal in signals:
             notification = Notification(
                 user_id=user_data.get("user_id"),
@@ -413,39 +413,39 @@ class SchedulerService:
         return success
     
     def _format_notification_message(self, bullish: List[Dict], bearish: List[Dict]) -> str:
-        """æ ¼å¼åŒ–æ¯æ—¥è¨Šè™Ÿé€šçŸ¥è¨Šæ¯"""
-        lines = ["ðŸ“Š SELA é¸è‚¡ç³»çµ± - æ¯æ—¥è¨Šè™Ÿ", ""]
+        """格式化每日訊號通知訊息"""
+        lines = ["📊 SELA 選股系統 - 每日訊號", ""]
         
         if bullish:
-            lines.append("ðŸŸ¢ åå¤šè¨Šè™Ÿ")
+            lines.append("🟢 偏多訊號")
             for item in bullish:
                 price_str = f" @ ${item['price']:.2f}" if item['price'] > 0 else ""
-                lines.append(f"  â€¢ {item['symbol']}{price_str}")
+                lines.append(f"  • {item['symbol']}{price_str}")
                 lines.append(f"    {item['signal']}")
             lines.append("")
         
         if bearish:
-            lines.append("ðŸ”´ åç©ºè¨Šè™Ÿ")
+            lines.append("🔴 偏空訊號")
             for item in bearish:
                 price_str = f" @ ${item['price']:.2f}" if item['price'] > 0 else ""
-                lines.append(f"  â€¢ {item['symbol']}{price_str}")
+                lines.append(f"  • {item['symbol']}{price_str}")
                 lines.append(f"    {item['signal']}")
             lines.append("")
         
         if not bullish and not bearish:
-            lines.append("ä»Šæ—¥æ‚¨çš„è¿½è¹¤æ¸…å–®ç„¡é‡è¦è¨Šè™Ÿ âœ¨")
+            lines.append("今日您的追蹤清單無重要訊號 ✨")
             lines.append("")
         
-        lines.append(f"â° {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M')}")
         
         return "\n".join(lines)
     
     def run_signal_detection_only(self) -> Dict[str, Any]:
         """
-        åªåŸ·è¡Œè¨Šè™Ÿåµæ¸¬ï¼ˆä¸ç™¼é€é€šçŸ¥ï¼‰
-        ç”¨æ–¼æ¸¬è©¦
+        只執行訊號偵測（不發送通知）
+        用於測試
         """
-        logger.info("é–‹å§‹è¨Šè™Ÿåµæ¸¬ï¼ˆæ¸¬è©¦æ¨¡å¼ï¼‰...")
+        logger.info("開始訊號偵測（測試模式）...")
         
         result = {
             "signals": [],
@@ -475,7 +475,7 @@ class SchedulerService:
                         result["signals"].extend(cross_signals)
                 
                 except Exception as e:
-                    logger.error(f"{symbol} åµæ¸¬å¤±æ•—: {e}")
+                    logger.error(f"{symbol} 偵測失敗: {e}")
         
         finally:
             db.close()
@@ -484,39 +484,39 @@ class SchedulerService:
 
     def _update_watchlist_stocks(self, db: Session) -> Dict[str, Any]:
         """
-        æ›´æ–°æ‰€æœ‰è¿½è¹¤æ¸…å–®ä¸­çš„è‚¡ç¥¨
+        更新所有追蹤清單中的股票
         """
         result = {"count": 0, "errors": []}
         
-        # å–å¾—æ‰€æœ‰ä¸é‡è¤‡çš„è¿½è¹¤è‚¡ç¥¨
+        # 取得所有不重複的追蹤股票
         stmt = select(distinct(Watchlist.symbol)).where(Watchlist.asset_type == "stock")
         symbols = db.execute(stmt).scalars().all()
         
-        logger.info(f"éœ€è¦æ›´æ–°çš„è‚¡ç¥¨: {len(symbols)} æª”")
+        logger.info(f"需要更新的股票: {len(symbols)} 檔")
         
         for symbol in symbols:
             try:
-                # å¾ž Yahoo Finance æŠ“å–æœ€æ–°è³‡æ–™
+                # 從 Yahoo Finance 抓取最新資料
                 df = yahoo_finance.get_stock_history(symbol, period="5d")
                 
                 if df is None or df.empty:
-                    logger.warning(f"ç„¡æ³•å–å¾— {symbol} çš„è³‡æ–™")
-                    result["errors"].append(f"{symbol}: ç„¡è³‡æ–™")
+                    logger.warning(f"無法取得 {symbol} 的資料")
+                    result["errors"].append(f"{symbol}: 無資料")
                     continue
                 
-                # å„²å­˜åˆ°è³‡æ–™åº«
+                # 儲存到資料庫
                 count = self._save_stock_prices(db, df)
                 result["count"] += 1
-                logger.debug(f"{symbol} æ›´æ–°å®Œæˆï¼Œæ–°å¢ž {count} ç­†")
+                logger.debug(f"{symbol} 更新完成，新增 {count} 筆")
                 
             except Exception as e:
-                logger.error(f"æ›´æ–° {symbol} å¤±æ•—: {e}")
+                logger.error(f"更新 {symbol} 失敗: {e}")
                 result["errors"].append(f"{symbol}: {str(e)}")
         
         return result
     
     def _save_stock_prices(self, db: Session, df) -> int:
-        """å„²å­˜è‚¡ç¥¨åƒ¹æ ¼"""
+        """儲存股票價格"""
         if df is None or df.empty:
             return 0
         
@@ -554,7 +554,7 @@ class SchedulerService:
     
     def _update_indices(self, market_service: MarketService) -> Dict[str, int]:
         """
-        æ›´æ–°ä¸‰å¤§æŒ‡æ•¸ï¼ˆåªæ›´æ–°æœ€è¿‘ 5 å¤©ï¼‰
+        更新三大指數（只更新最近 5 天）
         """
         result = {}
         
@@ -567,27 +567,27 @@ class SchedulerService:
                 else:
                     result[symbol] = 0
             except Exception as e:
-                logger.error(f"æ›´æ–°æŒ‡æ•¸ {symbol} å¤±æ•—: {e}")
+                logger.error(f"更新指數 {symbol} 失敗: {e}")
                 result[symbol] = -1
         
         return result
     
     def initialize_historical_data(self, years: int = 10) -> Dict[str, Any]:
         """
-        åˆå§‹åŒ–æ­·å²è³‡æ–™ï¼ˆé¦–æ¬¡åŸ·è¡Œæ™‚ä½¿ç”¨ï¼‰
+        初始化歷史資料（首次執行時使用）
         
-        åŒ…å«ï¼š
-        1. ä¸‰å¤§æŒ‡æ•¸ 10 å¹´æ­·å²
-        2. å¹£åœˆæƒ…ç·’ 365 å¤©æ­·å²
+        包含：
+        1. 三大指數 10 年歷史
+        2. 幣圈情緒 365 天歷史
         
         Args:
-            years: æŒ‡æ•¸æ­·å²å¹´æ•¸
+            years: 指數歷史年數
             
         Returns:
-            åŸ·è¡Œçµæžœ
+            執行結果
         """
         logger.info("=" * 50)
-        logger.info("é–‹å§‹åˆå§‹åŒ–æ­·å²è³‡æ–™")
+        logger.info("開始初始化歷史資料")
         logger.info("=" * 50)
         
         result = {
@@ -602,13 +602,13 @@ class SchedulerService:
         try:
             market_service = MarketService(db)
             
-            # 1. åˆå§‹åŒ–ä¸‰å¤§æŒ‡æ•¸
-            logger.info(f"åˆå§‹åŒ–ä¸‰å¤§æŒ‡æ•¸ ({years} å¹´è³‡æ–™)...")
+            # 1. 初始化三大指數
+            logger.info(f"初始化三大指數 ({years} 年資料)...")
             indices_result = market_service.fetch_and_save_all_indices(period=f"{years}y")
             result["indices"] = indices_result
             
-            # 2. åˆå§‹åŒ–å¹£åœˆæƒ…ç·’æ­·å²
-            logger.info("åˆå§‹åŒ–å¹£åœˆæƒ…ç·’æ­·å² (365 å¤©)...")
+            # 2. 初始化幣圈情緒歷史
+            logger.info("初始化幣圈情緒歷史 (365 天)...")
             crypto_count = market_service.fetch_and_save_crypto_history(days=365)
             result["crypto_sentiment"] = crypto_count
             
@@ -616,13 +616,13 @@ class SchedulerService:
             result["end_time"] = datetime.now().isoformat()
             
             logger.info("=" * 50)
-            logger.info("æ­·å²è³‡æ–™åˆå§‹åŒ–å®Œæˆ")
-            logger.info(f"æŒ‡æ•¸: {result['indices']}")
-            logger.info(f"å¹£åœˆæƒ…ç·’: {result['crypto_sentiment']} ç­†")
+            logger.info("歷史資料初始化完成")
+            logger.info(f"指數: {result['indices']}")
+            logger.info(f"幣圈情緒: {result['crypto_sentiment']} 筆")
             logger.info("=" * 50)
             
         except Exception as e:
-            logger.error(f"åˆå§‹åŒ–å¤±æ•—: {e}")
+            logger.error(f"初始化失敗: {e}")
             result["errors"].append(str(e))
             result["success"] = False
         finally:
@@ -631,12 +631,12 @@ class SchedulerService:
         return result
     
     def get_status(self) -> Dict[str, Any]:
-        """å–å¾—æŽ’ç¨‹ç‹€æ…‹"""
+        """取得排程狀態"""
         return {
             "last_run": self.last_run.isoformat() if self.last_run else None,
             "last_result": self.last_result,
         }
 
 
-# å»ºç«‹å…¨åŸŸæŽ’ç¨‹æœå‹™å¯¦ä¾‹
+# 建立全域排程服務實例
 scheduler_service = SchedulerService()

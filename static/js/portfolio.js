@@ -1,25 +1,25 @@
 /**
- * å€‹äººæŠ•è³‡è¨˜éŒ„æ¨¡çµ„ (P3 å„ªåŒ–ç‰ˆ)
+ * 個人投資記錄模組 (P3 優化版)
  * 
- * å„ªåŒ–å…§å®¹ï¼š
- * 1. äº‹ä»¶å§”è¨— - æ¸›å°‘ç›£è½å™¨æ•¸é‡
- * 2. AppState æ•´åˆ - çµ±ä¸€ç‹€æ…‹ç®¡ç†
- * 3. DOM å¿«å– - ä½¿ç”¨ $() å‡½æ•¸
+ * 優化內容：
+ * 1. 事件委託 - 減少監聽器數量
+ * 2. AppState 整合 - 統一狀態管理
+ * 3. DOM 快取 - 使用 $() 函數
  * 
- * åŒ…å«ï¼šæŒè‚¡ç¸½è¦½ã€äº¤æ˜“ç´€éŒ„ã€åŒ¯å‡ºåŒ¯å…¥
+ * 包含：持股總覽、交易紀錄、匯出匯入
  */
 
 (function() {
     'use strict';
 
     // ============================================================
-    // ç§æœ‰è®Šæ•¸
+    // 私有變數
     // ============================================================
 
     let currentPortfolioTab = 'holdings';
 
     // ============================================================
-    // Tab åˆ‡æ›
+    // Tab 切換
     // ============================================================
 
     function switchPortfolioTab(tab) {
@@ -28,7 +28,7 @@
         const activeClass = 'px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-600 whitespace-nowrap';
         const inactiveClass = 'px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap';
 
-        // âœ… P3: ä½¿ç”¨ $() å¿«å–
+        // ✅ P3: 使用 $() 快取
         const tabHoldings = $('tabHoldings');
         const tabTw = $('tabTwTransactions');
         const tabUs = $('tabUsTransactions');
@@ -37,7 +37,7 @@
         if (tabTw) tabTw.className = tab === 'tw-transactions' ? activeClass : inactiveClass;
         if (tabUs) tabUs.className = tab === 'us-transactions' ? activeClass : inactiveClass;
 
-        // é¡¯ç¤ºå°æ‡‰å…§å®¹
+        // 顯示對應內容
         const holdingsEl = $('portfolioHoldings');
         const twEl = $('portfolioTwTransactions');
         const usEl = $('portfolioUsTransactions');
@@ -46,21 +46,21 @@
         if (twEl) twEl.classList.toggle('hidden', tab !== 'tw-transactions');
         if (usEl) usEl.classList.toggle('hidden', tab !== 'us-transactions');
 
-        // è¼‰å…¥è³‡æ–™
+        // 載入資料
         if (tab === 'holdings') loadHoldings();
         else if (tab === 'tw-transactions') loadTransactions('tw');
         else if (tab === 'us-transactions') loadTransactions('us');
     }
 
     // ============================================================
-    // è¼‰å…¥åŠŸèƒ½
+    // 載入功能
     // ============================================================
 
     async function loadPortfolio() {
         await loadPortfolioSummary();
         await loadHoldings();
 
-        // âœ… P3: åˆå§‹åŒ–äº‹ä»¶å§”è¨—
+        // ✅ P3: 初始化事件委託
         initPortfolioEventDelegation();
     }
 
@@ -72,12 +72,12 @@
             if (data.success) {
                 const s = data.data;
 
-                // âœ… P3: åŒæ­¥åˆ° AppState
+                // ✅ P3: 同步到 AppState
                 if (window.AppState) {
                     AppState.setPortfolio({ summary: s });
                 }
 
-                // åŒ¯çŽ‡
+                // 匯率
                 const rateEl = $('exchangeRateValue');
                 const rateTimeEl = $('exchangeRateTime');
                 if (rateEl) rateEl.textContent = s.exchange_rate?.toFixed(2) || '--';
@@ -86,13 +86,13 @@
                     rateTimeEl.textContent = `(${time})`;
                 }
 
-                // å°è‚¡
+                // 台股
                 updateSummarySection('tw', s.tw, 'NT$');
 
-                // ç¾Žè‚¡
+                // 美股
                 updateSummarySection('us', s.us, '$');
 
-                // åˆè¨ˆ
+                // 合計
                 if (s.total) {
                     const totalValueEl = $('totalValueTwd');
                     if (totalValueEl) {
@@ -119,7 +119,7 @@
                 }
             }
         } catch (e) {
-            console.error('è¼‰å…¥æŠ•è³‡æ‘˜è¦å¤±æ•—:', e);
+            console.error('載入投資摘要失敗:', e);
         }
     }
 
@@ -150,12 +150,12 @@
         const posEl = $(`${market}Positions`);
         if (posEl) posEl.textContent = data.positions || 0;
 
-        // æ‘˜è¦è¡Œ
+        // 摘要行
         const summaryEl = $(`${market}SummaryLine`);
         if (summaryEl) {
             summaryEl.innerHTML = data.positions > 0
-                ? `${data.positions} æª” Â· æç›Š <span class="${profit >= 0 ? 'text-green-600' : 'text-red-600'}">${profit >= 0 ? '+' : ''}${currency}${Math.round(Math.abs(profit)).toLocaleString()}</span>`
-                : 'å°šç„¡æŒè‚¡';
+                ? `${data.positions} 檔 · 損益 <span class="${profit >= 0 ? 'text-green-600' : 'text-red-600'}">${profit >= 0 ? '+' : ''}${currency}${Math.round(Math.abs(profit)).toLocaleString()}</span>`
+                : '尚無持股';
         }
     }
 
@@ -168,7 +168,7 @@
             const data = await res.json();
 
             if (data.success) {
-                // âœ… P3: åŒæ­¥åˆ° AppState
+                // ✅ P3: 同步到 AppState
                 if (window.AppState) {
                     AppState.setPortfolio({
                         tw: data.data.tw || [],
@@ -179,19 +179,19 @@
                 if (twContainer) {
                     twContainer.innerHTML = data.data.tw && data.data.tw.length > 0
                         ? data.data.tw.map(h => renderHoldingCard(h, 'tw')).join('')
-                        : '<p class="text-gray-400 text-center py-4">å°šç„¡å°è‚¡æŒè‚¡</p>';
+                        : '<p class="text-gray-400 text-center py-4">尚無台股持股</p>';
                 }
 
                 if (usContainer) {
                     usContainer.innerHTML = data.data.us && data.data.us.length > 0
                         ? data.data.us.map(h => renderHoldingCard(h, 'us')).join('')
-                        : '<p class="text-gray-400 text-center py-4">å°šç„¡ç¾Žè‚¡æŒè‚¡</p>';
+                        : '<p class="text-gray-400 text-center py-4">尚無美股持股</p>';
                 }
             }
         } catch (e) {
-            console.error('è¼‰å…¥æŒè‚¡å¤±æ•—:', e);
-            if (twContainer) twContainer.innerHTML = '<p class="text-red-500 text-center py-4">è¼‰å…¥å¤±æ•—</p>';
-            if (usContainer) usContainer.innerHTML = '<p class="text-red-500 text-center py-4">è¼‰å…¥å¤±æ•—</p>';
+            console.error('載入持股失敗:', e);
+            if (twContainer) twContainer.innerHTML = '<p class="text-red-500 text-center py-4">載入失敗</p>';
+            if (usContainer) usContainer.innerHTML = '<p class="text-red-500 text-center py-4">載入失敗</p>';
         }
     }
 
@@ -200,12 +200,12 @@
         const profitPrefix = (h.unrealized_profit || 0) >= 0 ? '+' : '';
         const currency = market === 'tw' ? 'NT$' : '$';
         
-        // ðŸ”§ å®‰å…¨è™•ç† return_rateï¼ˆå¯èƒ½æ˜¯ null æˆ– undefinedï¼‰
+        // 🔧 安全處理 return_rate（可能是 null 或 undefined）
         const returnRateDisplay = (h.return_rate != null) 
             ? `${h.return_rate >= 0 ? '+' : ''}${h.return_rate.toFixed(2)}%` 
             : '--';
 
-        // âœ… P3: ä½¿ç”¨ data-action æ›¿ä»£ onclick
+        // ✅ P3: 使用 data-action 替代 onclick
         return `
             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
                  data-action="analyze" data-symbol="${h.symbol}">
@@ -247,20 +247,20 @@
             if (data.success && data.data && data.data.length > 0) {
                 container.innerHTML = data.data.map(t => renderTransactionCard(t, market)).join('');
             } else {
-                container.innerHTML = `<p class="text-gray-400 text-center py-4">å°šç„¡äº¤æ˜“ç´€éŒ„</p>`;
+                container.innerHTML = `<p class="text-gray-400 text-center py-4">尚無交易紀錄</p>`;
             }
         } catch (e) {
-            console.error('è¼‰å…¥äº¤æ˜“ç´€éŒ„å¤±æ•—:', e);
-            container.innerHTML = '<p class="text-red-500 text-center py-4">è¼‰å…¥å¤±æ•—</p>';
+            console.error('載入交易紀錄失敗:', e);
+            container.innerHTML = '<p class="text-red-500 text-center py-4">載入失敗</p>';
         }
     }
 
     function renderTransactionCard(t, market) {
         const typeClass = t.transaction_type === 'buy' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-        const typeText = t.transaction_type === 'buy' ? 'è²·å…¥' : 'è³£å‡º';
+        const typeText = t.transaction_type === 'buy' ? '買入' : '賣出';
         const currency = market === 'tw' ? 'NT$' : '$';
 
-        // âœ… P3: ä½¿ç”¨ data-action æ›¿ä»£ onclick
+        // ✅ P3: 使用 data-action 替代 onclick
         return `
             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg" data-id="${t.id}">
                 <div class="flex-1">
@@ -269,11 +269,15 @@
                         <span class="px-2 py-0.5 text-xs rounded ${typeClass}">${typeText}</span>
                     </div>
                     <div class="text-xs text-gray-500 mt-1">
-                        ${t.quantity_display} @ ${currency}${t.price?.toFixed(2)} Â· ${new Date(t.transaction_date).toLocaleDateString()}
+                        ${t.quantity_display} @ ${currency}${t.price?.toFixed(2)} · ${new Date(t.transaction_date).toLocaleDateString()}
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="font-medium">${currency}${Math.round(t.total_amount).toLocaleString()}</span>
+                    <button data-action="edit-transaction" data-id="${t.id}" data-market="${market}"
+                            class="p-1.5 text-gray-400 hover:text-blue-500" title="編輯">
+                        <i class="fas fa-edit text-xs"></i>
+                    </button>
                     <button data-action="delete-transaction" data-id="${t.id}" data-market="${market}"
                             class="p-1.5 text-gray-400 hover:text-red-500">
                         <i class="fas fa-trash text-xs"></i>
@@ -284,31 +288,31 @@
     }
 
     async function deleteTransaction(id, market) {
-        if (!confirm('ç¢ºå®šè¦åˆªé™¤æ­¤äº¤æ˜“ç´€éŒ„å—Žï¼Ÿ')) return;
+        if (!confirm('確定要刪除此交易紀錄嗎？')) return;
 
         try {
-            const res = await apiRequest(`/api/portfolio/transactions/${market}/${id}`, {
+            const res = await apiRequest(`/api/portfolio/transactions/${id}`, {
                 method: 'DELETE'
             });
 
             const data = await res.json();
 
             if (data.success) {
-                showToast('å·²åˆªé™¤');
+                showToast('已刪除');
                 loadTransactions(market);
                 loadPortfolioSummary();
                 loadHoldings();
             } else {
-                showToast(data.detail || 'åˆªé™¤å¤±æ•—');
+                showToast(data.detail || '刪除失敗');
             }
         } catch (e) {
-            console.error('åˆªé™¤å¤±æ•—:', e);
-            showToast('åˆªé™¤å¤±æ•—');
+            console.error('刪除失敗:', e);
+            showToast('刪除失敗');
         }
     }
 
     // ============================================================
-    // äº‹ä»¶å§”è¨— (P3 æ ¸å¿ƒå„ªåŒ–)
+    // 事件委託 (P3 核心優化)
     // ============================================================
 
     let delegationInitialized = false;
@@ -319,7 +323,7 @@
 
         section.addEventListener('click', handlePortfolioClick);
         delegationInitialized = true;
-        console.log('ðŸ“Œ æŠ•è³‡è¨˜éŒ„äº‹ä»¶å§”è¨—å·²åˆå§‹åŒ–');
+        console.log('📌 投資記錄事件委託已初始化');
     }
 
     function handlePortfolioClick(e) {
@@ -358,7 +362,7 @@
     }
 
     // ============================================================
-    // åŒ¯å‡ºåŒ¯å…¥
+    // 匯出匯入
     // ============================================================
 
     function togglePortfolioMenu() {
@@ -374,7 +378,7 @@
             const data = await res.json();
 
             if (!data.success) {
-                showToast('åŒ¯å‡ºå¤±æ•—');
+                showToast('匯出失敗');
                 return;
             }
 
@@ -388,12 +392,12 @@
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
 
-            showToast('åŒ¯å‡ºæˆåŠŸ');
+            showToast('匯出成功');
             const menu = $('portfolioMenu');
             if (menu) menu.classList.add('hidden');
         } catch (e) {
-            console.error('åŒ¯å‡ºå¤±æ•—:', e);
-            showToast('åŒ¯å‡ºå¤±æ•—');
+            console.error('匯出失敗:', e);
+            showToast('匯出失敗');
         }
     }
 
@@ -430,7 +434,7 @@
                 const items = JSON.parse(e.target.result);
                 preview.innerHTML = `
                     <div class="mt-4 p-3 bg-gray-50 rounded-lg">
-                        <p class="text-sm text-gray-600 mb-2">é è¦½ (${items.length} ç­†):</p>
+                        <p class="text-sm text-gray-600 mb-2">預覽 (${items.length} 筆):</p>
                         <ul class="text-sm space-y-1 max-h-40 overflow-y-auto">
                             ${items.slice(0, 10).map(item => `
                                 <li class="flex justify-between">
@@ -438,12 +442,12 @@
                                     <span class="text-gray-500">${item.transaction_type} ${item.quantity}</span>
                                 </li>
                             `).join('')}
-                            ${items.length > 10 ? `<li class="text-gray-400">...é‚„æœ‰ ${items.length - 10} ç­†</li>` : ''}
+                            ${items.length > 10 ? `<li class="text-gray-400">...還有 ${items.length - 10} 筆</li>` : ''}
                         </ul>
                     </div>
                 `;
             } catch (err) {
-                preview.innerHTML = '<p class="text-red-500 text-sm mt-2">æª”æ¡ˆæ ¼å¼éŒ¯èª¤</p>';
+                preview.innerHTML = '<p class="text-red-500 text-sm mt-2">檔案格式錯誤</p>';
             }
         };
         reader.readAsText(file);
@@ -454,7 +458,7 @@
         const itemsStr = textarea?.value?.trim();
 
         if (!itemsStr) {
-            showToast('è«‹è¼¸å…¥è³‡æ–™');
+            showToast('請輸入資料');
             return;
         }
 
@@ -472,23 +476,23 @@
                 showToast(data.message);
                 hideImportPortfolioModal();
 
-                // âœ… P3: æ¸…é™¤ AppState å¿«å–
+                // ✅ P3: 清除 AppState 快取
                 if (window.AppState) {
                     AppState.set('portfolioLoaded', false);
                 }
 
                 loadPortfolio();
             } else {
-                showToast(data.detail || 'åŒ¯å…¥å¤±æ•—');
+                showToast(data.detail || '匯入失敗');
             }
         } catch (e) {
-            console.error('åŒ¯å…¥å¤±æ•—:', e);
-            showToast('åŒ¯å…¥å¤±æ•—');
+            console.error('匯入失敗:', e);
+            showToast('匯入失敗');
         }
     }
 
     // ============================================================
-    // å¿«é€Ÿäº¤æ˜“ï¼ˆå¾žè¿½è¹¤æ¸…å–®ï¼‰
+    // 快速交易（從追蹤清單）
     // ============================================================
 
     function quickTrade(symbol, name, market, type) {
@@ -514,10 +518,10 @@
     }
 
     // ============================================================
-    // å°Žå‡º
+    // 導出
     // ============================================================
 
-    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    // 掛載到 SELA 命名空間
     if (window.SELA) {
         window.SELA.portfolio = {
             load: loadPortfolio,
@@ -531,7 +535,7 @@
         };
     }
 
-    // å…¨åŸŸå°Žå‡ºï¼ˆå‘å¾Œå…¼å®¹ï¼‰
+    // 全域導出（向後兼容）
     window.loadPortfolio = loadPortfolio;
     window.loadPortfolioSummary = loadPortfolioSummary;
     window.loadHoldings = loadHoldings;
@@ -546,5 +550,5 @@
     window.importPortfolio = importPortfolio;
     window.quickTrade = quickTrade;
 
-    console.log('ðŸ’¼ portfolio.js æ¨¡çµ„å·²è¼‰å…¥ (P3 å„ªåŒ–ç‰ˆ)');
+    console.log('💼 portfolio.js 模組已載入 (P3 優化版)');
 })();

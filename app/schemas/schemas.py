@@ -1,41 +1,41 @@
 """
 Pydantic Schemas
-API è«‹æ±‚/å›žæ‡‰è³‡æ–™æ¨¡åž‹
+API 請求/回應資料模型
 """
 from pydantic import BaseModel, Field
 from typing import Optional, List, Any, Dict
 from datetime import datetime
 
 
-# ==================== é€šç”¨ ====================
+# ==================== 通用 ====================
 
 class ResponseBase(BaseModel):
-    """åŸºç¤Žå›žæ‡‰"""
+    """基礎回應"""
     success: bool = True
     message: Optional[str] = None
 
 
 class ErrorResponse(BaseModel):
-    """éŒ¯èª¤å›žæ‡‰"""
+    """錯誤回應"""
     success: bool = False
     error: Dict[str, str]
 
 
-# ==================== ç”¨æˆ¶ ====================
+# ==================== 用戶 ====================
 
 class UserBase(BaseModel):
-    """ç”¨æˆ¶åŸºæœ¬è³‡è¨Š"""
+    """用戶基本資訊"""
     display_name: Optional[str] = None
     picture_url: Optional[str] = None
     email: Optional[str] = None
 
 
 class UserResponse(UserBase):
-    """ç”¨æˆ¶å›žæ‡‰"""
+    """用戶回應"""
     id: int
     line_user_id: str
     is_active: bool
-    is_admin: bool = False  # ç®¡ç†å“¡æ¬Šé™
+    is_admin: bool = False  # 管理員權限
     created_at: Optional[datetime] = None
     last_login: Optional[datetime] = None
     
@@ -44,27 +44,27 @@ class UserResponse(UserBase):
 
 
 class LoginResponse(ResponseBase):
-    """ç™»å…¥å›žæ‡‰"""
+    """登入回應"""
     token: str
     user: UserResponse
     is_new_user: bool = False
 
 
-# ==================== è¿½è¹¤æ¸…å–® ====================
+# ==================== 追蹤清單 ====================
 
 class WatchlistAdd(BaseModel):
-    """æ–°å¢žè¿½è¹¤æ¸…å–®è«‹æ±‚"""
+    """新增追蹤清單請求"""
     symbol: str = Field(..., min_length=1, max_length=10)
     note: Optional[str] = Field(None, max_length=200)
 
 
 class WatchlistUpdate(BaseModel):
-    """æ›´æ–°è¿½è¹¤æ¸…å–®è«‹æ±‚"""
+    """更新追蹤清單請求"""
     note: Optional[str] = Field(None, max_length=200)
 
 
 class WatchlistItem(BaseModel):
-    """è¿½è¹¤æ¸…å–®é …ç›®"""
+    """追蹤清單項目"""
     id: int
     symbol: str
     asset_type: str
@@ -76,18 +76,18 @@ class WatchlistItem(BaseModel):
 
 
 class WatchlistResponse(ResponseBase):
-    """è¿½è¹¤æ¸…å–®å›žæ‡‰"""
+    """追蹤清單回應"""
     data: Optional[WatchlistItem] = None
 
 
 class WatchlistListResponse(ResponseBase):
-    """è¿½è¹¤æ¸…å–®åˆ—è¡¨å›žæ‡‰"""
+    """追蹤清單列表回應"""
     data: List[WatchlistItem] = []
     total: int = 0
 
 
 class WatchlistOverviewItem(BaseModel):
-    """è¿½è¹¤æ¸…å–®ç¸½è¦½é …ç›®"""
+    """追蹤清單總覽項目"""
     id: int
     symbol: str
     name: Optional[str] = None
@@ -102,7 +102,7 @@ class WatchlistOverviewItem(BaseModel):
 
 
 class SentimentItem(BaseModel):
-    """æƒ…ç·’æŒ‡æ•¸é …ç›®"""
+    """情緒指數項目"""
     value: int
     classification: str
     classification_zh: str
@@ -111,17 +111,17 @@ class SentimentItem(BaseModel):
 
 
 class WatchlistOverviewResponse(ResponseBase):
-    """è¿½è¹¤æ¸…å–®ç¸½è¦½å›žæ‡‰"""
+    """追蹤清單總覽回應"""
     stocks: List[WatchlistOverviewItem] = []
     crypto: List[WatchlistOverviewItem] = []
     sentiment: Optional[Dict[str, SentimentItem]] = None
     total_count: int = 0
 
 
-# ==================== è¨­å®š ====================
+# ==================== 設定 ====================
 
 class IndicatorSettingsUpdate(BaseModel):
-    """æŒ‡æ¨™é¡¯ç¤ºè¨­å®šæ›´æ–°"""
+    """指標顯示設定更新"""
     show_ma: Optional[bool] = None
     show_rsi: Optional[bool] = None
     show_macd: Optional[bool] = None
@@ -132,12 +132,12 @@ class IndicatorSettingsUpdate(BaseModel):
 
 
 class IndicatorSettingsResponse(ResponseBase):
-    """æŒ‡æ¨™é¡¯ç¤ºè¨­å®šå›žæ‡‰"""
+    """指標顯示設定回應"""
     data: Dict[str, bool] = {}
 
 
 class AlertSettingsUpdate(BaseModel):
-    """é€šçŸ¥è¨­å®šæ›´æ–°"""
+    """通知設定更新"""
     alert_ma_cross: Optional[bool] = None
     alert_ma_breakout: Optional[bool] = None
     alert_rsi: Optional[bool] = None
@@ -149,12 +149,12 @@ class AlertSettingsUpdate(BaseModel):
 
 
 class AlertSettingsResponse(ResponseBase):
-    """é€šçŸ¥è¨­å®šå›žæ‡‰"""
+    """通知設定回應"""
     data: Dict[str, bool] = {}
 
 
 class IndicatorParamsUpdate(BaseModel):
-    """æŒ‡æ¨™åƒæ•¸æ›´æ–°"""
+    """指標參數更新"""
     ma_short: Optional[int] = Field(None, ge=5, le=50)
     ma_mid: Optional[int] = Field(None, ge=20, le=100)
     ma_long: Optional[int] = Field(None, ge=50, le=300)
@@ -172,14 +172,14 @@ class IndicatorParamsUpdate(BaseModel):
 
 
 class IndicatorParamsResponse(ResponseBase):
-    """æŒ‡æ¨™åƒæ•¸å›žæ‡‰"""
+    """指標參數回應"""
     data: Dict[str, Any] = {}
 
 
-# ==================== è‚¡ç¥¨/åŠ å¯†è²¨å¹£ ====================
+# ==================== 股票/加密貨幣 ====================
 
 class PriceInfo(BaseModel):
-    """åƒ¹æ ¼è³‡è¨Š"""
+    """價格資訊"""
     current: float
     high_52w: Optional[float] = None
     low_52w: Optional[float] = None
@@ -190,7 +190,7 @@ class PriceInfo(BaseModel):
 
 
 class ChangeInfo(BaseModel):
-    """æ¼²è·Œå¹…è³‡è¨Š"""
+    """漲跌幅資訊"""
     day: Optional[float] = None
     week: Optional[float] = None
     month: Optional[float] = None
@@ -199,21 +199,21 @@ class ChangeInfo(BaseModel):
 
 
 class VolumeInfo(BaseModel):
-    """æˆäº¤é‡è³‡è¨Š"""
+    """成交量資訊"""
     today: Optional[int] = None
     avg_20d: Optional[int] = None
     ratio: Optional[float] = None
 
 
 class SignalItem(BaseModel):
-    """è¨Šè™Ÿé …ç›®"""
+    """訊號項目"""
     type: str
     indicator: str
     description: str
 
 
 class ScoreInfo(BaseModel):
-    """è©•åˆ†è³‡è¨Š"""
+    """評分資訊"""
     buy_score: int = 0
     sell_score: int = 0
     rating: str = "neutral"
@@ -221,7 +221,7 @@ class ScoreInfo(BaseModel):
 
 
 class StockAnalysisResponse(ResponseBase):
-    """è‚¡ç¥¨åˆ†æžå›žæ‡‰"""
+    """股票分析回應"""
     symbol: str
     name: str
     asset_type: str = "stock"
@@ -235,7 +235,7 @@ class StockAnalysisResponse(ResponseBase):
 
 
 class CryptoAnalysisResponse(ResponseBase):
-    """åŠ å¯†è²¨å¹£åˆ†æžå›žæ‡‰"""
+    """加密貨幣分析回應"""
     symbol: str
     name: str
     asset_type: str = "crypto"
@@ -248,9 +248,9 @@ class CryptoAnalysisResponse(ResponseBase):
     updated_at: Optional[str] = None
 
 
-# ==================== å¸‚å ´æƒ…ç·’ ====================
+# ==================== 市場情緒 ====================
 
 class MarketSentimentResponse(ResponseBase):
-    """å¸‚å ´æƒ…ç·’å›žæ‡‰"""
+    """市場情緒回應"""
     stock: Optional[SentimentItem] = None
     crypto: Optional[SentimentItem] = None

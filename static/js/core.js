@@ -1,29 +1,29 @@
 /**
- * SELA æ ¸å¿ƒæ¨¡çµ„ (P0 å„ªåŒ–ç‰ˆ)
+ * SELA 核心模組 (P0 優化版)
  * 
- * å„ªåŒ–å…§å®¹ï¼š
- * 1. DOM å¿«å– - æ¸›å°‘é‡è¤‡æŸ¥è©¢
- * 2. æ‰¹é‡æ›´æ–° - æ¸›å°‘ç€è¦½å™¨é‡æŽ’
- * 3. çµ±ä¸€å‘½åç©ºé–“ - æ¸›å°‘å…¨åŸŸæ±¡æŸ“
+ * 優化內容：
+ * 1. DOM 快取 - 減少重複查詢
+ * 2. 批量更新 - 減少瀏覽器重排
+ * 3. 統一命名空間 - 減少全域污染
  * 
- * å‘å¾Œå…¼å®¹ï¼šä¿ç•™æ‰€æœ‰ window.xxx å°Žå‡º
+ * 向後兼容：保留所有 window.xxx 導出
  */
 
 (function() {
     'use strict';
     
     // ============================================================
-    // DOM å¿«å–ç³»çµ± (P0 æ ¸å¿ƒå„ªåŒ–)
+    // DOM 快取系統 (P0 核心優化)
     // ============================================================
     
     const _domCache = new Map();
     const _querySelectorCache = new Map();
     
     /**
-     * å¿«å–ç‰ˆ getElementById
-     * ç¬¬ä¸€æ¬¡æŸ¥è©¢å¾Œå¿«å–ï¼Œå¾ŒçºŒç›´æŽ¥è¿”å›ž
-     * @param {string} id - å…ƒç´  ID
-     * @param {boolean} force - å¼·åˆ¶é‡æ–°æŸ¥è©¢
+     * 快取版 getElementById
+     * 第一次查詢後快取，後續直接返回
+     * @param {string} id - 元素 ID
+     * @param {boolean} force - 強制重新查詢
      * @returns {HTMLElement|null}
      */
     function $(id, force = false) {
@@ -38,9 +38,9 @@
     }
     
     /**
-     * å¿«å–ç‰ˆ querySelector
-     * @param {string} selector - CSS é¸æ“‡å™¨
-     * @param {boolean} force - å¼·åˆ¶é‡æ–°æŸ¥è©¢
+     * 快取版 querySelector
+     * @param {string} selector - CSS 選擇器
+     * @param {boolean} force - 強制重新查詢
      * @returns {HTMLElement|null}
      */
     function $q(selector, force = false) {
@@ -55,17 +55,17 @@
     }
     
     /**
-     * æ¸…é™¤ DOM å¿«å–
-     * ç•¶ DOM çµæ§‹è®ŠåŒ–æ™‚èª¿ç”¨ï¼ˆå¦‚å‹•æ…‹è¼‰å…¥å…§å®¹å¾Œï¼‰
+     * 清除 DOM 快取
+     * 當 DOM 結構變化時調用（如動態載入內容後）
      */
     function clearDomCache() {
         _domCache.clear();
         _querySelectorCache.clear();
-        console.log('ðŸ—‘ï¸ DOM å¿«å–å·²æ¸…é™¤');
+        console.log('🗑️ DOM 快取已清除');
     }
     
     /**
-     * é è¼‰å…¥å¸¸ç”¨ DOM å…ƒç´ åˆ°å¿«å–
+     * 預載入常用 DOM 元素到快取
      */
     function preloadDomCache() {
         const commonIds = [
@@ -78,16 +78,16 @@
             'adminLink', 'adminSidebarLink', 'adminMobileLink'
         ];
         commonIds.forEach(id => $(id));
-        console.log(`ðŸ“¦ å·²é è¼‰å…¥ ${_domCache.size} å€‹ DOM å…ƒç´ åˆ°å¿«å–`);
+        console.log(`📦 已預載入 ${_domCache.size} 個 DOM 元素到快取`);
     }
     
     // ============================================================
-    // æ‰¹é‡ DOM æ›´æ–° (P0 æ ¸å¿ƒå„ªåŒ–)
+    // 批量 DOM 更新 (P0 核心優化)
     // ============================================================
     
     /**
-     * æ‰¹é‡æ›´æ–°å¤šå€‹å…ƒç´ 
-     * ä½¿ç”¨ requestAnimationFrame ç¢ºä¿åœ¨åŒä¸€å¹€å…§å®Œæˆ
+     * 批量更新多個元素
+     * 使用 requestAnimationFrame 確保在同一幀內完成
      * @param {Array} updates - [{id: 'xxx', prop: 'textContent', value: 'xxx'}, ...]
      */
     function batchUpdate(updates) {
@@ -119,10 +119,10 @@
     }
     
     /**
-     * å®‰å…¨è¨­ç½® innerHTMLï¼ˆæ‰¹é‡ç‰ˆï¼‰
-     * å…ˆæ§‹å»ºå®Œæ•´ HTML å­—ä¸²ï¼Œå†ä¸€æ¬¡æ€§æ›´æ–°
-     * @param {string} id - å…ƒç´  ID
-     * @param {string|Array} html - HTML å­—ä¸²æˆ–å­—ä¸²é™£åˆ—
+     * 安全設置 innerHTML（批量版）
+     * 先構建完整 HTML 字串，再一次性更新
+     * @param {string} id - 元素 ID
+     * @param {string|Array} html - HTML 字串或字串陣列
      */
     function setHtml(id, html) {
         const el = $(id);
@@ -134,11 +134,11 @@
     }
     
     /**
-     * ä½¿ç”¨ DocumentFragment æ‰¹é‡æ·»åŠ å­å…ƒç´ 
-     * æ¯”å¤šæ¬¡ appendChild æ•ˆèƒ½å¥½ 10 å€
-     * @param {string} containerId - å®¹å™¨å…ƒç´  ID
-     * @param {Array} items - è¦æ·»åŠ çš„é …ç›®
-     * @param {Function} renderFn - æ¸²æŸ“å‡½æ•¸ (item) => HTMLElement
+     * 使用 DocumentFragment 批量添加子元素
+     * 比多次 appendChild 效能好 10 倍
+     * @param {string} containerId - 容器元素 ID
+     * @param {Array} items - 要添加的項目
+     * @param {Function} renderFn - 渲染函數 (item) => HTMLElement
      */
     function appendBatch(containerId, items, renderFn) {
         const container = $(containerId);
@@ -156,7 +156,7 @@
     }
     
     // ============================================================
-    // å…¨åŸŸè®Šæ•¸
+    // 全域變數
     // ============================================================
     
     const API_BASE = '';
@@ -174,15 +174,15 @@
     };
     
     // ============================================================
-    // API è«‹æ±‚å°è£
+    // API 請求封裝
     // ============================================================
     
     async function apiRequest(endpoint, options = {}) {
         if (!token) {
-            console.error('API è«‹æ±‚å¤±æ•—: ç„¡ token');
+            console.error('API 請求失敗: 無 token');
             clearAllUserData();
             window.location.href = '/static/index.html';
-            throw new Error('æœªç™»å…¥');
+            throw new Error('未登入');
         }
         
         const headers = {
@@ -202,21 +202,21 @@
             });
             
             if (res.status === 401) {
-                console.error('Token ç„¡æ•ˆï¼Œé‡æ–°ç™»å…¥');
+                console.error('Token 無效，重新登入');
                 clearAllUserData();
                 window.location.href = '/static/index.html';
-                throw new Error('Token ç„¡æ•ˆ');
+                throw new Error('Token 無效');
             }
             
             return res;
         } catch (e) {
-            console.error(`API è«‹æ±‚å¤±æ•— ${endpoint}:`, e);
+            console.error(`API 請求失敗 ${endpoint}:`, e);
             throw e;
         }
     }
     
     // ============================================================
-    // è‡ªå‹•ç™»å‡ºåŠŸèƒ½
+    // 自動登出功能
     // ============================================================
     
     function getSessionTimeout() {
@@ -239,17 +239,17 @@
         const timeoutMinutes = isAdmin ? 60 : 10;
         
         if (remaining <= 0) {
-            showToast(`é–’ç½®è¶…éŽ ${timeoutMinutes} åˆ†é˜ï¼Œå·²è‡ªå‹•ç™»å‡º`);
+            showToast(`閒置超過 ${timeoutMinutes} 分鐘，已自動登出`);
             setTimeout(() => logout(), 1500);
         } else {
             const mins = Math.floor(remaining / 60000);
             const secs = Math.floor((remaining % 60000) / 1000);
             const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
             
-            // âœ… ä½¿ç”¨å¿«å–ç‰ˆ DOM æŸ¥è©¢
+            // ✅ 使用快取版 DOM 查詢
             const timerEl = $('sessionTimer');
             const sidebarTimerEl = $('sidebarTimer');
-            if (timerEl) timerEl.textContent = `é–’ç½®ç™»å‡º: ${timeStr}`;
+            if (timerEl) timerEl.textContent = `閒置登出: ${timeStr}`;
             if (sidebarTimerEl) sidebarTimerEl.textContent = timeStr;
         }
     }
@@ -269,12 +269,12 @@
     }
     
     // ============================================================
-    // ç™»å…¥é©—è­‰
+    // 登入驗證
     // ============================================================
     
     async function checkAuth() {
         if (!token) {
-            console.log('ç„¡ tokenï¼Œè·³è½‰ç™»å…¥é ');
+            console.log('無 token，跳轉登入頁');
             clearAllUserData();
             window.location.href = '/static/index.html';
             return;
@@ -286,7 +286,7 @@
             });
             
             if (!res.ok) {
-                console.error('Token é©—è­‰å¤±æ•—ï¼Œç‹€æ…‹ç¢¼:', res.status);
+                console.error('Token 驗證失敗，狀態碼:', res.status);
                 throw new Error('Unauthorized');
             }
             
@@ -294,14 +294,14 @@
             
             const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
             if (storedUser.id && storedUser.id !== serverUser.id) {
-                console.error('ç”¨æˆ¶ ID ä¸ä¸€è‡´!');
+                console.error('用戶 ID 不一致!');
                 clearAllUserData();
                 window.location.href = '/static/index.html';
                 return;
             }
             
             if (storedUser.line_user_id && storedUser.line_user_id !== serverUser.line_user_id) {
-                console.error('LINE ID ä¸ä¸€è‡´!');
+                console.error('LINE ID 不一致!');
                 clearAllUserData();
                 window.location.href = '/static/index.html';
                 return;
@@ -317,16 +317,16 @@
                 is_admin: serverUser.is_admin || false
             }));
             
-            console.log('ç™»å…¥é©—è­‰æˆåŠŸ: ç”¨æˆ¶ ID =', serverUser.id);
+            console.log('登入驗證成功: 用戶 ID =', serverUser.id);
             
-            // âœ… P1: åŒæ­¥åˆ° AppState
+            // ✅ P1: 同步到 AppState
             if (window.AppState) {
                 window.AppState.setUser(serverUser);
             }
             
             updateUserUI();
             
-            // âœ… ä½¿ç”¨å¿«å–ç‰ˆ DOM æŸ¥è©¢
+            // ✅ 使用快取版 DOM 查詢
             const loadingScreen = $('loading-screen');
             const appContent = $('app-content');
             if (loadingScreen) loadingScreen.style.display = 'none';
@@ -339,7 +339,7 @@
             }
             
         } catch (e) {
-            console.error('é©—è­‰å¤±æ•—:', e);
+            console.error('驗證失敗:', e);
             clearAllUserData();
             window.location.href = '/static/index.html';
         }
@@ -348,20 +348,20 @@
     function updateUserUI() {
         if (!currentUser) return;
         
-        // âœ… ä½¿ç”¨æ‰¹é‡æ›´æ–°æ¸›å°‘é‡æŽ’
+        // ✅ 使用批量更新減少重排
         batchUpdate([
             { id: 'userName', prop: 'textContent', value: currentUser.display_name },
             { id: 'sidebarUserName', prop: 'textContent', value: currentUser.display_name },
         ]);
         
-        // é ­åƒå–®ç¨è™•ç†ï¼ˆsrc å±¬æ€§ï¼‰
+        // 頭像單獨處理（src 屬性）
         const avatarUrl = currentUser.picture_url || 'https://via.placeholder.com/40';
         const avatarEl = $('userAvatar');
         const sidebarAvatarEl = $('sidebarAvatar');
         if (avatarEl) avatarEl.src = avatarUrl;
         if (sidebarAvatarEl) sidebarAvatarEl.src = avatarUrl;
         
-        // ç®¡ç†å“¡å…¥å£
+        // 管理員入口
         if (currentUser.is_admin) {
             const adminLink = $('adminLink');
             const adminSidebarLink = $('adminSidebarLink');
@@ -392,7 +392,7 @@
         stopSessionMonitor();
         clearAllUserData();
         
-        // âœ… P1: é‡ç½® AppState
+        // ✅ P1: 重置 AppState
         if (window.AppState) {
             window.AppState.reset();
         }
@@ -409,11 +409,11 @@
     }
     
     // ============================================================
-    // æ‰‹æ©Ÿç‰ˆé¸å–®
+    // 手機版選單
     // ============================================================
     
     function openMobileSidebar() {
-        // âœ… ä½¿ç”¨å¿«å–ç‰ˆ DOM æŸ¥è©¢
+        // ✅ 使用快取版 DOM 查詢
         const sidebar = $('mobileSidebar');
         const overlay = $('sidebarOverlay');
         if (sidebar) sidebar.classList.add('open');
@@ -433,7 +433,7 @@
         closeMobileSidebar();
         showSection(section);
         
-        // âœ… åªæŸ¥è©¢ä¸€æ¬¡ï¼Œä¸åœ¨è¿´åœˆä¸­é‡è¤‡æŸ¥è©¢
+        // ✅ 只查詢一次，不在迴圈中重複查詢
         document.querySelectorAll('.bottom-nav-item, .mobile-nav-link').forEach(el => {
             const isActive = el.dataset.section === section;
             el.classList.remove('active', 'bg-blue-50', 'text-gray-700');
@@ -450,10 +450,10 @@
     }
     
     // ============================================================
-    // é é¢åˆ‡æ› (å„ªåŒ–ç‰ˆ)
+    // 頁面切換 (優化版)
     // ============================================================
     
-    // å¿«å–æ‰€æœ‰ section å…ƒç´ 
+    // 快取所有 section 元素
     let _sectionsCache = null;
     function getAllSections() {
         if (!_sectionsCache) {
@@ -462,7 +462,7 @@
         return _sectionsCache;
     }
     
-    // å¿«å–æ‰€æœ‰å°Žèˆªé€£çµ
+    // 快取所有導航連結
     let _navLinksCache = null;
     function getAllNavLinks() {
         if (!_navLinksCache) {
@@ -471,7 +471,7 @@
         return _navLinksCache;
     }
     
-    // å¿«å–æ‰€æœ‰åº•éƒ¨å°Žèˆª
+    // 快取所有底部導航
     let _bottomNavCache = null;
     function getAllBottomNav() {
         if (!_bottomNavCache) {
@@ -481,12 +481,12 @@
     }
     
     function showSection(name, evt) {
-        // âœ… P1: åŒæ­¥åˆ° AppState
+        // ✅ P1: 同步到 AppState
         if (window.AppState) {
             window.AppState.switchSection(name);
         }
         
-        // âœ… ä½¿ç”¨å¿«å–çš„ section åˆ—è¡¨
+        // ✅ 使用快取的 section 列表
         getAllSections().forEach(s => s.classList.add('hidden'));
         
         const section = $(`section-${name}`);
@@ -494,7 +494,7 @@
             section.classList.remove('hidden');
         }
         
-        // âœ… ä½¿ç”¨å¿«å–çš„å°Žèˆªé€£çµ
+        // ✅ 使用快取的導航連結
         getAllNavLinks().forEach(l => {
             const isActive = l.dataset.section === name;
             l.classList.toggle('bg-blue-50', isActive);
@@ -510,12 +510,12 @@
             }
         }
         
-        // âœ… ä½¿ç”¨å¿«å–çš„åº•éƒ¨å°Žèˆª
+        // ✅ 使用快取的底部導航
         getAllBottomNav().forEach(el => {
             el.classList.toggle('active', el.dataset.section === name);
         });
 
-        // è¼‰å…¥å°æ‡‰è³‡æ–™
+        // 載入對應資料
         if (name === 'watchlist' && typeof loadWatchlist === 'function') loadWatchlist();
         if (name === 'sentiment' && typeof loadSentimentDetail === 'function') loadSentimentDetail();
         if (name === 'settings' && typeof loadSettings === 'function') loadSettings();
@@ -530,11 +530,11 @@
     }
     
     // ============================================================
-    // Toast æç¤º (å„ªåŒ–ç‰ˆ)
+    // Toast 提示 (優化版)
     // ============================================================
     
     function showToast(message, type = 'info', duration = 3000) {
-        // âœ… ä½¿ç”¨å¿«å–ç‰ˆ DOM æŸ¥è©¢
+        // ✅ 使用快取版 DOM 查詢
         const container = $('toastContainer');
         if (container) {
             const toast = document.createElement('div');
@@ -563,11 +563,11 @@
     }
     
     // ============================================================
-    // å·¥å…·å‡½æ•¸
+    // 工具函數
     // ============================================================
     
     /**
-     * æ‘ºç–Šé¢æ¿åˆ‡æ›
+     * 摺疊面板切換
      */
     function toggleCollapsible(button) {
         const content = button.nextElementSibling;
@@ -583,14 +583,14 @@
     }
     
     // ============================================================
-    // åˆå§‹åŒ–
+    // 初始化
     // ============================================================
     
     function init() {
-        console.log('ðŸš€ SELA ç³»çµ±åˆå§‹åŒ–ä¸­... (P0 å„ªåŒ–ç‰ˆ)');
+        console.log('🚀 SELA 系統初始化中... (P0 優化版)');
         console.log('Device info:', deviceInfo);
         
-        // âœ… é è¼‰å…¥å¸¸ç”¨ DOM å…ƒç´ 
+        // ✅ 預載入常用 DOM 元素
         preloadDomCache();
         
         checkAuth();
@@ -603,23 +603,23 @@
     }
     
     // ============================================================
-    // SELA å‘½åç©ºé–“ (P0+P1)
+    // SELA 命名空間 (P0+P1)
     // ============================================================
     
     window.SELA = window.SELA || {};
     Object.assign(window.SELA, {
-        // DOM å·¥å…·
+        // DOM 工具
         $,
         $q,
         clearDomCache,
         preloadDomCache,
         
-        // æ‰¹é‡æ›´æ–°
+        // 批量更新
         batchUpdate,
         setHtml,
         appendBatch,
         
-        // ç‹€æ…‹ (P1: AppState åœ¨ state.js ä¸­)
+        // 狀態 (P1: AppState 在 state.js 中)
         getCurrentUser,
         getToken,
         deviceInfo,
@@ -631,12 +631,12 @@
         showSection,
         showToast,
         
-        // ç‰ˆæœ¬
+        // 版本
         version: '0.8.2-p1'
     });
     
     // ============================================================
-    // å‘å¾Œå…¼å®¹ï¼šå°Žå‡ºåˆ°å…¨åŸŸ
+    // 向後兼容：導出到全域
     // ============================================================
     
     window.API_BASE = API_BASE;
@@ -654,16 +654,16 @@
     window.deviceInfo = deviceInfo;
     window.toggleCollapsible = toggleCollapsible;
     
-    // å…¼å®¹èˆŠä»£ç¢¼
+    // 兼容舊代碼
     window.token = token;
     window.currentUser = currentUser;
     
-    // âœ… æ–°å¢žï¼šå°Žå‡º DOM å¿«å–å·¥å…·ä¾›å…¶ä»–æ¨¡çµ„ä½¿ç”¨
+    // ✅ 新增：導出 DOM 快取工具供其他模組使用
     window.$ = $;
     window.$q = $q;
     window.clearDomCache = clearDomCache;
     window.batchUpdate = batchUpdate;
     window.setHtml = setHtml;
     
-    console.log('ðŸŽ¯ core.js æ ¸å¿ƒæ¨¡çµ„å·²è¼‰å…¥ (P0 å„ªåŒ–ç‰ˆ)');
+    console.log('🎯 core.js 核心模組已載入 (P0 優化版)');
 })();

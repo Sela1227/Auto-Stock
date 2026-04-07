@@ -1,8 +1,8 @@
 """
-åŠ å¯†è²¨å¹£å’Œå¸‚å ´æƒ…ç·’ API è·¯ç”±
+加密貨幣和市場情緒 API 路由
 
-ðŸ†• 2026-01-17 æ›´æ–°ï¼š
-- åŠ å…¥æŸ¥è©¢çµæžœå¿«å–åŠŸèƒ½ï¼ŒæŸ¥è©¢éŽçš„åŠ å¯†è²¨å¹£æœƒå„²å­˜åˆ°æœ¬åœ°è³‡æ–™åº«
+🆕 2026-01-17 更新：
+- 加入查詢結果快取功能，查詢過的加密貨幣會儲存到本地資料庫
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -11,10 +11,10 @@ import logging
 
 from app.schemas.schemas import MarketSentimentResponse
 
-router = APIRouter(tags=["åŠ å¯†è²¨å¹£"])
+router = APIRouter(tags=["加密貨幣"])
 logger = logging.getLogger(__name__)
 
-# åŠ å¯†è²¨å¹£å°æ‡‰çš„ Yahoo Finance ä»£è™Ÿ
+# 加密貨幣對應的 Yahoo Finance 代號
 CRYPTO_YAHOO_MAP = {
     "BTC": "BTC-USD",
     "ETH": "ETH-USD",
@@ -23,59 +23,59 @@ CRYPTO_YAHOO_MAP = {
 }
 
 
-@router.get("/api/crypto/{symbol}", summary="æŸ¥è©¢åŠ å¯†è²¨å¹£")
+@router.get("/api/crypto/{symbol}", summary="查詢加密貨幣")
 async def get_crypto_analysis(
     symbol: str,
-    refresh: bool = Query(False, description="æ˜¯å¦å¼·åˆ¶æ›´æ–°è³‡æ–™"),
+    refresh: bool = Query(False, description="是否強制更新資料"),
 ):
     """
-    æŸ¥è©¢å–®ä¸€åŠ å¯†è²¨å¹£çš„æŠ€è¡“åˆ†æžå ±å‘Š
+    查詢單一加密貨幣的技術分析報告
     
-    - **symbol**: åŠ å¯†è²¨å¹£ä»£è™Ÿ (BTC, ETH)
-    - **refresh**: æ˜¯å¦å¼·åˆ¶æ›´æ–°è³‡æ–™
+    - **symbol**: 加密貨幣代號 (BTC, ETH)
+    - **refresh**: 是否強制更新資料
     """
     from app.data_sources.coingecko import coingecko
     from app.data_sources.yahoo_finance import yahoo_finance
     from app.services.indicator_service import indicator_service
     
     symbol = symbol.upper()
-    logger.info(f"é–‹å§‹æŸ¥è©¢åŠ å¯†è²¨å¹£: {symbol}")
+    logger.info(f"開始查詢加密貨幣: {symbol}")
     
-    # é©—è­‰ä»£è™Ÿ
+    # 驗證代號
     yahoo_symbol = CRYPTO_YAHOO_MAP.get(symbol)
     if not yahoo_symbol and not coingecko.validate_symbol(symbol):
-        logger.warning(f"ä¸æ”¯æ´çš„åŠ å¯†è²¨å¹£: {symbol}")
+        logger.warning(f"不支援的加密貨幣: {symbol}")
         raise HTTPException(
             status_code=400,
-            detail=f"ä¸æ”¯æ´çš„åŠ å¯†è²¨å¹£: {symbol}ï¼Œç›®å‰åƒ…æ”¯æ´ BTC å’Œ ETH"
+            detail=f"不支援的加密貨幣: {symbol}，目前僅支援 BTC 和 ETH"
         )
     
     df = None
     info = None
     data_source = None
     
-    # å„ªå…ˆå˜—è©¦ CoinGecko
+    # 優先嘗試 CoinGecko
     try:
-        logger.info(f"å˜—è©¦å¾ž CoinGecko å–å¾— {symbol} è³‡æ–™...")
+        logger.info(f"嘗試從 CoinGecko 取得 {symbol} 資料...")
         df = coingecko.get_ohlc(symbol, days=365)
         if df is not None and not df.empty:
             info = coingecko.get_coin_info(symbol)
             data_source = "CoinGecko"
-            logger.info(f"æˆåŠŸå¾ž CoinGecko å–å¾— {len(df)} ç­†è³‡æ–™")
+            logger.info(f"成功從 CoinGecko 取得 {len(df)} 筆資料")
     except Exception as e:
-        logger.warning(f"CoinGecko API å¤±æ•—: {e}")
+        logger.warning(f"CoinGecko API 失敗: {e}")
     
-    # å¦‚æžœ CoinGecko å¤±æ•—ï¼Œä½¿ç”¨ Yahoo Finance å‚™ç”¨
+    # 如果 CoinGecko 失敗，使用 Yahoo Finance 備用
     if df is None or df.empty:
         yahoo_symbol = CRYPTO_YAHOO_MAP.get(symbol, f"{symbol}-USD")
-        logger.info(f"CoinGecko å¤±æ•—ï¼Œå˜—è©¦ Yahoo Finance: {yahoo_symbol}")
+        logger.info(f"CoinGecko 失敗，嘗試 Yahoo Finance: {yahoo_symbol}")
         
         try:
             df = yahoo_finance.get_stock_history(yahoo_symbol, period="1y")
             if df is not None and not df.empty:
                 data_source = "Yahoo Finance"
-                logger.info(f"æˆåŠŸå¾ž Yahoo Finance å–å¾— {len(df)} ç­†è³‡æ–™")
-                # å¾ž Yahoo Finance å–å¾—åŸºæœ¬è³‡è¨Š
+                logger.info(f"成功從 Yahoo Finance 取得 {len(df)} 筆資料")
+                # 從 Yahoo Finance 取得基本資訊
                 try:
                     yf_info = yahoo_finance.get_stock_info(yahoo_symbol)
                     if yf_info:
@@ -85,37 +85,37 @@ async def get_crypto_analysis(
                             "total_volume": yf_info.get("total_volume"),
                         }
                 except Exception as e:
-                    logger.warning(f"å–å¾— Yahoo Finance info å¤±æ•—: {e}")
+                    logger.warning(f"取得 Yahoo Finance info 失敗: {e}")
                     info = {"name": symbol}
         except Exception as e:
-            logger.error(f"Yahoo Finance ä¹Ÿå¤±æ•—: {e}")
+            logger.error(f"Yahoo Finance 也失敗: {e}")
     
-    # å¦‚æžœå…©å€‹éƒ½å¤±æ•—
+    # 如果兩個都失敗
     if df is None or df.empty:
         raise HTTPException(
             status_code=503,
-            detail=f"ç„¡æ³•å–å¾— {symbol} è³‡æ–™ã€‚CoinGecko å’Œ Yahoo Finance éƒ½ç„¡æ³•é€£æŽ¥ã€‚è«‹ç¨å¾Œå†è©¦ã€‚"
+            detail=f"無法取得 {symbol} 資料。CoinGecko 和 Yahoo Finance 都無法連接。請稍後再試。"
         )
     
-    logger.info(f"ä½¿ç”¨ {data_source} è³‡æ–™ï¼Œå…± {len(df)} ç­†")
+    logger.info(f"使用 {data_source} 資料，共 {len(df)} 筆")
     
-    # ç¢ºä¿æœ‰å¿…è¦çš„æ¬„ä½ (åœ¨ try å¡Šå¤–é¢å…ˆè™•ç†)
+    # 確保有必要的欄位 (在 try 塊外面先處理)
     if 'volume' not in df.columns:
         df['volume'] = 0
-        logger.warning(f"{symbol} æ²’æœ‰ volume è³‡æ–™ï¼Œå·²å¡«å…¥ 0")
+        logger.warning(f"{symbol} 沒有 volume 資料，已填入 0")
     
-    # ç¢ºä¿ volume ä¸æ˜¯ None æˆ– NaN
+    # 確保 volume 不是 None 或 NaN
     df['volume'] = df['volume'].fillna(0).astype(float)
     
     try:
-        # è¨ˆç®—æŠ€è¡“æŒ‡æ¨™
+        # 計算技術指標
         df = indicator_service.calculate_all_indicators(df)
         
-        # å–å¾—æœ€æ–°è³‡æ–™
+        # 取得最新資料
         latest = df.iloc[-1]
         current_price = float(latest['close'])
         
-        # æ¼²è·Œå¹…è¨ˆç®—
+        # 漲跌幅計算
         def calc_change(days):
             try:
                 if len(df) > days:
@@ -125,12 +125,12 @@ async def get_crypto_analysis(
                 pass
             return None
         
-        # å‡ç·šè³‡è¨Š (åŠ å¯†è²¨å¹£ç”¨ MA7/25/99)
+        # 均線資訊 (加密貨幣用 MA7/25/99)
         ma7 = float(df['close'].tail(7).mean()) if len(df) >= 7 else None
         ma25 = float(df['close'].tail(25).mean()) if len(df) >= 25 else None
         ma99 = float(df['close'].tail(99).mean()) if len(df) >= 99 else None
         
-        # åˆ¤æ–·å‡ç·šæŽ’åˆ—
+        # 判斷均線排列
         alignment = "neutral"
         if ma7 and ma25 and ma99:
             if current_price > ma7 > ma25 > ma99:
@@ -138,16 +138,16 @@ async def get_crypto_analysis(
             elif current_price < ma7 < ma25 < ma99:
                 alignment = "bearish"
         
-        # RSI (å°å¯«: rsi)
+        # RSI (小寫: rsi)
         rsi_value = float(latest.get('rsi', 50)) if 'rsi' in latest else 50
         rsi_status = "overbought" if rsi_value > 70 else "oversold" if rsi_value < 30 else "neutral"
         
-        # MACD (å°å¯«: macd_dif, macd_dea)
+        # MACD (小寫: macd_dif, macd_dea)
         macd_dif = float(latest.get('macd_dif', 0)) if 'macd_dif' in latest else 0
         macd_dea = float(latest.get('macd_dea', 0)) if 'macd_dea' in latest else 0
         macd_status = "bullish" if macd_dif > macd_dea else "bearish"
         
-        # ç¶œåˆè©•åˆ†
+        # 綜合評分
         buy_score = 0
         sell_score = 0
         
@@ -168,12 +168,12 @@ async def get_crypto_analysis(
         
         rating = "bullish" if buy_score > sell_score else "bearish" if sell_score > buy_score else "neutral"
         
-        # å–å¾—åç¨±å’Œæˆäº¤é‡
+        # 取得名稱和成交量
         crypto_name = info.get("name", symbol) if info else symbol
         volume_24h = info.get("total_volume") if info else None
         day_change = calc_change(1)
         
-        # ðŸ†• å°‡æŸ¥è©¢çµæžœå¯«å…¥å¿«å–
+        # 🆕 將查詢結果寫入快取
         try:
             from app.services.cache_helper import cache_crypto_price
             
@@ -184,10 +184,10 @@ async def get_crypto_analysis(
                 change_pct=day_change,
                 volume=int(volume_24h) if volume_24h else None
             )
-            logger.info(f"ðŸ“¦ åŠ å¯†è²¨å¹£å¿«å–å·²æ›´æ–°: {symbol} = ${current_price}")
+            logger.info(f"📦 加密貨幣快取已更新: {symbol} = ${current_price}")
         except Exception as e:
-            # å¿«å–å¤±æ•—ä¸å½±éŸ¿ä¸»æµç¨‹
-            logger.warning(f"åŠ å¯†è²¨å¹£å¿«å–æ›´æ–°å¤±æ•—ï¼ˆä¸å½±éŸ¿æŸ¥è©¢ï¼‰: {e}")
+            # 快取失敗不影響主流程
+            logger.warning(f"加密貨幣快取更新失敗（不影響查詢）: {e}")
         
         return {
             "success": True,
@@ -248,25 +248,25 @@ async def get_crypto_analysis(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"æŸ¥è©¢ {symbol} æ™‚ç™¼ç”ŸéŒ¯èª¤: {e}")
+        logger.error(f"查詢 {symbol} 時發生錯誤: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"æŸ¥è©¢å¤±æ•—: {str(e)}"
+            detail=f"查詢失敗: {str(e)}"
         )
 
 
-@router.get("/api/crypto/{symbol}/chart", summary="å–å¾—åŠ å¯†è²¨å¹£åœ–è¡¨")
+@router.get("/api/crypto/{symbol}/chart", summary="取得加密貨幣圖表")
 async def get_crypto_chart(
     symbol: str,
-    days: int = Query(120, ge=30, le=365, description="é¡¯ç¤ºå¤©æ•¸"),
+    days: int = Query(120, ge=30, le=365, description="顯示天數"),
 ):
     """
-    ç”ŸæˆåŠ å¯†è²¨å¹£æŠ€è¡“åˆ†æžåœ–è¡¨
+    生成加密貨幣技術分析圖表
     
-    - **symbol**: åŠ å¯†è²¨å¹£ä»£è™Ÿ (BTC, ETH)
-    - **days**: é¡¯ç¤ºå¤©æ•¸ (30-365)
+    - **symbol**: 加密貨幣代號 (BTC, ETH)
+    - **days**: 顯示天數 (30-365)
     
-    å›žå‚³ PNG åœ–ç‰‡
+    回傳 PNG 圖片
     """
     from app.data_sources.coingecko import coingecko
     from app.services.chart_service import chart_service
@@ -278,14 +278,14 @@ async def get_crypto_chart(
     if df is None or df.empty:
         raise HTTPException(
             status_code=404,
-            detail=f"æ‰¾ä¸åˆ°åŠ å¯†è²¨å¹£: {symbol}"
+            detail=f"找不到加密貨幣: {symbol}"
         )
     
-    # å–å¾—åç¨±
+    # 取得名稱
     info = coingecko.get_coin_info(symbol)
     name = info.get("name", "") if info else ""
     
-    # ç”Ÿæˆåœ–è¡¨
+    # 生成圖表
     chart_path = chart_service.plot_stock_analysis(
         df,
         symbol=symbol,
@@ -301,24 +301,24 @@ async def get_crypto_chart(
     )
 
 
-@router.get("/api/market/sentiment", summary="å–å¾—å¸‚å ´æƒ…ç·’", response_model=MarketSentimentResponse)
+@router.get("/api/market/sentiment", summary="取得市場情緒", response_model=MarketSentimentResponse)
 async def get_market_sentiment(
-    market: str = Query("all", description="å¸‚å ´é¡žåž‹ (stock, crypto, all)"),
+    market: str = Query("all", description="市場類型 (stock, crypto, all)"),
 ):
     """
-    å–å¾—å¸‚å ´æƒ…ç·’æŒ‡æ•¸
+    取得市場情緒指數
     
-    - **market**: å¸‚å ´é¡žåž‹
-      - `stock`: ç¾Žè‚¡ CNN Fear & Greed Index
-      - `crypto`: åŠ å¯†è²¨å¹£ Alternative.me
-      - `all`: å…©è€…éƒ½å–å¾—
+    - **market**: 市場類型
+      - `stock`: 美股 CNN Fear & Greed Index
+      - `crypto`: 加密貨幣 Alternative.me
+      - `all`: 兩者都取得
     
-    æƒ…ç·’æŒ‡æ•¸ç¯„åœ 0-100ï¼š
-    - 0-25: æ¥µåº¦ææ‡¼
-    - 26-45: ææ‡¼
-    - 46-55: ä¸­æ€§
-    - 56-75: è²ªå©ª
-    - 76-100: æ¥µåº¦è²ªå©ª
+    情緒指數範圍 0-100：
+    - 0-25: 極度恐懼
+    - 26-45: 恐懼
+    - 46-55: 中性
+    - 56-75: 貪婪
+    - 76-100: 極度貪婪
     """
     from app.data_sources.fear_greed import fear_greed
     

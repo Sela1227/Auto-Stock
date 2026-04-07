@@ -1,5 +1,5 @@
 """
-è³‡æ–™æ¨¡åž‹
+資料模型
 """
 from app.models.stock_price import StockPrice
 from app.models.crypto_price import CryptoPrice
@@ -18,10 +18,10 @@ from app.models.comparison import Comparison
 from app.models.price_cache import StockPriceCache
 from app.models.portfolio import PortfolioTransaction, PortfolioHolding, ExchangeRate
 
-# ðŸ·ï¸ P1: æ¨™ç±¤åŠŸèƒ½ - å¿…é ˆåœ¨ Watchlist ä¹‹å¾Œ import
+# 🏷️ P1: 標籤功能 - 必須在 Watchlist 之後 import
 from app.models.watchlist_tag import UserTag, watchlist_tags
 
-# ðŸ“Š P1: è‚¡ç¥¨è³‡è¨Šç¨®å­è¡¨
+# 📊 P1: 股票資訊種子表
 from app.models.stock_info import StockInfo
 
 __all__ = [

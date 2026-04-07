@@ -1,14 +1,14 @@
 /**
- * SELA å·¥å…·å‡½æ•¸åº«
- * é€™æ˜¯ä¸€å€‹éžæ¨¡çµ„ç‰ˆæœ¬ï¼Œå¯ä»¥ç›´æŽ¥é€šéŽ <script> æ¨™ç±¤å¼•ç”¨
+ * SELA 工具函數庫
+ * 這是一個非模組版本，可以直接通過 <script> 標籤引用
  */
 
 // ============================================================
-// æ ¼å¼åŒ–å·¥å…·
+// 格式化工具
 // ============================================================
 
 /**
- * æ•¸å­—æ ¼å¼åŒ–ï¼ˆå¸¶åƒåˆ†ä½ï¼‰
+ * 數字格式化（帶千分位）
  */
 function formatNumber(num, decimals = 2) {
     if (num === null || num === undefined || isNaN(num)) return '--';
@@ -19,7 +19,7 @@ function formatNumber(num, decimals = 2) {
 }
 
 /**
- * åƒ¹æ ¼æ ¼å¼åŒ–
+ * 價格格式化
  */
 function formatPrice(price, currency = 'USD') {
     if (price === null || price === undefined) return '--';
@@ -28,7 +28,7 @@ function formatPrice(price, currency = 'USD') {
 }
 
 /**
- * ç™¾åˆ†æ¯”æ ¼å¼åŒ–
+ * 百分比格式化
  */
 function formatPercent(value, showSign = true) {
     if (value === null || value === undefined || isNaN(value)) return '--';
@@ -37,7 +37,7 @@ function formatPercent(value, showSign = true) {
 }
 
 /**
- * æ—¥æœŸæ ¼å¼åŒ–
+ * 日期格式化
  */
 function formatDate(dateStr, format = 'short') {
     if (!dateStr) return '--';
@@ -61,7 +61,7 @@ function formatDate(dateStr, format = 'short') {
 }
 
 /**
- * å¤§æ•¸å­—ç¸®å¯«
+ * 大數字縮寫
  */
 function formatLargeNumber(num) {
     if (num === null || num === undefined || isNaN(num)) return '--';
@@ -74,7 +74,7 @@ function formatLargeNumber(num) {
 }
 
 /**
- * è‚¡æ•¸æ ¼å¼åŒ–ï¼ˆå°è‚¡ç”¨å¼µï¼‰
+ * 股數格式化（台股用張）
  */
 function formatShares(shares, market = 'us') {
     if (shares === null || shares === undefined) return '--';
@@ -82,18 +82,18 @@ function formatShares(shares, market = 'us') {
         const lots = Math.floor(shares / 1000);
         const odd = shares % 1000;
         if (lots > 0 && odd > 0) {
-            return `${lots} å¼µ ${odd} è‚¡`;
+            return `${lots} 張 ${odd} 股`;
         } else if (lots > 0) {
-            return `${lots} å¼µ`;
+            return `${lots} 張`;
         } else {
-            return `${odd} è‚¡`;
+            return `${odd} 股`;
         }
     }
-    return shares.toLocaleString() + ' è‚¡';
+    return shares.toLocaleString() + ' 股';
 }
 
 /**
- * æ¼²è·Œæ¨£å¼ class
+ * 漲跌樣式 class
  */
 function getChangeClass(value) {
     if (value > 0) return 'text-green-600';
@@ -102,20 +102,20 @@ function getChangeClass(value) {
 }
 
 /**
- * æ¼²è·Œåœ–ç¤º
+ * 漲跌圖示
  */
 function getChangeIcon(value) {
-    if (value > 0) return 'â–²';
-    if (value < 0) return 'â–¼';
-    return 'â€”';
+    if (value > 0) return '▲';
+    if (value < 0) return '▼';
+    return '—';
 }
 
 // ============================================================
-// é˜²æŠ–èˆ‡ç¯€æµ
+// 防抖與節流
 // ============================================================
 
 /**
- * é˜²æŠ–å‡½æ•¸
+ * 防抖函數
  */
 function debounce(func, wait = 300) {
     let timeout;
@@ -130,7 +130,7 @@ function debounce(func, wait = 300) {
 }
 
 /**
- * ç¯€æµå‡½æ•¸
+ * 節流函數
  */
 function throttle(func, limit = 300) {
     let inThrottle;
@@ -144,7 +144,7 @@ function throttle(func, limit = 300) {
 }
 
 // ============================================================
-// LocalStorage å°è£
+// LocalStorage 封裝
 // ============================================================
 
 const storage = {
@@ -180,11 +180,11 @@ const storage = {
 };
 
 // ============================================================
-// æª”æ¡ˆè™•ç†
+// 檔案處理
 // ============================================================
 
 /**
- * è§£æž CSV æª”æ¡ˆ
+ * 解析 CSV 檔案
  */
 function parseCSV(content) {
     const lines = content.split('\n').filter(l => l.trim());
@@ -206,7 +206,7 @@ function parseCSV(content) {
 }
 
 /**
- * è§£æž JSON æª”æ¡ˆ
+ * 解析 JSON 檔案
  */
 function parseJSON(content) {
     try {
@@ -219,7 +219,7 @@ function parseJSON(content) {
 }
 
 /**
- * é è¦½æª”æ¡ˆå…§å®¹
+ * 預覽檔案內容
  */
 function previewFile(file, callback) {
     const reader = new FileReader();
@@ -236,9 +236,9 @@ function previewFile(file, callback) {
         callback(items, null);
     };
     reader.onerror = function() {
-        callback(null, new Error('æª”æ¡ˆè®€å–å¤±æ•—'));
+        callback(null, new Error('檔案讀取失敗'));
     };
     reader.readAsText(file);
 }
 
-console.log('SELA å·¥å…·å‡½æ•¸åº«å·²è¼‰å…¥');
+console.log('SELA 工具函數庫已載入');

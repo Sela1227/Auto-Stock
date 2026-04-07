@@ -1,9 +1,9 @@
 """
-æ¨™ç±¤ç®¡ç† API è·¯ç”±
+標籤管理 API 路由
 ==================
-è¿½è¹¤æ¸…å–®åˆ†çµ„ Tag åŠŸèƒ½
+追蹤清單分組 Tag 功能
 
-P1 åŠŸèƒ½
+P1 功能
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +20,7 @@ from app.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/tags", tags=["æ¨™ç±¤ç®¡ç†"])
+router = APIRouter(prefix="/api/tags", tags=["標籤管理"])
 
 
 # ============================================================
@@ -41,19 +41,19 @@ class TagUpdate(BaseModel):
 
 
 class WatchlistTagAssign(BaseModel):
-    tag_ids: List[int] = Field(..., description="æ¨™ç±¤ ID åˆ—è¡¨")
+    tag_ids: List[int] = Field(..., description="標籤 ID 列表")
 
 
 # ============================================================
-# æ¨™ç±¤ CRUD
+# 標籤 CRUD
 # ============================================================
 
-@router.get("", summary="å–å¾—æˆ‘çš„æ¨™ç±¤")
+@router.get("", summary="取得我的標籤")
 async def get_my_tags(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """å–å¾—ç”¨æˆ¶çš„æ‰€æœ‰æ¨™ç±¤"""
+    """取得用戶的所有標籤"""
     stmt = (
         select(UserTag)
         .where(UserTag.user_id == user.id)
@@ -69,31 +69,31 @@ async def get_my_tags(
     }
 
 
-@router.post("", summary="å»ºç«‹æ¨™ç±¤")
+@router.post("", summary="建立標籤")
 async def create_tag(
     data: TagCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """å»ºç«‹æ–°æ¨™ç±¤"""
-    # æª¢æŸ¥æ˜¯å¦è¶…éŽé™åˆ¶ (æœ€å¤š 20 å€‹)
+    """建立新標籤"""
+    # 檢查是否超過限制 (最多 20 個)
     count_stmt = select(UserTag).where(UserTag.user_id == user.id)
     count_result = await db.execute(count_stmt)
     existing_count = len(count_result.scalars().all())
     
     if existing_count >= 20:
-        raise HTTPException(status_code=400, detail="æœ€å¤šåªèƒ½å»ºç«‹ 20 å€‹æ¨™ç±¤")
+        raise HTTPException(status_code=400, detail="最多只能建立 20 個標籤")
     
-    # æª¢æŸ¥åç¨±æ˜¯å¦é‡è¤‡
+    # 檢查名稱是否重複
     check_stmt = select(UserTag).where(
         UserTag.user_id == user.id,
         UserTag.name == data.name
     )
     check_result = await db.execute(check_stmt)
     if check_result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="æ¨™ç±¤åç¨±å·²å­˜åœ¨")
+        raise HTTPException(status_code=400, detail="標籤名稱已存在")
     
-    # å»ºç«‹æ¨™ç±¤
+    # 建立標籤
     tag = UserTag(
         user_id=user.id,
         name=data.name,
@@ -105,23 +105,23 @@ async def create_tag(
     await db.commit()
     await db.refresh(tag)
     
-    logger.info(f"ç”¨æˆ¶ {user.id} å»ºç«‹æ¨™ç±¤: {tag.name}")
+    logger.info(f"用戶 {user.id} 建立標籤: {tag.name}")
     
     return {
         "success": True,
-        "message": "æ¨™ç±¤å·²å»ºç«‹",
+        "message": "標籤已建立",
         "data": tag.to_dict(),
     }
 
 
-@router.put("/{tag_id}", summary="æ›´æ–°æ¨™ç±¤")
+@router.put("/{tag_id}", summary="更新標籤")
 async def update_tag(
     tag_id: int,
     data: TagUpdate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """æ›´æ–°æ¨™ç±¤"""
+    """更新標籤"""
     stmt = select(UserTag).where(
         UserTag.id == tag_id,
         UserTag.user_id == user.id
@@ -130,9 +130,9 @@ async def update_tag(
     tag = result.scalar_one_or_none()
     
     if not tag:
-        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°æ¨™ç±¤")
+        raise HTTPException(status_code=404, detail="找不到標籤")
     
-    # æª¢æŸ¥åç¨±æ˜¯å¦èˆ‡å…¶ä»–æ¨™ç±¤é‡è¤‡
+    # 檢查名稱是否與其他標籤重複
     if data.name and data.name != tag.name:
         check_stmt = select(UserTag).where(
             UserTag.user_id == user.id,
@@ -141,9 +141,9 @@ async def update_tag(
         )
         check_result = await db.execute(check_stmt)
         if check_result.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="æ¨™ç±¤åç¨±å·²å­˜åœ¨")
+            raise HTTPException(status_code=400, detail="標籤名稱已存在")
     
-    # æ›´æ–°æ¬„ä½
+    # 更新欄位
     if data.name is not None:
         tag.name = data.name
     if data.color is not None:
@@ -158,18 +158,18 @@ async def update_tag(
     
     return {
         "success": True,
-        "message": "æ¨™ç±¤å·²æ›´æ–°",
+        "message": "標籤已更新",
         "data": tag.to_dict(),
     }
 
 
-@router.delete("/{tag_id}", summary="åˆªé™¤æ¨™ç±¤")
+@router.delete("/{tag_id}", summary="刪除標籤")
 async def delete_tag(
     tag_id: int,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """åˆªé™¤æ¨™ç±¤"""
+    """刪除標籤"""
     stmt = select(UserTag).where(
         UserTag.id == tag_id,
         UserTag.user_id == user.id
@@ -178,39 +178,39 @@ async def delete_tag(
     tag = result.scalar_one_or_none()
     
     if not tag:
-        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°æ¨™ç±¤")
+        raise HTTPException(status_code=404, detail="找不到標籤")
     
-    # åˆªé™¤é—œè¯å’Œæ¨™ç±¤
+    # 刪除關聯和標籤
     await db.execute(
         delete(watchlist_tags).where(watchlist_tags.c.tag_id == tag_id)
     )
     await db.delete(tag)
     await db.commit()
     
-    logger.info(f"ç”¨æˆ¶ {user.id} åˆªé™¤æ¨™ç±¤: {tag.name}")
+    logger.info(f"用戶 {user.id} 刪除標籤: {tag.name}")
     
     return {
         "success": True,
-        "message": "æ¨™ç±¤å·²åˆªé™¤",
+        "message": "標籤已刪除",
     }
 
 
-@router.post("/init-defaults", summary="åˆå§‹åŒ–é è¨­æ¨™ç±¤")
+@router.post("/init-defaults", summary="初始化預設標籤")
 async def init_default_tags(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """åˆå§‹åŒ–é è¨­æ¨™ç±¤ï¼ˆåƒ…é™ç„¡æ¨™ç±¤æ™‚ï¼‰"""
-    # æª¢æŸ¥æ˜¯å¦å·²æœ‰æ¨™ç±¤
+    """初始化預設標籤（僅限無標籤時）"""
+    # 檢查是否已有標籤
     check_stmt = select(UserTag).where(UserTag.user_id == user.id)
     check_result = await db.execute(check_stmt)
     if check_result.scalars().first():
         return {
             "success": False,
-            "message": "å·²æœ‰æ¨™ç±¤å­˜åœ¨ï¼Œç„¡æ³•åˆå§‹åŒ–",
+            "message": "已有標籤存在，無法初始化",
         }
     
-    # å»ºç«‹é è¨­æ¨™ç±¤
+    # 建立預設標籤
     for i, tag_data in enumerate(DEFAULT_TAGS):
         tag = UserTag(
             user_id=user.id,
@@ -225,22 +225,22 @@ async def init_default_tags(
     
     return {
         "success": True,
-        "message": f"å·²å»ºç«‹ {len(DEFAULT_TAGS)} å€‹é è¨­æ¨™ç±¤",
+        "message": f"已建立 {len(DEFAULT_TAGS)} 個預設標籤",
     }
 
 
 # ============================================================
-# è¿½è¹¤é …ç›®æ¨™ç±¤ç®¡ç†
+# 追蹤項目標籤管理
 # ============================================================
 
-@router.get("/watchlist/{watchlist_id}", summary="å–å¾—è¿½è¹¤é …ç›®çš„æ¨™ç±¤")
+@router.get("/watchlist/{watchlist_id}", summary="取得追蹤項目的標籤")
 async def get_watchlist_tags(
     watchlist_id: int,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """å–å¾—è¿½è¹¤é …ç›®çš„æ¨™ç±¤"""
-    # ç¢ºèªè¿½è¹¤é …ç›®å±¬æ–¼ç”¨æˆ¶
+    """取得追蹤項目的標籤"""
+    # 確認追蹤項目屬於用戶
     watchlist_stmt = select(Watchlist).where(
         Watchlist.id == watchlist_id,
         Watchlist.user_id == user.id
@@ -249,9 +249,9 @@ async def get_watchlist_tags(
     watchlist = watchlist_result.scalar_one_or_none()
     
     if not watchlist:
-        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è¿½è¹¤é …ç›®")
+        raise HTTPException(status_code=404, detail="找不到追蹤項目")
     
-    # å–å¾—é—œè¯çš„æ¨™ç±¤
+    # 取得關聯的標籤
     tags_stmt = (
         select(UserTag)
         .join(watchlist_tags, UserTag.id == watchlist_tags.c.tag_id)
@@ -268,15 +268,15 @@ async def get_watchlist_tags(
     }
 
 
-@router.put("/watchlist/{watchlist_id}", summary="è¨­å®šè¿½è¹¤é …ç›®çš„æ¨™ç±¤")
+@router.put("/watchlist/{watchlist_id}", summary="設定追蹤項目的標籤")
 async def set_watchlist_tags(
     watchlist_id: int,
     data: WatchlistTagAssign,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """è¨­å®šè¿½è¹¤é …ç›®çš„æ¨™ç±¤ï¼ˆè¦†è“‹ç¾æœ‰ï¼‰"""
-    # ç¢ºèªè¿½è¹¤é …ç›®å±¬æ–¼ç”¨æˆ¶
+    """設定追蹤項目的標籤（覆蓋現有）"""
+    # 確認追蹤項目屬於用戶
     watchlist_stmt = select(Watchlist).where(
         Watchlist.id == watchlist_id,
         Watchlist.user_id == user.id
@@ -285,9 +285,9 @@ async def set_watchlist_tags(
     watchlist = watchlist_result.scalar_one_or_none()
     
     if not watchlist:
-        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è¿½è¹¤é …ç›®")
+        raise HTTPException(status_code=404, detail="找不到追蹤項目")
     
-    # é©—è­‰æ¨™ç±¤éƒ½å±¬æ–¼ç”¨æˆ¶
+    # 驗證標籤都屬於用戶
     if data.tag_ids:
         tags_stmt = select(UserTag).where(
             UserTag.id.in_(data.tag_ids),
@@ -299,14 +299,14 @@ async def set_watchlist_tags(
         
         invalid_ids = set(data.tag_ids) - valid_tag_ids
         if invalid_ids:
-            raise HTTPException(status_code=400, detail=f"ç„¡æ•ˆçš„æ¨™ç±¤ ID: {invalid_ids}")
+            raise HTTPException(status_code=400, detail=f"無效的標籤 ID: {invalid_ids}")
     
-    # æ¸…é™¤ç¾æœ‰é—œè¯
+    # 清除現有關聯
     await db.execute(
         delete(watchlist_tags).where(watchlist_tags.c.watchlist_id == watchlist_id)
     )
     
-    # å»ºç«‹æ–°é—œè¯
+    # 建立新關聯
     if data.tag_ids:
         for tag_id in data.tag_ids:
             await db.execute(
@@ -320,21 +320,21 @@ async def set_watchlist_tags(
     
     return {
         "success": True,
-        "message": "æ¨™ç±¤å·²æ›´æ–°",
+        "message": "標籤已更新",
         "watchlist_id": watchlist_id,
         "tag_ids": data.tag_ids,
     }
 
 
-@router.post("/watchlist/{watchlist_id}/add/{tag_id}", summary="æ–°å¢žæ¨™ç±¤åˆ°è¿½è¹¤é …ç›®")
+@router.post("/watchlist/{watchlist_id}/add/{tag_id}", summary="新增標籤到追蹤項目")
 async def add_tag_to_watchlist(
     watchlist_id: int,
     tag_id: int,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """æ–°å¢žå–®ä¸€æ¨™ç±¤åˆ°è¿½è¹¤é …ç›®"""
-    # ç¢ºèªè¿½è¹¤é …ç›®å’Œæ¨™ç±¤éƒ½å±¬æ–¼ç”¨æˆ¶
+    """新增單一標籤到追蹤項目"""
+    # 確認追蹤項目和標籤都屬於用戶
     watchlist_stmt = select(Watchlist).where(
         Watchlist.id == watchlist_id,
         Watchlist.user_id == user.id
@@ -343,7 +343,7 @@ async def add_tag_to_watchlist(
     watchlist = watchlist_result.scalar_one_or_none()
     
     if not watchlist:
-        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è¿½è¹¤é …ç›®")
+        raise HTTPException(status_code=404, detail="找不到追蹤項目")
     
     tag_stmt = select(UserTag).where(
         UserTag.id == tag_id,
@@ -353,9 +353,9 @@ async def add_tag_to_watchlist(
     tag = tag_result.scalar_one_or_none()
     
     if not tag:
-        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°æ¨™ç±¤")
+        raise HTTPException(status_code=404, detail="找不到標籤")
     
-    # æª¢æŸ¥æ˜¯å¦å·²å­˜åœ¨
+    # 檢查是否已存在
     from sqlalchemy import text
     check = await db.execute(
         text("SELECT 1 FROM watchlist_tags WHERE watchlist_id = :wid AND tag_id = :tid"),
@@ -364,10 +364,10 @@ async def add_tag_to_watchlist(
     if check.scalar():
         return {
             "success": True,
-            "message": "æ¨™ç±¤å·²å­˜åœ¨",
+            "message": "標籤已存在",
         }
     
-    # æ–°å¢žé—œè¯
+    # 新增關聯
     await db.execute(
         watchlist_tags.insert().values(
             watchlist_id=watchlist_id,
@@ -378,28 +378,28 @@ async def add_tag_to_watchlist(
     
     return {
         "success": True,
-        "message": f"å·²æ–°å¢žæ¨™ç±¤ {tag.name}",
+        "message": f"已新增標籤 {tag.name}",
     }
 
 
-@router.delete("/watchlist/{watchlist_id}/remove/{tag_id}", summary="å¾žè¿½è¹¤é …ç›®ç§»é™¤æ¨™ç±¤")
+@router.delete("/watchlist/{watchlist_id}/remove/{tag_id}", summary="從追蹤項目移除標籤")
 async def remove_tag_from_watchlist(
     watchlist_id: int,
     tag_id: int,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """å¾žè¿½è¹¤é …ç›®ç§»é™¤æ¨™ç±¤"""
-    # ç¢ºèªè¿½è¹¤é …ç›®å±¬æ–¼ç”¨æˆ¶
+    """從追蹤項目移除標籤"""
+    # 確認追蹤項目屬於用戶
     watchlist_stmt = select(Watchlist).where(
         Watchlist.id == watchlist_id,
         Watchlist.user_id == user.id
     )
     watchlist_result = await db.execute(watchlist_stmt)
     if not watchlist_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è¿½è¹¤é …ç›®")
+        raise HTTPException(status_code=404, detail="找不到追蹤項目")
     
-    # ç§»é™¤é—œè¯
+    # 移除關聯
     await db.execute(
         delete(watchlist_tags).where(
             watchlist_tags.c.watchlist_id == watchlist_id,
@@ -410,26 +410,26 @@ async def remove_tag_from_watchlist(
     
     return {
         "success": True,
-        "message": "æ¨™ç±¤å·²ç§»é™¤",
+        "message": "標籤已移除",
     }
 
 
 # ============================================================
-# å–å¾—é¸é …
+# 取得選項
 # ============================================================
 
-@router.get("/options/colors", summary="å–å¾—é¡è‰²é¸é …")
+@router.get("/options/colors", summary="取得顏色選項")
 async def get_color_options():
-    """å–å¾—å¯ç”¨çš„æ¨™ç±¤é¡è‰²"""
+    """取得可用的標籤顏色"""
     return {
         "success": True,
         "colors": TAG_COLORS,
     }
 
 
-@router.get("/options/icons", summary="å–å¾—åœ–ç¤ºé¸é …")
+@router.get("/options/icons", summary="取得圖示選項")
 async def get_icon_options():
-    """å–å¾—å¯ç”¨çš„æ¨™ç±¤åœ–ç¤º"""
+    """取得可用的標籤圖示"""
     return {
         "success": True,
         "icons": TAG_ICONS,

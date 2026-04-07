@@ -1,12 +1,12 @@
 """
-è³‡æ–™åº«é€£ç·šèˆ‡ Session ç®¡ç†
-æ”¯æ´ SQLite (é–‹ç™¼) å’Œ PostgreSQL (ç”Ÿç”¢)
+資料庫連線與 Session 管理
+支援 SQLite (開發) 和 PostgreSQL (生產)
 
-ðŸ”§ ä¿®å¾©ç‰ˆæœ¬ - 2026-01-16
-æ–°å¢ž get_sync_db åˆ¥å
+🔧 修復版本 - 2026-01-16
+新增 get_sync_db 別名
 
-ðŸš€ æ•ˆèƒ½å„ªåŒ– - 2026-01-16
-æ–°å¢ž stock_prices æ­·å²è³‡æ–™è¡¨
+🚀 效能優化 - 2026-01-16
+新增 stock_prices 歷史資料表
 """
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
@@ -18,43 +18,43 @@ from app.config import settings
 
 
 def get_async_url(url: str) -> str:
-    """å°‡ä¸€èˆ¬çš„è³‡æ–™åº« URL è½‰æ›ç‚º async æ ¼å¼"""
+    """將一般的資料庫 URL 轉換為 async 格式"""
     if url.startswith("sqlite:///") and "+aiosqlite" not in url:
         return url.replace("sqlite:///", "sqlite+aiosqlite:///")
     elif url.startswith("postgresql://") and "+asyncpg" not in url:
         return url.replace("postgresql://", "postgresql+asyncpg://")
     elif url.startswith("postgres://"):
-        # Railway ä½¿ç”¨ postgres:// ä½† SQLAlchemy éœ€è¦ postgresql://
+        # Railway 使用 postgres:// 但 SQLAlchemy 需要 postgresql://
         return url.replace("postgres://", "postgresql+asyncpg://")
     return url
 
 
 def get_sync_url(url: str) -> str:
-    """ç¢ºä¿æ˜¯åŒæ­¥æ ¼å¼çš„ URL"""
+    """確保是同步格式的 URL"""
     url = url.replace("+aiosqlite", "").replace("+asyncpg", "")
-    # ä¿®æ­£ Railway çš„ postgres:// æ ¼å¼
+    # 修正 Railway 的 postgres:// 格式
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://")
     return url
 
 
 def is_postgres(url: str) -> bool:
-    """æª¢æŸ¥æ˜¯å¦ç‚º PostgreSQL"""
+    """檢查是否為 PostgreSQL"""
     return "postgresql" in url or "postgres" in url
 
 
-# å–å¾—è³‡æ–™åº« URL
+# 取得資料庫 URL
 database_url = settings.DATABASE_URL
 
-# éžåŒæ­¥å¼•æ“Ž (FastAPI ç”¨)
+# 非同步引擎 (FastAPI 用)
 async_database_url = get_async_url(database_url)
 
-# PostgreSQL éœ€è¦ç‰¹åˆ¥çš„é€£ç·šæ± è¨­å®š
+# PostgreSQL 需要特別的連線池設定
 if is_postgres(database_url):
     async_engine = create_async_engine(
         async_database_url,
         echo=settings.DEBUG,
-        poolclass=NullPool,  # Railway å»ºè­°ä½¿ç”¨ NullPool
+        poolclass=NullPool,  # Railway 建議使用 NullPool
     )
 else:
     async_engine = create_async_engine(
@@ -62,14 +62,14 @@ else:
         echo=settings.DEBUG,
     )
 
-# éžåŒæ­¥ Session
+# 非同步 Session
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,
     class_=AsyncSession,
     expire_on_commit=False,
 )
 
-# åŒæ­¥å¼•æ“Ž (CLI ç”¨)
+# 同步引擎 (CLI 用)
 sync_database_url = get_sync_url(database_url)
 
 if is_postgres(database_url):
@@ -85,18 +85,18 @@ else:
     )
 
 # ============================================================
-# ðŸ†• è‡ªå‹•è³‡æ–™åº«é·ç§»
+# 🆕 自動資料庫遷移
 # ============================================================
 def run_auto_migrations():
-    """å•Ÿå‹•æ™‚è‡ªå‹•åŸ·è¡Œè³‡æ–™åº«é·ç§»"""
+    """啟動時自動執行資料庫遷移"""
     migrations = [
-        # 2026-01-14: MA20 æŽ’åºåŠŸèƒ½
+        # 2026-01-14: MA20 排序功能
         {
             "name": "add_ma20_to_price_cache",
             "check_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='stock_price_cache' AND column_name='ma20'",
             "migrate_sql": "ALTER TABLE stock_price_cache ADD COLUMN ma20 NUMERIC(12, 4)",
         },
-        # 2026-01-14: è¨‚é–±ç²¾é¸åŠŸèƒ½ - è¨‚é–±æºè¡¨
+        # 2026-01-14: 訂閱精選功能 - 訂閱源表
         {
             "name": "create_subscription_sources",
             "check_sql": "SELECT table_name FROM information_schema.tables WHERE table_name='subscription_sources'",
@@ -114,7 +114,7 @@ def run_auto_migrations():
                 )
             """,
         },
-        # 2026-01-14: è¨‚é–±ç²¾é¸åŠŸèƒ½ - è‡ªå‹•ç²¾é¸è¡¨
+        # 2026-01-14: 訂閱精選功能 - 自動精選表
         {
             "name": "create_auto_picks",
             "check_sql": "SELECT table_name FROM information_schema.tables WHERE table_name='auto_picks'",
@@ -135,7 +135,7 @@ def run_auto_migrations():
                 )
             """,
         },
-        # 2026-01-14: è¨‚é–±ç²¾é¸åŠŸèƒ½ - ç”¨æˆ¶è¨‚é–±è¡¨
+        # 2026-01-14: 訂閱精選功能 - 用戶訂閱表
         {
             "name": "create_user_subscriptions",
             "check_sql": "SELECT table_name FROM information_schema.tables WHERE table_name='user_subscriptions'",
@@ -149,7 +149,7 @@ def run_auto_migrations():
                 )
             """,
         },
-        # 2026-01-15: P1 ç›®æ¨™åƒ¹åŠŸèƒ½
+        # 2026-01-15: P1 目標價功能
         {
             "name": "add_target_price_to_watchlists",
             "check_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='watchlists' AND column_name='target_price'",
@@ -161,7 +161,7 @@ def run_auto_migrations():
                 "migrate_sql": "ALTER TABLE watchlists ADD COLUMN target_direction VARCHAR(10) DEFAULT 'above'",
             },
         # ============================================================
-        # ðŸš€ 2026-01-16: è‚¡ç¥¨æ­·å²è³‡æ–™å¿«å–è¡¨ï¼ˆæ•ˆèƒ½å„ªåŒ–ï¼‰
+        # 🚀 2026-01-16: 股票歷史資料快取表（效能優化）
         # ============================================================
         {
             "name": "create_stock_prices",
@@ -192,7 +192,7 @@ def run_auto_migrations():
             "migrate_sql": "CREATE INDEX idx_stock_prices_date ON stock_prices(date)",
         },
 
-        # 2026-01-17: åˆ¸å•†åŠŸèƒ½
+        # 2026-01-17: 券商功能
         {
             "name": "create_brokers",
             "check_sql": "SELECT table_name FROM information_schema.tables WHERE table_name='brokers'",
@@ -226,24 +226,24 @@ def run_auto_migrations():
                     if not result:
                         conn.execute(text(migration["migrate_sql"]))
                         conn.commit()
-                        print(f"âœ… Migration: {migration['name']} completed")
+                        print(f"✅ Migration: {migration['name']} completed")
                 except Exception as e:
-                    print(f"âš ï¸ Migration {migration['name']} skipped: {e}")
+                    print(f"⚠️ Migration {migration['name']} skipped: {e}")
     except Exception as e:
-        print(f"âš ï¸ Auto migration warning: {e}")
+        print(f"⚠️ Auto migration warning: {e}")
 
-# å•Ÿå‹•æ™‚åŸ·è¡Œé·ç§»
+# 啟動時執行遷移
 run_auto_migrations()
 # ============================================================
 
-# åŒæ­¥ Session
+# 同步 Session
 SyncSessionLocal = sessionmaker(
     bind=sync_engine,
     autocommit=False,
     autoflush=False,
 )
 
-# ç‚ºäº†å‘å¾Œç›¸å®¹ï¼Œä¿ç•™ SessionLocal åˆ¥å
+# 為了向後相容，保留 SessionLocal 別名
 SessionLocal = SyncSessionLocal
 
 # ORM Base
@@ -251,7 +251,7 @@ Base = declarative_base()
 
 
 async def get_async_session():
-    """FastAPI ä¾è³´æ³¨å…¥ç”¨"""
+    """FastAPI 依賴注入用"""
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -260,7 +260,7 @@ async def get_async_session():
 
 
 def get_sync_session():
-    """CLI ç”¨åŒæ­¥ Session"""
+    """CLI 用同步 Session"""
     session = SyncSessionLocal()
     try:
         return session
@@ -270,19 +270,19 @@ def get_sync_session():
 
 
 async def init_db():
-    """åˆå§‹åŒ–è³‡æ–™åº«ï¼ˆå»ºç«‹æ‰€æœ‰è¡¨æ ¼ï¼‰"""
+    """初始化資料庫（建立所有表格）"""
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
 def init_db_sync():
-    """åŒæ­¥åˆå§‹åŒ–è³‡æ–™åº«"""
+    """同步初始化資料庫"""
     Base.metadata.create_all(bind=sync_engine)
 
 
-# FastAPI ä¾è³´æ³¨å…¥ç”¨ï¼ˆåŒæ­¥ç‰ˆæœ¬ï¼Œç”¨æ–¼æŸäº› APIï¼‰
+# FastAPI 依賴注入用（同步版本，用於某些 API）
 def get_db():
-    """FastAPI ä¾è³´æ³¨å…¥ç”¨ï¼ˆåŒæ­¥ Sessionï¼‰"""
+    """FastAPI 依賴注入用（同步 Session）"""
     db = SyncSessionLocal()
     try:
         yield db
@@ -291,6 +291,6 @@ def get_db():
 
 
 # ============================================================
-# ðŸ†• æ–°å¢žåˆ¥å - ä¿®å¾© stock.py ImportError
+# 🆕 新增別名 - 修復 stock.py ImportError
 # ============================================================
 get_sync_db = get_db

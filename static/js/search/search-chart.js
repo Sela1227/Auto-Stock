@@ -1,41 +1,41 @@
 /**
- * æœå°‹åœ–è¡¨æ¨¡çµ„ (P2 æ‹†åˆ†)
+ * 搜尋圖表模組 (P2 拆分)
  * 
- * è·è²¬ï¼š
- * - å…¨èž¢å¹•åœ–è¡¨
- * - æˆäº¤é‡åœ–è¡¨
- * - åœ–è¡¨äº’å‹•
+ * 職責：
+ * - 全螢幕圖表
+ * - 成交量圖表
+ * - 圖表互動
  * 
- * ä¾è³´ï¼šcore.js, Chart.js
+ * 依賴：core.js, Chart.js
  */
 
 (function() {
     'use strict';
 
     // ============================================================
-    // ç§æœ‰è®Šæ•¸
+    // 私有變數
     // ============================================================
 
     let fullscreenChartInstance = null;
     let volumeChartInstance = null;
 
     // ============================================================
-    // å…¨èž¢å¹•åœ–è¡¨
+    // 全螢幕圖表
     // ============================================================
 
     function openChartFullscreen(symbol, currentPrice) {
         const chartData = window.currentChartData;
         if (!chartData) {
-            showToast('ç„¡åœ–è¡¨è³‡æ–™');
+            showToast('無圖表資料');
             return;
         }
 
         const modal = $('chartFullscreenModal');
         if (!modal) return;
 
-        // æ›´æ–°æ¨™é¡Œ
+        // 更新標題
         const title = $('chartModalTitle');
-        if (title) title.textContent = `${symbol} æŠ€è¡“åˆ†æž`;
+        if (title) title.textContent = `${symbol} 技術分析`;
 
         const priceEl = $('chartModalPrice');
         if (priceEl) priceEl.textContent = `$${currentPrice?.toLocaleString() || '--'}`;
@@ -43,7 +43,7 @@
         modal.classList.remove('hidden');
         modal.classList.add('flex');
 
-        // é è¨­é¡¯ç¤º 60 å¤©
+        // 預設顯示 60 天
         setTimeout(() => renderFullscreenChart(chartData, 60), 100);
     }
 
@@ -68,7 +68,7 @@
         const chartData = window.currentChartData;
         if (!chartData) return;
 
-        // æ›´æ–°æŒ‰éˆ•ç‹€æ…‹
+        // 更新按鈕狀態
         document.querySelectorAll('.chart-range-btn').forEach(btn => {
             btn.classList.remove('bg-blue-600', 'text-white');
             btn.classList.add('bg-gray-100', 'text-gray-700');
@@ -82,7 +82,7 @@
     }
 
     // ============================================================
-    // æ¸²æŸ“å…¨èž¢å¹•åœ–è¡¨
+    // 渲染全螢幕圖表
     // ============================================================
 
     function renderFullscreenChart(chartData, days = 60) {
@@ -97,7 +97,7 @@
         const dataLength = chartData.dates.length;
         const startIdx = Math.max(0, dataLength - days);
 
-        // æ—¥æœŸæ ¼å¼åŒ–
+        // 日期格式化
         const formatDate = (d) => {
             if (days <= 30) return d.slice(5);
             if (days <= 130) return d.slice(5);
@@ -112,7 +112,7 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'æ”¶ç›¤åƒ¹',
+                        label: '收盤價',
                         data: chartData.prices.slice(startIdx),
                         borderColor: '#3B82F6',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -184,21 +184,21 @@
             }
         });
 
-        // æ¸²æŸ“æˆäº¤é‡åœ–è¡¨
+        // 渲染成交量圖表
         if (chartData.volumes && chartData.volumes.length > 0) {
             renderVolumeChart(chartData, days, labels);
         }
     }
 
     // ============================================================
-    // æ¸²æŸ“æˆäº¤é‡åœ–è¡¨
+    // 渲染成交量圖表
     // ============================================================
 
     function renderVolumeChart(chartData, days, labels) {
         const volumeCanvas = $('volumeChart');
         if (!volumeCanvas) return;
 
-        // é¡¯ç¤ºæˆäº¤é‡å®¹å™¨
+        // 顯示成交量容器
         const volumeContainer = $('volumeChartContainer');
         if (volumeContainer) {
             volumeContainer.classList.remove('hidden');
@@ -215,13 +215,13 @@
         const volumes = chartData.volumes.slice(startIdx);
         const prices = chartData.prices.slice(startIdx);
 
-        // è¨ˆç®—æ¯æ ¹æŸ±å­çš„é¡è‰²ï¼ˆæ¼²ç¶ è·Œç´…ï¼‰
+        // 計算每根柱子的顏色（漲綠跌紅）
         const barColors = prices.map((price, i) => {
             if (i === 0) return 'rgba(156, 163, 175, 0.6)';
             return price >= prices[i - 1] ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
         });
 
-        // è¨ˆç®— 20 æ—¥å‡é‡
+        // 計算 20 日均量
         const avgVolumes = [];
         for (let i = 0; i < volumes.length; i++) {
             if (i < 19) {
@@ -238,14 +238,14 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'æˆäº¤é‡',
+                        label: '成交量',
                         data: volumes,
                         backgroundColor: barColors,
                         borderWidth: 0,
                         barPercentage: 0.8,
                     },
                     {
-                        label: '20æ—¥å‡é‡',
+                        label: '20日均量',
                         data: avgVolumes,
                         type: 'line',
                         borderColor: '#F59E0B',
@@ -300,7 +300,7 @@
     }
 
     // ============================================================
-    // å¹´åŒ–å ±é…¬çŽ‡ Modal
+    // 年化報酬率 Modal
     // ============================================================
 
     async function loadReturnsModal(symbol) {
@@ -314,7 +314,7 @@
         content.innerHTML = `
             <div class="text-center py-8">
                 <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
-                <p class="mt-2 text-gray-500">è¼‰å…¥ä¸­...</p>
+                <p class="mt-2 text-gray-500">載入中...</p>
             </div>
         `;
 
@@ -323,7 +323,7 @@
             const data = await res.json();
 
             if (!data.success) {
-                content.innerHTML = `<p class="text-center text-red-500">${data.detail || 'è¼‰å…¥å¤±æ•—'}</p>`;
+                content.innerHTML = `<p class="text-center text-red-500">${data.detail || '載入失敗'}</p>`;
                 return;
             }
 
@@ -331,7 +331,7 @@
 
         } catch (e) {
             console.error('Returns error:', e);
-            content.innerHTML = `<p class="text-center text-red-500">è¼‰å…¥å¤±æ•—: ${e.message}</p>`;
+            content.innerHTML = `<p class="text-center text-red-500">載入失敗: ${e.message}</p>`;
         }
     }
 
@@ -340,17 +340,17 @@
         const cagr = data.cagr || {};
 
         const html = `
-            <h4 class="font-semibold text-lg mb-4">${data.symbol} æ­·å²å ±é…¬çŽ‡</h4>
+            <h4 class="font-semibold text-lg mb-4">${data.symbol} 歷史報酬率</h4>
             
             <div class="space-y-4">
                 <div>
-                    <p class="text-sm text-gray-500 mb-2">ç´¯ç©å ±é…¬çŽ‡</p>
+                    <p class="text-sm text-gray-500 mb-2">累積報酬率</p>
                     <div class="grid grid-cols-4 gap-2 text-center">
                         ${['1m', '3m', '6m', '1y'].map(period => {
                             const val = returns[period];
                             const bgClass = val > 0 ? 'bg-green-50' : val < 0 ? 'bg-red-50' : 'bg-gray-50';
                             const textClass = val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-600';
-                            const label = period === '1m' ? '1æœˆ' : period === '3m' ? '3æœˆ' : period === '6m' ? '6æœˆ' : '1å¹´';
+                            const label = period === '1m' ? '1月' : period === '3m' ? '3月' : period === '6m' ? '6月' : '1年';
                             return `
                                 <div class="p-2 rounded ${bgClass}">
                                     <p class="text-xs text-gray-500">${label}</p>
@@ -362,13 +362,13 @@
                 </div>
                 
                 <div>
-                    <p class="text-sm text-gray-500 mb-2">å¹´åŒ–å ±é…¬çŽ‡ (CAGR)</p>
+                    <p class="text-sm text-gray-500 mb-2">年化報酬率 (CAGR)</p>
                     <div class="grid grid-cols-4 gap-2 text-center">
                         ${['1y', '3y', '5y', '10y'].map(period => {
                             const val = cagr[`cagr_${period}`];
                             const bgClass = val > 0 ? 'bg-green-50' : val < 0 ? 'bg-red-50' : 'bg-gray-50';
                             const textClass = val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-600';
-                            const label = period.replace('y', 'å¹´');
+                            const label = period.replace('y', '年');
                             return `
                                 <div class="p-2 rounded ${bgClass}">
                                     <p class="text-xs text-gray-500">${label}</p>
@@ -380,7 +380,7 @@
                 </div>
                 
                 <p class="text-xs text-gray-400 text-center">
-                    CAGR = å¹´åŒ–è¤‡åˆæˆé•·çŽ‡ï¼Œå·²åŒ…å«é…æ¯å†æŠ•å…¥çš„è¤‡åˆ©æ•ˆæžœ
+                    CAGR = 年化複合成長率，已包含配息再投入的複利效果
                 </p>
             </div>
         `;
@@ -397,10 +397,10 @@
     }
 
     // ============================================================
-    // å°Žå‡º
+    // 導出
     // ============================================================
 
-    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    // 掛載到 SELA 命名空間
     if (window.SELA && window.SELA.search) {
         Object.assign(window.SELA.search, {
             openChartFullscreen,
@@ -411,7 +411,7 @@
         });
     }
 
-    // å…¨åŸŸå°Žå‡ºï¼ˆå‘å¾Œå…¼å®¹ï¼‰
+    // 全域導出（向後兼容）
     window.openChartFullscreen = openChartFullscreen;
     window.closeChartFullscreen = closeChartFullscreen;
     window.setChartRange = setChartRange;
@@ -420,5 +420,5 @@
     window.loadReturnsModal = loadReturnsModal;
     window.closeReturnsModal = closeReturnsModal;
 
-    console.log('ðŸ“Š search-chart.js åœ–è¡¨æ¨¡çµ„å·²è¼‰å…¥');
+    console.log('📊 search-chart.js 圖表模組已載入');
 })();

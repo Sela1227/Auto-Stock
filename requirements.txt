@@ -17,7 +17,7 @@ requests>=2.31.0
 # Data Processing
 pandas>=2.2.0
 numpy>=1.26.0
-# pandas-ta>=0.3.14b  # å·²åœ¨ indicator_service.py æ‰‹å‹•å¯¦ä½œæŒ‡æ¨™è¨ˆç®—
+# pandas-ta>=0.3.14b  # 已在 indicator_service.py 手動實作指標計算
 
 # Chart Generation
 matplotlib>=3.8.0
@@ -30,7 +30,7 @@ httpx>=0.26.0
 # Utilities
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
-rich>=13.7.0  # CLI ç¾ŽåŒ–è¼¸å‡º
+rich>=13.7.0  # CLI 美化輸出
 
 # Testing
 pytest>=8.0.0

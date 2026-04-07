@@ -1,6 +1,6 @@
 """
-åŒ¯çŽ‡æœå‹™
-å¾ž Yahoo Finance æŠ“å– USD/TWD åŒ¯çŽ‡
+匯率服務
+從 Yahoo Finance 抓取 USD/TWD 匯率
 """
 import logging
 from datetime import datetime
@@ -15,54 +15,54 @@ from app.models.portfolio import ExchangeRate
 
 logger = logging.getLogger(__name__)
 
-# é è¨­åŒ¯çŽ‡
+# 預設匯率
 DEFAULT_USD_TWD_RATE = 32.5
 
 
 def fetch_usd_twd_rate() -> Optional[float]:
     """
-    å¾ž Yahoo Finance æŠ“å– USD/TWD åŒ¯çŽ‡
-    è¿”å›ž None è¡¨ç¤ºæŠ“å–å¤±æ•—
+    從 Yahoo Finance 抓取 USD/TWD 匯率
+    返回 None 表示抓取失敗
     """
     try:
         ticker = yf.Ticker("TWD=X")
         data = ticker.history(period="1d")
         
         if data.empty:
-            logger.warning("ç„¡æ³•å–å¾— USD/TWD åŒ¯çŽ‡è³‡æ–™")
+            logger.warning("無法取得 USD/TWD 匯率資料")
             return None
         
         rate = float(data['Close'].iloc[-1])
-        logger.info(f"å–å¾— USD/TWD åŒ¯çŽ‡: {rate:.4f}")
+        logger.info(f"取得 USD/TWD 匯率: {rate:.4f}")
         return rate
         
     except Exception as e:
-        logger.error(f"æŠ“å– USD/TWD åŒ¯çŽ‡å¤±æ•—: {e}")
+        logger.error(f"抓取 USD/TWD 匯率失敗: {e}")
         return None
 
 
 def update_exchange_rate_sync(db: Session) -> float:
     """
-    åŒæ­¥æ›´æ–°åŒ¯çŽ‡ï¼ˆä¾›æŽ’ç¨‹ä½¿ç”¨ï¼‰
-    è¿”å›žç•¶å‰åŒ¯çŽ‡
+    同步更新匯率（供排程使用）
+    返回當前匯率
     """
     rate = fetch_usd_twd_rate()
     
     if rate is None:
-        # æŠ“å–å¤±æ•—ï¼Œä½¿ç”¨ç¾æœ‰åŒ¯çŽ‡æˆ–é è¨­å€¼
+        # 抓取失敗，使用現有匯率或預設值
         existing = db.query(ExchangeRate).filter_by(
             from_currency="USD",
             to_currency="TWD"
         ).first()
         
         if existing:
-            logger.info(f"ä½¿ç”¨ç¾æœ‰åŒ¯çŽ‡: {existing.rate}")
+            logger.info(f"使用現有匯率: {existing.rate}")
             return existing.rate
         else:
-            logger.info(f"ä½¿ç”¨é è¨­åŒ¯çŽ‡: {DEFAULT_USD_TWD_RATE}")
+            logger.info(f"使用預設匯率: {DEFAULT_USD_TWD_RATE}")
             return DEFAULT_USD_TWD_RATE
     
-    # æ›´æ–°æˆ–æ–°å¢žåŒ¯çŽ‡
+    # 更新或新增匯率
     existing = db.query(ExchangeRate).filter_by(
         from_currency="USD",
         to_currency="TWD"
@@ -80,13 +80,13 @@ def update_exchange_rate_sync(db: Session) -> float:
         db.add(new_rate)
     
     db.commit()
-    logger.info(f"åŒ¯çŽ‡å·²æ›´æ–°: USD/TWD = {rate:.4f}")
+    logger.info(f"匯率已更新: USD/TWD = {rate:.4f}")
     return rate
 
 
 async def get_exchange_rate(db: AsyncSession) -> dict:
     """
-    å–å¾— USD/TWD åŒ¯çŽ‡
+    取得 USD/TWD 匯率
     """
     stmt = select(ExchangeRate).where(
         ExchangeRate.from_currency == "USD",
@@ -110,7 +110,7 @@ async def get_exchange_rate(db: AsyncSession) -> dict:
 
 async def set_exchange_rate(db: AsyncSession, rate: float) -> dict:
     """
-    æ‰‹å‹•è¨­å®šåŒ¯çŽ‡
+    手動設定匯率
     """
     stmt = select(ExchangeRate).where(
         ExchangeRate.from_currency == "USD",

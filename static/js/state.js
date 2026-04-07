@@ -1,81 +1,81 @@
 /**
- * SELA ç‹€æ…‹ç®¡ç†æ¨¡çµ„ (P1)
+ * SELA 狀態管理模組 (P1)
  * 
- * åŠŸèƒ½ï¼š
- * 1. é›†ä¸­ç®¡ç†æ‡‰ç”¨ç‹€æ…‹
- * 2. ç‹€æ…‹è®ŠåŒ–äº‹ä»¶é€šçŸ¥
- * 3. è·¨æ¨¡çµ„è³‡æ–™åŒæ­¥
+ * 功能：
+ * 1. 集中管理應用狀態
+ * 2. 狀態變化事件通知
+ * 3. 跨模組資料同步
  * 
- * è¼‰å…¥é †åºï¼šutils.js â†’ core.js â†’ state.js â†’ å…¶ä»–æ¨¡çµ„
+ * 載入順序：utils.js → core.js → state.js → 其他模組
  */
 
 (function() {
     'use strict';
 
     // ============================================================
-    // ç‹€æ…‹ç®¡ç†æ ¸å¿ƒ
+    // 狀態管理核心
     // ============================================================
 
     const AppState = {
-        // ----- ç”¨æˆ¶ç‹€æ…‹ -----
+        // ----- 用戶狀態 -----
         user: null,
         isAdmin: false,
         
-        // ----- å°Žèˆªç‹€æ…‹ -----
+        // ----- 導航狀態 -----
         currentSection: 'dashboard',
         previousSection: null,
         
-        // ----- è‚¡ç¥¨ç›¸é—œ -----
-        currentStock: null,        // ç›®å‰æŸ¥çœ‹çš„è‚¡ç¥¨
-        searchHistory: [],         // æœå°‹æ­·å² (æœ€å¤š 10 ç­†)
+        // ----- 股票相關 -----
+        currentStock: null,        // 目前查看的股票
+        searchHistory: [],         // 搜尋歷史 (最多 10 筆)
         
-        // ----- è¿½è¹¤æ¸…å–® -----
-        watchlist: [],             // è¿½è¹¤æ¸…å–®
-        watchlistLoaded: false,    // æ˜¯å¦å·²è¼‰å…¥
+        // ----- 追蹤清單 -----
+        watchlist: [],             // 追蹤清單
+        watchlistLoaded: false,    // 是否已載入
         
-        // ----- æŒè‚¡ -----
+        // ----- 持股 -----
         portfolio: {
-            tw: [],                // å°è‚¡æŒè‚¡
-            us: [],                // ç¾Žè‚¡æŒè‚¡
-            summary: null          // ç¸½è¦½
+            tw: [],                // 台股持股
+            us: [],                // 美股持股
+            summary: null          // 總覽
         },
         portfolioLoaded: false,
         
-        // ----- æ¨™ç±¤ -----
+        // ----- 標籤 -----
         tags: [],
         tagsLoaded: false,
         
-        // ----- å¸‚å ´è³‡æ–™ -----
-        indices: {},               // æŒ‡æ•¸è³‡æ–™
-        sentiment: null,           // å¸‚å ´æƒ…ç·’
-        btcPrice: null,            // BTC åƒ¹æ ¼
+        // ----- 市場資料 -----
+        indices: {},               // 指數資料
+        sentiment: null,           // 市場情緒
+        btcPrice: null,            // BTC 價格
         
-        // ----- UI ç‹€æ…‹ -----
+        // ----- UI 狀態 -----
         isMobileSidebarOpen: false,
         activeModal: null,
         isLoading: false,
         
-        // ----- äº‹ä»¶ç³»çµ± -----
+        // ----- 事件系統 -----
         _listeners: new Map(),
         
         /**
-         * è¨­ç½®ç‹€æ…‹ä¸¦è§¸ç™¼äº‹ä»¶
-         * @param {string} key - ç‹€æ…‹éµ
-         * @param {any} value - æ–°å€¼
+         * 設置狀態並觸發事件
+         * @param {string} key - 狀態鍵
+         * @param {any} value - 新值
          */
         set(key, value) {
             const oldValue = this[key];
             this[key] = value;
             this._emit(key, value, oldValue);
             
-            // Debug æ¨¡å¼
+            // Debug 模式
             if (window.SELA_DEBUG) {
-                console.log(`ðŸ“Š State: ${key}`, oldValue, 'â†’', value);
+                console.log(`📊 State: ${key}`, oldValue, '→', value);
             }
         },
         
         /**
-         * æ‰¹é‡è¨­ç½®ç‹€æ…‹
+         * 批量設置狀態
          * @param {Object} updates - {key: value, ...}
          */
         setMultiple(updates) {
@@ -85,10 +85,10 @@
         },
         
         /**
-         * ç›£è½ç‹€æ…‹è®ŠåŒ–
-         * @param {string} key - ç‹€æ…‹éµ
+         * 監聽狀態變化
+         * @param {string} key - 狀態鍵
          * @param {Function} callback - (newValue, oldValue) => void
-         * @returns {Function} å–æ¶ˆç›£è½çš„å‡½æ•¸
+         * @returns {Function} 取消監聽的函數
          */
         on(key, callback) {
             if (!this._listeners.has(key)) {
@@ -96,14 +96,14 @@
             }
             this._listeners.get(key).add(callback);
             
-            // è¿”å›žå–æ¶ˆç›£è½å‡½æ•¸
+            // 返回取消監聽函數
             return () => {
                 this._listeners.get(key)?.delete(callback);
             };
         },
         
         /**
-         * ä¸€æ¬¡æ€§ç›£è½
+         * 一次性監聽
          */
         once(key, callback) {
             const unsubscribe = this.on(key, (newVal, oldVal) => {
@@ -114,7 +114,7 @@
         },
         
         /**
-         * è§¸ç™¼äº‹ä»¶
+         * 觸發事件
          */
         _emit(key, newValue, oldValue) {
             const listeners = this._listeners.get(key);
@@ -128,7 +128,7 @@
                 });
             }
             
-            // ä¹Ÿè§¸ç™¼é€šç”¨çš„ '*' ç›£è½å™¨
+            // 也觸發通用的 '*' 監聽器
             const globalListeners = this._listeners.get('*');
             if (globalListeners) {
                 globalListeners.forEach(cb => {
@@ -142,7 +142,7 @@
         },
         
         /**
-         * å–æ¶ˆæ‰€æœ‰ç›£è½
+         * 取消所有監聽
          */
         offAll(key) {
             if (key) {
@@ -153,11 +153,11 @@
         },
         
         // ============================================================
-        // ä¾¿æ·æ–¹æ³•
+        // 便捷方法
         // ============================================================
         
         /**
-         * è¨­ç½®ç•¶å‰ç”¨æˆ¶
+         * 設置當前用戶
          */
         setUser(user) {
             this.set('user', user);
@@ -165,7 +165,7 @@
         },
         
         /**
-         * åˆ‡æ› Section
+         * 切換 Section
          */
         switchSection(name) {
             this.set('previousSection', this.currentSection);
@@ -173,18 +173,18 @@
         },
         
         /**
-         * è¨­ç½®ç•¶å‰è‚¡ç¥¨
+         * 設置當前股票
          */
         setCurrentStock(stock) {
             this.set('currentStock', stock);
             
-            // åŠ å…¥æœå°‹æ­·å²
+            // 加入搜尋歷史
             if (stock?.symbol) {
                 const history = this.searchHistory.filter(s => s !== stock.symbol);
                 history.unshift(stock.symbol);
                 this.set('searchHistory', history.slice(0, 10));
                 
-                // æŒä¹…åŒ–æœå°‹æ­·å²
+                // 持久化搜尋歷史
                 try {
                     localStorage.setItem('searchHistory', JSON.stringify(this.searchHistory));
                 } catch (e) {}
@@ -192,7 +192,7 @@
         },
         
         /**
-         * æ›´æ–°è¿½è¹¤æ¸…å–®
+         * 更新追蹤清單
          */
         setWatchlist(list) {
             this.set('watchlist', list);
@@ -200,7 +200,7 @@
         },
         
         /**
-         * æ–°å¢žåˆ°è¿½è¹¤æ¸…å–® (æ¨‚è§€æ›´æ–°)
+         * 新增到追蹤清單 (樂觀更新)
          */
         addToWatchlist(item) {
             const newList = [...this.watchlist, item];
@@ -208,7 +208,7 @@
         },
         
         /**
-         * å¾žè¿½è¹¤æ¸…å–®ç§»é™¤
+         * 從追蹤清單移除
          */
         removeFromWatchlist(symbol) {
             const newList = this.watchlist.filter(w => w.symbol !== symbol);
@@ -216,7 +216,7 @@
         },
         
         /**
-         * æ›´æ–°æŒè‚¡è³‡æ–™
+         * 更新持股資料
          */
         setPortfolio(data) {
             this.set('portfolio', { ...this.portfolio, ...data });
@@ -224,7 +224,7 @@
         },
         
         /**
-         * æ›´æ–°æ¨™ç±¤
+         * 更新標籤
          */
         setTags(tags) {
             this.set('tags', tags);
@@ -232,7 +232,7 @@
         },
         
         /**
-         * æ›´æ–°å¸‚å ´è³‡æ–™
+         * 更新市場資料
          */
         setMarketData(data) {
             if (data.indices) this.set('indices', data.indices);
@@ -241,21 +241,21 @@
         },
         
         /**
-         * è¨­ç½®è¼‰å…¥ç‹€æ…‹
+         * 設置載入狀態
          */
         setLoading(isLoading) {
             this.set('isLoading', isLoading);
         },
         
         /**
-         * è¨­ç½® Modal ç‹€æ…‹
+         * 設置 Modal 狀態
          */
         setModal(modalId) {
             this.set('activeModal', modalId);
         },
         
         /**
-         * é‡ç½®ç‹€æ…‹ (ç™»å‡ºæ™‚)
+         * 重置狀態 (登出時)
          */
         reset() {
             this.user = null;
@@ -271,10 +271,10 @@
         },
         
         /**
-         * åˆå§‹åŒ– (å¾ž localStorage æ¢å¾©)
+         * 初始化 (從 localStorage 恢復)
          */
         init() {
-            // æ¢å¾©æœå°‹æ­·å²
+            // 恢復搜尋歷史
             try {
                 const history = localStorage.getItem('searchHistory');
                 if (history) {
@@ -282,49 +282,49 @@
                 }
             } catch (e) {}
             
-            console.log('ðŸ“Š AppState åˆå§‹åŒ–å®Œæˆ');
+            console.log('📊 AppState 初始化完成');
         }
     };
 
     // ============================================================
-    // è‡ªå‹•åŒæ­¥ UI (ç¯„ä¾‹)
+    // 自動同步 UI (範例)
     // ============================================================
 
-    // ç›£è½ section è®ŠåŒ–ï¼Œè‡ªå‹•æ›´æ–°å°Žèˆªé«˜äº®
+    // 監聽 section 變化，自動更新導航高亮
     AppState.on('currentSection', (newSection) => {
-        // æ›´æ–° URL hash (å¯é¸)
+        // 更新 URL hash (可選)
         // history.replaceState(null, '', `#${newSection}`);
     });
 
-    // ç›£è½ç”¨æˆ¶è®ŠåŒ–ï¼Œè‡ªå‹•æ›´æ–° UI
+    // 監聽用戶變化，自動更新 UI
     AppState.on('user', (user) => {
         if (user && typeof updateUserUI === 'function') {
-            // updateUserUI å·²åœ¨ core.js ä¸­å®šç¾©
+            // updateUserUI 已在 core.js 中定義
         }
     });
 
-    // ç›£è½è¼‰å…¥ç‹€æ…‹
+    // 監聽載入狀態
     AppState.on('isLoading', (isLoading) => {
-        // å¯ä»¥åœ¨é€™è£¡é¡¯ç¤º/éš±è—å…¨åŸŸè¼‰å…¥æŒ‡ç¤ºå™¨
+        // 可以在這裡顯示/隱藏全域載入指示器
     });
 
     // ============================================================
-    // åˆå§‹åŒ–
+    // 初始化
     // ============================================================
 
     AppState.init();
 
     // ============================================================
-    // å°Žå‡º
+    // 導出
     // ============================================================
 
-    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    // 掛載到 SELA 命名空間
     if (window.SELA) {
         window.SELA.state = AppState;
     }
 
-    // å…¨åŸŸå°Žå‡º
+    // 全域導出
     window.AppState = AppState;
 
-    console.log('ðŸ“Š state.js ç‹€æ…‹ç®¡ç†æ¨¡çµ„å·²è¼‰å…¥');
+    console.log('📊 state.js 狀態管理模組已載入');
 })();

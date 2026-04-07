@@ -1,12 +1,12 @@
 """
-è‡ªè¨‚ç•°å¸¸é¡žåˆ¥
+自訂異常類別
 ============
-çµ±ä¸€çš„éŒ¯èª¤è™•ç†æ©Ÿåˆ¶
+統一的錯誤處理機制
 """
 
 
 class SELAException(Exception):
-    """SELA åŸºç¤Žç•°å¸¸"""
+    """SELA 基礎異常"""
     status_code: int = 400
     error_code: str = "SELA_ERROR"
     
@@ -18,59 +18,59 @@ class SELAException(Exception):
 
 
 class StockNotFoundError(SELAException):
-    """æ‰¾ä¸åˆ°è‚¡ç¥¨"""
+    """找不到股票"""
     status_code = 404
     error_code = "STOCK_NOT_FOUND"
     
     def __init__(self, symbol: str):
-        super().__init__(f"æ‰¾ä¸åˆ°è‚¡ç¥¨: {symbol}")
+        super().__init__(f"找不到股票: {symbol}")
         self.symbol = symbol
 
 
 class CryptoNotFoundError(SELAException):
-    """æ‰¾ä¸åˆ°åŠ å¯†è²¨å¹£"""
+    """找不到加密貨幣"""
     status_code = 404
     error_code = "CRYPTO_NOT_FOUND"
     
     def __init__(self, symbol: str):
-        super().__init__(f"æ‰¾ä¸åˆ°åŠ å¯†è²¨å¹£: {symbol}")
+        super().__init__(f"找不到加密貨幣: {symbol}")
         self.symbol = symbol
 
 
 class AuthenticationError(SELAException):
-    """èªè­‰å¤±æ•—"""
+    """認證失敗"""
     status_code = 401
     error_code = "AUTH_FAILED"
     
-    def __init__(self, message: str = "èªè­‰å¤±æ•—"):
+    def __init__(self, message: str = "認證失敗"):
         super().__init__(message)
 
 
 class AuthorizationError(SELAException):
-    """æ¬Šé™ä¸è¶³"""
+    """權限不足"""
     status_code = 403
     error_code = "FORBIDDEN"
     
-    def __init__(self, message: str = "æ¬Šé™ä¸è¶³"):
+    def __init__(self, message: str = "權限不足"):
         super().__init__(message)
 
 
 class RateLimitError(SELAException):
-    """è«‹æ±‚éŽæ–¼é »ç¹"""
+    """請求過於頻繁"""
     status_code = 429
     error_code = "RATE_LIMITED"
     
-    def __init__(self, message: str = "è«‹æ±‚éŽæ–¼é »ç¹ï¼Œè«‹ç¨å¾Œå†è©¦"):
+    def __init__(self, message: str = "請求過於頻繁，請稍後再試"):
         super().__init__(message)
 
 
 class DataSourceError(SELAException):
-    """å¤–éƒ¨è³‡æ–™ä¾†æºéŒ¯èª¤"""
+    """外部資料來源錯誤"""
     status_code = 502
     error_code = "DATA_SOURCE_ERROR"
     
     def __init__(self, source: str, message: str = None):
-        msg = f"{source} è³‡æ–™ä¾†æºéŒ¯èª¤"
+        msg = f"{source} 資料來源錯誤"
         if message:
             msg += f": {message}"
         super().__init__(msg)
@@ -78,24 +78,24 @@ class DataSourceError(SELAException):
 
 
 class ValidationError(SELAException):
-    """è³‡æ–™é©—è­‰éŒ¯èª¤"""
+    """資料驗證錯誤"""
     status_code = 422
     error_code = "VALIDATION_ERROR"
 
 
 class CacheError(SELAException):
-    """å¿«å–éŒ¯èª¤"""
+    """快取錯誤"""
     status_code = 500
     error_code = "CACHE_ERROR"
     
-    def __init__(self, message: str = "å¿«å–æ“ä½œå¤±æ•—"):
+    def __init__(self, message: str = "快取操作失敗"):
         super().__init__(message)
 
 
 class DatabaseError(SELAException):
-    """è³‡æ–™åº«éŒ¯èª¤"""
+    """資料庫錯誤"""
     status_code = 500
     error_code = "DATABASE_ERROR"
     
-    def __init__(self, message: str = "è³‡æ–™åº«æ“ä½œå¤±æ•—"):
+    def __init__(self, message: str = "資料庫操作失敗"):
         super().__init__(message)

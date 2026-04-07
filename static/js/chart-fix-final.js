@@ -1,10 +1,10 @@
 /**
- * SELA åœ–è¡¨çµ‚æ¥µä¿®å¾© (chart-fix-final.js)
- * è‡ªå‹•ç”Ÿæˆæ–¼ 2026-01-17 11:30:19
+ * SELA 圖表終極修復 (chart-fix-final.js)
+ * 自動生成於 2026-01-17 11:30:19
  */
 (function() {
     'use strict';
-    console.log('ðŸ”§ [FINAL] chart-fix-final.js è¼‰å…¥ä¸­...');
+    console.log('🔧 [FINAL] chart-fix-final.js 載入中...');
 
     var _chart = null;
     var _initialized = false;
@@ -23,15 +23,15 @@
     }
 
     function _render(data, days) {
-        console.log('ðŸ“Š [FINAL] _render days=' + days);
+        console.log('📊 [FINAL] _render days=' + days);
         
         var canvas = document.getElementById('fullscreenChart');
-        if (!canvas) { console.error('[FINAL] æ‰¾ä¸åˆ° canvas'); return; }
+        if (!canvas) { console.error('[FINAL] 找不到 canvas'); return; }
 
         if (_chart) { try { _chart.destroy(); } catch(e) {} _chart = null; }
 
         if (!data || !data.dates || data.dates.length === 0) {
-            console.error('[FINAL] ç„¡æ•ˆè³‡æ–™');
+            console.error('[FINAL] 無效資料');
             return;
         }
 
@@ -54,10 +54,10 @@
         var ma200 = safeSlice(data.ma200, start);
         var ma250 = safeSlice(data.ma250, start);
 
-        console.log('ðŸ“Š [FINAL] MA:', { ma20: hasValid(ma20), ma50: hasValid(ma50), ma200: hasValid(ma200) });
+        console.log('📊 [FINAL] MA:', { ma20: hasValid(ma20), ma50: hasValid(ma50), ma200: hasValid(ma200) });
 
         var datasets = [{
-            label: 'æ”¶ç›¤åƒ¹', data: prices, borderColor: '#3B82F6',
+            label: '收盤價', data: prices, borderColor: '#3B82F6',
             backgroundColor: 'rgba(59,130,246,0.1)', borderWidth: 2,
             fill: true, tension: 0.1, pointRadius: 0, order: 5
         }];
@@ -94,14 +94,14 @@
                     }
                 }
             });
-            console.log('âœ… [FINAL] åœ–è¡¨å®Œæˆ');
+            console.log('✅ [FINAL] 圖表完成');
         } catch(e) { console.error('[FINAL] Chart error:', e); }
     }
 
     function _setRange(days) {
-        console.log('ðŸ“Š [FINAL] _setRange days=' + days);
+        console.log('📊 [FINAL] _setRange days=' + days);
         var data = window.currentChartData;
-        if (!data) { console.error('[FINAL] ç„¡ currentChartData'); return; }
+        if (!data) { console.error('[FINAL] 無 currentChartData'); return; }
 
         var btns = document.querySelectorAll('.chart-range-btn');
         for (var i = 0; i < btns.length; i++) {
@@ -114,12 +114,12 @@
     }
 
     function _open(symbol, price) {
-        console.log('ðŸ“Š [FINAL] _open symbol=' + symbol);
+        console.log('📊 [FINAL] _open symbol=' + symbol);
         var data = window.currentChartData;
-        if (!data) { alert('ç„¡åœ–è¡¨è³‡æ–™'); return; }
+        if (!data) { alert('無圖表資料'); return; }
 
         var modal = document.getElementById('chartFullscreen');
-        if (!modal) { console.error('[FINAL] æ‰¾ä¸åˆ° modal'); return; }
+        if (!modal) { console.error('[FINAL] 找不到 modal'); return; }
 
         var title = document.getElementById('chartFullscreenTitle');
         if (title) title.textContent = symbol + ' Technical Analysis';
@@ -165,7 +165,7 @@
             window.closeChartFullscreen = _close;
         }
         _fixBtns();
-        console.log('âœ… [FINAL] å‡½æ•¸å®‰è£å®Œæˆ');
+        console.log('✅ [FINAL] 函數安裝完成');
     }
 
     document.addEventListener('click', function(e) {
@@ -194,5 +194,5 @@
 
     window.addEventListener('load', function() { setTimeout(install, 100); });
 
-    console.log('âœ… [FINAL] chart-fix-final.js è¼‰å…¥å®Œæˆ');
+    console.log('✅ [FINAL] chart-fix-final.js 載入完成');
 })();
