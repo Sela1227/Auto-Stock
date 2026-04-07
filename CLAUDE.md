@@ -56,7 +56,11 @@ Tailwind CSS（CDN 載入）
 ```python
 # backend: app/config.py
 APP_VERSION = "1.0.0"
+<<<<<<< HEAD
 APP_NAME = "AutoStock"
+=======
+APP_NAME = "AutoStock 自動選股系統"
+>>>>>>> develop
 ```
 
 ---
@@ -73,12 +77,17 @@ autostock/
 │
 ├── app/
 │   ├── __init__.py
+<<<<<<< HEAD
 │   ├── main.py             ← FastAPI 入口 + 排程設定
+=======
+│   ├── main.py             ← FastAPI 入口 + 排程設定（優化版）
+>>>>>>> develop
 │   ├── config.py           ← 環境變數 + 版本號
 │   ├── database.py         ← SQLAlchemy 連線 + 遷移
 │   ├── logging_config.py   ← 日誌設定
 │   │
 │   ├── models/             ← SQLAlchemy Models
+<<<<<<< HEAD
 │   │   ├── user.py         ← User, LoginLog, TokenBlacklist
 │   │   ├── watchlist.py    ← Watchlist, UserTag
 │   │   ├── portfolio.py    ← PortfolioTransaction, PortfolioHolding
@@ -120,11 +129,19 @@ autostock/
 │   │
 │   └── dependencies/       ← FastAPI 依賴注入
 │       └── auth.py         ← requireAuth / optionalAuth
+=======
+│   ├── routers/            ← API 路由
+│   ├── services/           ← 商業邏輯
+│   ├── data_sources/       ← 外部資料來源
+│   ├── dependencies/       ← FastAPI 依賴注入
+│   └── tasks/              ← 排程任務
+>>>>>>> develop
 │
 ├── static/
 │   ├── index.html          ← 登入頁
 │   ├── dashboard.html      ← 主頁面（SPA）
 │   ├── css/
+<<<<<<< HEAD
 │   │   └── dashboard.css
 │   └── js/
 │       ├── core.js         ← DOM 快取 + 工具函數
@@ -139,10 +156,17 @@ autostock/
 │
 └── migrations/             ← 資料庫遷移腳本
     └── add_optimized_indexes.py
+=======
+│   └── js/
+│
+├── migrations/             ← 資料庫遷移腳本
+└── scripts/                ← 工具腳本
+>>>>>>> develop
 ```
 
 ---
 
+<<<<<<< HEAD
 ## 五、資料庫 Schema 摘要
 
 ```
@@ -163,6 +187,9 @@ SubscriptionPick  id, source_id, symbol, title, article_url, pick_date, expires_
 ---
 
 ## 六、技術指標
+=======
+## 五、技術指標
+>>>>>>> develop
 
 | 指標 | 說明 | 欄位名（小寫）|
 |------|------|--------------|
@@ -177,7 +204,11 @@ SubscriptionPick  id, source_id, symbol, title, article_url, pick_date, expires_
 
 ---
 
+<<<<<<< HEAD
 ## 七、市場情緒分級
+=======
+## 六、市場情緒分級
+>>>>>>> develop
 
 | 數值 | 分類 | 意義 |
 |------|------|------|
@@ -189,7 +220,11 @@ SubscriptionPick  id, source_id, symbol, title, article_url, pick_date, expires_
 
 ---
 
+<<<<<<< HEAD
 ## 八、關鍵流程
+=======
+## 七、關鍵流程
+>>>>>>> develop
 
 ### 價格快取更新（市場感知）
 1. 排程檢查是否在交易時段
@@ -210,6 +245,7 @@ SubscriptionPick  id, source_id, symbol, title, article_url, pick_date, expires_
 4. 建立/更新 User，簽發 JWT
 5. 重導向前端並帶上 token
 
+<<<<<<< HEAD
 ### 訂閱精選流程
 1. 排程抓取 RSS feed（財經專家部落格）
 2. 解析文章內容，用正則抓取股票代碼
@@ -219,6 +255,11 @@ SubscriptionPick  id, source_id, symbol, title, article_url, pick_date, expires_
 ---
 
 ## 九、排程任務
+=======
+---
+
+## 八、排程任務（V1.0.0 優化版）
+>>>>>>> develop
 
 | 任務 | 時間 | 說明 |
 |------|------|------|
@@ -232,12 +273,20 @@ SubscriptionPick  id, source_id, symbol, title, article_url, pick_date, expires_
 
 ---
 
+<<<<<<< HEAD
 ## 十、打包規則
+=======
+## 九、打包規則
+>>>>>>> develop
 
 每次發布必須：
 1. 更新 `app/config.py` 的 `APP_VERSION`
 2. 更新 `README.md` 版本歷程
+<<<<<<< HEAD
 3. 更新本文件第十一節版本欄位
+=======
+3. 更新本文件版本欄位
+>>>>>>> develop
 
 ```bash
 # 打包 zip
@@ -254,6 +303,7 @@ zip -r "AutoStock V1.0.0.zip" "AutoStock V1.0.0/" \
   --exclude "*/.DS_Store"
 ```
 
+<<<<<<< HEAD
 **ZIP 結構規範**
 ```
 AutoStock V1.0.0.zip
@@ -267,6 +317,8 @@ AutoStock V1.0.0.zip
     └── CLAUDE.md
 ```
 
+=======
+>>>>>>> develop
 **版本命名規則**
 - 新增功能：+0.1（V1.0.0 → V1.1.0）
 - 微小變動 / Bug fix：+0.01（V1.0.0 → V1.01）
@@ -274,6 +326,7 @@ AutoStock V1.0.0.zip
 
 ---
 
+<<<<<<< HEAD
 ## 十一、版本（當前 V1.0.0）
 
 | 版本 | 日期 | 關鍵變更 |
@@ -332,6 +385,34 @@ AutoStock V1.0.0.zip
 ---
 
 ## 十五、環境變數
+=======
+## 十、版本（當前 V1.0.0）
+
+| 版本 | 日期 | 關鍵變更 |
+|------|------|---------|
+| V1.0.0 | 2026-04-07 | 優化版：排程減少 60%、智能交易時段判斷、資料庫索引優化、情緒指數 DB 快取 |
+
+---
+
+## 十一、已知問題與修復記錄
+
+### 前端 Bug 修復
+1. `showSection` 函數從非導航處調用時沒有 event 對象，需改為可選參數
+2. API 返回格式是 `data.stock` 不是 `data.data.stock`
+3. `indicator_service` 欄位名用小寫 `ma20/rsi/macd_dif`，routers 需對應
+
+### 交易 API 修復（2026-01-17）
+1. 405 錯誤 - 前端路徑多 `/tw` 和 `/us` 後綴，需移除
+2. 422 錯誤 - 前端 body 缺 `market` 欄位，需加 `market:'tw'/'us'`
+3. 500 錯誤 - 後端 `PortfolioService.create_transaction()` 缺 `broker_id` 參數
+
+### 前端情緒 API
+部分頁面仍用 `/api/market/sentiment`（無快取），應改用 `/market/sentiment`
+
+---
+
+## 十二、環境變數
+>>>>>>> develop
 
 | 變數 | 說明 | 必填 |
 |------|------|------|

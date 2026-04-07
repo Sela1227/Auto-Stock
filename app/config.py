@@ -9,9 +9,15 @@ from typing import Optional, List
 class Settings(BaseSettings):
     """æ‡‰ç”¨ç¨‹å¼è¨­å®š"""
     
+<<<<<<< HEAD
     # æ‡‰ç”¨ç¨‹å¼
     APP_NAME: str = "AutoStock è‡ªå‹•é¸è‚¡ç³»çµ±"
     APP_VERSION: str = "1.0.0"  # Phase 4 è¨Šè™Ÿåµæ¸¬ + LINE æŽ¨æ’­
+=======
+    # 應用程式
+    APP_NAME: str = "AutoStock 自動選股系統"
+    APP_VERSION: str = "1.0.0"  # Phase 4 訊號偵測 + LINE 推播
+>>>>>>> develop
     APP_ENV: str = "development"
     DEBUG: bool = True
     

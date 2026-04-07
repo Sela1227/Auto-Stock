@@ -27,6 +27,7 @@
 - KD 隨機指標
 - 布林通道
 - OBV 能量潮
+<<<<<<< HEAD
 - 綜合評分（多指標加權）
 
 ### 智能訊號
@@ -34,17 +35,23 @@
 - 超買 / 超賣警示
 - 突破預警（布林通道上下軌）
 - MA 支撐 / 壓力
+=======
+>>>>>>> develop
 
 ### 市場情緒
 - 美股 Fear & Greed Index（CNN）
 - 加密貨幣恐慌貪婪指數（Alternative.me）
+<<<<<<< HEAD
 - 歷史走勢圖
+=======
+>>>>>>> develop
 - 存入資料庫快取，回應毫秒級
 
 ### 投資組合
 - 交易紀錄（買入/賣出）
 - 自動計算持股成本、損益
 - 支援多券商、不同手續費率
+<<<<<<< HEAD
 - 年化報酬率（CAGR）計算
 - 多標的報酬率比較
 
@@ -58,6 +65,8 @@
 - 匯率換算（USD/TWD）
 - 響應式設計，手機體驗佳
 - 支援加到主畫面（PWA）
+=======
+>>>>>>> develop
 
 ---
 
@@ -72,6 +81,7 @@
 | 排程 | APScheduler |
 | 股票數據 | Yahoo Finance（yfinance）|
 | 加密貨幣 | CoinGecko API |
+<<<<<<< HEAD
 | 情緒指數 | CNN Fear & Greed + Alternative.me |
 | 登入 | LINE Login + JWT |
 | 部署 | Railway |
@@ -92,11 +102,17 @@
 | APP_ENV | `production` | 是 |
 | LINE_CHANNEL_ACCESS_TOKEN | LINE 推播（選填）| 否 |
 
+=======
+| 登入 | LINE Login + JWT |
+| 部署 | Railway |
+
+>>>>>>> develop
 ---
 
 ## 本地開發
 
 ```bash
+<<<<<<< HEAD
 # 建立虛擬環境
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
@@ -163,3 +179,31 @@ uvicorn app.main:app --reload --port 8000
 - `SELA_系統規格書.md` — 完整系統架構
 - `SELA_部署指南.md` — Railway 部署步驟
 - `SELA_開發指南.md` — 開發環境設定
+=======
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload --port 8000
+```
+
+---
+
+## 版本歷程
+
+### V1.0.0（2026-04-07）
+- 初始優化版正式發布
+- 排程優化：減少 60% 執行次數，只在交易時段更新價格
+- 情緒指數 DB 快取：回應從秒級降至毫秒級
+- 資料庫索引優化
+- 智能交易時段判斷：台股 09:00-13:30、美股 21:30-05:00
+
+---
+
+## 開發規範
+
+- 版本命名：新功能 +0.1、Bug fix +0.01、大改版 +1.0
+- 每次發布必須更新 `app/config.py` 的 `APP_VERSION`
+- 技術指標欄位名一律小寫（ma20, rsi, macd_dif...）
+- 前端情緒 API 使用 `/market/sentiment`（有 DB 快取）
+>>>>>>> develop
