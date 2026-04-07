@@ -99,7 +99,6 @@
         if (!btcRefreshInterval) {
             btcRefreshInterval = setInterval(loadBtcPrice, 60000);
         }
-    }
     
     // ============================================================
     // 三大指數
@@ -121,7 +120,6 @@
         } catch (e) {
             console.error('載入指數失敗', e);
         }
-    }
     
     function updateIndexCard(symbol, data) {
         const priceEl = document.getElementById(`index-${symbol}-price`);
@@ -143,7 +141,6 @@
         if (dateEl && data.date) {
             dateEl.textContent = `更新: ${data.date}`;
         }
-    }
     
     // ============================================================
     // 指數圖表 Modal
@@ -227,7 +224,6 @@
         } catch (e) {
             console.error('載入指數走勢失敗', e);
         }
-    }
     
     // ============================================================
     // 市場情緒
@@ -247,7 +243,6 @@
             updateSentimentCard('stock', { value: 50, classification: 'neutral' });
             updateSentimentCard('crypto', { value: 50, classification: 'neutral' });
         }
-    }
 
     function updateSentimentCard(type, sentiment) {
         if (!sentiment) return;
@@ -465,10 +460,11 @@
     // ============================================================
     
     async function loadDashboard() {
-        await loadIndices();
+        // 🆕 V1.04 情緒指數優先載入（最常看）
         await loadSentiment();
+        await loadIndices();
         await loadBtcPrice();
-        await loadPopularStocks();  // 🆕 載入熱門追蹤
+        await loadPopularStocks();
         if (typeof loadWatchlistOverview === 'function') {
             await loadWatchlistOverview();
         }
@@ -501,7 +497,6 @@
         } catch (e) {
             console.error('管理員更新觸發失敗:', e);
         }
-    }
     
     /**
      * 載入恐懼貪婪詳細頁面
