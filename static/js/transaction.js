@@ -600,5 +600,4 @@
     window.loadBrokers = loadBrokers;
     window.handleBrokerChange = handleBrokerChange;
 
-    console.log('💰 transaction.js 模組已載入 (P4 優化版)');
 })();

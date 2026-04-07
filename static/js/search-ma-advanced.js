@@ -102,5 +102,4 @@
 
     window.renderMAAdvanced = renderMAAdvanced;
     window.getMAAdvancedSummary = getMAAdvancedSummary;
-    console.log('📊 search-ma-advanced.js 已載入');
 })();

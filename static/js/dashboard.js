@@ -38,7 +38,6 @@
             const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');
             const data = await res.json();
             
-            console.log('[BTC] CoinGecko 回應:', data);
 
             if (data.bitcoin) {
                 const price = data.bitcoin.usd || 0;
@@ -108,7 +107,6 @@
     
     async function loadIndices() {
         try {
-            console.log('開始載入指數...');
             const res = await fetch('/api/market/indices');
             const data = await res.json();
             
@@ -478,7 +476,6 @@
     
     // 管理員更新
     async function triggerAdminUpdates() {
-        console.log('🔄 管理員登入，觸發全部更新...');
         const token = localStorage.getItem('token');
         
         try {
@@ -486,14 +483,12 @@
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             }).then(r => r.json()).then(d => {
-                console.log('✅ 四大指數更新:', d.success ? '成功' : '失敗');
             });
             
             fetch('/api/admin/update-price-cache', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             }).then(r => r.json()).then(d => {
-                console.log('✅ 價格快取更新:', d.success ? '成功' : '失敗');
             });
             
             loadBtcPrice();
@@ -502,7 +497,6 @@
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             }).then(r => r.json()).then(d => {
-                console.log('✅ 匯率更新:', d.success ? '成功' : '失敗');
             });
         } catch (e) {
             console.error('管理員更新觸發失敗:', e);
@@ -650,5 +644,4 @@
     window.loadSentimentModalChart = loadSentimentModalChart;
     window.triggerAdminUpdates = triggerAdminUpdates;
     
-    console.log('📊 dashboard.js 模組已載入 (P2 含熱門追蹤統計)');
 })();

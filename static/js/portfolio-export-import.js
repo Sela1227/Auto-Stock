@@ -376,5 +376,4 @@
     window.getPortfolioExportImportButtons = getPortfolioExportImportButtons;
     window.getImportTransactionsModalHTML = getImportTransactionsModalHTML;
     
-    console.log('📦 portfolio-export-import.js 模組已載入');
 })();

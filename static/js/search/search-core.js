@@ -47,7 +47,6 @@
             // 只恢復當日的快取
             if (parsed.date !== today) {
                 sessionStorage.removeItem(STORAGE_KEY);
-                console.log('📦 快取已過期（非當日），已清除');
                 return;
             }
 
@@ -62,7 +61,6 @@
             }
 
             if (restored > 0) {
-                console.log(`📦 已從 sessionStorage 恢復 ${restored} 筆快取`);
             }
         } catch (e) {
             console.warn('恢復快取失敗:', e);
@@ -96,7 +94,6 @@
     function getFromCache(symbol) {
         const cached = stockCache.get(symbol.toUpperCase());
         if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-            console.log(`📦 快取命中: ${symbol} (剩餘 ${Math.round((CACHE_TTL - (Date.now() - cached.timestamp)) / 1000)}秒)`);
             return cached.data;
         }
         return null;
@@ -107,7 +104,6 @@
             data: data,
             timestamp: Date.now()
         });
-        console.log(`💾 已快取: ${symbol}`);
         
         // 同步到 sessionStorage
         syncCacheToStorage();
@@ -116,7 +112,6 @@
     function clearStockCache() {
         stockCache.clear();
         sessionStorage.removeItem(STORAGE_KEY);
-        console.log('🗑️ 股票快取已清除');
         showToast('快取已清除');
     }
 
@@ -198,7 +193,6 @@
                 endpoint += '?refresh=true';
             }
 
-            console.log(`查詢: ${endpoint}, 類型: ${isCrypto ? '加密貨幣' : isTaiwan ? '台股' : '美股'}`);
 
             // 設置載入狀態
             if (window.AppState) {
@@ -212,7 +206,6 @@
             clearTimeout(timeoutId);
 
             const data = await res.json();
-            console.log('API 回應:', data);
 
             if (window.AppState) {
                 AppState.setLoading(false);
@@ -333,5 +326,4 @@
     window.clearStockCache = clearStockCache;
     window.getStockCacheStats = getStockCacheStats;
 
-    console.log('🔍 search-core.js 搜尋核心模組已載入 (優化版: 30分鐘快取 + sessionStorage 持久化)');
 })();

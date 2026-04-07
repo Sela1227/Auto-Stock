@@ -216,5 +216,4 @@
     window.setDefaultBroker = setDefaultBroker;
     window.insertBrokerManagerSection = insertBrokerManagerSection;
 
-    console.log('🏢 broker.js 券商管理模組已載入');
 })();

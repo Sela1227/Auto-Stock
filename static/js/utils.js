@@ -241,4 +241,3 @@ function previewFile(file, callback) {
     reader.readAsText(file);
 }
 
-console.log('SELA 工具函數庫已載入');

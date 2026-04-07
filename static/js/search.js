@@ -23,7 +23,6 @@
     function getFromCache(symbol) {
         const cached = stockCache.get(symbol.toUpperCase());
         if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-            console.log(`📦 快取命中: ${symbol}`);
             return cached.data;
         }
         return null;
@@ -34,12 +33,10 @@
             data: data,
             timestamp: Date.now()
         });
-        console.log(`💾 已快取: ${symbol}`);
     }
 
     function clearStockCache() {
         stockCache.clear();
-        console.log('🗑️ 股票快取已清除');
         showToast('快取已清除');
     }
 
@@ -115,7 +112,6 @@
                 endpoint += '?refresh=true';
             }
 
-            console.log(`查詢: ${endpoint}, 類型: ${isCrypto ? '加密貨幣' : isTaiwan ? '台股' : '美股'}`);
 
             // 設置載入狀態
             if (window.AppState) {
@@ -129,7 +125,6 @@
             clearTimeout(timeoutId);
 
             const data = await res.json();
-            console.log('API 回應:', data);
 
             if (window.AppState) {
                 AppState.setLoading(false);
@@ -250,7 +245,6 @@
     window.clearStockCache = clearStockCache;
     window.getStockCacheStats = getStockCacheStats;
 
-    console.log('🔍 search-core.js 搜尋核心模組已載入');
 })();
 /**
  * 搜尋結果渲染模組 (P2 拆分)
@@ -562,7 +556,6 @@
 
         // 使用事件委託，只綁定一個監聽器
         container.addEventListener('click', handleSearchResultClick);
-        console.log('📌 搜尋結果事件委託已初始化');
     }
 
     function handleSearchResultClick(e) {
@@ -656,7 +649,6 @@
     window.renderStockResult = renderStockResult;
     window.toggleCollapsible = toggleCollapsible;
 
-    console.log('🎨 search-render.js 渲染模組已載入');
 })();
 /**
  * 搜尋圖表模組 (P2 拆分)
@@ -1080,5 +1072,4 @@
     window.loadReturnsModal = loadReturnsModal;
     window.closeReturnsModal = closeReturnsModal;
 
-    console.log('📊 search-chart.js 圖表模組已載入');
 })();

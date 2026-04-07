@@ -276,5 +276,4 @@
     window.loadCompareChart = loadCompareChart;
     window.clearCompare = clearCompare;
     
-    console.log('📈 compare.js 模組已載入');
 })();

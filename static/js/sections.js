@@ -276,7 +276,6 @@
         if (SECTION_TEMPLATES[sectionId]) {
             el.innerHTML = SECTION_TEMPLATES[sectionId];
             loadedSections.add(sectionId);
-            console.log('✅ Section loaded:', sectionId);
         }
     }
 

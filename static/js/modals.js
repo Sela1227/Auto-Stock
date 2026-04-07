@@ -598,7 +598,6 @@
         }
         
         container.innerHTML = html;
-        console.log('✅ 所有 Modal 已初始化');
     }
 
     /**

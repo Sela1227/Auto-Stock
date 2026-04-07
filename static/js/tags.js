@@ -277,7 +277,6 @@
 
         container.addEventListener('click', handleTagClick);
         delegationInitialized = true;
-        console.log('📌 標籤管理事件委託已初始化');
     }
 
     function handleTagClick(e) {
@@ -577,5 +576,4 @@
     window.selectTagColor = selectTagColor;
     window.selectTagIcon = selectTagIcon;
 
-    console.log('🏷️ tags.js 模組已載入 (P4 優化版)');
 })();

@@ -480,5 +480,4 @@
     window.closeChartFullscreen = closeChartFullscreen;
     window.renderFullscreenChart = renderFullscreenChart;
 
-    console.log('📊 search-render.js 模組已載入 (修復版 2026-01-17: 按鈕點擊 + 圖例互動 + 右邊空白)');
 })();

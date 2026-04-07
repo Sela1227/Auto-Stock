@@ -15,7 +15,6 @@ from app.models.user import User, LoginLog, TokenBlacklist, SystemConfig
 from app.services.exchange_rate_service import update_exchange_rate_sync
 from app.config import settings
 
-# 🔧 使用統一認證模組
 from app.dependencies import get_admin_user
 
 logger = logging.getLogger(__name__)
@@ -29,19 +28,16 @@ async def get_stats(
     db: AsyncSession = Depends(get_async_session),
 ):
     """取得系統統計資料"""
-    # 用戶統計
     total_users = await db.scalar(select(func.count(User.id)))
     active_users = await db.scalar(select(func.count(User.id)).where(User.is_active == True))
     blocked_users = await db.scalar(select(func.count(User.id)).where(User.is_blocked == True))
     admin_users = await db.scalar(select(func.count(User.id)).where(User.is_admin == True))
     
-    # 總登入次數
     total_logins = await db.scalar(
         select(func.count(LoginLog.id))
         .where(LoginLog.action == "login")
     )
     
-    # 今日登入
     today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     today_logins = await db.scalar(
         select(func.count(LoginLog.id))
@@ -49,7 +45,6 @@ async def get_stats(
         .where(LoginLog.created_at >= today)
     )
     
-    # 近 7 天活躍用戶
     week_ago = datetime.utcnow() - timedelta(days=7)
     weekly_active = await db.scalar(
         select(func.count(func.distinct(LoginLog.user_id)))
@@ -82,7 +77,6 @@ async def list_users(
     """取得用戶列表（含登入次數）"""
     query = select(User).order_by(User.last_login.desc())
     
-    # 搜尋
     if search:
         query = query.where(
             (User.display_name.ilike(f"%{search}%")) |
@@ -90,20 +84,16 @@ async def list_users(
             (User.line_user_id.ilike(f"%{search}%"))
         )
     
-    # 只顯示封鎖用戶
     if blocked_only:
         query = query.where(User.is_blocked == True)
     
-    # 計算總數
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query)
     
-    # 分頁
     query = query.offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
     users = result.scalars().all()
     
-    # 取得每個用戶的登入次數
     user_ids = [u.id for u in users]
     login_counts = {}
     if user_ids:
@@ -116,7 +106,6 @@ async def list_users(
         for row in login_count_result:
             login_counts[row.user_id] = row.count
     
-    # 組合結果
     users_data = []
     for u in users:
         user_dict = u.to_dict()
@@ -150,7 +139,6 @@ async def get_user_detail(
     if not user:
         raise HTTPException(status_code=404, detail="用戶不存在")
     
-    # 取得最近登入記錄
     logs_result = await db.execute(
         select(LoginLog)
         .where(LoginLog.user_id == user_id)
@@ -184,16 +172,13 @@ async def list_logs(
     if action:
         query = query.where(LoginLog.action == action)
     
-    # 計算總數
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query)
     
-    # 分頁
     query = query.offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
     logs = result.scalars().all()
     
-    # 取得用戶名稱
     user_ids = list(set(log.user_id for log in logs))
     if user_ids:
         users_result = await db.execute(
@@ -244,7 +229,6 @@ async def block_user(
     user.is_blocked = True
     user.block_reason = reason
     
-    # 記錄操作
     log = LoginLog(
         user_id=user_id,
         action="blocked",
@@ -277,7 +261,6 @@ async def unblock_user(
     user.is_blocked = False
     user.block_reason = None
     
-    # 記錄操作
     log = LoginLog(
         user_id=user_id,
         action="unblocked",
@@ -313,7 +296,6 @@ async def set_admin(
     
     user.is_admin = is_admin
     
-    # 記錄操作
     action = "promoted_to_admin" if is_admin else "demoted_from_admin"
     log = LoginLog(
         user_id=user_id,
@@ -350,7 +332,6 @@ async def delete_user(
     if user.is_admin:
         raise HTTPException(status_code=400, detail="不能刪除管理員")
     
-    # 刪除相關資料
     await db.execute(delete(LoginLog).where(LoginLog.user_id == user_id))
     await db.delete(user)
     await db.commit()
@@ -361,9 +342,6 @@ async def delete_user(
     }
 
 
-# ============================================================
-# 系統設定
-# ============================================================
 
 @router.get("/config", summary="取得系統設定")
 async def get_config(
@@ -407,9 +385,6 @@ async def update_config(
     }
 
 
-# ============================================================
-# 訊號通知管理
-# ============================================================
 
 @router.post("/signal/send-now", summary="立即發送訊號通知")
 async def send_signal_now(
@@ -570,16 +545,13 @@ async def list_notifications(
     if sent_only:
         query = query.where(Notification.sent == True)
     
-    # 計算總數
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query)
     
-    # 分頁
     query = query.offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
     notifications = result.scalars().all()
     
-    # 取得用戶名稱
     user_ids = list(set(n.user_id for n in notifications))
     users_map = {}
     if user_ids:
@@ -604,9 +576,6 @@ async def list_notifications(
     }
 
 
-# ============================================================
-# 管理員觸發更新 API
-# ============================================================
 
 @router.post("/update-exchange-rate", summary="更新匯率")
 async def admin_update_exchange_rate(

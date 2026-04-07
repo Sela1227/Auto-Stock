@@ -71,19 +71,16 @@
      * 切換訂閱狀態
      */
     async function toggleSubscription(sourceId, isCurrentlySubscribed) {
-        console.log('toggleSubscription 被呼叫:', sourceId, isCurrentlySubscribed);
         
         try {
             const endpoint = isCurrentlySubscribed
                 ? `/api/subscription/unsubscribe/${sourceId}`
                 : `/api/subscription/subscribe/${sourceId}`;
             
-            console.log('呼叫 API:', endpoint);
             
             const res = await apiRequest(endpoint, { method: 'POST' });
             const data = await res.json();
             
-            console.log('API 回應:', data);
             
             if (data.success) {
                 showToast(isCurrentlySubscribed ? '已取消訂閱' : '已訂閱');
@@ -110,7 +107,6 @@
             const res = await apiRequest('/api/subscription/picks');
             const data = await res.json();
             
-            console.log('精選股票資料:', data);
             
             if (data.success && data.data && data.data.length > 0) {
                 if (countEl) countEl.textContent = `共 ${data.data.length} 檔`;
@@ -190,7 +186,6 @@
             });
             const data = await res.json();
             
-            console.log('抓取結果:', data);
             
             if (data.success) {
                 const result = data.data || {};
@@ -214,5 +209,4 @@
     window.refreshSubscriptionPicks = refreshSubscriptionPicks;
     window.adminFetchSubscriptions = adminFetchSubscriptions;
     
-    console.log('📡 subscription.js 模組已載入');
 })();
