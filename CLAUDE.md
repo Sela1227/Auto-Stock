@@ -1,0 +1,344 @@
+# CLAUDE.md — AutoStock 開發交接文件
+> 專門給 Claude 讀。讀完即可繼續開發，不需要問問題。
+> 版本歷史保持在 README.md。
+
+---
+
+## 一、系統是什麼
+
+**AutoStock — SELA 多用戶自動選股分析系統**
+
+- 股票與加密貨幣技術分析 Web App
+- 全端：FastAPI 後端 + Vanilla JS 前端 + PostgreSQL 資料庫
+- 部署於 Railway（含 PostgreSQL）
+- 手機優先，響應式設計，Tailwind CSS
+- 支援台股（.TW/.TWO）、美股、加密貨幣（BTC/ETH）
+
+---
+
+## 二、技術棧
+
+```
+前端：Vanilla JavaScript + Tailwind CSS + Chart.js
+後端：Python 3.11 + FastAPI + Uvicorn
+ORM：SQLAlchemy 2.0
+資料庫：PostgreSQL（Railway 內建）
+排程：APScheduler
+股票數據：Yahoo Finance（yfinance，免費）
+加密貨幣：CoinGecko API（免費）
+情緒指數：CNN Fear & Greed + Alternative.me（免費）
+登入：LINE Login + JWT
+通知：LINE Messaging API
+```
+
+---
+
+## 三、UI 規範
+
+### CSS 框架
+Tailwind CSS（CDN 載入）
+
+### 主要顏色
+```css
+藍色系：bg-blue-500, text-blue-600（主要操作、美股）
+綠色系：bg-green-500, text-green-600（上漲、成功）
+紅色系：bg-red-500, text-red-600（下跌、警告）
+橘色系：bg-orange-500, text-orange-600（加密貨幣）
+灰色系：bg-gray-100, text-gray-600（背景、次要）
+```
+
+### 品牌
+- App 名稱：AutoStock
+- 品牌：SELA
+- 登入：LINE Login
+
+### 版本號（每次發布必更新）
+```python
+# backend: app/config.py
+APP_VERSION = "1.0.0"
+APP_NAME = "AutoStock"
+```
+
+---
+
+## 四、專案結構
+
+```
+autostock/
+├── README.md               ← 使用者/部署說明
+├── CLAUDE.md               ← 本文件（給 Claude）
+├── railway.json            ← Railway 部署設定
+├── requirements.txt        ← Python 依賴
+├── runtime.txt             ← Python 版本（3.11.0）
+│
+├── app/
+│   ├── __init__.py
+│   ├── main.py             ← FastAPI 入口 + 排程設定
+│   ├── config.py           ← 環境變數 + 版本號
+│   ├── database.py         ← SQLAlchemy 連線 + 遷移
+│   ├── logging_config.py   ← 日誌設定
+│   │
+│   ├── models/             ← SQLAlchemy Models
+│   │   ├── user.py         ← User, LoginLog, TokenBlacklist
+│   │   ├── watchlist.py    ← Watchlist, UserTag
+│   │   ├── portfolio.py    ← PortfolioTransaction, PortfolioHolding
+│   │   ├── price_cache.py  ← StockPriceCache
+│   │   ├── market_sentiment.py ← MarketSentiment
+│   │   ├── index_price.py  ← IndexPrice（三大指數）
+│   │   ├── subscription.py ← SubscriptionSource, SubscriptionPick
+│   │   ├── stock_info.py   ← StockInfo（種子資料）
+│   │   └── broker.py       ← Broker（券商）
+│   │
+│   ├── routers/            ← API 路由
+│   │   ├── auth.py         ← LINE Login + JWT
+│   │   ├── stock.py        ← 股票查詢 + 技術指標
+│   │   ├── crypto.py       ← 加密貨幣查詢
+│   │   ├── watchlist.py    ← 追蹤清單 CRUD
+│   │   ├── portfolio.py    ← 投資組合 + 交易紀錄
+│   │   ├── market.py       ← 指數 + 情緒指數（有 DB 快取）
+│   │   ├── subscription.py ← 訂閱精選
+│   │   ├── settings.py     ← 用戶設定
+│   │   ├── admin.py        ← 管理功能
+│   │   ├── tags.py         ← 標籤管理
+│   │   ├── broker.py       ← 券商管理
+│   │   └── stock_info.py   ← 股票資訊
+│   │
+│   ├── services/           ← 商業邏輯
+│   │   ├── indicator_service.py   ← 技術指標計算
+│   │   ├── signal_service.py      ← 訊號偵測
+│   │   ├── price_cache_service.py ← 價格快取（市場感知）
+│   │   ├── market_service.py      ← 指數 + 情緒
+│   │   ├── portfolio_service.py   ← 投資組合計算
+│   │   ├── subscription_service.py← RSS 解析
+│   │   └── chart_service.py       ← 圖表生成
+│   │
+│   ├── data_sources/       ← 外部資料來源
+│   │   ├── yahoo_finance.py   ← yfinance 封裝
+│   │   ├── coingecko.py       ← CoinGecko API
+│   │   ├── fear_greed.py      ← 情緒指數 API
+│   │   └── taiwan_stocks.py   ← 台股名稱對照表
+│   │
+│   └── dependencies/       ← FastAPI 依賴注入
+│       └── auth.py         ← requireAuth / optionalAuth
+│
+├── static/
+│   ├── index.html          ← 登入頁
+│   ├── dashboard.html      ← 主頁面（SPA）
+│   ├── css/
+│   │   └── dashboard.css
+│   └── js/
+│       ├── core.js         ← DOM 快取 + 工具函數
+│       ├── state.js        ← AppState 狀態管理
+│       ├── dashboard.js    ← 儀表板邏輯
+│       ├── search.js       ← 股票搜尋
+│       ├── watchlist.js    ← 追蹤清單
+│       ├── portfolio.js    ← 投資組合
+│       ├── subscription.js ← 訂閱精選
+│       ├── settings.js     ← 設定頁面
+│       └── admin.js        ← 管理功能
+│
+└── migrations/             ← 資料庫遷移腳本
+    └── add_optimized_indexes.py
+```
+
+---
+
+## 五、資料庫 Schema 摘要
+
+```
+User              id, line_user_id, display_name, picture_url, is_admin, login_count
+Watchlist         id, user_id, symbol, asset_type, target_price, target_direction, note
+UserTag           id, user_id, name, color
+StockPriceCache   id, symbol, name, price, prev_close, change, change_pct, volume, ma20, updated_at
+MarketSentiment   id, date, market(stock/crypto), value(0-100), classification
+IndexPrice        id, symbol, name, date, open, high, low, close, volume, change, change_pct
+PortfolioTransaction  id, user_id, symbol, market, transaction_type, quantity, price, fee, tax, transaction_date, broker_id
+PortfolioHolding  id, user_id, symbol, market, total_shares, avg_cost, realized_profit
+ExchangeRate      id, from_currency, to_currency, rate, updated_at
+Broker            id, user_id, name, fee_rate, tax_rate, is_default
+SubscriptionSource  id, name, url, is_active
+SubscriptionPick  id, source_id, symbol, title, article_url, pick_date, expires_at
+```
+
+---
+
+## 六、技術指標
+
+| 指標 | 說明 | 欄位名（小寫）|
+|------|------|--------------|
+| MA | 移動平均線 | ma5, ma10, ma20, ma60, ma120, ma240 |
+| RSI | 相對強弱指數（14日）| rsi |
+| MACD | 指數平滑異同移動平均 | macd_dif, macd_dea, macd_hist |
+| KD | 隨機指標（9日）| kd_k, kd_d |
+| 布林通道 | Bollinger Bands（20日）| bb_upper, bb_middle, bb_lower |
+| OBV | 能量潮 | obv |
+
+**重要**：indicator_service.py 產生的欄位都是**小寫**，routers 讀取時也必須用小寫。
+
+---
+
+## 七、市場情緒分級
+
+| 數值 | 分類 | 意義 |
+|------|------|------|
+| 0-25 | Extreme Fear | 可能買點 |
+| 26-45 | Fear | 偏謹慎 |
+| 46-55 | Neutral | 觀望 |
+| 56-75 | Greed | 偏樂觀 |
+| 76-100 | Extreme Greed | 可能賣點 |
+
+---
+
+## 八、關鍵流程
+
+### 價格快取更新（市場感知）
+1. 排程檢查是否在交易時段
+2. 台股：週一~五 09:00-13:30 台北時間
+3. 美股：週一~五 21:30-05:00 台北時間
+4. 非交易時段跳過更新，直接使用快取
+5. 只更新被用戶追蹤的股票（節省 API 配額）
+
+### 情緒指數快取
+1. 每天排程 2 次更新（09:00、21:00）
+2. 從 CNN / Alternative.me 抓取後存入 DB
+3. API `/market/sentiment` 優先讀 DB，超過 1 天才打外部 API
+
+### LINE Login 流程
+1. 前端導向 LINE 授權頁
+2. LINE 回調 `/auth/line/callback`
+3. 後端用 code 換 access_token + 用戶資料
+4. 建立/更新 User，簽發 JWT
+5. 重導向前端並帶上 token
+
+### 訂閱精選流程
+1. 排程抓取 RSS feed（財經專家部落格）
+2. 解析文章內容，用正則抓取股票代碼
+3. 存入 SubscriptionPick，設定 30 天過期
+4. 前端顯示「專家精選」區塊
+
+---
+
+## 九、排程任務
+
+| 任務 | 時間 | 說明 |
+|------|------|------|
+| 台股價格更新 | 週一~五 09:00-13:30 每 30 分 | 只在交易時段 |
+| 美股價格更新 | 週一~五 21:30-05:00 每 30 分 | 只在交易時段 |
+| 台股收盤更新 | 週一~五 13:35 | 強制更新 |
+| 美股收盤更新 | 週二~六 05:05 | 強制更新 |
+| 情緒指數 | 09:00、21:00 | 存入 DB |
+| 匯率更新 | 09:30（工作日）| USD/TWD |
+| 訂閱源抓取 | 08:00、18:00 | RSS 解析 |
+
+---
+
+## 十、打包規則
+
+每次發布必須：
+1. 更新 `app/config.py` 的 `APP_VERSION`
+2. 更新 `README.md` 版本歷程
+3. 更新本文件第十一節版本欄位
+
+```bash
+# 打包 zip
+zip -r "AutoStock V1.0.0.zip" "AutoStock V1.0.0/" \
+  --exclude "*/venv/*" \
+  --exclude "*/__pycache__/*" \
+  --exclude "*/.git/*" \
+  --exclude "*/.gitignore" \
+  --exclude "*/.env" \
+  --exclude "*/node_modules/*" \
+  --exclude "*/.vscode/*" \
+  --exclude "*/.idea/*" \
+  --exclude "*.log" \
+  --exclude "*/.DS_Store"
+```
+
+**ZIP 結構規範**
+```
+AutoStock V1.0.0.zip
+└── AutoStock V1.0.0/
+    ├── app/
+    ├── static/
+    ├── migrations/
+    ├── requirements.txt
+    ├── railway.json
+    ├── README.md
+    └── CLAUDE.md
+```
+
+**版本命名規則**
+- 新增功能：+0.1（V1.0.0 → V1.1.0）
+- 微小變動 / Bug fix：+0.01（V1.0.0 → V1.01）
+- 大改版：+1.0（V1.x → V2.0.0）
+
+---
+
+## 十一、版本（當前 V1.0.0）
+
+| 版本 | 日期 | 關鍵變更 |
+|------|------|---------|
+| V1.0.0 | 2026-04-07 | 初始優化版：排程減少 60%、智能交易時段判斷、資料庫索引優化、情緒指數 DB 快取 |
+
+---
+
+## 十二、待辦事項
+
+- [x] 市場感知快取（V1.0.0）
+- [x] 情緒指數 DB 快取（V1.0.0）
+- [x] 排程優化（V1.0.0）
+- [x] 資料庫索引優化（V1.0.0）
+- [ ] 追蹤清單匯出匯入
+- [ ] 持股交易匯出匯入
+- [ ] stock_info 種子表完善
+- [ ] 訂閱排程驗證
+- [ ] 前端 JS 合併壓縮
+- [ ] 離線新增功能
+
+---
+
+## 十三、已知限制
+
+| 限制 | 說明 |
+|------|------|
+| 前端 sentiment API | 部分頁面仍用 `/api/market/sentiment`（無快取），應改用 `/market/sentiment` |
+| 台股除權息調整 | Yahoo Finance 對台股的調整有延遲，近期分割可能不準 |
+| yfinance 限速 | 免費 API 有限制，已用批次查詢優化 |
+| Railway 部署 | 偶發卡住，取消重新部署即可 |
+| LINE Login 多環境 | 需在 LINE Console 加入各環境的 Callback URL |
+
+---
+
+## 十四、API 端點速查
+
+| 方法 | 端點 | 說明 |
+|------|------|------|
+| GET | `/api/stock/{symbol}` | 股票詳情 + 技術指標 |
+| GET | `/api/stock/{symbol}/detailed` | 完整分析（含圖表）|
+| GET | `/api/crypto/{symbol}` | 加密貨幣詳情 |
+| GET | `/api/watchlist` | 追蹤清單 |
+| GET | `/api/watchlist/with-prices` | 追蹤清單含即時價格 |
+| POST | `/api/watchlist` | 新增追蹤 |
+| DELETE | `/api/watchlist/{symbol}` | 移除追蹤 |
+| GET | `/market/sentiment` | 情緒指數（有 DB 快取）✓ |
+| GET | `/market/indices` | 三大指數 |
+| GET | `/api/portfolio/summary` | 投資摘要 |
+| GET | `/api/portfolio/holdings` | 持股列表 |
+| POST | `/api/portfolio/transactions` | 新增交易 |
+| GET | `/api/subscription/picks` | 訂閱精選 |
+| GET | `/api/admin/scheduler-status` | 排程狀態 |
+| GET | `/api/admin/cost-metrics` | 成本指標 |
+
+---
+
+## 十五、環境變數
+
+| 變數 | 說明 | 必填 |
+|------|------|------|
+| DATABASE_URL | PostgreSQL 連線字串（Railway 自動提供）| 是 |
+| JWT_SECRET_KEY | JWT 簽名密鑰 | 是 |
+| LINE_LOGIN_CHANNEL_ID | LINE Login Channel ID | 是 |
+| LINE_LOGIN_CHANNEL_SECRET | LINE Login Channel Secret | 是 |
+| LINE_LOGIN_CALLBACK_URL | `https://你的網域/auth/line/callback` | 是 |
+| APP_ENV | production / development | 是 |
+| LINE_CHANNEL_ACCESS_TOKEN | LINE 推播（選填）| 否 |
