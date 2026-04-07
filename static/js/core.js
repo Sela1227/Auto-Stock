@@ -373,8 +373,10 @@
                 adminMobileLink.classList.add('flex');
             }
             
-            if (typeof triggerAdminUpdates === 'function') {
-                triggerAdminUpdates();
+            // 🆕 V1.02 移除自動更新，改為手動觸發
+            // if (typeof triggerAdminUpdates === 'function') {
+            //     triggerAdminUpdates();
+            // }
             }
         }
     }

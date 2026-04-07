@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # 應用程式
     APP_NAME: str = "AutoStock 自動選股系統"
-    APP_VERSION: str = "1.01"  # Phase 4 訊號偵測 + LINE 推播
+    APP_VERSION: str = "1.02"  # Phase 4 訊號偵測 + LINE 推播
     APP_ENV: str = "development"
     DEBUG: bool = True
     
