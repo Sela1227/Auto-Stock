@@ -1,102 +1,87 @@
-# SELA 更新包 - 券商功能 + Bug 修復
+# AutoStock
 
-## 📅 更新日期：2026-01-17
-
----
-
-## 📦 包含內容
-
-### 可直接替換的檔案
-```
-sela_update/
-├── app/
-│   ├── models/
-│   │   └── broker.py          # 券商模型（新增）
-│   └── routers/
-│       └── broker.py          # 券商 API（新增）
-├── static/
-│   └── js/
-│       ├── broker.js          # 券商管理前端（新增）
-│       ├── transaction.js     # 交易表單（修改）
-│       ├── modals.js          # Modal 模板（修改）
-│       ├── watchlist.js       # 追蹤清單（修改）
-│       └── portfolio.js       # 投資記錄（修改）
-├── patch_broker_feature.py    # main.py + dashboard.html 補丁
-├── patch_database_broker.py   # database.py 遷移補丁
-└── patch_portfolio.py         # portfolio.py 補丁（含最後價格 API）
-```
+**SELA 多用戶自動選股分析系統**  
+全端 Web App，FastAPI + Vanilla JS + PostgreSQL，部署於 Railway
 
 ---
 
-## 🚀 部署步驟
+## 使用情境
 
-### 1. 解壓縮並複製檔案
+個人/家庭股票投資追蹤工具，支援台股、美股、加密貨幣，提供技術指標分析、市場情緒、投資組合管理。加到手機主畫面後像 App 一樣使用。
+
+---
+
+## 主要功能
+
+### 追蹤清單
+- LINE 帳號登入，每人獨立追蹤清單
+- 支援台股（2330.TW）、美股（AAPL）、加密貨幣（BTC/ETH）
+- 設定目標價，到價提醒
+- 標籤分類（科技股、金融股、觀察中...）
+- 熱門追蹤排行榜
+
+### 技術指標
+- MA 移動平均線（5/10/20/60/120/240 日）
+- RSI 相對強弱指數
+- MACD 指數平滑異同移動平均
+- KD 隨機指標
+- 布林通道
+- OBV 能量潮
+
+### 市場情緒
+- 美股 Fear & Greed Index（CNN）
+- 加密貨幣恐慌貪婪指數（Alternative.me）
+- 存入資料庫快取，回應毫秒級
+
+### 投資組合
+- 交易紀錄（買入/賣出）
+- 自動計算持股成本、損益
+- 支援多券商、不同手續費率
+
+---
+
+## 技術規格
+
+| 層次 | 技術 |
+|------|------|
+| 前端 | Vanilla JavaScript + Tailwind CSS + Chart.js |
+| 後端 | Python 3.11 + FastAPI + Uvicorn |
+| ORM | SQLAlchemy 2.0 |
+| 資料庫 | PostgreSQL（Railway 內建）|
+| 排程 | APScheduler |
+| 股票數據 | Yahoo Finance（yfinance）|
+| 加密貨幣 | CoinGecko API |
+| 登入 | LINE Login + JWT |
+| 部署 | Railway |
+
+---
+
+## 本地開發
+
 ```bash
-# 解壓縮
-unzip sela_update.zip
-
-# 複製可直接替換的檔案
-cp -r sela_update/app/* app/
-cp -r sela_update/static/* static/
-```
-
-### 2. 執行補丁腳本（依序執行）
-```bash
-# 1. main.py + dashboard.html 補丁
-python sela_update/patch_broker_feature.py
-
-# 2. database.py 遷移補丁
-python sela_update/patch_database_broker.py
-
-# 3. portfolio.py 補丁
-python sela_update/patch_portfolio.py
-```
-
-### 3. 重新部署
-```bash
-git add .
-git commit -m "新增券商功能 + Bug 修復"
-git push
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload --port 8000
 ```
 
 ---
 
-## ✨ 本次更新內容
+## 版本歷程
 
-### 新功能
-- **券商管理**：在投資記錄頁面（美股記錄下方）管理券商
-- **交易關聯券商**：新增交易時可選擇券商
-- **快速新增券商**：在交易表單中可直接建立新券商
-- **自動帶入價格**：輸入股票代碼後自動帶入最後一筆交易價格
-
-### Bug 修復
-- ✅ **台股現值計算**：修正 symbol 未加 `.TW` 導致 price_cache 查不到
-- ✅ 目標價功能 - 支援「高於/低於」方向
-- ✅ 目標價即時更新 - 修復 AppState 快取問題
-- ✅ 股票名稱查詢 - 修正 API 路徑
-- ✅ 持股載入失敗 - 修正 return_rate undefined 錯誤
-
-### UI 優化
-- 移除手續費/交易稅欄位（簡化介面）
-- 目標價標記更明顯（綠色高於/紅色低於）
-- 券商選擇下拉選單
-- 價格自動帶入時欄位閃爍提示
+### V1.0.0（2026-04-07）
+- 初始優化版正式發布
+- 排程優化：減少 60% 執行次數，只在交易時段更新價格
+- 情緒指數 DB 快取：回應從秒級降至毫秒級
+- 資料庫索引優化
+- 智能交易時段判斷：台股 09:00-13:30、美股 21:30-05:00
 
 ---
 
-## 📝 測試檢查清單
+## 開發規範
 
-- [ ] 台股現值正確顯示
-- [ ] 新增券商
-- [ ] 新增交易時選擇券商
-- [ ] 新增交易時快速建立券商
-- [ ] 輸入股票代碼後自動帶入最後價格
-- [ ] 目標價設定（高於/低於）
-
----
-
-## ⚠️ 注意事項
-
-1. 補丁腳本會自動備份修改的檔案（.bak 結尾）
-2. 首次部署會自動建立 brokers 資料表
-3. 券商管理區塊會自動插入到投資記錄頁面的美股記錄下方
+- 版本命名：新功能 +0.1、Bug fix +0.01、大改版 +1.0
+- 每次發布必須更新 `app/config.py` 的 `APP_VERSION`
+- 技術指標欄位名一律小寫（ma20, rsi, macd_dif...）
+- 前端情緒 API 使用 `/market/sentiment`（有 DB 快取）
