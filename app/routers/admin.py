@@ -1,0 +1,690 @@
+"""
+ç®¡ç†å“¡ API è·¯ç”±
+ðŸ”§ P0ä¿®å¾©ï¼šä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+"""
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, update, delete
+from sqlalchemy.orm import selectinload
+from typing import Optional
+from datetime import datetime, timedelta
+import logging
+
+from app.database import get_async_session
+from app.models.user import User, LoginLog, TokenBlacklist, SystemConfig
+from app.services.exchange_rate_service import update_exchange_rate_sync
+from app.config import settings
+
+# ðŸ”§ ä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+from app.dependencies import get_admin_user
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/admin", tags=["ç®¡ç†å“¡"])
+
+
+@router.get("/stats", summary="ç³»çµ±çµ±è¨ˆ")
+async def get_stats(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """å–å¾—ç³»çµ±çµ±è¨ˆè³‡æ–™"""
+    # ç”¨æˆ¶çµ±è¨ˆ
+    total_users = await db.scalar(select(func.count(User.id)))
+    active_users = await db.scalar(select(func.count(User.id)).where(User.is_active == True))
+    blocked_users = await db.scalar(select(func.count(User.id)).where(User.is_blocked == True))
+    admin_users = await db.scalar(select(func.count(User.id)).where(User.is_admin == True))
+    
+    # ç¸½ç™»å…¥æ¬¡æ•¸
+    total_logins = await db.scalar(
+        select(func.count(LoginLog.id))
+        .where(LoginLog.action == "login")
+    )
+    
+    # ä»Šæ—¥ç™»å…¥
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_logins = await db.scalar(
+        select(func.count(LoginLog.id))
+        .where(LoginLog.action == "login")
+        .where(LoginLog.created_at >= today)
+    )
+    
+    # è¿‘ 7 å¤©æ´»èºç”¨æˆ¶
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    weekly_active = await db.scalar(
+        select(func.count(func.distinct(LoginLog.user_id)))
+        .where(LoginLog.created_at >= week_ago)
+    )
+    
+    return {
+        "success": True,
+        "stats": {
+            "total_users": total_users or 0,
+            "active_users": active_users or 0,
+            "blocked_users": blocked_users or 0,
+            "admin_users": admin_users or 0,
+            "total_logins": total_logins or 0,
+            "today_logins": today_logins or 0,
+            "weekly_active_users": weekly_active or 0,
+        }
+    }
+
+
+@router.get("/users", summary="ç”¨æˆ¶åˆ—è¡¨")
+async def list_users(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = None,
+    blocked_only: bool = False,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """å–å¾—ç”¨æˆ¶åˆ—è¡¨ï¼ˆå«ç™»å…¥æ¬¡æ•¸ï¼‰"""
+    query = select(User).order_by(User.last_login.desc())
+    
+    # æœå°‹
+    if search:
+        query = query.where(
+            (User.display_name.ilike(f"%{search}%")) |
+            (User.email.ilike(f"%{search}%")) |
+            (User.line_user_id.ilike(f"%{search}%"))
+        )
+    
+    # åªé¡¯ç¤ºå°éŽ–ç”¨æˆ¶
+    if blocked_only:
+        query = query.where(User.is_blocked == True)
+    
+    # è¨ˆç®—ç¸½æ•¸
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+    
+    # åˆ†é 
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(query)
+    users = result.scalars().all()
+    
+    # å–å¾—æ¯å€‹ç”¨æˆ¶çš„ç™»å…¥æ¬¡æ•¸
+    user_ids = [u.id for u in users]
+    login_counts = {}
+    if user_ids:
+        login_count_result = await db.execute(
+            select(LoginLog.user_id, func.count(LoginLog.id).label('count'))
+            .where(LoginLog.user_id.in_(user_ids))
+            .where(LoginLog.action == "login")
+            .group_by(LoginLog.user_id)
+        )
+        for row in login_count_result:
+            login_counts[row.user_id] = row.count
+    
+    # çµ„åˆçµæžœ
+    users_data = []
+    for u in users:
+        user_dict = u.to_dict()
+        user_dict["login_count"] = login_counts.get(u.id, 0)
+        users_data.append(user_dict)
+    
+    return {
+        "success": True,
+        "users": users_data,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total": total or 0,
+            "total_pages": ((total or 0) + page_size - 1) // page_size,
+        }
+    }
+
+
+@router.get("/users/{user_id}", summary="ç”¨æˆ¶è©³æƒ…")
+async def get_user_detail(
+    user_id: int,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """å–å¾—ç”¨æˆ¶è©³ç´°è³‡è¨Š"""
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="ç”¨æˆ¶ä¸å­˜åœ¨")
+    
+    # å–å¾—æœ€è¿‘ç™»å…¥è¨˜éŒ„
+    logs_result = await db.execute(
+        select(LoginLog)
+        .where(LoginLog.user_id == user_id)
+        .order_by(LoginLog.created_at.desc())
+        .limit(20)
+    )
+    logs = logs_result.scalars().all()
+    
+    return {
+        "success": True,
+        "user": user.to_dict(),
+        "recent_logs": [log.to_dict() for log in logs],
+    }
+
+
+@router.get("/logs", summary="ç™»å…¥æ—¥èªŒ")
+async def list_logs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    user_id: Optional[int] = None,
+    action: Optional[str] = None,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """å–å¾—ç™»å…¥æ—¥èªŒ"""
+    query = select(LoginLog).order_by(LoginLog.created_at.desc())
+    
+    if user_id:
+        query = query.where(LoginLog.user_id == user_id)
+    
+    if action:
+        query = query.where(LoginLog.action == action)
+    
+    # è¨ˆç®—ç¸½æ•¸
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+    
+    # åˆ†é 
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(query)
+    logs = result.scalars().all()
+    
+    # å–å¾—ç”¨æˆ¶åç¨±
+    user_ids = list(set(log.user_id for log in logs))
+    if user_ids:
+        users_result = await db.execute(
+            select(User).where(User.id.in_(user_ids))
+        )
+        users_map = {u.id: u.display_name for u in users_result.scalars().all()}
+    else:
+        users_map = {}
+    
+    logs_data = []
+    for log in logs:
+        log_dict = log.to_dict()
+        log_dict["user_name"] = users_map.get(log.user_id, "Unknown")
+        logs_data.append(log_dict)
+    
+    return {
+        "success": True,
+        "logs": logs_data,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total": total or 0,
+            "total_pages": ((total or 0) + page_size - 1) // page_size,
+        }
+    }
+
+
+@router.post("/users/{user_id}/block", summary="å°éŽ–ç”¨æˆ¶")
+async def block_user(
+    user_id: int,
+    reason: str = Query("", description="å°éŽ–åŽŸå› "),
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """å°éŽ–ç”¨æˆ¶"""
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="ä¸èƒ½å°éŽ–è‡ªå·±")
+    
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="ç”¨æˆ¶ä¸å­˜åœ¨")
+    
+    if user.is_admin:
+        raise HTTPException(status_code=400, detail="ä¸èƒ½å°éŽ–ç®¡ç†å“¡")
+    
+    user.is_blocked = True
+    user.block_reason = reason
+    
+    # è¨˜éŒ„æ“ä½œ
+    log = LoginLog(
+        user_id=user_id,
+        action="blocked",
+        ip_address=None,
+        user_agent=f"By admin: {admin.display_name}",
+    )
+    db.add(log)
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": f"å·²å°éŽ–ç”¨æˆ¶: {user.display_name}",
+    }
+
+
+@router.post("/users/{user_id}/unblock", summary="è§£é™¤å°éŽ–")
+async def unblock_user(
+    user_id: int,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """è§£é™¤ç”¨æˆ¶å°éŽ–"""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="ç”¨æˆ¶ä¸å­˜åœ¨")
+    
+    user.is_blocked = False
+    user.block_reason = None
+    
+    # è¨˜éŒ„æ“ä½œ
+    log = LoginLog(
+        user_id=user_id,
+        action="unblocked",
+        ip_address=None,
+        user_agent=f"By admin: {admin.display_name}",
+    )
+    db.add(log)
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": f"å·²è§£é™¤å°éŽ–: {user.display_name}",
+    }
+
+
+@router.post("/users/{user_id}/set-admin", summary="è¨­å®šç®¡ç†å“¡")
+async def set_admin(
+    user_id: int,
+    is_admin: bool = Query(..., description="æ˜¯å¦ç‚ºç®¡ç†å“¡"),
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """è¨­å®šæˆ–å–æ¶ˆç®¡ç†å“¡æ¬Šé™"""
+    if user_id == admin.id and not is_admin:
+        raise HTTPException(status_code=400, detail="ä¸èƒ½å–æ¶ˆè‡ªå·±çš„ç®¡ç†å“¡æ¬Šé™")
+    
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="ç”¨æˆ¶ä¸å­˜åœ¨")
+    
+    user.is_admin = is_admin
+    
+    # è¨˜éŒ„æ“ä½œ
+    action = "promoted_to_admin" if is_admin else "demoted_from_admin"
+    log = LoginLog(
+        user_id=user_id,
+        action=action,
+        ip_address=None,
+        user_agent=f"By admin: {admin.display_name}",
+    )
+    db.add(log)
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": f"å·²{'è¨­å®š' if is_admin else 'å–æ¶ˆ'} {user.display_name} çš„ç®¡ç†å“¡æ¬Šé™",
+    }
+
+
+@router.delete("/users/{user_id}", summary="åˆªé™¤ç”¨æˆ¶")
+async def delete_user(
+    user_id: int,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """åˆªé™¤ç”¨æˆ¶ï¼ˆåƒ…é™æ¸¬è©¦ç’°å¢ƒï¼‰"""
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="ä¸èƒ½åˆªé™¤è‡ªå·±")
+    
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="ç”¨æˆ¶ä¸å­˜åœ¨")
+    
+    if user.is_admin:
+        raise HTTPException(status_code=400, detail="ä¸èƒ½åˆªé™¤ç®¡ç†å“¡")
+    
+    # åˆªé™¤ç›¸é—œè³‡æ–™
+    await db.execute(delete(LoginLog).where(LoginLog.user_id == user_id))
+    await db.delete(user)
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": f"å·²åˆªé™¤ç”¨æˆ¶: {user.display_name}",
+    }
+
+
+# ============================================================
+# ç³»çµ±è¨­å®š
+# ============================================================
+
+@router.get("/config", summary="å–å¾—ç³»çµ±è¨­å®š")
+async def get_config(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """å–å¾—ç³»çµ±è¨­å®š"""
+    result = await db.execute(select(SystemConfig))
+    configs = result.scalars().all()
+    
+    return {
+        "success": True,
+        "configs": {c.key: c.value for c in configs},
+    }
+
+
+@router.put("/config/{key}", summary="æ›´æ–°ç³»çµ±è¨­å®š")
+async def update_config(
+    key: str,
+    value: str = Query(..., description="è¨­å®šå€¼"),
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """æ›´æ–°ç³»çµ±è¨­å®š"""
+    result = await db.execute(
+        select(SystemConfig).where(SystemConfig.key == key)
+    )
+    config = result.scalar_one_or_none()
+    
+    if config:
+        config.value = value
+    else:
+        config = SystemConfig(key=key, value=value)
+        db.add(config)
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": f"å·²æ›´æ–°è¨­å®š: {key}",
+    }
+
+
+# ============================================================
+# è¨Šè™Ÿé€šçŸ¥ç®¡ç†
+# ============================================================
+
+@router.post("/signal/send-now", summary="ç«‹å³ç™¼é€è¨Šè™Ÿé€šçŸ¥")
+async def send_signal_now(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    ç«‹å³åŸ·è¡Œè¨Šè™Ÿåµæ¸¬ä¸¦ç™¼é€é€šçŸ¥
+    """
+    from app.tasks.scheduler import scheduler_service
+    
+    logger.info(f"ç®¡ç†å“¡ {admin.display_name} è§¸ç™¼ç«‹å³ç™¼é€è¨Šè™Ÿé€šçŸ¥")
+    
+    try:
+        result = scheduler_service.run_signal_notification()
+        
+        return {
+            "success": True,
+            "signals_detected": result.get("signals_count", 0),
+            "notifications_sent": result.get("notifications_sent", 0),
+            "errors": result.get("errors", []),
+            "message": f"åµæ¸¬åˆ° {result.get('signals_count', 0)} å€‹è¨Šè™Ÿï¼Œç™¼é€ {result.get('notifications_sent', 0)} å‰‡é€šçŸ¥"
+        }
+    except Exception as e:
+        logger.error(f"è¨Šè™Ÿé€šçŸ¥å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/signal/test-push", summary="æ¸¬è©¦ LINE æŽ¨æ’­")
+async def test_line_push(
+    message: str = Query("é€™æ˜¯æ¸¬è©¦è¨Šæ¯", description="æ¸¬è©¦è¨Šæ¯å…§å®¹"),
+    admin: User = Depends(get_admin_user),
+):
+    """
+    æ¸¬è©¦ LINE æŽ¨æ’­åŠŸèƒ½
+    ç™¼é€æ¸¬è©¦è¨Šæ¯çµ¦ç®¡ç†å“¡è‡ªå·±
+    """
+    from app.services.line_notify_service import line_notify_service
+    
+    if not line_notify_service.enabled:
+        return {
+            "success": False,
+            "message": "LINE Messaging API æœªå•Ÿç”¨ï¼Œè«‹è¨­å®š LINE_MESSAGING_CHANNEL_ACCESS_TOKEN"
+        }
+    
+    try:
+        test_message = f"ðŸ“Š SELA ç³»çµ±æ¸¬è©¦\n\n{message}\n\nâ° {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        success = await line_notify_service.push_text_message(admin.line_user_id, test_message)
+        
+        return {
+            "success": success,
+            "message": "æ¸¬è©¦è¨Šæ¯å·²ç™¼é€" if success else "ç™¼é€å¤±æ•—",
+            "line_user_id": admin.line_user_id[:10] + "..."
+        }
+    except Exception as e:
+        logger.error(f"æ¸¬è©¦æŽ¨æ’­å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/signal/status", summary="é€šçŸ¥ç³»çµ±ç‹€æ…‹")
+async def get_signal_status(
+    admin: User = Depends(get_admin_user),
+):
+    """
+    å–å¾—è¨Šè™Ÿé€šçŸ¥ç³»çµ±ç‹€æ…‹
+    """
+    from app.services.line_notify_service import line_notify_service
+    from app.tasks.scheduler import scheduler_service
+    
+    return {
+        "success": True,
+        "status": {
+            "line_messaging_enabled": line_notify_service.enabled,
+            "line_messaging_token_set": bool(settings.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN),
+            "scheduler_last_run": scheduler_service.last_run.isoformat() if scheduler_service.last_run else None,
+            "scheduler_last_result": scheduler_service.last_result,
+        }
+    }
+
+
+@router.post("/signal/detect", summary="æ‰‹å‹•åµæ¸¬è¨Šè™Ÿ")
+async def detect_signals_manual(
+    admin: User = Depends(get_admin_user),
+):
+    """
+    æ‰‹å‹•åŸ·è¡Œè¨Šè™Ÿåµæ¸¬ï¼ˆä¸ç™¼é€é€šçŸ¥ï¼‰
+    ç”¨æ–¼æ¸¬è©¦è¨Šè™Ÿåµæ¸¬é‚è¼¯
+    """
+    from app.tasks.scheduler import scheduler_service
+    
+    try:
+        result = scheduler_service.run_signal_detection_only()
+        
+        return {
+            "success": True,
+            "message": f"åµæ¸¬å®Œæˆï¼Œå…± {len(result.get('signals', []))} å€‹è¨Šè™Ÿ",
+            "signals_by_symbol": result.get("by_symbol", {}),
+            "total_signals": len(result.get("signals", [])),
+        }
+    except Exception as e:
+        logger.error(f"è¨Šè™Ÿåµæ¸¬å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/signal/notify", summary="æ‰‹å‹•ç™¼é€é€šçŸ¥")
+async def send_notifications_manual(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    æ‰‹å‹•åŸ·è¡Œè¨Šè™Ÿåµæ¸¬ä¸¦ç™¼é€é€šçŸ¥
+    ç­‰åŒæ–¼æ¯æ—¥æŽ’ç¨‹ä»»å‹™
+    """
+    from app.tasks.scheduler import scheduler_service
+    
+    try:
+        result = scheduler_service.run_daily_update()
+        
+        return {
+            "success": result.get("success", False),
+            "message": "æ¯æ—¥æ›´æ–°ä»»å‹™å·²åŸ·è¡Œ",
+            "result": {
+                "stocks_updated": result.get("stocks_updated", 0),
+                "signals_detected": result.get("signals_detected", 0),
+                "notifications_sent": result.get("notifications_sent", 0),
+                "errors": result.get("errors", []),
+            }
+        }
+    except Exception as e:
+        logger.error(f"é€šçŸ¥ä»»å‹™å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/notifications", summary="é€šçŸ¥è¨˜éŒ„")
+async def list_notifications(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    user_id: Optional[int] = None,
+    symbol: Optional[str] = None,
+    sent_only: bool = False,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    å–å¾—é€šçŸ¥è¨˜éŒ„
+    """
+    from app.models.notification import Notification
+    
+    query = select(Notification).order_by(Notification.triggered_at.desc())
+    
+    if user_id:
+        query = query.where(Notification.user_id == user_id)
+    
+    if symbol:
+        query = query.where(Notification.symbol == symbol.upper())
+    
+    if sent_only:
+        query = query.where(Notification.sent == True)
+    
+    # è¨ˆç®—ç¸½æ•¸
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+    
+    # åˆ†é 
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(query)
+    notifications = result.scalars().all()
+    
+    # å–å¾—ç”¨æˆ¶åç¨±
+    user_ids = list(set(n.user_id for n in notifications))
+    users_map = {}
+    if user_ids:
+        users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+        users_map = {u.id: u.display_name for u in users_result.scalars().all()}
+    
+    notifications_data = []
+    for n in notifications:
+        n_dict = n.to_dict()
+        n_dict["user_name"] = users_map.get(n.user_id, "Unknown")
+        notifications_data.append(n_dict)
+    
+    return {
+        "success": True,
+        "notifications": notifications_data,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total": total or 0,
+            "total_pages": ((total or 0) + page_size - 1) // page_size,
+        }
+    }
+
+
+# ============================================================
+# ç®¡ç†å“¡è§¸ç™¼æ›´æ–° API
+# ============================================================
+
+@router.post("/update-exchange-rate", summary="æ›´æ–°åŒ¯çŽ‡")
+async def admin_update_exchange_rate(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    ç®¡ç†å“¡æ‰‹å‹•è§¸ç™¼ USD/TWD åŒ¯çŽ‡æ›´æ–°
+    """
+    from app.database import SyncSessionLocal
+    
+    logger.info(f"ç®¡ç†å“¡ {admin.display_name} è§¸ç™¼åŒ¯çŽ‡æ›´æ–°")
+    
+    try:
+        sync_db = SyncSessionLocal()
+        try:
+            rate = update_exchange_rate_sync(sync_db)
+            return {
+                "success": True,
+                "message": f"åŒ¯çŽ‡å·²æ›´æ–°: USD/TWD = {rate:.4f}",
+                "rate": rate,
+            }
+        finally:
+            sync_db.close()
+    except Exception as e:
+        logger.error(f"åŒ¯çŽ‡æ›´æ–°å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/update-indices", summary="æ›´æ–°å››å¤§æŒ‡æ•¸")
+async def admin_update_indices(
+    admin: User = Depends(get_admin_user),
+):
+    """
+    ç®¡ç†å“¡æ‰‹å‹•è§¸ç™¼å››å¤§æŒ‡æ•¸æ›´æ–°
+    """
+    from app.services.index_service import update_all_indices
+    
+    logger.info(f"ç®¡ç†å“¡ {admin.display_name} è§¸ç™¼å››å¤§æŒ‡æ•¸æ›´æ–°")
+    
+    try:
+        result = update_all_indices()
+        return {
+            "success": True,
+            "message": "å››å¤§æŒ‡æ•¸å·²æ›´æ–°",
+            "updated": result.get("updated", 0),
+            "errors": result.get("errors", []),
+        }
+    except Exception as e:
+        logger.error(f"å››å¤§æŒ‡æ•¸æ›´æ–°å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/update-price-cache", summary="æ›´æ–°åƒ¹æ ¼å¿«å–")
+async def admin_update_price_cache(
+    admin: User = Depends(get_admin_user),
+):
+    """
+    ç®¡ç†å“¡æ‰‹å‹•è§¸ç™¼è¿½è¹¤æ¸…å–®åƒ¹æ ¼å¿«å–æ›´æ–°
+    """
+    from app.database import SyncSessionLocal
+    from app.services.price_cache_service import PriceCacheService
+    
+    logger.info(f"ç®¡ç†å“¡ {admin.display_name} è§¸ç™¼åƒ¹æ ¼å¿«å–æ›´æ–°")
+    
+    try:
+        sync_db = SyncSessionLocal()
+        try:
+            service = PriceCacheService(sync_db)
+            result = service.update_all(force=True)
+            return {
+                "success": True,
+                "message": "åƒ¹æ ¼å¿«å–å·²æ›´æ–°",
+                "total_updated": result.get("total_updated", 0),
+                "errors": result.get("errors", []),
+            }
+        finally:
+            sync_db.close()
+    except Exception as e:
+        logger.error(f"åƒ¹æ ¼å¿«å–æ›´æ–°å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

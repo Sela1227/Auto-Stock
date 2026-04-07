@@ -1,0 +1,259 @@
+"""
+å ±é…¬çŽ‡æ¯”è¼ƒ API è·¯ç”±
+ðŸ”§ P0ä¿®å¾©ï¼šä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+"""
+from typing import List, Optional
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+import logging
+
+from app.database import get_async_session
+from app.services.compare_service import compare_service, ComparisonCRUD
+from app.models.user import User
+
+# ðŸ”§ ä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+from app.dependencies import get_current_user, get_optional_user
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/compare", tags=["Compare"])
+
+
+# ==================== Schemas ====================
+
+class CompareRequest(BaseModel):
+    """æ¯”è¼ƒè«‹æ±‚"""
+    symbols: List[str] = Field(..., min_length=1, max_length=5, description="æ¨™çš„ä»£è™Ÿåˆ—è¡¨")
+    periods: List[str] = Field(default=["1y", "3y", "5y", "10y"], description="æ™‚é–“é€±æœŸ")
+    custom_range: Optional[dict] = Field(default=None, description="è‡ªè¨‚å€é–“ {start, end}")
+    benchmark: str = Field(default="^GSPC", description="åŸºæº–æŒ‡æ•¸")
+    sort_by: str = Field(default="5y", description="æŽ’åºä¾æ“š")
+    sort_order: str = Field(default="desc", pattern="^(asc|desc)$", description="æŽ’åºæ–¹å‘")
+
+
+class SaveComparisonRequest(BaseModel):
+    """å„²å­˜æ¯”è¼ƒçµ„åˆè«‹æ±‚"""
+    name: str = Field(..., min_length=1, max_length=100, description="çµ„åˆåç¨±")
+    symbols: List[str] = Field(..., min_length=1, max_length=5, description="æ¨™çš„ä»£è™Ÿåˆ—è¡¨")
+    benchmark: str = Field(default="^GSPC", description="åŸºæº–æŒ‡æ•¸")
+
+
+class UpdateComparisonRequest(BaseModel):
+    """æ›´æ–°æ¯”è¼ƒçµ„åˆè«‹æ±‚"""
+    name: Optional[str] = Field(default=None, max_length=100)
+    symbols: Optional[List[str]] = Field(default=None, max_length=5)
+    benchmark: Optional[str] = Field(default=None)
+
+
+# ==================== å…¬é–‹ API ====================
+
+@router.post("/cagr", summary="è¨ˆç®—å¹´åŒ–å ±é…¬çŽ‡æ¯”è¼ƒ")
+async def compare_cagr(request: CompareRequest):
+    """
+    æ¯”è¼ƒå¤šå€‹æ¨™çš„çš„å¹´åŒ–å ±é…¬çŽ‡ (CAGR)
+    
+    - æ”¯æ´è‚¡ç¥¨ã€åŠ å¯†è²¨å¹£ã€æŒ‡æ•¸æ··åˆæ¯”è¼ƒ
+    - æœ€å¤š 5 å€‹æ¨™çš„
+    - å¯é¸æ™‚é–“é€±æœŸï¼š1å¹´ã€3å¹´ã€5å¹´ã€10å¹´ã€è‡ªè¨‚å€é–“
+    """
+    result = await compare_service.compare_cagr(
+        symbols=request.symbols,
+        periods=request.periods,
+        custom_range=request.custom_range,
+        benchmark=request.benchmark,
+        sort_by=request.sort_by,
+        sort_order=request.sort_order,
+    )
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "æ¯”è¼ƒå¤±æ•—"))
+    
+    return result
+
+
+@router.get("/presets", summary="å–å¾—é è¨­çµ„åˆåˆ—è¡¨")
+async def get_presets():
+    """å–å¾—æ‰€æœ‰é è¨­æ¯”è¼ƒçµ„åˆ"""
+    presets = compare_service.get_presets()
+    return {
+        "success": True,
+        "presets": presets,
+    }
+
+
+@router.get("/presets/{preset_id}", summary="å–å¾—é è¨­çµ„åˆè©³æƒ…")
+async def get_preset_detail(preset_id: str):
+    """å–å¾—é è¨­çµ„åˆçš„è©³ç´°å…§å®¹"""
+    preset = compare_service.get_preset_detail(preset_id)
+    
+    if not preset:
+        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è©²é è¨­çµ„åˆ")
+    
+    return {
+        "success": True,
+        "preset": preset,
+    }
+
+
+@router.get("/benchmarks", summary="å–å¾—åŸºæº–æŒ‡æ•¸é¸é …")
+async def get_benchmarks():
+    """å–å¾—å¯ç”¨çš„åŸºæº–æŒ‡æ•¸é¸é …"""
+    benchmarks = compare_service.get_benchmark_options()
+    return {
+        "success": True,
+        "benchmarks": [
+            {"symbol": k, "name": v}
+            for k, v in benchmarks.items()
+        ],
+    }
+
+
+# ==================== ç”¨æˆ¶å„²å­˜çš„çµ„åˆ API ====================
+
+@router.get("/saved", summary="å–å¾—æˆ‘çš„æ¯”è¼ƒçµ„åˆ")
+async def get_saved_comparisons(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """å–å¾—ç•¶å‰ç”¨æˆ¶å„²å­˜çš„æ‰€æœ‰æ¯”è¼ƒçµ„åˆ"""
+    crud = ComparisonCRUD(db)
+    comparisons = await crud.get_user_comparisons(user.id)
+    
+    return {
+        "success": True,
+        "comparisons": [c.to_dict() for c in comparisons],
+    }
+
+
+@router.post("/saved", summary="å„²å­˜æ¯”è¼ƒçµ„åˆ")
+async def save_comparison(
+    request: SaveComparisonRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """å„²å­˜æ–°çš„æ¯”è¼ƒçµ„åˆ"""
+    crud = ComparisonCRUD(db)
+    
+    # æª¢æŸ¥ç”¨æˆ¶å·²æœ‰çš„çµ„åˆæ•¸é‡ï¼ˆé™åˆ¶æœ€å¤š 10 å€‹ï¼‰
+    existing = await crud.get_user_comparisons(user.id)
+    if len(existing) >= 10:
+        raise HTTPException(status_code=400, detail="æœ€å¤šåªèƒ½å„²å­˜ 10 å€‹æ¯”è¼ƒçµ„åˆ")
+    
+    # æ­£è¦åŒ– symbols
+    symbols = [s.upper().strip() for s in request.symbols]
+    
+    comparison = await crud.create_comparison(
+        user_id=user.id,
+        name=request.name,
+        symbols=symbols,
+        benchmark=request.benchmark,
+    )
+    
+    return {
+        "success": True,
+        "message": "æ¯”è¼ƒçµ„åˆå·²å„²å­˜",
+        "comparison": comparison.to_dict(),
+    }
+
+
+@router.get("/saved/{comparison_id}", summary="å–å¾—å–®ä¸€æ¯”è¼ƒçµ„åˆ")
+async def get_saved_comparison(
+    comparison_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """å–å¾—å–®ä¸€æ¯”è¼ƒçµ„åˆè©³æƒ…"""
+    crud = ComparisonCRUD(db)
+    comparison = await crud.get_comparison(comparison_id, user.id)
+    
+    if not comparison:
+        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è©²æ¯”è¼ƒçµ„åˆ")
+    
+    return {
+        "success": True,
+        "comparison": comparison.to_dict(),
+    }
+
+
+@router.put("/saved/{comparison_id}", summary="æ›´æ–°æ¯”è¼ƒçµ„åˆ")
+async def update_saved_comparison(
+    comparison_id: int,
+    request: UpdateComparisonRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """æ›´æ–°å„²å­˜çš„æ¯”è¼ƒçµ„åˆ"""
+    crud = ComparisonCRUD(db)
+    
+    # æ­£è¦åŒ– symbols
+    symbols = None
+    if request.symbols:
+        symbols = [s.upper().strip() for s in request.symbols]
+    
+    comparison = await crud.update_comparison(
+        comparison_id=comparison_id,
+        user_id=user.id,
+        name=request.name,
+        symbols=symbols,
+        benchmark=request.benchmark,
+    )
+    
+    if not comparison:
+        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è©²æ¯”è¼ƒçµ„åˆ")
+    
+    return {
+        "success": True,
+        "message": "æ¯”è¼ƒçµ„åˆå·²æ›´æ–°",
+        "comparison": comparison.to_dict(),
+    }
+
+
+@router.delete("/saved/{comparison_id}", summary="åˆªé™¤æ¯”è¼ƒçµ„åˆ")
+async def delete_saved_comparison(
+    comparison_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """åˆªé™¤å„²å­˜çš„æ¯”è¼ƒçµ„åˆ"""
+    crud = ComparisonCRUD(db)
+    deleted = await crud.delete_comparison(comparison_id, user.id)
+    
+    if not deleted:
+        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è©²æ¯”è¼ƒçµ„åˆ")
+    
+    return {
+        "success": True,
+        "message": "æ¯”è¼ƒçµ„åˆå·²åˆªé™¤",
+    }
+
+
+# ==================== å¿«é€Ÿæ¯”è¼ƒ (çµåˆ preset + è¨ˆç®—) ====================
+
+@router.get("/quick/{preset_id}", summary="å¿«é€Ÿæ¯”è¼ƒé è¨­çµ„åˆ")
+async def quick_compare_preset(
+    preset_id: str,
+    benchmark: str = Query(default="^GSPC", description="åŸºæº–æŒ‡æ•¸"),
+    sort_by: str = Query(default="5y", description="æŽ’åºä¾æ“š"),
+):
+    """
+    å¿«é€Ÿæ¯”è¼ƒé è¨­çµ„åˆ
+    ç›´æŽ¥è¼‰å…¥é è¨­çµ„åˆä¸¦è¨ˆç®— CAGR
+    """
+    preset = compare_service.get_preset_detail(preset_id)
+    
+    if not preset:
+        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è©²é è¨­çµ„åˆ")
+    
+    result = await compare_service.compare_cagr(
+        symbols=preset["symbols"],
+        periods=["1y", "3y", "5y", "10y"],
+        benchmark=benchmark,
+        sort_by=sort_by,
+        sort_order="desc",
+    )
+    
+    result["preset"] = preset
+    return result

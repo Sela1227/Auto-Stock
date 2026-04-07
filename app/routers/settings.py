@@ -1,0 +1,392 @@
+"""
+è¨­å®šç®¡ç† API è·¯ç”±
+ðŸ”§ P0ä¿®å¾©ï¼šä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+"""
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from app.database import get_async_session
+from app.models.user import User
+from app.models.user_settings import (
+    UserIndicatorSettings,
+    UserAlertSettings,
+    UserIndicatorParams,
+)
+from app.schemas.schemas import (
+    IndicatorSettingsUpdate,
+    IndicatorSettingsResponse,
+    AlertSettingsUpdate,
+    AlertSettingsResponse,
+    IndicatorParamsUpdate,
+    IndicatorParamsResponse,
+    ResponseBase,
+)
+
+# ðŸ”§ ä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+from app.dependencies import get_current_user
+
+router = APIRouter(prefix="/api/settings", tags=["è¨­å®š"])
+
+
+# ==================== æŒ‡æ¨™é¡¯ç¤ºè¨­å®š ====================
+
+@router.get("/indicators", summary="å–å¾—æŒ‡æ¨™é¡¯ç¤ºè¨­å®š", response_model=IndicatorSettingsResponse)
+async def get_indicator_settings(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    å–å¾—ç”¨æˆ¶çš„æŒ‡æ¨™é¡¯ç¤ºè¨­å®š
+    """
+    stmt = select(UserIndicatorSettings).where(
+        UserIndicatorSettings.user_id == user.id
+    )
+    result = await db.execute(stmt)
+    settings = result.scalar_one_or_none()
+    
+    if not settings:
+        # å»ºç«‹é è¨­è¨­å®š
+        settings = UserIndicatorSettings.create_default(user.id)
+        db.add(settings)
+        await db.commit()
+        await db.refresh(settings)
+    
+    return IndicatorSettingsResponse(
+        success=True,
+        data=settings.to_dict(),
+    )
+
+
+@router.put("/indicators", summary="æ›´æ–°æŒ‡æ¨™é¡¯ç¤ºè¨­å®š", response_model=IndicatorSettingsResponse)
+async def update_indicator_settings(
+    data: IndicatorSettingsUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    æ›´æ–°ç”¨æˆ¶çš„æŒ‡æ¨™é¡¯ç¤ºè¨­å®š
+    """
+    stmt = select(UserIndicatorSettings).where(
+        UserIndicatorSettings.user_id == user.id
+    )
+    result = await db.execute(stmt)
+    settings = result.scalar_one_or_none()
+    
+    if not settings:
+        settings = UserIndicatorSettings.create_default(user.id)
+        db.add(settings)
+    
+    # æ›´æ–°è¨­å®š
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(settings, key, value)
+    
+    await db.commit()
+    await db.refresh(settings)
+    
+    return IndicatorSettingsResponse(
+        success=True,
+        message="è¨­å®šå·²æ›´æ–°",
+        data=settings.to_dict(),
+    )
+
+
+# ==================== é€šçŸ¥è¨­å®š ====================
+
+@router.get("/alerts", summary="å–å¾—é€šçŸ¥è¨­å®š", response_model=AlertSettingsResponse)
+async def get_alert_settings(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    å–å¾—ç”¨æˆ¶çš„é€šçŸ¥è¨­å®š
+    """
+    stmt = select(UserAlertSettings).where(
+        UserAlertSettings.user_id == user.id
+    )
+    result = await db.execute(stmt)
+    settings = result.scalar_one_or_none()
+    
+    if not settings:
+        settings = UserAlertSettings.create_default(user.id)
+        db.add(settings)
+        await db.commit()
+        await db.refresh(settings)
+    
+    return AlertSettingsResponse(
+        success=True,
+        data=settings.to_dict(),
+    )
+
+
+@router.put("/alerts", summary="æ›´æ–°é€šçŸ¥è¨­å®š", response_model=AlertSettingsResponse)
+async def update_alert_settings(
+    data: AlertSettingsUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    æ›´æ–°ç”¨æˆ¶çš„é€šçŸ¥è¨­å®š
+    """
+    stmt = select(UserAlertSettings).where(
+        UserAlertSettings.user_id == user.id
+    )
+    result = await db.execute(stmt)
+    settings = result.scalar_one_or_none()
+    
+    if not settings:
+        settings = UserAlertSettings.create_default(user.id)
+        db.add(settings)
+    
+    # æ›´æ–°è¨­å®š
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(settings, key, value)
+    
+    await db.commit()
+    await db.refresh(settings)
+    
+    return AlertSettingsResponse(
+        success=True,
+        message="è¨­å®šå·²æ›´æ–°",
+        data=settings.to_dict(),
+    )
+
+
+# ==================== æŒ‡æ¨™åƒæ•¸è¨­å®š ====================
+
+@router.get("/params", summary="å–å¾—æŒ‡æ¨™åƒæ•¸", response_model=IndicatorParamsResponse)
+async def get_indicator_params(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    å–å¾—ç”¨æˆ¶çš„æŒ‡æ¨™åƒæ•¸è¨­å®š
+    """
+    stmt = select(UserIndicatorParams).where(
+        UserIndicatorParams.user_id == user.id
+    )
+    result = await db.execute(stmt)
+    params = result.scalar_one_or_none()
+    
+    if not params:
+        params = UserIndicatorParams.create_default(user.id)
+        db.add(params)
+        await db.commit()
+        await db.refresh(params)
+    
+    return IndicatorParamsResponse(
+        success=True,
+        data=params.to_dict(),
+    )
+
+
+@router.put("/params", summary="æ›´æ–°æŒ‡æ¨™åƒæ•¸", response_model=IndicatorParamsResponse)
+async def update_indicator_params(
+    data: IndicatorParamsUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    æ›´æ–°ç”¨æˆ¶çš„æŒ‡æ¨™åƒæ•¸è¨­å®š
+    
+    å¯è‡ªè¨‚åƒæ•¸åŒ…æ‹¬ï¼š
+    - å‡ç·šé€±æœŸ (ma_short, ma_mid, ma_long)
+    - RSI åƒæ•¸ (rsi_period, rsi_overbought, rsi_oversold)
+    - MACD åƒæ•¸ (macd_fast, macd_slow, macd_signal)
+    - KD é€±æœŸ (kd_period)
+    - å¸ƒæž—é€šé“ (bollinger_period, bollinger_std)
+    - è­¦æˆ’å€¼ (breakout_threshold, volume_alert_ratio)
+    """
+    stmt = select(UserIndicatorParams).where(
+        UserIndicatorParams.user_id == user.id
+    )
+    result = await db.execute(stmt)
+    params = result.scalar_one_or_none()
+    
+    if not params:
+        params = UserIndicatorParams.create_default(user.id)
+        db.add(params)
+    
+    # æ›´æ–°åƒæ•¸
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(params, key, value)
+    
+    await db.commit()
+    await db.refresh(params)
+    
+    return IndicatorParamsResponse(
+        success=True,
+        message="åƒæ•¸å·²æ›´æ–°",
+        data=params.to_dict(),
+    )
+
+
+# ==================== é è¨­æ¨¡æ¿ ====================
+
+TEMPLATES = {
+    "minimal": {
+        "indicators": {
+            "show_ma": True,
+            "show_rsi": False,
+            "show_macd": False,
+            "show_kd": False,
+            "show_bollinger": False,
+            "show_obv": False,
+            "show_volume": True,
+        },
+        "alerts": {
+            "alert_ma_cross": True,
+            "alert_ma_breakout": True,
+            "alert_rsi": False,
+            "alert_macd": False,
+            "alert_kd": False,
+            "alert_bollinger": False,
+            "alert_volume": False,
+            "alert_sentiment": False,
+        },
+    },
+    "standard": {
+        "indicators": {
+            "show_ma": True,
+            "show_rsi": True,
+            "show_macd": True,
+            "show_kd": False,
+            "show_bollinger": True,
+            "show_obv": False,
+            "show_volume": True,
+        },
+        "alerts": {
+            "alert_ma_cross": True,
+            "alert_ma_breakout": True,
+            "alert_rsi": True,
+            "alert_macd": True,
+            "alert_kd": False,
+            "alert_bollinger": False,
+            "alert_volume": False,
+            "alert_sentiment": True,
+        },
+    },
+    "full": {
+        "indicators": {
+            "show_ma": True,
+            "show_rsi": True,
+            "show_macd": True,
+            "show_kd": True,
+            "show_bollinger": True,
+            "show_obv": True,
+            "show_volume": True,
+        },
+        "alerts": {
+            "alert_ma_cross": True,
+            "alert_ma_breakout": True,
+            "alert_rsi": True,
+            "alert_macd": True,
+            "alert_kd": True,
+            "alert_bollinger": True,
+            "alert_volume": True,
+            "alert_sentiment": True,
+        },
+    },
+    "short_term": {
+        "indicators": {
+            "show_ma": True,
+            "show_rsi": True,
+            "show_macd": True,
+            "show_kd": True,
+            "show_bollinger": True,
+            "show_obv": False,
+            "show_volume": True,
+        },
+        "alerts": {
+            "alert_ma_cross": True,
+            "alert_ma_breakout": True,
+            "alert_rsi": True,
+            "alert_macd": True,
+            "alert_kd": True,
+            "alert_bollinger": True,
+            "alert_volume": True,
+            "alert_sentiment": False,
+        },
+        "params": {
+            "ma_short": 5,
+            "ma_mid": 10,
+            "ma_long": 20,
+        },
+    },
+}
+
+
+@router.post("/template/{template_name}", summary="å¥—ç”¨é è¨­æ¨¡æ¿", response_model=ResponseBase)
+async def apply_template(
+    template_name: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    å¥—ç”¨é è¨­è¨­å®šæ¨¡æ¿
+    
+    å¯ç”¨æ¨¡æ¿ï¼š
+    - **minimal**: æ¥µç°¡ (åªé¡¯ç¤ºå‡ç·šå’Œæˆäº¤é‡)
+    - **standard**: æ¨™æº– (é è¨­ï¼Œå«ä¸»è¦æŒ‡æ¨™)
+    - **full**: å®Œæ•´ (é¡¯ç¤ºæ‰€æœ‰æŒ‡æ¨™)
+    - **short_term**: çŸ­ç·š (ä½¿ç”¨è¼ƒçŸ­çš„å‡ç·šé€±æœŸ)
+    """
+    if template_name not in TEMPLATES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"ä¸å­˜åœ¨çš„æ¨¡æ¿: {template_name}"
+        )
+    
+    template = TEMPLATES[template_name]
+    
+    # æ›´æ–°æŒ‡æ¨™è¨­å®š
+    if "indicators" in template:
+        stmt = select(UserIndicatorSettings).where(
+            UserIndicatorSettings.user_id == user.id
+        )
+        result = await db.execute(stmt)
+        ind_settings = result.scalar_one_or_none()
+        if not ind_settings:
+            ind_settings = UserIndicatorSettings.create_default(user.id)
+            db.add(ind_settings)
+        
+        for key, value in template["indicators"].items():
+            setattr(ind_settings, key, value)
+    
+    # æ›´æ–°é€šçŸ¥è¨­å®š
+    if "alerts" in template:
+        stmt = select(UserAlertSettings).where(
+            UserAlertSettings.user_id == user.id
+        )
+        result = await db.execute(stmt)
+        alert_settings = result.scalar_one_or_none()
+        if not alert_settings:
+            alert_settings = UserAlertSettings.create_default(user.id)
+            db.add(alert_settings)
+        
+        for key, value in template["alerts"].items():
+            setattr(alert_settings, key, value)
+    
+    # æ›´æ–°åƒæ•¸è¨­å®š
+    if "params" in template:
+        stmt = select(UserIndicatorParams).where(
+            UserIndicatorParams.user_id == user.id
+        )
+        result = await db.execute(stmt)
+        params = result.scalar_one_or_none()
+        if not params:
+            params = UserIndicatorParams.create_default(user.id)
+            db.add(params)
+        
+        for key, value in template["params"].items():
+            setattr(params, key, value)
+    
+    await db.commit()
+    
+    return ResponseBase(
+        success=True,
+        message=f"å·²å¥—ç”¨æ¨¡æ¿: {template_name}",
+    )

@@ -1,0 +1,281 @@
+"""
+å¸‚å ´è³‡æ–™ API è·¯ç”±
+ðŸ”§ P0ä¿®å¾©ï¼šä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+"""
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
+import logging
+
+from app.database import get_db, get_async_session
+from app.services.market_service import MarketService
+from app.tasks.scheduler import scheduler_service
+from app.models.index_price import INDEX_SYMBOLS
+
+# ðŸ”§ ä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+from app.dependencies import get_optional_user, get_admin_user
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/market", tags=["market"])
+
+
+# ==================== ä¸‰å¤§æŒ‡æ•¸ ====================
+
+@router.get("/indices")
+async def get_indices(
+    db: Session = Depends(get_db),
+):
+    """
+    å–å¾—ä¸‰å¤§æŒ‡æ•¸æœ€æ–°è³‡æ–™
+    
+    Returns:
+        - S&P 500 (^GSPC)
+        - é“ç“Šå·¥æ¥­ (^DJI)
+        - ç´æ–¯é”å…‹ (^IXIC)
+    """
+    try:
+        market_service = MarketService(db)
+        indices = market_service.get_latest_indices()
+        
+        return {
+            "success": True,
+            "data": {
+                "indices": indices,
+                "symbols": INDEX_SYMBOLS,
+            }
+        }
+    except Exception as e:
+        logger.error(f"å–å¾—æŒ‡æ•¸å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/indices/{symbol}/history")
+async def get_index_history(
+    symbol: str,
+    days: int = Query(default=365, ge=1, le=3650),
+    db: Session = Depends(get_db),
+):
+    """
+    å–å¾—æŒ‡æ•¸æ­·å²è³‡æ–™
+    
+    Args:
+        symbol: æŒ‡æ•¸ä»£è™Ÿ (^GSPC, ^DJI, ^IXIC)
+        days: å¤©æ•¸ (é è¨­ 365ï¼Œæœ€å¤š 3650)
+    """
+    # é©—è­‰ symbol
+    if symbol not in INDEX_SYMBOLS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"ç„¡æ•ˆçš„æŒ‡æ•¸ä»£è™Ÿï¼Œå¯ç”¨: {list(INDEX_SYMBOLS.keys())}"
+        )
+    
+    try:
+        market_service = MarketService(db)
+        history = market_service.get_index_history(symbol, days)
+        
+        return {
+            "success": True,
+            "data": {
+                "symbol": symbol,
+                "name": INDEX_SYMBOLS[symbol]["name"],
+                "name_zh": INDEX_SYMBOLS[symbol]["name_zh"],
+                "days": days,
+                "count": len(history),
+                "history": history,
+            }
+        }
+    except Exception as e:
+        logger.error(f"å–å¾—æŒ‡æ•¸æ­·å²å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== å¸‚å ´æƒ…ç·’ ====================
+
+@router.get("/sentiment")
+async def get_sentiment(
+    db: Session = Depends(get_db),
+):
+    """
+    å–å¾—å¸‚å ´æƒ…ç·’ï¼ˆç¾Žè‚¡ + å¹£åœˆï¼‰
+    """
+    try:
+        market_service = MarketService(db)
+        sentiment = market_service.get_latest_sentiment()
+        
+        return {
+            "success": True,
+            "data": sentiment,
+        }
+    except Exception as e:
+        logger.error(f"å–å¾—æƒ…ç·’å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/sentiment/{market}/history")
+async def get_sentiment_history(
+    market: str,
+    days: int = Query(default=365, ge=1, le=365),
+    db: Session = Depends(get_db),
+):
+    """
+    å–å¾—æƒ…ç·’æ­·å²è³‡æ–™
+    
+    Args:
+        market: å¸‚å ´é¡žåž‹ (stock, crypto)
+        days: å¤©æ•¸ (é è¨­ 365ï¼Œæœ€å¤š 365)
+    """
+    if market not in ["stock", "crypto"]:
+        raise HTTPException(
+            status_code=400,
+            detail="ç„¡æ•ˆçš„å¸‚å ´é¡žåž‹ï¼Œå¯ç”¨: stock, crypto"
+        )
+    
+    try:
+        market_service = MarketService(db)
+        history = market_service.get_sentiment_history(market, days)
+        
+        return {
+            "success": True,
+            "data": {
+                "market": market,
+                "days": days,
+                "count": len(history),
+                "history": history,
+            }
+        }
+    except Exception as e:
+        logger.error(f"å–å¾—æƒ…ç·’æ­·å²å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== ç®¡ç†å“¡åŠŸèƒ½ï¼šæŽ’ç¨‹ä»»å‹™ ====================
+
+@router.post("/admin/update")
+async def trigger_daily_update(
+    current_user = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """
+    [ç®¡ç†å“¡] æ‰‹å‹•è§¸ç™¼æ¯æ—¥æ›´æ–°
+    """
+    try:
+        result = scheduler_service.run_daily_update()
+        
+        return {
+            "success": result.get("success", False),
+            "data": result,
+        }
+    except Exception as e:
+        logger.error(f"åŸ·è¡Œæ›´æ–°å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/initialize")
+async def initialize_historical_data(
+    years: int = Query(default=10, ge=1, le=10),
+    current_user = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """
+    [ç®¡ç†å“¡] åˆå§‹åŒ–æ­·å²è³‡æ–™
+    
+    é¦–æ¬¡éƒ¨ç½²æ™‚åŸ·è¡Œï¼ŒæŠ“å–ï¼š
+    - ä¸‰å¤§æŒ‡æ•¸ N å¹´æ­·å²
+    - å¹£åœˆæƒ…ç·’ 365 å¤©æ­·å²
+    """
+    try:
+        result = scheduler_service.initialize_historical_data(years=years)
+        
+        return {
+            "success": result.get("success", False),
+            "data": result,
+        }
+    except Exception as e:
+        logger.error(f"åˆå§‹åŒ–å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/update-indices")
+async def update_indices(
+    period: str = Query(default="5d", pattern="^(5d|1mo|3mo|1y|5y|10y)$"),
+    current_user = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """
+    [ç®¡ç†å“¡] æ›´æ–°ä¸‰å¤§æŒ‡æ•¸è³‡æ–™
+    """
+    try:
+        market_service = MarketService(db)
+        result = market_service.fetch_and_save_all_indices(period=period)
+        
+        return {
+            "success": True,
+            "data": {
+                "period": period,
+                "indices": result,
+            }
+        }
+    except Exception as e:
+        logger.error(f"æ›´æ–°æŒ‡æ•¸å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/update-sentiment")
+async def update_sentiment(
+    current_user = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """
+    [ç®¡ç†å“¡] æ›´æ–°ä»Šæ—¥å¸‚å ´æƒ…ç·’
+    """
+    try:
+        market_service = MarketService(db)
+        result = market_service.update_today_sentiment()
+        
+        return {
+            "success": True,
+            "data": result,
+        }
+    except Exception as e:
+        logger.error(f"æ›´æ–°æƒ…ç·’å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/init-crypto-sentiment")
+async def init_crypto_sentiment(
+    days: int = Query(default=365, ge=1, le=365),
+    current_user = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """
+    [ç®¡ç†å“¡] åˆå§‹åŒ–å¹£åœˆæƒ…ç·’æ­·å²
+    """
+    try:
+        market_service = MarketService(db)
+        count = market_service.fetch_and_save_crypto_history(days=days)
+        
+        return {
+            "success": True,
+            "data": {
+                "days_requested": days,
+                "records_added": count,
+            }
+        }
+    except Exception as e:
+        logger.error(f"åˆå§‹åŒ–å¹£åœˆæƒ…ç·’å¤±æ•—: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/scheduler-status")
+async def get_scheduler_status(
+    current_user = Depends(get_admin_user),
+):
+    """
+    [ç®¡ç†å“¡] å–å¾—æŽ’ç¨‹ç‹€æ…‹
+    """
+    return {
+        "success": True,
+        "data": scheduler_service.get_status(),
+    }

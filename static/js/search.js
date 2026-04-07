@@ -1,0 +1,1084 @@
+/**
+ * æœå°‹æ ¸å¿ƒæ¨¡çµ„ (P2 æ‹†åˆ†)
+ * 
+ * è·è²¬ï¼š
+ * - æœå°‹é‚è¼¯
+ * - API è«‹æ±‚
+ * - å¿«å–ç®¡ç†
+ * 
+ * ä¾è³´ï¼šcore.js, state.js
+ * è¢«ä¾è³´ï¼šsearch-render.js
+ */
+
+(function() {
+    'use strict';
+
+    // ============================================================
+    // å¿«å–ç³»çµ±
+    // ============================================================
+    
+    const stockCache = new Map();
+    const CACHE_TTL = 5 * 60 * 1000; // 5 åˆ†é˜
+
+    function getFromCache(symbol) {
+        const cached = stockCache.get(symbol.toUpperCase());
+        if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+            console.log(`ðŸ“¦ å¿«å–å‘½ä¸­: ${symbol}`);
+            return cached.data;
+        }
+        return null;
+    }
+
+    function saveToCache(symbol, data) {
+        stockCache.set(symbol.toUpperCase(), {
+            data: data,
+            timestamp: Date.now()
+        });
+        console.log(`ðŸ’¾ å·²å¿«å–: ${symbol}`);
+    }
+
+    function clearStockCache() {
+        stockCache.clear();
+        console.log('ðŸ—‘ï¸ è‚¡ç¥¨å¿«å–å·²æ¸…é™¤');
+        showToast('å¿«å–å·²æ¸…é™¤');
+    }
+
+    function getStockCacheStats() {
+        return {
+            count: stockCache.size,
+            symbols: Array.from(stockCache.keys())
+        };
+    }
+
+    // ============================================================
+    // æœå°‹åŠŸèƒ½
+    // ============================================================
+
+    function searchStock() {
+        const input = $('searchSymbol');
+        let symbol = input?.value?.trim().toUpperCase();
+        if (!symbol) {
+            showToast('è«‹è¼¸å…¥è‚¡ç¥¨ä»£è™Ÿ');
+            return;
+        }
+        searchSymbol(symbol);
+    }
+
+    async function searchSymbol(symbol, forceRefresh = false) {
+        const container = $('searchResult');
+        
+        if (typeof showSection === 'function') {
+            showSection('search');
+        }
+        
+        const input = $('searchSymbol');
+        if (input) input.value = symbol;
+
+        // æª¢æŸ¥å‰ç«¯å¿«å–
+        if (!forceRefresh) {
+            const cached = getFromCache(symbol);
+            if (cached) {
+                container.classList.remove('hidden');
+                // è§¸ç™¼æ¸²æŸ“ï¼ˆç”± search-render.js è™•ç†ï¼‰
+                renderSearchResult(cached, symbol);
+                return;
+            }
+        }
+
+        // é¡¯ç¤ºè¼‰å…¥ä¸­
+        container.classList.remove('hidden');
+        setHtml('searchResult', `
+            <div class="bg-white rounded-xl shadow p-6 text-center">
+                <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
+                <p class="mt-2 text-gray-500 text-sm">æŸ¥è©¢ä¸­...ï¼ˆé¦–æ¬¡æŸ¥è©¢å¯èƒ½éœ€è¦ 10-30 ç§’ï¼‰</p>
+            </div>
+        `);
+
+        try {
+            const upperSymbol = symbol.toUpperCase();
+            const isCrypto = ['BTC', 'ETH', 'BITCOIN', 'ETHEREUM'].includes(upperSymbol);
+            const isTaiwan = /^\d{4,6}$/.test(symbol) || upperSymbol.endsWith('.TW');
+
+            let endpoint;
+            let querySymbol = upperSymbol;
+
+            if (isCrypto) {
+                endpoint = `/api/crypto/${upperSymbol}`;
+            } else if (isTaiwan) {
+                querySymbol = upperSymbol.endsWith('.TW') ? upperSymbol : `${symbol}.TW`;
+                endpoint = `/api/stock/${querySymbol}`;
+            } else {
+                endpoint = `/api/stock/${upperSymbol}`;
+            }
+
+            if (forceRefresh) {
+                endpoint += '?refresh=true';
+            }
+
+            console.log(`æŸ¥è©¢: ${endpoint}, é¡žåž‹: ${isCrypto ? 'åŠ å¯†è²¨å¹£' : isTaiwan ? 'å°è‚¡' : 'ç¾Žè‚¡'}`);
+
+            // è¨­ç½®è¼‰å…¥ç‹€æ…‹
+            if (window.AppState) {
+                AppState.setLoading(true);
+            }
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+            const res = await fetch(endpoint, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            const data = await res.json();
+            console.log('API å›žæ‡‰:', data);
+
+            if (window.AppState) {
+                AppState.setLoading(false);
+            }
+
+            if (!res.ok) {
+                setHtml('searchResult', `
+                    <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
+                        <p class="font-medium">æŸ¥è©¢å¤±æ•—</p>
+                        <p class="text-sm mt-2">${data.detail || 'HTTP ' + res.status}</p>
+                        ${isCrypto ? '<p class="text-xs mt-2 text-gray-500">æ³¨æ„ï¼šåŠ å¯†è²¨å¹£æŸ¥è©¢å¯èƒ½å›  API é™åˆ¶æš«æ™‚ç„¡æ³•ä½¿ç”¨</p>' : ''}
+                    </div>
+                `);
+                return;
+            }
+
+            if (!data.success) {
+                setHtml('searchResult', `
+                    <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
+                        ${data.detail || 'æŸ¥è©¢å¤±æ•—'}
+                    </div>
+                `);
+                return;
+            }
+
+            // å­˜å…¥å¿«å–
+            saveToCache(symbol, data);
+            
+            // åŒæ­¥åˆ° AppState
+            if (window.AppState) {
+                AppState.setCurrentStock({
+                    symbol: data.symbol,
+                    name: data.name,
+                    price: data.price,
+                    isCrypto,
+                    isTaiwan
+                });
+            }
+
+            // æ¸²æŸ“çµæžœï¼ˆç”± search-render.js è™•ç†ï¼‰
+            renderSearchResult(data, symbol);
+
+        } catch (e) {
+            console.error('Search error:', e);
+            
+            if (window.AppState) {
+                AppState.setLoading(false);
+            }
+
+            if (e.name === 'AbortError') {
+                setHtml('searchResult', `
+                    <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
+                        æŸ¥è©¢è¶…æ™‚ï¼Œè«‹ç¨å¾Œå†è©¦
+                    </div>
+                `);
+            } else {
+                setHtml('searchResult', `
+                    <div class="bg-white rounded-xl shadow p-6 text-center text-red-500">
+                        æŸ¥è©¢å¤±æ•—: ${e.message}
+                    </div>
+                `);
+            }
+        }
+    }
+
+    // ============================================================
+    // å¿«é€ŸåŠ å…¥è¿½è¹¤æ¸…å–®
+    // ============================================================
+
+    async function quickAddToWatchlist(symbol, type = 'stock') {
+        try {
+            const res = await apiRequest('/api/watchlist', {
+                method: 'POST',
+                body: { symbol: symbol.toUpperCase(), type }
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                showToast(`å·²åŠ å…¥è¿½è¹¤: ${symbol}`);
+                
+                // æ¨‚è§€æ›´æ–° AppState
+                if (window.AppState) {
+                    AppState.addToWatchlist({
+                        symbol: symbol.toUpperCase(),
+                        type,
+                        added_at: new Date().toISOString()
+                    });
+                }
+            } else {
+                showToast(data.detail || 'åŠ å…¥å¤±æ•—', 'error');
+            }
+        } catch (e) {
+            console.error('Add to watchlist error:', e);
+            showToast('åŠ å…¥å¤±æ•—', 'error');
+        }
+    }
+
+    // ============================================================
+    // å°Žå‡º
+    // ============================================================
+
+    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    if (window.SELA) {
+        window.SELA.search = {
+            searchStock,
+            searchSymbol,
+            quickAddToWatchlist,
+            clearCache: clearStockCache,
+            getCacheStats: getStockCacheStats
+        };
+    }
+
+    // å…¨åŸŸå°Žå‡ºï¼ˆå‘å¾Œå…¼å®¹ï¼‰
+    window.searchStock = searchStock;
+    window.searchSymbol = searchSymbol;
+    window.quickAddToWatchlist = quickAddToWatchlist;
+    window.clearStockCache = clearStockCache;
+    window.getStockCacheStats = getStockCacheStats;
+
+    console.log('ðŸ” search-core.js æœå°‹æ ¸å¿ƒæ¨¡çµ„å·²è¼‰å…¥');
+})();
+/**
+ * æœå°‹çµæžœæ¸²æŸ“æ¨¡çµ„ (P2 æ‹†åˆ†)
+ * 
+ * è·è²¬ï¼š
+ * - æœå°‹çµæžœæ¸²æŸ“
+ * - MA é€²éšŽåˆ†æž
+ * - äº‹ä»¶å§”è¨—è™•ç†
+ * 
+ * ä¾è³´ï¼šcore.js, search-core.js
+ */
+
+(function() {
+    'use strict';
+
+    // ============================================================
+    // ç§æœ‰è®Šæ•¸
+    // ============================================================
+
+    let currentChartData = null;
+
+    // ============================================================
+    // æ¸²æŸ“å…¥å£
+    // ============================================================
+
+    function renderSearchResult(data, symbol) {
+        const upperSymbol = symbol.toUpperCase();
+        const isCrypto = ['BTC', 'ETH', 'BITCOIN', 'ETHEREUM'].includes(upperSymbol);
+        const isTaiwan = /^\d{4,6}$/.test(symbol) || upperSymbol.endsWith('.TW');
+
+        currentChartData = data.chart_data;
+        window.currentChartData = currentChartData;
+
+        renderStockResult(data, isCrypto, isTaiwan);
+    }
+
+    // ============================================================
+    // è‚¡ç¥¨çµæžœæ¸²æŸ“
+    // ============================================================
+
+    function renderStockResult(stock, isCrypto, isTaiwan = false) {
+        const container = $('searchResult');
+        if (!container) return;
+
+        const indicators = stock.indicators || {};
+        const ma = indicators.ma || {};
+        const rsi = indicators.rsi || {};
+        const macd = indicators.macd || {};
+
+        const priceChange = stock.change?.day || 0;
+        const priceChangeClass = priceChange >= 0 ? 'text-green-600' : 'text-red-600';
+        const priceChangeIcon = priceChange >= 0 ? 'ðŸ“ˆ' : 'ðŸ“‰';
+
+        const alignmentClass = ma.alignment === 'bullish' ? 'text-green-600' : ma.alignment === 'bearish' ? 'text-red-600' : 'text-gray-600';
+        const alignmentText = ma.alignment === 'bullish' ? 'å¤šé ­ ðŸŸ¢' : ma.alignment === 'bearish' ? 'ç©ºé ­ ðŸ”´' : 'ä¸­æ€§';
+
+        const rsiStatus = rsi.status === 'overbought' ? 'è¶…è²· âš ï¸' : rsi.status === 'oversold' ? 'è¶…è³£ ðŸŸ¢' : 'ä¸­æ€§';
+        const macdStatus = macd.status === 'bullish' ? 'åå¤š ðŸŸ¢' : 'åç©º ðŸ”´';
+
+        let marketLabel, marketClass;
+        if (isCrypto) {
+            marketLabel = 'åŠ å¯†è²¨å¹£';
+            marketClass = 'bg-purple-100 text-purple-700';
+        } else if (isTaiwan) {
+            marketLabel = 'å°è‚¡';
+            marketClass = 'bg-orange-100 text-orange-700';
+        } else {
+            marketLabel = 'ç¾Žè‚¡';
+            marketClass = 'bg-blue-100 text-blue-700';
+        }
+
+        const cacheIndicator = stock.from_cache
+            ? `<span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-500" title="è³‡æ–™ä¾†è‡ªå¿«å–">
+                   <i class="fas fa-database mr-1"></i>å¿«å–
+               </span>`
+            : '';
+
+        const maAdvanced = renderMAAdvanced(ma, stock.price?.current);
+
+        const html = `
+            <div class="bg-white rounded-xl shadow overflow-hidden" id="searchResultCard" data-symbol="${stock.symbol}">
+                <!-- åƒ¹æ ¼å€å¡Š -->
+                <div class="p-4 md:p-6 border-b">
+                    <div class="flex items-start justify-between mb-2">
+                        <div>
+                            <h3 class="text-xl md:text-2xl font-bold text-gray-800">${stock.symbol}</h3>
+                            <p class="text-gray-500 text-sm">${stock.name || marketLabel}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${cacheIndicator}
+                            <button data-action="refresh" data-symbol="${stock.symbol}" class="p-2 text-gray-400 hover:text-blue-600 transition" title="é‡æ–°æ•´ç†">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <span class="px-2 py-1 rounded text-xs ${marketClass}">${marketLabel}</span>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <span class="text-3xl md:text-4xl font-bold text-gray-800">$${stock.price?.current?.toLocaleString() || '--'}</span>
+                        <span class="ml-2 ${priceChangeClass} text-lg">
+                            ${priceChange >= 0 ? '+' : ''}${priceChange?.toFixed(2)}% ${priceChangeIcon}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- å¿«é€Ÿç¸½è¦½ -->
+                <div class="p-4 md:p-6 border-b bg-gray-50">
+                    <h4 class="font-semibold text-gray-700 mb-3 text-sm">ðŸ“Š å¿«é€Ÿç¸½è¦½</h4>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">å‡ç·šæŽ’åˆ—</span>
+                            <span class="font-medium ${alignmentClass}">${alignmentText}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">RSI (${rsi.period || 14})</span>
+                            <span class="font-medium">${rsi.value?.toFixed(1) || '--'} ${rsiStatus}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">MACD</span>
+                            <span class="font-medium">${macdStatus}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">è©•åˆ†</span>
+                            <span class="font-medium">${stock.score?.rating === 'bullish' ? 'åå¤š' : stock.score?.rating === 'bearish' ? 'åç©º' : 'ä¸­æ€§'} (${stock.score?.buy || 0}/${stock.score?.sell || 0})</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MA é€²éšŽåˆ†æž -->
+                ${maAdvanced}
+
+                <!-- å¹´åŒ–å ±é…¬çŽ‡ (CAGR) -->
+                ${stock.cagr ? renderCAGRSection(stock.cagr) : ''}
+
+                <!-- è©³ç´°æŒ‡æ¨™ (å¯æ‘ºç–Š) -->
+                <div class="border-b">
+                    <button data-action="toggle-collapsible" class="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 touch-target">
+                        <span class="font-medium text-gray-700">â–¼ å±•é–‹è©³ç´°æŒ‡æ¨™</span>
+                        <i class="fas fa-chevron-down text-gray-400 transition-transform"></i>
+                    </button>
+                    <div class="collapsible-content" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease;">
+                        ${renderDetailedIndicators(ma, rsi, macd)}
+                    </div>
+                </div>
+
+                <!-- æ“ä½œæŒ‰éˆ• -->
+                <div class="p-4 pb-28 md:pb-4 space-y-3">
+                    ${stock.chart_data ? `
+                    <button data-action="open-chart" data-symbol="${stock.symbol}" data-price="${stock.price?.current || 0}"
+                        class="w-full py-3 bg-blue-600 text-white rounded-lg font-medium flex items-center justify-center touch-target hover:bg-blue-700">
+                        <i class="fas fa-chart-line mr-2"></i>æŸ¥çœ‹å®Œæ•´åœ–è¡¨
+                    </button>
+                    ` : ''}
+                    <button data-action="load-returns" data-symbol="${stock.symbol}"
+                        class="w-full py-3 bg-green-600 text-white rounded-lg font-medium flex items-center justify-center touch-target hover:bg-green-700">
+                        <i class="fas fa-percentage mr-2"></i>å¹´åŒ–å ±é…¬çŽ‡
+                    </button>
+                    <button data-action="add-watchlist" data-symbol="${stock.symbol}" data-type="${isCrypto ? 'crypto' : 'stock'}"
+                        class="w-full py-3 border-2 border-orange-500 text-orange-600 rounded-lg font-medium flex items-center justify-center touch-target hover:bg-orange-50">
+                        <i class="fas fa-star mr-2"></i>åŠ å…¥è¿½è¹¤æ¸…å–®
+                    </button>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    // ============================================================
+    // MA é€²éšŽåˆ†æžæ¸²æŸ“
+    // ============================================================
+
+    function renderMAAdvanced(ma, currentPrice) {
+        if (!ma || !currentPrice) return '';
+
+        // äº¤å‰è¨Šè™Ÿ
+        const crossSignals = [];
+        if (ma.golden_cross_20_50) crossSignals.push({ type: 'golden', label: 'MA20â†—MA50 é»ƒé‡‘äº¤å‰', days: ma.golden_cross_20_50_days });
+        if (ma.death_cross_20_50) crossSignals.push({ type: 'death', label: 'MA20â†˜MA50 æ­»äº¡äº¤å‰', days: ma.death_cross_20_50_days });
+        if (ma.golden_cross_50_200) crossSignals.push({ type: 'golden', label: 'MA50â†—MA200 é»ƒé‡‘äº¤å‰', days: ma.golden_cross_50_200_days });
+        if (ma.death_cross_50_200) crossSignals.push({ type: 'death', label: 'MA50â†˜MA200 æ­»äº¡äº¤å‰', days: ma.death_cross_50_200_days });
+
+        // è·é›¢å‡ç·šç™¾åˆ†æ¯”
+        const distances = [];
+        if (ma.dist_ma20 !== undefined) distances.push({ label: 'MA20', value: ma.dist_ma20 });
+        if (ma.dist_ma50 !== undefined) distances.push({ label: 'MA50', value: ma.dist_ma50 });
+        if (ma.dist_ma200 !== undefined) distances.push({ label: 'MA200', value: ma.dist_ma200 });
+
+        if (crossSignals.length === 0 && distances.length === 0) return '';
+
+        let html = `
+            <div class="p-4 md:p-6 border-b">
+                <h4 class="font-semibold text-gray-700 mb-3 text-sm">ðŸ” å‡ç·šé€²éšŽåˆ†æž</h4>
+        `;
+
+        // äº¤å‰è¨Šè™Ÿ
+        if (crossSignals.length > 0) {
+            html += `<div class="mb-3">`;
+            crossSignals.forEach(signal => {
+                const bgClass = signal.type === 'golden' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                const icon = signal.type === 'golden' ? 'ðŸ”º' : 'ðŸ”»';
+                const daysText = signal.days ? `(${signal.days}å¤©å‰)` : '';
+                html += `
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${bgClass} mr-2 mb-2">
+                        ${icon} ${signal.label} ${daysText}
+                    </span>
+                `;
+            });
+            html += `</div>`;
+        }
+
+        // è·é›¢å‡ç·š
+        if (distances.length > 0) {
+            html += `
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    ${distances.map(d => {
+                        const isAbove = d.value >= 0;
+                        const bgClass = isAbove ? 'bg-green-50' : 'bg-red-50';
+                        const textClass = isAbove ? 'text-green-600' : 'text-red-600';
+                        return `
+                            <div class="p-2 rounded-lg ${bgClass}">
+                                <p class="text-gray-500 text-xs">è· ${d.label}</p>
+                                <p class="font-bold ${textClass}">${d.value >= 0 ? '+' : ''}${d.value.toFixed(1)}%</p>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        html += `</div>`;
+        return html;
+    }
+
+    // ============================================================
+    // CAGR å€å¡Šæ¸²æŸ“
+    // ============================================================
+
+    function renderCAGRSection(cagr) {
+        return `
+            <div class="p-4 md:p-6 border-b">
+                <h4 class="font-semibold text-gray-700 mb-3 text-sm">ðŸ“ˆ å¹´åŒ–å ±é…¬çŽ‡ (CAGR)</h4>
+                <div class="grid grid-cols-4 gap-2 text-center">
+                    ${['1y', '3y', '5y', '10y'].map(period => {
+                        const val = cagr[`cagr_${period}`];
+                        const bgClass = val > 0 ? 'bg-green-50' : val < 0 ? 'bg-red-50' : 'bg-gray-50';
+                        const textClass = val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-600';
+                        return `
+                            <div class="p-2 rounded-lg ${bgClass}">
+                                <p class="text-gray-500 text-xs">${period.replace('y', ' å¹´')}</p>
+                                <p class="font-bold ${textClass}">
+                                    ${val !== null ? (val > 0 ? '+' : '') + val + '%' : '--'}
+                                </p>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <p class="text-xs text-gray-400 mt-2 text-center">å¹´åŒ–è¤‡åˆæˆé•·çŽ‡ï¼Œåæ˜ é•·æœŸæŠ•è³‡å›žå ±</p>
+            </div>
+        `;
+    }
+
+    // ============================================================
+    // è©³ç´°æŒ‡æ¨™æ¸²æŸ“
+    // ============================================================
+
+    function renderDetailedIndicators(ma, rsi, macd) {
+        return `
+            <div class="px-4 pb-4 space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    ${['ma20', 'ma50', 'ma200'].map(key => {
+                        const val = ma[key];
+                        const vsKey = `price_vs_${key}`;
+                        const isAbove = ma[vsKey] === 'above';
+                        const distKey = `dist_${key}`;
+                        const dist = ma[distKey];
+                        const distText = dist !== undefined ? `${dist >= 0 ? '+' : ''}${dist.toFixed(1)}%` : '';
+                        return `
+                            <div class="p-3 rounded-lg ${isAbove ? 'bg-green-50' : 'bg-red-50'}">
+                                <p class="text-gray-500 text-xs">${key.toUpperCase()}</p>
+                                <p class="font-semibold">${val?.toFixed(2) || '--'}</p>
+                                <p class="text-xs ${isAbove ? 'text-green-600' : 'text-red-600'}">
+                                    ${isAbove ? 'åƒ¹æ ¼åœ¨ä¸Š âœ”' : 'åƒ¹æ ¼åœ¨ä¸‹'} ${distText ? `(${distText})` : ''}
+                                </p>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-gray-500 text-xs">RSI (${rsi.period || 14})</p>
+                        <p class="font-semibold">${rsi.value?.toFixed(2) || '--'}</p>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-gray-500 text-xs">MACD DIF</p>
+                        <p class="font-semibold">${macd.dif?.toFixed(2) || '--'}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // ============================================================
+    // äº‹ä»¶å§”è¨— (P2 æ ¸å¿ƒå„ªåŒ–)
+    // ============================================================
+
+    function initSearchEventDelegation() {
+        const container = $('searchResult');
+        if (!container) return;
+
+        // ä½¿ç”¨äº‹ä»¶å§”è¨—ï¼Œåªç¶å®šä¸€å€‹ç›£è½å™¨
+        container.addEventListener('click', handleSearchResultClick);
+        console.log('ðŸ“Œ æœå°‹çµæžœäº‹ä»¶å§”è¨—å·²åˆå§‹åŒ–');
+    }
+
+    function handleSearchResultClick(e) {
+        const target = e.target.closest('[data-action]');
+        if (!target) return;
+
+        const action = target.dataset.action;
+        const symbol = target.dataset.symbol;
+
+        switch (action) {
+            case 'refresh':
+                e.preventDefault();
+                if (typeof searchSymbol === 'function') {
+                    searchSymbol(symbol, true);
+                }
+                break;
+
+            case 'toggle-collapsible':
+                e.preventDefault();
+                toggleCollapsible(target);
+                break;
+
+            case 'open-chart':
+                e.preventDefault();
+                const price = parseFloat(target.dataset.price) || 0;
+                if (typeof openChartFullscreen === 'function') {
+                    openChartFullscreen(symbol, price);
+                }
+                break;
+
+            case 'load-returns':
+                e.preventDefault();
+                if (typeof loadReturnsModal === 'function') {
+                    loadReturnsModal(symbol);
+                }
+                break;
+
+            case 'add-watchlist':
+                e.preventDefault();
+                const type = target.dataset.type || 'stock';
+                if (typeof quickAddToWatchlist === 'function') {
+                    quickAddToWatchlist(symbol, type);
+                }
+                break;
+        }
+    }
+
+    // æ‘ºç–Šé¢æ¿åˆ‡æ›
+    function toggleCollapsible(button) {
+        const content = button.nextElementSibling;
+        const icon = button.querySelector('i');
+
+        if (content.style.maxHeight && content.style.maxHeight !== '0px') {
+            content.style.maxHeight = '0px';
+            if (icon) icon.style.transform = '';
+        } else {
+            content.style.maxHeight = content.scrollHeight + 'px';
+            if (icon) icon.style.transform = 'rotate(180deg)';
+        }
+    }
+
+    // ============================================================
+    // åˆå§‹åŒ–
+    // ============================================================
+
+    function init() {
+        // DOM è¼‰å…¥å¾Œåˆå§‹åŒ–äº‹ä»¶å§”è¨—
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initSearchEventDelegation);
+        } else {
+            initSearchEventDelegation();
+        }
+    }
+
+    init();
+
+    // ============================================================
+    // å°Žå‡º
+    // ============================================================
+
+    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    if (window.SELA && window.SELA.search) {
+        Object.assign(window.SELA.search, {
+            renderSearchResult,
+            renderStockResult
+        });
+    }
+
+    // å…¨åŸŸå°Žå‡ºï¼ˆå‘å¾Œå…¼å®¹ï¼‰
+    window.renderSearchResult = renderSearchResult;
+    window.renderStockResult = renderStockResult;
+    window.toggleCollapsible = toggleCollapsible;
+
+    console.log('ðŸŽ¨ search-render.js æ¸²æŸ“æ¨¡çµ„å·²è¼‰å…¥');
+})();
+/**
+ * æœå°‹åœ–è¡¨æ¨¡çµ„ (P2 æ‹†åˆ†)
+ * 
+ * è·è²¬ï¼š
+ * - å…¨èž¢å¹•åœ–è¡¨
+ * - æˆäº¤é‡åœ–è¡¨
+ * - åœ–è¡¨äº’å‹•
+ * 
+ * ä¾è³´ï¼šcore.js, Chart.js
+ */
+
+(function() {
+    'use strict';
+
+    // ============================================================
+    // ç§æœ‰è®Šæ•¸
+    // ============================================================
+
+    let fullscreenChartInstance = null;
+    let volumeChartInstance = null;
+
+    // ============================================================
+    // å…¨èž¢å¹•åœ–è¡¨
+    // ============================================================
+
+    function openChartFullscreen(symbol, currentPrice) {
+        const chartData = window.currentChartData;
+        if (!chartData) {
+            showToast('ç„¡åœ–è¡¨è³‡æ–™');
+            return;
+        }
+
+        const modal = $('chartFullscreenModal');
+        if (!modal) return;
+
+        // æ›´æ–°æ¨™é¡Œ
+        const title = $('chartModalTitle');
+        if (title) title.textContent = `${symbol} æŠ€è¡“åˆ†æž`;
+
+        const priceEl = $('chartModalPrice');
+        if (priceEl) priceEl.textContent = `$${currentPrice?.toLocaleString() || '--'}`;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // é è¨­é¡¯ç¤º 60 å¤©
+        setTimeout(() => renderFullscreenChart(chartData, 60), 100);
+    }
+
+    function closeChartFullscreen() {
+        const modal = $('chartFullscreenModal');
+        if (!modal) return;
+
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+
+        if (fullscreenChartInstance) {
+            fullscreenChartInstance.destroy();
+            fullscreenChartInstance = null;
+        }
+        if (volumeChartInstance) {
+            volumeChartInstance.destroy();
+            volumeChartInstance = null;
+        }
+    }
+
+    function setChartRange(days) {
+        const chartData = window.currentChartData;
+        if (!chartData) return;
+
+        // æ›´æ–°æŒ‰éˆ•ç‹€æ…‹
+        document.querySelectorAll('.chart-range-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-700');
+            if (parseInt(btn.dataset.days) === days) {
+                btn.classList.add('bg-blue-600', 'text-white');
+                btn.classList.remove('bg-gray-100', 'text-gray-700');
+            }
+        });
+
+        renderFullscreenChart(chartData, days);
+    }
+
+    // ============================================================
+    // æ¸²æŸ“å…¨èž¢å¹•åœ–è¡¨
+    // ============================================================
+
+    function renderFullscreenChart(chartData, days = 60) {
+        const canvas = $('fullscreenChart');
+        if (!canvas) return;
+
+        if (fullscreenChartInstance) {
+            fullscreenChartInstance.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        const dataLength = chartData.dates.length;
+        const startIdx = Math.max(0, dataLength - days);
+
+        // æ—¥æœŸæ ¼å¼åŒ–
+        const formatDate = (d) => {
+            if (days <= 30) return d.slice(5);
+            if (days <= 130) return d.slice(5);
+            return d.slice(2, 7).replace('-', '/');
+        };
+
+        const labels = chartData.dates.slice(startIdx).map(formatDate);
+
+        fullscreenChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'æ”¶ç›¤åƒ¹',
+                        data: chartData.prices.slice(startIdx),
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1,
+                        pointRadius: 0,
+                    },
+                    {
+                        label: 'MA20',
+                        data: chartData.ma20.slice(startIdx),
+                        borderColor: '#EF4444',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                    },
+                    {
+                        label: 'MA50',
+                        data: chartData.ma50.slice(startIdx),
+                        borderColor: '#10B981',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                    },
+                    {
+                        label: 'MA200',
+                        data: chartData.ma200.slice(startIdx),
+                        borderColor: '#EAB308',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                    },
+                    {
+                        label: 'MA250',
+                        data: chartData.ma250 ? chartData.ma250.slice(startIdx) : [],
+                        borderColor: '#A855F7',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                    },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { usePointStyle: true, padding: 10 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.raw === null ? null : `${ctx.dataset.label}: $${ctx.raw.toFixed(2)}`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { maxTicksLimit: days <= 60 ? 8 : 10, maxRotation: 0 }
+                    },
+                    y: { grid: { color: 'rgba(0,0,0,0.05)' } }
+                }
+            }
+        });
+
+        // æ¸²æŸ“æˆäº¤é‡åœ–è¡¨
+        if (chartData.volumes && chartData.volumes.length > 0) {
+            renderVolumeChart(chartData, days, labels);
+        }
+    }
+
+    // ============================================================
+    // æ¸²æŸ“æˆäº¤é‡åœ–è¡¨
+    // ============================================================
+
+    function renderVolumeChart(chartData, days, labels) {
+        const volumeCanvas = $('volumeChart');
+        if (!volumeCanvas) return;
+
+        // é¡¯ç¤ºæˆäº¤é‡å®¹å™¨
+        const volumeContainer = $('volumeChartContainer');
+        if (volumeContainer) {
+            volumeContainer.classList.remove('hidden');
+        }
+
+        if (volumeChartInstance) {
+            volumeChartInstance.destroy();
+        }
+
+        const ctx = volumeCanvas.getContext('2d');
+        const dataLength = chartData.dates.length;
+        const startIdx = Math.max(0, dataLength - days);
+
+        const volumes = chartData.volumes.slice(startIdx);
+        const prices = chartData.prices.slice(startIdx);
+
+        // è¨ˆç®—æ¯æ ¹æŸ±å­çš„é¡è‰²ï¼ˆæ¼²ç¶ è·Œç´…ï¼‰
+        const barColors = prices.map((price, i) => {
+            if (i === 0) return 'rgba(156, 163, 175, 0.6)';
+            return price >= prices[i - 1] ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
+        });
+
+        // è¨ˆç®— 20 æ—¥å‡é‡
+        const avgVolumes = [];
+        for (let i = 0; i < volumes.length; i++) {
+            if (i < 19) {
+                avgVolumes.push(null);
+            } else {
+                const sum = volumes.slice(i - 19, i + 1).reduce((a, b) => a + b, 0);
+                avgVolumes.push(sum / 20);
+            }
+        }
+
+        volumeChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'æˆäº¤é‡',
+                        data: volumes,
+                        backgroundColor: barColors,
+                        borderWidth: 0,
+                        barPercentage: 0.8,
+                    },
+                    {
+                        label: '20æ—¥å‡é‡',
+                        data: avgVolumes,
+                        type: 'line',
+                        borderColor: '#F59E0B',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { usePointStyle: true, padding: 10, boxWidth: 8 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                if (ctx.raw === null) return null;
+                                const val = ctx.raw;
+                                if (val >= 1e9) return `${ctx.dataset.label}: ${(val / 1e9).toFixed(2)}B`;
+                                if (val >= 1e6) return `${ctx.dataset.label}: ${(val / 1e6).toFixed(2)}M`;
+                                if (val >= 1e3) return `${ctx.dataset.label}: ${(val / 1e3).toFixed(2)}K`;
+                                return `${ctx.dataset.label}: ${val.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { display: false }
+                    },
+                    y: {
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: {
+                            callback: function(value) {
+                                if (value >= 1e9) return (value / 1e9).toFixed(1) + 'B';
+                                if (value >= 1e6) return (value / 1e6).toFixed(1) + 'M';
+                                if (value >= 1e3) return (value / 1e3).toFixed(1) + 'K';
+                                return value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ============================================================
+    // å¹´åŒ–å ±é…¬çŽ‡ Modal
+    // ============================================================
+
+    async function loadReturnsModal(symbol) {
+        const modal = $('returnsModal');
+        const content = $('returnsModalContent');
+        if (!modal || !content) return;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        content.innerHTML = `
+            <div class="text-center py-8">
+                <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
+                <p class="mt-2 text-gray-500">è¼‰å…¥ä¸­...</p>
+            </div>
+        `;
+
+        try {
+            const res = await apiRequest(`/api/stock/${symbol}/returns`);
+            const data = await res.json();
+
+            if (!data.success) {
+                content.innerHTML = `<p class="text-center text-red-500">${data.detail || 'è¼‰å…¥å¤±æ•—'}</p>`;
+                return;
+            }
+
+            renderReturnsContent(content, data);
+
+        } catch (e) {
+            console.error('Returns error:', e);
+            content.innerHTML = `<p class="text-center text-red-500">è¼‰å…¥å¤±æ•—: ${e.message}</p>`;
+        }
+    }
+
+    function renderReturnsContent(content, data) {
+        const returns = data.returns || {};
+        const cagr = data.cagr || {};
+
+        const html = `
+            <h4 class="font-semibold text-lg mb-4">${data.symbol} æ­·å²å ±é…¬çŽ‡</h4>
+            
+            <div class="space-y-4">
+                <div>
+                    <p class="text-sm text-gray-500 mb-2">ç´¯ç©å ±é…¬çŽ‡</p>
+                    <div class="grid grid-cols-4 gap-2 text-center">
+                        ${['1m', '3m', '6m', '1y'].map(period => {
+                            const val = returns[period];
+                            const bgClass = val > 0 ? 'bg-green-50' : val < 0 ? 'bg-red-50' : 'bg-gray-50';
+                            const textClass = val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-600';
+                            const label = period === '1m' ? '1æœˆ' : period === '3m' ? '3æœˆ' : period === '6m' ? '6æœˆ' : '1å¹´';
+                            return `
+                                <div class="p-2 rounded ${bgClass}">
+                                    <p class="text-xs text-gray-500">${label}</p>
+                                    <p class="font-bold ${textClass}">${val !== null && val !== undefined ? (val > 0 ? '+' : '') + val.toFixed(1) + '%' : '--'}</p>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-500 mb-2">å¹´åŒ–å ±é…¬çŽ‡ (CAGR)</p>
+                    <div class="grid grid-cols-4 gap-2 text-center">
+                        ${['1y', '3y', '5y', '10y'].map(period => {
+                            const val = cagr[`cagr_${period}`];
+                            const bgClass = val > 0 ? 'bg-green-50' : val < 0 ? 'bg-red-50' : 'bg-gray-50';
+                            const textClass = val > 0 ? 'text-green-600' : val < 0 ? 'text-red-600' : 'text-gray-600';
+                            const label = period.replace('y', 'å¹´');
+                            return `
+                                <div class="p-2 rounded ${bgClass}">
+                                    <p class="text-xs text-gray-500">${label}</p>
+                                    <p class="font-bold ${textClass}">${val !== null && val !== undefined ? (val > 0 ? '+' : '') + val + '%' : '--'}</p>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                
+                <p class="text-xs text-gray-400 text-center">
+                    CAGR = å¹´åŒ–è¤‡åˆæˆé•·çŽ‡ï¼Œå·²åŒ…å«é…æ¯å†æŠ•å…¥çš„è¤‡åˆ©æ•ˆæžœ
+                </p>
+            </div>
+        `;
+
+        content.innerHTML = html;
+    }
+
+    function closeReturnsModal() {
+        const modal = $('returnsModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
+
+    // ============================================================
+    // å°Žå‡º
+    // ============================================================
+
+    // æŽ›è¼‰åˆ° SELA å‘½åç©ºé–“
+    if (window.SELA && window.SELA.search) {
+        Object.assign(window.SELA.search, {
+            openChartFullscreen,
+            closeChartFullscreen,
+            setChartRange,
+            loadReturnsModal,
+            closeReturnsModal
+        });
+    }
+
+    // å…¨åŸŸå°Žå‡ºï¼ˆå‘å¾Œå…¼å®¹ï¼‰
+    window.openChartFullscreen = openChartFullscreen;
+    window.closeChartFullscreen = closeChartFullscreen;
+    window.setChartRange = setChartRange;
+    window.renderFullscreenChart = renderFullscreenChart;
+    window.renderVolumeChart = renderVolumeChart;
+    window.loadReturnsModal = loadReturnsModal;
+    window.closeReturnsModal = closeReturnsModal;
+
+    console.log('ðŸ“Š search-chart.js åœ–è¡¨æ¨¡çµ„å·²è¼‰å…¥');
+})();

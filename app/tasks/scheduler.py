@@ -1,0 +1,642 @@
+"""
+æŽ’ç¨‹ä»»å‹™æœå‹™
+æ¯æ—¥è‡ªå‹•æ›´æ–°è‚¡åƒ¹ã€æŒ‡æ•¸ã€æƒ…ç·’è³‡æ–™ï¼Œä¸¦ç™¼é€è¨Šè™Ÿé€šçŸ¥
+"""
+import asyncio
+from datetime import datetime, date, timedelta
+from typing import Dict, Any, List, Optional
+from sqlalchemy.orm import Session
+from sqlalchemy import select, distinct, and_
+import logging
+
+from app.database import SyncSessionLocal, AsyncSessionLocal
+from app.models.watchlist import Watchlist
+from app.models.stock_price import StockPrice
+from app.models.index_price import IndexPrice, INDEX_SYMBOLS
+from app.models.market_sentiment import MarketSentiment
+from app.models.notification import Notification
+from app.models.user import User
+from app.models.user_settings import UserAlertSettings
+from app.services.market_service import MarketService
+from app.services.signal_service import signal_service, SignalType
+from app.data_sources.yahoo_finance import yahoo_finance
+
+logger = logging.getLogger(__name__)
+
+
+class SchedulerService:
+    """æŽ’ç¨‹ä»»å‹™æœå‹™"""
+    
+    # é‡è¦è¨Šè™Ÿé¡žåž‹ï¼ˆåªé€šçŸ¥é€™äº›ï¼‰
+    IMPORTANT_SIGNAL_TYPES = [
+        # äº¤å‰è¨Šè™Ÿ
+        SignalType.MA_GOLDEN_CROSS,
+        SignalType.MA_DEATH_CROSS,
+        SignalType.MACD_GOLDEN_CROSS,
+        SignalType.MACD_DEATH_CROSS,
+        SignalType.KD_GOLDEN_CROSS,
+        SignalType.KD_DEATH_CROSS,
+        # RSI æ¥µç«¯å€¼
+        SignalType.RSI_OVERBOUGHT,
+        SignalType.RSI_OVERSOLD,
+    ]
+    
+    def __init__(self):
+        self.last_run: Optional[datetime] = None
+        self.last_result: Dict[str, Any] = {}
+    
+    def _get_db(self) -> Session:
+        """å–å¾—è³‡æ–™åº« session"""
+        return SyncSessionLocal()
+    
+    def run_daily_update(self) -> Dict[str, Any]:
+        """
+        åŸ·è¡Œæ¯æ—¥æ›´æ–°ä»»å‹™
+        
+        åŒ…å«ï¼š
+        1. æ›´æ–°æ‰€æœ‰è¿½è¹¤è‚¡ç¥¨çš„åƒ¹æ ¼
+        2. æ›´æ–°ä¸‰å¤§æŒ‡æ•¸
+        3. æ›´æ–°å¸‚å ´æƒ…ç·’
+        4. åµæ¸¬è¨Šè™Ÿä¸¦ç™¼é€é€šçŸ¥
+        
+        Returns:
+            åŸ·è¡Œçµæžœæ‘˜è¦
+        """
+        logger.info("=" * 50)
+        logger.info("é–‹å§‹åŸ·è¡Œæ¯æ—¥æ›´æ–°ä»»å‹™")
+        logger.info(f"åŸ·è¡Œæ™‚é–“: {datetime.now()}")
+        logger.info("=" * 50)
+        
+        result = {
+            "start_time": datetime.now().isoformat(),
+            "stocks_updated": 0,
+            "indices_updated": {},
+            "sentiment_updated": {},
+            "signals_detected": 0,
+            "notifications_sent": 0,
+            "errors": [],
+        }
+        
+        db = self._get_db()
+        
+        try:
+            # 1. æ›´æ–°è¿½è¹¤è‚¡ç¥¨
+            stocks_result = self._update_watchlist_stocks(db)
+            result["stocks_updated"] = stocks_result["count"]
+            if stocks_result.get("errors"):
+                result["errors"].extend(stocks_result["errors"])
+            
+            # 2. æ›´æ–°ä¸‰å¤§æŒ‡æ•¸
+            market_service = MarketService(db)
+            indices_result = self._update_indices(market_service)
+            result["indices_updated"] = indices_result
+            
+            # 3. æ›´æ–°å¸‚å ´æƒ…ç·’
+            sentiment_result = market_service.update_today_sentiment()
+            result["sentiment_updated"] = sentiment_result
+            
+            # 4. åµæ¸¬è¨Šè™Ÿä¸¦ç™¼é€é€šçŸ¥
+            signal_result = self._detect_and_notify(db)
+            result["signals_detected"] = signal_result.get("signals_count", 0)
+            result["notifications_sent"] = signal_result.get("notifications_sent", 0)
+            if signal_result.get("errors"):
+                result["errors"].extend(signal_result["errors"])
+            
+            result["end_time"] = datetime.now().isoformat()
+            result["success"] = True
+            
+            logger.info("=" * 50)
+            logger.info("æ¯æ—¥æ›´æ–°ä»»å‹™å®Œæˆ")
+            logger.info(f"è‚¡ç¥¨æ›´æ–°: {result['stocks_updated']} æª”")
+            logger.info(f"æŒ‡æ•¸æ›´æ–°: {result['indices_updated']}")
+            logger.info(f"æƒ…ç·’æ›´æ–°: {result['sentiment_updated']}")
+            logger.info(f"è¨Šè™Ÿåµæ¸¬: {result['signals_detected']} å€‹")
+            logger.info(f"é€šçŸ¥ç™¼é€: {result['notifications_sent']} äºº")
+            logger.info("=" * 50)
+            
+        except Exception as e:
+            logger.error(f"æ¯æ—¥æ›´æ–°ä»»å‹™å¤±æ•—: {e}")
+            result["errors"].append(str(e))
+            result["success"] = False
+        finally:
+            db.close()
+        
+        self.last_run = datetime.now()
+        self.last_result = result
+        
+        return result
+    
+    def _detect_and_notify(self, db: Session) -> Dict[str, Any]:
+        """
+        åµæ¸¬è¨Šè™Ÿä¸¦ç™¼é€é€šçŸ¥
+        
+        æµç¨‹ï¼š
+        1. å–å¾—æ‰€æœ‰ç”¨æˆ¶çš„è¿½è¹¤æ¸…å–®ï¼ˆè¯é›†ï¼‰
+        2. å°æ¯æ”¯è‚¡ç¥¨è¨ˆç®—æŒ‡æ¨™ä¸¦åµæ¸¬è¨Šè™Ÿ
+        3. æ ¹æ“šç”¨æˆ¶è¨­å®šç™¼é€é€šçŸ¥
+        """
+        result = {
+            "signals_count": 0,
+            "notifications_sent": 0,
+            "errors": [],
+        }
+        
+        logger.info("é–‹å§‹åµæ¸¬è¨Šè™Ÿ...")
+        
+        try:
+            # 1. å–å¾—æ‰€æœ‰è¿½è¹¤çš„è‚¡ç¥¨
+            stmt = select(distinct(Watchlist.symbol)).where(Watchlist.asset_type == "stock")
+            symbols = db.execute(stmt).scalars().all()
+            logger.info(f"éœ€è¦åµæ¸¬çš„è‚¡ç¥¨: {len(symbols)} æª”")
+            
+            # 2. å°æ¯æ”¯è‚¡ç¥¨åµæ¸¬è¨Šè™Ÿ
+            all_signals = {}  # {symbol: [signals]}
+            
+            for symbol in symbols:
+                try:
+                    signals = self._detect_signals_for_symbol(symbol)
+                    
+                    # åªä¿ç•™äº¤å‰è¨Šè™Ÿ
+                    cross_signals = [s for s in signals if s.signal_type in self.IMPORTANT_SIGNAL_TYPES]
+                    
+                    if cross_signals:
+                        all_signals[symbol] = cross_signals
+                        result["signals_count"] += len(cross_signals)
+                        logger.info(f"{symbol}: åµæ¸¬åˆ° {len(cross_signals)} å€‹äº¤å‰è¨Šè™Ÿ")
+                
+                except Exception as e:
+                    logger.error(f"åµæ¸¬ {symbol} è¨Šè™Ÿå¤±æ•—: {e}")
+                    result["errors"].append(f"{symbol}: {str(e)}")
+            
+            logger.info(f"å…±åµæ¸¬åˆ° {result['signals_count']} å€‹äº¤å‰è¨Šè™Ÿ")
+            
+            if not all_signals:
+                logger.info("ä»Šæ—¥ç„¡äº¤å‰è¨Šè™Ÿï¼Œä¸ç™¼é€é€šçŸ¥")
+                return result
+            
+            # 3. å–å¾—éœ€è¦é€šçŸ¥çš„ç”¨æˆ¶
+            users_to_notify = self._get_users_to_notify(db, all_signals)
+            logger.info(f"éœ€è¦é€šçŸ¥çš„ç”¨æˆ¶: {len(users_to_notify)} äºº")
+            
+            # 4. ç™¼é€é€šçŸ¥
+            for user_id, user_data in users_to_notify.items():
+                try:
+                    success = self._send_notification(db, user_data)
+                    if success:
+                        result["notifications_sent"] += 1
+                except Exception as e:
+                    logger.error(f"ç™¼é€é€šçŸ¥çµ¦ç”¨æˆ¶ {user_id} å¤±æ•—: {e}")
+                    result["errors"].append(f"notify user {user_id}: {str(e)}")
+            
+        except Exception as e:
+            logger.error(f"è¨Šè™Ÿåµæ¸¬å¤±æ•—: {e}")
+            result["errors"].append(str(e))
+        
+        return result
+    
+    def _detect_signals_for_symbol(self, symbol: str) -> List:
+        """å°å–®ä¸€è‚¡ç¥¨åµæ¸¬è¨Šè™Ÿ"""
+        from app.services.indicator_service import indicator_service, SignalType as IndicatorSignalType
+        
+        # å–å¾—è‚¡ç¥¨è³‡æ–™
+        df = yahoo_finance.get_stock_history(symbol, period="3mo")
+        
+        if df is None or df.empty:
+            return []
+        
+        # è¨ˆç®—æŒ‡æ¨™
+        df = indicator_service.calculate_all_indicators(df)
+        
+        if df is None or df.empty:
+            return []
+        
+        # å–å¾—è¨Šè™Ÿ
+        indicator_signals = indicator_service.get_all_signals(df)
+        
+        if not indicator_signals:
+            return []
+        
+        # è½‰æ›è¨Šè™Ÿæ ¼å¼ï¼ˆå¾ž indicator_service.Signal åˆ° signal_service.Signalï¼‰
+        from app.services.signal_service import Signal, SignalType
+        
+        signals = []
+        current_price = float(df.iloc[-1]['close']) if 'close' in df.columns else 0
+        
+        # è¨Šè™Ÿé¡žåž‹å°ç…§
+        type_mapping = {
+            IndicatorSignalType.GOLDEN_CROSS: SignalType.MA_GOLDEN_CROSS,
+            IndicatorSignalType.DEATH_CROSS: SignalType.MA_DEATH_CROSS,
+            IndicatorSignalType.RSI_OVERBOUGHT: SignalType.RSI_OVERBOUGHT,
+            IndicatorSignalType.RSI_OVERSOLD: SignalType.RSI_OVERSOLD,
+            IndicatorSignalType.MACD_GOLDEN_CROSS: SignalType.MACD_GOLDEN_CROSS,
+            IndicatorSignalType.MACD_DEATH_CROSS: SignalType.MACD_DEATH_CROSS,
+            IndicatorSignalType.KD_GOLDEN_CROSS: SignalType.KD_GOLDEN_CROSS,
+            IndicatorSignalType.KD_DEATH_CROSS: SignalType.KD_DEATH_CROSS,
+            IndicatorSignalType.APPROACHING_BREAKOUT: SignalType.APPROACHING_BREAKOUT,
+            IndicatorSignalType.APPROACHING_BREAKDOWN: SignalType.APPROACHING_BREAKDOWN,
+        }
+        
+        for ind_sig in indicator_signals:
+            sig_type = type_mapping.get(ind_sig.type)
+            if sig_type:
+                signals.append(Signal(
+                    symbol=symbol,
+                    asset_type="stock",
+                    signal_type=sig_type,
+                    indicator=ind_sig.indicator,
+                    message=ind_sig.description,
+                    price=current_price,
+                    details={},
+                    timestamp=datetime.now(),
+                ))
+        
+        return signals
+    
+    def _get_users_to_notify(self, db: Session, all_signals: Dict) -> Dict:
+        """
+        å–å¾—éœ€è¦é€šçŸ¥çš„ç”¨æˆ¶
+        
+        Returns:
+            {user_id: {
+                "line_user_id": "xxx",
+                "display_name": "xxx",
+                "signals": [...]
+            }}
+        """
+        users_to_notify = {}
+        
+        # å–å¾—æ‰€æœ‰ç”¨æˆ¶å’Œä»–å€‘çš„è¿½è¹¤æ¸…å–®
+        stmt = select(User).where(User.is_active == True, User.is_blocked == False)
+        users = db.execute(stmt).scalars().all()
+        
+        for user in users:
+            # å–å¾—ç”¨æˆ¶çš„è¿½è¹¤æ¸…å–®
+            watchlist_stmt = select(Watchlist.symbol).where(
+                Watchlist.user_id == user.id,
+                Watchlist.asset_type == "stock"
+            )
+            user_symbols = set(db.execute(watchlist_stmt).scalars().all())
+            
+            # å–å¾—ç”¨æˆ¶çš„é€šçŸ¥è¨­å®šï¼ˆæª¢æŸ¥æ˜¯å¦é–‹å•Ÿäº¤å‰é€šçŸ¥ï¼‰
+            alert_stmt = select(UserAlertSettings).where(UserAlertSettings.user_id == user.id)
+            alert_settings = db.execute(alert_stmt).scalar_one_or_none()
+            
+            # é è¨­é–‹å•Ÿ MA å’Œ MACD äº¤å‰é€šçŸ¥
+            alert_ma = True
+            alert_macd = True
+            alert_kd = False
+            alert_rsi = True  # é è¨­é–‹å•Ÿ RSI
+            
+            if alert_settings:
+                alert_ma = alert_settings.alert_ma_cross
+                alert_macd = alert_settings.alert_macd
+                alert_kd = alert_settings.alert_kd
+                alert_rsi = alert_settings.alert_rsi
+            
+            # æ‰¾å‡ºç”¨æˆ¶è¿½è¹¤ä¸­æœ‰è¨Šè™Ÿçš„è‚¡ç¥¨
+            user_signals = []
+            for symbol, signals in all_signals.items():
+                if symbol not in user_symbols:
+                    continue
+                
+                for signal in signals:
+                    # æª¢æŸ¥ç”¨æˆ¶æ˜¯å¦é–‹å•Ÿè©²é¡žåž‹çš„é€šçŸ¥
+                    if signal.signal_type in [SignalType.MA_GOLDEN_CROSS, SignalType.MA_DEATH_CROSS]:
+                        if not alert_ma:
+                            continue
+                    elif signal.signal_type in [SignalType.MACD_GOLDEN_CROSS, SignalType.MACD_DEATH_CROSS]:
+                        if not alert_macd:
+                            continue
+                    elif signal.signal_type in [SignalType.KD_GOLDEN_CROSS, SignalType.KD_DEATH_CROSS]:
+                        if not alert_kd:
+                            continue
+                    elif signal.signal_type in [SignalType.RSI_OVERBOUGHT, SignalType.RSI_OVERSOLD]:
+                        if not alert_rsi:
+                            continue
+                    
+                    # æª¢æŸ¥ 24 å°æ™‚å…§æ˜¯å¦å·²é€šçŸ¥éŽ
+                    if self._has_recent_notification(db, user.id, symbol, signal.signal_type.value):
+                        continue
+                    
+                    user_signals.append(signal)
+            
+            if user_signals:
+                users_to_notify[user.id] = {
+                    "user_id": user.id,
+                    "line_user_id": user.line_user_id,
+                    "display_name": user.display_name,
+                    "signals": user_signals,
+                }
+        
+        return users_to_notify
+    
+    def _has_recent_notification(self, db: Session, user_id: int, symbol: str, alert_type: str) -> bool:
+        """æª¢æŸ¥ 24 å°æ™‚å…§æ˜¯å¦å·²ç™¼é€éŽç›¸åŒé€šçŸ¥"""
+        cutoff = datetime.now() - timedelta(hours=24)
+        
+        stmt = select(Notification).where(
+            Notification.user_id == user_id,
+            Notification.symbol == symbol,
+            Notification.alert_type == alert_type,
+            Notification.triggered_at >= cutoff,
+        )
+        
+        existing = db.execute(stmt).scalar_one_or_none()
+        return existing is not None
+    
+    def _send_notification(self, db: Session, user_data: Dict) -> bool:
+        """ç™¼é€é€šçŸ¥çµ¦ç”¨æˆ¶"""
+        from app.services.line_notify_service import line_notify_service
+        
+        line_user_id = user_data["line_user_id"]
+        signals = user_data["signals"]
+        
+        if not line_user_id or not signals:
+            return False
+        
+        # åˆ†é¡žè¨Šè™Ÿ
+        bullish = []
+        bearish = []
+        
+        for signal in signals:
+            signal_name = signal_service.SIGNAL_NAMES.get(signal.signal_type, str(signal.signal_type))
+            item = {
+                "symbol": signal.symbol,
+                "signal": signal_name,
+                "price": signal.price,
+                "signal_type": signal.signal_type.value,
+            }
+            
+            # åˆ¤æ–·å¤šç©º
+            if signal.signal_type in [
+                SignalType.MA_GOLDEN_CROSS, 
+                SignalType.MACD_GOLDEN_CROSS, 
+                SignalType.KD_GOLDEN_CROSS,
+                SignalType.RSI_OVERSOLD,
+            ]:
+                bullish.append(item)
+            else:
+                bearish.append(item)
+        
+        # æ ¼å¼åŒ–è¨Šæ¯
+        message = self._format_notification_message(bullish, bearish)
+        
+        # ç™¼é€è¨Šæ¯ï¼ˆä½¿ç”¨ asyncio åŸ·è¡Œï¼‰
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            success = loop.run_until_complete(
+                line_notify_service.push_text_message(line_user_id, message)
+            )
+            loop.close()
+        except Exception as e:
+            logger.error(f"ç™¼é€ LINE è¨Šæ¯å¤±æ•—: {e}")
+            success = False
+        
+        # è¨˜éŒ„é€šçŸ¥
+        for signal in signals:
+            notification = Notification(
+                user_id=user_data.get("user_id"),
+                symbol=signal.symbol,
+                asset_type=signal.asset_type,
+                alert_type=signal.signal_type.value,
+                indicator=signal.indicator,
+                message=signal.message,
+                price_at_trigger=signal.price,
+                sent=success,
+                sent_at=datetime.now() if success else None,
+            )
+            db.add(notification)
+        
+        db.commit()
+        
+        return success
+    
+    def _format_notification_message(self, bullish: List[Dict], bearish: List[Dict]) -> str:
+        """æ ¼å¼åŒ–æ¯æ—¥è¨Šè™Ÿé€šçŸ¥è¨Šæ¯"""
+        lines = ["ðŸ“Š SELA é¸è‚¡ç³»çµ± - æ¯æ—¥è¨Šè™Ÿ", ""]
+        
+        if bullish:
+            lines.append("ðŸŸ¢ åå¤šè¨Šè™Ÿ")
+            for item in bullish:
+                price_str = f" @ ${item['price']:.2f}" if item['price'] > 0 else ""
+                lines.append(f"  â€¢ {item['symbol']}{price_str}")
+                lines.append(f"    {item['signal']}")
+            lines.append("")
+        
+        if bearish:
+            lines.append("ðŸ”´ åç©ºè¨Šè™Ÿ")
+            for item in bearish:
+                price_str = f" @ ${item['price']:.2f}" if item['price'] > 0 else ""
+                lines.append(f"  â€¢ {item['symbol']}{price_str}")
+                lines.append(f"    {item['signal']}")
+            lines.append("")
+        
+        if not bullish and not bearish:
+            lines.append("ä»Šæ—¥æ‚¨çš„è¿½è¹¤æ¸…å–®ç„¡é‡è¦è¨Šè™Ÿ âœ¨")
+            lines.append("")
+        
+        lines.append(f"â° {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        
+        return "\n".join(lines)
+    
+    def run_signal_detection_only(self) -> Dict[str, Any]:
+        """
+        åªåŸ·è¡Œè¨Šè™Ÿåµæ¸¬ï¼ˆä¸ç™¼é€é€šçŸ¥ï¼‰
+        ç”¨æ–¼æ¸¬è©¦
+        """
+        logger.info("é–‹å§‹è¨Šè™Ÿåµæ¸¬ï¼ˆæ¸¬è©¦æ¨¡å¼ï¼‰...")
+        
+        result = {
+            "signals": [],
+            "by_symbol": {},
+        }
+        
+        db = self._get_db()
+        
+        try:
+            stmt = select(distinct(Watchlist.symbol)).where(Watchlist.asset_type == "stock")
+            symbols = db.execute(stmt).scalars().all()
+            
+            for symbol in symbols:
+                try:
+                    signals = self._detect_signals_for_symbol(symbol)
+                    cross_signals = [s for s in signals if s.signal_type in self.IMPORTANT_SIGNAL_TYPES]
+                    
+                    if cross_signals:
+                        result["by_symbol"][symbol] = [
+                            {
+                                "type": s.signal_type.value,
+                                "message": s.message,
+                                "price": s.price,
+                            }
+                            for s in cross_signals
+                        ]
+                        result["signals"].extend(cross_signals)
+                
+                except Exception as e:
+                    logger.error(f"{symbol} åµæ¸¬å¤±æ•—: {e}")
+        
+        finally:
+            db.close()
+        
+        return result
+
+    def _update_watchlist_stocks(self, db: Session) -> Dict[str, Any]:
+        """
+        æ›´æ–°æ‰€æœ‰è¿½è¹¤æ¸…å–®ä¸­çš„è‚¡ç¥¨
+        """
+        result = {"count": 0, "errors": []}
+        
+        # å–å¾—æ‰€æœ‰ä¸é‡è¤‡çš„è¿½è¹¤è‚¡ç¥¨
+        stmt = select(distinct(Watchlist.symbol)).where(Watchlist.asset_type == "stock")
+        symbols = db.execute(stmt).scalars().all()
+        
+        logger.info(f"éœ€è¦æ›´æ–°çš„è‚¡ç¥¨: {len(symbols)} æª”")
+        
+        for symbol in symbols:
+            try:
+                # å¾ž Yahoo Finance æŠ“å–æœ€æ–°è³‡æ–™
+                df = yahoo_finance.get_stock_history(symbol, period="5d")
+                
+                if df is None or df.empty:
+                    logger.warning(f"ç„¡æ³•å–å¾— {symbol} çš„è³‡æ–™")
+                    result["errors"].append(f"{symbol}: ç„¡è³‡æ–™")
+                    continue
+                
+                # å„²å­˜åˆ°è³‡æ–™åº«
+                count = self._save_stock_prices(db, df)
+                result["count"] += 1
+                logger.debug(f"{symbol} æ›´æ–°å®Œæˆï¼Œæ–°å¢ž {count} ç­†")
+                
+            except Exception as e:
+                logger.error(f"æ›´æ–° {symbol} å¤±æ•—: {e}")
+                result["errors"].append(f"{symbol}: {str(e)}")
+        
+        return result
+    
+    def _save_stock_prices(self, db: Session, df) -> int:
+        """å„²å­˜è‚¡ç¥¨åƒ¹æ ¼"""
+        if df is None or df.empty:
+            return 0
+        
+        count = 0
+        for _, row in df.iterrows():
+            stmt = select(StockPrice).where(
+                and_(
+                    StockPrice.symbol == row["symbol"],
+                    StockPrice.date == row["date"],
+                )
+            )
+            existing = db.execute(stmt).scalar_one_or_none()
+            
+            if existing:
+                existing.open = row["open"]
+                existing.high = row["high"]
+                existing.low = row["low"]
+                existing.close = row["close"]
+                existing.volume = row["volume"]
+            else:
+                price = StockPrice(
+                    symbol=row["symbol"],
+                    date=row["date"],
+                    open=row["open"],
+                    high=row["high"],
+                    low=row["low"],
+                    close=row["close"],
+                    volume=row["volume"],
+                )
+                db.add(price)
+                count += 1
+        
+        db.commit()
+        return count
+    
+    def _update_indices(self, market_service: MarketService) -> Dict[str, int]:
+        """
+        æ›´æ–°ä¸‰å¤§æŒ‡æ•¸ï¼ˆåªæ›´æ–°æœ€è¿‘ 5 å¤©ï¼‰
+        """
+        result = {}
+        
+        for symbol in INDEX_SYMBOLS.keys():
+            try:
+                df = yahoo_finance.get_index_data(symbol, period="5d")
+                if df is not None:
+                    count = market_service.save_index_data(df, symbol)
+                    result[symbol] = count
+                else:
+                    result[symbol] = 0
+            except Exception as e:
+                logger.error(f"æ›´æ–°æŒ‡æ•¸ {symbol} å¤±æ•—: {e}")
+                result[symbol] = -1
+        
+        return result
+    
+    def initialize_historical_data(self, years: int = 10) -> Dict[str, Any]:
+        """
+        åˆå§‹åŒ–æ­·å²è³‡æ–™ï¼ˆé¦–æ¬¡åŸ·è¡Œæ™‚ä½¿ç”¨ï¼‰
+        
+        åŒ…å«ï¼š
+        1. ä¸‰å¤§æŒ‡æ•¸ 10 å¹´æ­·å²
+        2. å¹£åœˆæƒ…ç·’ 365 å¤©æ­·å²
+        
+        Args:
+            years: æŒ‡æ•¸æ­·å²å¹´æ•¸
+            
+        Returns:
+            åŸ·è¡Œçµæžœ
+        """
+        logger.info("=" * 50)
+        logger.info("é–‹å§‹åˆå§‹åŒ–æ­·å²è³‡æ–™")
+        logger.info("=" * 50)
+        
+        result = {
+            "start_time": datetime.now().isoformat(),
+            "indices": {},
+            "crypto_sentiment": 0,
+            "errors": [],
+        }
+        
+        db = self._get_db()
+        
+        try:
+            market_service = MarketService(db)
+            
+            # 1. åˆå§‹åŒ–ä¸‰å¤§æŒ‡æ•¸
+            logger.info(f"åˆå§‹åŒ–ä¸‰å¤§æŒ‡æ•¸ ({years} å¹´è³‡æ–™)...")
+            indices_result = market_service.fetch_and_save_all_indices(period=f"{years}y")
+            result["indices"] = indices_result
+            
+            # 2. åˆå§‹åŒ–å¹£åœˆæƒ…ç·’æ­·å²
+            logger.info("åˆå§‹åŒ–å¹£åœˆæƒ…ç·’æ­·å² (365 å¤©)...")
+            crypto_count = market_service.fetch_and_save_crypto_history(days=365)
+            result["crypto_sentiment"] = crypto_count
+            
+            result["success"] = True
+            result["end_time"] = datetime.now().isoformat()
+            
+            logger.info("=" * 50)
+            logger.info("æ­·å²è³‡æ–™åˆå§‹åŒ–å®Œæˆ")
+            logger.info(f"æŒ‡æ•¸: {result['indices']}")
+            logger.info(f"å¹£åœˆæƒ…ç·’: {result['crypto_sentiment']} ç­†")
+            logger.info("=" * 50)
+            
+        except Exception as e:
+            logger.error(f"åˆå§‹åŒ–å¤±æ•—: {e}")
+            result["errors"].append(str(e))
+            result["success"] = False
+        finally:
+            db.close()
+        
+        return result
+    
+    def get_status(self) -> Dict[str, Any]:
+        """å–å¾—æŽ’ç¨‹ç‹€æ…‹"""
+        return {
+            "last_run": self.last_run.isoformat() if self.last_run else None,
+            "last_result": self.last_result,
+        }
+
+
+# å»ºç«‹å…¨åŸŸæŽ’ç¨‹æœå‹™å¯¦ä¾‹
+scheduler_service = SchedulerService()

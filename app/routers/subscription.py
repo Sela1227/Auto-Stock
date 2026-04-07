@@ -1,0 +1,264 @@
+"""
+è¨‚é–±ç²¾é¸ API è·¯ç”±
+ðŸ”§ P0ä¿®å¾©ï¼šä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+"""
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List, Optional
+import logging
+
+from app.database import get_db, get_async_session
+from app.services.subscription_service import SubscriptionService
+from app.models.subscription import SubscriptionSource, AutoPick
+from app.models.price_cache import StockPriceCache
+
+# ðŸ”§ ä½¿ç”¨çµ±ä¸€èªè­‰æ¨¡çµ„
+from app.dependencies import get_current_user, get_admin_user
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/subscription", tags=["è¨‚é–±ç²¾é¸"])
+
+
+# ============================================================
+# è¨‚é–±æº
+# ============================================================
+
+@router.get("/sources", summary="å–å¾—æ‰€æœ‰è¨‚é–±æº")
+def get_sources(db: Session = Depends(get_db)):
+    """å–å¾—æ‰€æœ‰å¯è¨‚é–±çš„ä¾†æº"""
+    from datetime import datetime
+    
+    service = SubscriptionService(db)
+    sources = service.get_all_sources(enabled_only=True)
+    
+    # è¨ˆç®—æ¯å€‹ä¾†æºçš„æœ‰æ•ˆç²¾é¸æ•¸é‡
+    results = []
+    for source in sources:
+        source_dict = source.to_dict()
+        # è¨ˆç®—æœªéŽæœŸçš„ç²¾é¸æ•¸é‡
+        picks_count = db.query(AutoPick).filter(
+            AutoPick.source_id == source.id,
+            AutoPick.expires_at > datetime.now()
+        ).count()
+        source_dict["picks_count"] = picks_count
+        results.append(source_dict)
+    
+    return {
+        "success": True,
+        "data": results,
+    }
+
+
+@router.get("/sources/{slug}", summary="å–å¾—å–®ä¸€è¨‚é–±æº")
+def get_source(slug: str, db: Session = Depends(get_db)):
+    """å–å¾—å–®ä¸€è¨‚é–±æºè©³æƒ…"""
+    service = SubscriptionService(db)
+    source = service.get_source_by_slug(slug)
+    
+    if not source:
+        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è¨‚é–±æº")
+    
+    return {
+        "success": True,
+        "data": source.to_dict(),
+    }
+
+
+# ============================================================
+# ç”¨æˆ¶è¨‚é–±
+# ============================================================
+
+@router.get("/my", summary="æˆ‘çš„è¨‚é–±")
+async def get_my_subscriptions(
+    user = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """å–å¾—ç”¨æˆ¶è¨‚é–±çš„ä¾†æº"""
+    service = SubscriptionService(db)
+    sources = service.get_user_subscriptions(user.id)
+    
+    return {
+        "success": True,
+        "data": [s.to_dict() for s in sources],
+    }
+
+
+@router.post("/subscribe/{source_id}", summary="è¨‚é–±ä¾†æº")
+async def subscribe_source(
+    source_id: int,
+    user = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """è¨‚é–±æŒ‡å®šä¾†æº"""
+    service = SubscriptionService(db)
+    
+    # æª¢æŸ¥ä¾†æºæ˜¯å¦å­˜åœ¨
+    source = db.query(SubscriptionSource).filter(
+        SubscriptionSource.id == source_id
+    ).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è¨‚é–±æº")
+    
+    result = service.subscribe(user.id, source_id)
+    
+    if not result:
+        return {
+            "success": True,
+            "message": "å·²ç¶“è¨‚é–±éŽäº†",
+        }
+    
+    return {
+        "success": True,
+        "message": f"æˆåŠŸè¨‚é–± {source.name}",
+    }
+
+
+@router.delete("/unsubscribe/{source_id}", summary="å–æ¶ˆè¨‚é–±")
+async def unsubscribe_source(
+    source_id: int,
+    user = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """å–æ¶ˆè¨‚é–±æŒ‡å®šä¾†æº"""
+    service = SubscriptionService(db)
+    result = service.unsubscribe(user.id, source_id)
+    
+    if not result:
+        raise HTTPException(status_code=404, detail="æœªè¨‚é–±æ­¤ä¾†æº")
+    
+    return {
+        "success": True,
+        "message": "å·²å–æ¶ˆè¨‚é–±",
+    }
+
+
+# ============================================================
+# ç²¾é¸åˆ—è¡¨
+# ============================================================
+
+@router.get("/picks", summary="æˆ‘çš„è¨‚é–±ç²¾é¸")
+async def get_my_picks(
+    user = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    å–å¾—ç”¨æˆ¶è¨‚é–±çš„æ‰€æœ‰ç²¾é¸
+    åŒ…å«åƒ¹æ ¼è³‡è¨Šï¼ˆå¾žå¿«å–ï¼‰
+    """
+    service = SubscriptionService(db)
+    picks = service.get_user_picks(user.id)
+    
+    if not picks:
+        return {
+            "success": True,
+            "data": [],
+            "message": "å°šæœªè¨‚é–±ä»»ä½•ä¾†æºï¼Œæˆ–ç›®å‰æ²’æœ‰ç²¾é¸",
+        }
+    
+    # å–å¾—åƒ¹æ ¼å¿«å–
+    symbols = [p["symbol"] for p in picks]
+    cache_map = {}
+    
+    if symbols:
+        caches = db.query(StockPriceCache).filter(
+            StockPriceCache.symbol.in_(symbols)
+        ).all()
+        cache_map = {c.symbol: c for c in caches}
+    
+    # çµ„åˆåƒ¹æ ¼
+    for pick in picks:
+        cache = cache_map.get(pick["symbol"])
+        pick["price"] = float(cache.price) if cache and cache.price else None
+        pick["change_pct"] = float(cache.change_pct) if cache and cache.change_pct else None
+        pick["price_updated_at"] = cache.updated_at.isoformat() if cache and cache.updated_at else None
+    
+    return {
+        "success": True,
+        "data": picks,
+        "total": len(picks),
+    }
+
+
+@router.get("/picks/{source_slug}", summary="ç‰¹å®šä¾†æºçš„ç²¾é¸")
+def get_source_picks(
+    source_slug: str,
+    db: Session = Depends(get_db),
+):
+    """å–å¾—ç‰¹å®šä¾†æºçš„æ‰€æœ‰ç²¾é¸ï¼ˆå…¬é–‹ï¼‰"""
+    service = SubscriptionService(db)
+    source = service.get_source_by_slug(source_slug)
+    
+    if not source:
+        raise HTTPException(status_code=404, detail="æ‰¾ä¸åˆ°è¨‚é–±æº")
+    
+    picks = service.get_active_picks(source_id=source.id)
+    
+    # å–å¾—åƒ¹æ ¼
+    symbols = [p.symbol for p in picks]
+    cache_map = {}
+    if symbols:
+        caches = db.query(StockPriceCache).filter(
+            StockPriceCache.symbol.in_(symbols)
+        ).all()
+        cache_map = {c.symbol: c for c in caches}
+    
+    results = []
+    for pick in picks:
+        pick_dict = pick.to_dict()
+        cache = cache_map.get(pick.symbol)
+        pick_dict["price"] = float(cache.price) if cache and cache.price else None
+        pick_dict["change_pct"] = float(cache.change_pct) if cache and cache.change_pct else None
+        results.append(pick_dict)
+    
+    return {
+        "success": True,
+        "source": source.to_dict(),
+        "data": results,
+        "total": len(results),
+    }
+
+
+# ============================================================
+# ç®¡ç† APIï¼ˆç®¡ç†å“¡ç”¨ï¼‰
+# ============================================================
+
+@router.post("/admin/fetch", summary="æ‰‹å‹•æŠ“å–")
+async def admin_fetch(
+    backfill: bool = False,
+    admin = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """
+    æ‰‹å‹•è§¸ç™¼æŠ“å–
+    - backfill=True: å›žæº¯ 30 å¤©
+    - backfill=False: åªæŠ“æ–°çš„
+    """
+    logger.info(f"ç®¡ç†å“¡ {admin.display_name} è§¸ç™¼è¨‚é–±æºæŠ“å– (backfill={backfill})")
+    
+    service = SubscriptionService(db)
+    result = service.fetch_all_sources(backfill=backfill)
+    
+    return {
+        "success": True,
+        "message": "æŠ“å–å®Œæˆ",
+        "data": result,
+    }
+
+
+@router.post("/admin/init", summary="åˆå§‹åŒ–è¨‚é–±æº")
+async def admin_init(
+    admin = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """åˆå§‹åŒ–é è¨­è¨‚é–±æº"""
+    logger.info(f"ç®¡ç†å“¡ {admin.display_name} åˆå§‹åŒ–è¨‚é–±æº")
+    
+    service = SubscriptionService(db)
+    service.init_default_sources()
+    
+    return {
+        "success": True,
+        "message": "åˆå§‹åŒ–å®Œæˆ",
+    }

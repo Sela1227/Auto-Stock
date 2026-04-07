@@ -1,0 +1,67 @@
+"""
+è‚¡ç¥¨åƒ¹æ ¼å¿«å– Model
+ç”¨æ–¼è¿½è¹¤æ¸…å–®çš„å³æ™‚åƒ¹æ ¼é¡¯ç¤ºï¼ˆå…¨ç³»çµ±å…±ç”¨ï¼‰
+
+æ›´æ–°ï¼šåŠ å…¥ MA20 æ¬„ä½æ”¯æ´æŽ’åºåŠŸèƒ½
+"""
+from sqlalchemy import Column, String, Numeric, BigInteger, DateTime, Index
+from sqlalchemy.sql import func
+from app.database import Base
+
+
+class StockPriceCache(Base):
+    """
+    è‚¡ç¥¨å³æ™‚åƒ¹æ ¼å¿«å–
+    
+    - å…¨ç³»çµ±å…±ç”¨ï¼Œä¸åˆ†ç”¨æˆ¶
+    - æ¯ 10 åˆ†é˜ç”±æŽ’ç¨‹æ‰¹æ¬¡æ›´æ–°
+    - è¿½è¹¤æ¸…å–®é é¢ç›´æŽ¥å¾žé€™è£¡è®€å–
+    """
+    
+    __tablename__ = "stock_price_cache"
+    
+    # ä¸»éµï¼šè‚¡ç¥¨ä»£è™Ÿï¼ˆå¦‚ 0050.TW, AAPLï¼‰
+    symbol = Column(String(20), primary_key=True)
+    
+    # è‚¡ç¥¨åç¨±
+    name = Column(String(100))
+    
+    # åƒ¹æ ¼è³‡è¨Š
+    price = Column(Numeric(12, 4))           # æœ€æ–°åƒ¹æ ¼
+    prev_close = Column(Numeric(12, 4))      # å‰æ”¶ç›¤åƒ¹ï¼ˆç”¨æ–¼è¨ˆç®—æ¼²è·Œï¼‰
+    change = Column(Numeric(12, 4))          # æ¼²è·Œé‡‘é¡
+    change_pct = Column(Numeric(8, 4))       # æ¼²è·Œå¹… %
+    
+    # ðŸ†• æŠ€è¡“æŒ‡æ¨™ï¼ˆç”¨æ–¼æŽ’åºï¼‰
+    ma20 = Column(Numeric(12, 4))            # 20æ—¥å‡ç·š
+    
+    # æˆäº¤é‡
+    volume = Column(BigInteger)
+    
+    # è³‡ç”¢é¡žåž‹ï¼šstock / crypto
+    asset_type = Column(String(10), default="stock")
+    
+    # æ›´æ–°æ™‚é–“
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    __table_args__ = (
+        Index('idx_cache_asset_type', 'asset_type'),
+        Index('idx_cache_updated', 'updated_at'),
+    )
+    
+    def __repr__(self):
+        return f"<StockPriceCache(symbol={self.symbol}, price={self.price}, change_pct={self.change_pct}%)>"
+    
+    def to_dict(self):
+        return {
+            "symbol": self.symbol,
+            "name": self.name,
+            "price": float(self.price) if self.price else None,
+            "prev_close": float(self.prev_close) if self.prev_close else None,
+            "change": float(self.change) if self.change else None,
+            "change_pct": float(self.change_pct) if self.change_pct else None,
+            "ma20": float(self.ma20) if self.ma20 else None,
+            "volume": self.volume,
+            "asset_type": self.asset_type,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
