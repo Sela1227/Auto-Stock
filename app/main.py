@@ -2,11 +2,12 @@
 FastAPI 主程式
 股票技術分析系統 API
 
-🔧 修復版本 - 2026-01-16
-- 加入市場情緒排程更新（每天 3 次）
-- 啟動時初始化 sentiment
-- 🏷️ 加入 tags_router
-- 📊 加入 stock_info_router
+🚀 V1.02 極簡排程版 - 2026-04-07
+- 移除所有自動更新排程
+- 價格查詢改為純即時查（用戶查才查）
+- 每天只預查一次（美股開盤前 21:00）
+- 情緒指數每天 2 次
+- 匯率每天 1 次
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -15,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from app.config import settings
 from app.database import init_db
@@ -27,7 +28,7 @@ setup_logging(
     log_to_file=True
 )
 
-# 確保所有 models 被載入，這樣 Base.metadata 才會包含所有表格
+# 確保所有 models 被載入
 from app.models import (
     User, Watchlist, StockPrice, CryptoPrice, 
     MarketSentiment, Notification,
@@ -36,7 +37,6 @@ from app.models import (
     Comparison,
     StockPriceCache,
     PortfolioTransaction, PortfolioHolding, ExchangeRate,
-    # P1: 標籤和股票資訊
     UserTag, watchlist_tags,
     StockInfo,
 )
@@ -53,10 +53,10 @@ from app.routers import (
     portfolio_router,
 )
 from app.routers.market import router as market_router
-from app.routers.subscription import router as subscription_router  # 📡 訂閱精選
-from app.routers.tags import router as tags_router  # 🏷️ 標籤管理
+from app.routers.subscription import router as subscription_router
+from app.routers.tags import router as tags_router
 from app.routers.stock_info import router as stock_info_router
-from app.routers.broker import router as broker_router  # 📊 股票資訊
+from app.routers.broker import router as broker_router
 
 # 排程器
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -67,312 +67,217 @@ logger = logging.getLogger(__name__)
 # 建立排程器
 scheduler = AsyncIOScheduler()
 
-
-# ============================================================
-# 🆕 交易時間判斷（優化版）
-# ============================================================
-
-def is_tw_market_hours() -> bool:
-    """判斷是否在台股交易時間（週一到週五 09:00-13:30 台北時間）"""
-    from datetime import timezone, timedelta
-    tw_tz = timezone(timedelta(hours=8))
-    now = datetime.now(tw_tz)
-    
-    # 週末不開盤
-    if now.weekday() >= 5:
-        return False
-    
-    # 09:00 - 13:30
-    market_open = now.replace(hour=9, minute=0, second=0, microsecond=0)
-    market_close = now.replace(hour=13, minute=30, second=0, microsecond=0)
-    
-    return market_open <= now <= market_close
-
-
-def is_us_market_hours() -> bool:
-    """判斷是否在美股交易時間（週一到週五 21:30-05:00 台北時間）"""
-    from datetime import timezone, timedelta
-    tw_tz = timezone(timedelta(hours=8))
-    now = datetime.now(tw_tz)
-    
-    # 週末不開盤（週六 05:00 後、週日全天）
-    if now.weekday() == 6:  # 週日
-        return False
-    if now.weekday() == 5 and now.hour >= 5:  # 週六 05:00 後
-        return False
-    
-    # 21:30 - 05:00 (跨日)
-    hour = now.hour
-    minute = now.minute
-    
-    if hour >= 21 and minute >= 30:
-        return True
-    if hour >= 22:
-        return True
-    if hour < 5:
-        return True
-    
-    return False
-
-
-def is_any_market_open() -> bool:
-    """判斷是否有任何市場開盤"""
-    return is_tw_market_hours() or is_us_market_hours()
+# 台北時區
+TW_TZ = timezone(timedelta(hours=8))
 
 
 # ============================================================
-# 價格快取更新函數（優化版）
-# ============================================================
-
-def update_price_cache():
-    """
-    排程任務：更新價格快取
-    🆕 優化：只在交易時間執行
-    """
-    # 檢查是否有市場開盤
-    if not is_any_market_open():
-        logger.debug("[排程] 非交易時間，跳過價格更新")
-        return
-    
-    from app.database import SyncSessionLocal
-    from app.services.price_cache_service import PriceCacheService
-
-    logger.info("[排程] 開始更新價格快取...")
-    db = SyncSessionLocal()
-    try:
-        service = PriceCacheService(db)
-        result = service.update_all(force=False)
-        logger.info(f"[排程] 價格快取更新完成: {result['total_updated']} 筆")
-    except Exception as e:
-        logger.error(f"[排程] 價格快取更新失敗: {e}")
-    finally:
-        db.close()
-
-
-def update_price_cache_force():
-    """強制更新所有價格（收盤後）"""
-    from app.database import SyncSessionLocal
-    from app.services.price_cache_service import PriceCacheService
-
-    logger.info("[排程] 強制更新所有價格快取...")
-    db = SyncSessionLocal()
-    try:
-        service = PriceCacheService(db)
-        result = service.update_all(force=True)
-        logger.info(f"[排程] 價格快取強制更新完成: {result['total_updated']} 筆")
-    except Exception as e:
-        logger.error(f"[排程] 價格快取強制更新失敗: {e}")
-    finally:
-        db.close()
-
-
-# ============================================================
-# 匯率更新函數
+# 排程任務函數
 # ============================================================
 
 def update_exchange_rate():
-    """排程任務：更新 USD/TWD 匯率"""
+    """更新匯率"""
     from app.database import SyncSessionLocal
-    from app.services.exchange_rate_service import update_exchange_rate_sync
-
-    logger.info("[排程] 開始更新匯率...")
+    from app.services.exchange_rate_service import ExchangeRateService
+    
+    logger.info("⏰ [排程] 更新匯率...")
     db = SyncSessionLocal()
     try:
-        rate = update_exchange_rate_sync(db)
-        logger.info(f"[排程] 匯率更新完成: USD/TWD = {rate:.4f}")
+        service = ExchangeRateService(db)
+        rate = service.update_usd_twd_rate()
+        if rate:
+            logger.info(f"✅ 匯率更新成功: USD/TWD = {rate}")
+        else:
+            logger.warning("⚠️ 匯率更新失敗")
     except Exception as e:
-        logger.error(f"[排程] 匯率更新失敗: {e}")
+        logger.error(f"❌ 匯率更新錯誤: {e}")
     finally:
         db.close()
 
 
-# ============================================================
-# 📡 訂閱源抓取函數
-# ============================================================
+def update_market_sentiment():
+    """更新市場情緒（存入 DB）"""
+    from app.database import SyncSessionLocal
+    from app.services.market_service import MarketService
+    
+    logger.info("⏰ [排程] 更新市場情緒...")
+    db = SyncSessionLocal()
+    try:
+        service = MarketService(db)
+        result = service.update_today_sentiment()
+        logger.info(f"✅ 情緒更新: stock={result.get('stock')}, crypto={result.get('crypto')}")
+    except Exception as e:
+        logger.error(f"❌ 情緒更新錯誤: {e}")
+    finally:
+        db.close()
+
+
+def update_indices():
+    """更新四大指數"""
+    from app.database import SyncSessionLocal
+    from app.services.market_service import MarketService
+    
+    logger.info("⏰ [排程] 更新四大指數...")
+    db = SyncSessionLocal()
+    try:
+        service = MarketService(db)
+        result = service.fetch_and_save_all_indices(period="5d")
+        logger.info(f"✅ 指數更新完成: {result}")
+    except Exception as e:
+        logger.error(f"❌ 指數更新錯誤: {e}")
+    finally:
+        db.close()
+
+
+def daily_preload():
+    """
+    每日預載（美股開盤前 21:00）
+    - 更新情緒指數
+    - 更新四大指數
+    - 更新匯率
+    - 🆕 V1.05 預計算追蹤清單技術指標
+    """
+    logger.info("⏰ [排程] === 每日預載開始 ===")
+    
+    try:
+        update_market_sentiment()
+        update_indices()
+        update_exchange_rate()
+        precompute_indicators()  # 🆕 V1.05
+        logger.info("✅ [排程] === 每日預載完成 ===")
+    except Exception as e:
+        logger.error(f"❌ 每日預載錯誤: {e}")
+
+
+def precompute_indicators():
+    """🆕 V1.05 預計算追蹤清單股票的技術指標"""
+    from app.database import SyncSessionLocal
+    from app.services.analysis_cache_service import AnalysisCacheService
+    
+    logger.info("⏰ [排程] 預計算技術指標...")
+    db = SyncSessionLocal()
+    try:
+        service = AnalysisCacheService(db)
+        result = service.precompute_indicators_for_watchlist()
+        logger.info(f"✅ 指標預計算: 成功 {result['success']}, 失敗 {result['failed']}")
+    except Exception as e:
+        logger.error(f"❌ 指標預計算錯誤: {e}")
+    finally:
+        db.close()
+
+
+def clear_expired_caches():
+    """🆕 V1.05 清除過期快取"""
+    from app.database import SyncSessionLocal
+    from app.services.analysis_cache_service import AnalysisCacheService
+    
+    logger.info("⏰ [排程] 清除過期快取...")
+    db = SyncSessionLocal()
+    try:
+        service = AnalysisCacheService(db)
+        result = service.clear_expired_caches()
+        logger.info(f"✅ 快取清除: {result}")
+    except Exception as e:
+        logger.error(f"❌ 快取清除錯誤: {e}")
+    finally:
+        db.close()
+
 
 def fetch_subscription_sources():
-    """排程任務：抓取訂閱源更新"""
+    """抓取訂閱源"""
     from app.database import SyncSessionLocal
     from app.services.subscription_service import SubscriptionService
-
-    logger.info("[排程] 開始抓取訂閱源...")
+    
+    logger.info("⏰ [排程] 抓取訂閱源...")
     db = SyncSessionLocal()
     try:
         service = SubscriptionService(db)
-        result = service.fetch_all_sources(backfill=False)
-        logger.info(f"[排程] 訂閱源抓取完成: {result}")
+        result = service.fetch_all_sources()
+        logger.info(f"✅ 訂閱源抓取完成: {result}")
     except Exception as e:
-        logger.error(f"[排程] 訂閱源抓取失敗: {e}")
+        logger.error(f"❌ 訂閱源抓取錯誤: {e}")
     finally:
         db.close()
 
 
 # ============================================================
-# 🆕 市場情緒更新函數（新增）
+# 應用程式生命週期
 # ============================================================
-
-def update_market_sentiment():
-    """
-    排程任務：更新市場情緒指數
-    每天執行 3 次，將外部 API 資料存入資料庫
-    解決前端每次載入都要等待外部 API 的問題
-    """
-    from app.database import SyncSessionLocal
-    from app.services.market_service import MarketService
-
-    logger.info("[排程] 開始更新市場情緒...")
-    db = SyncSessionLocal()
-    try:
-        market_service = MarketService(db)
-        result = market_service.update_today_sentiment()
-        logger.info(f"[排程] 市場情緒更新完成: {result}")
-    except Exception as e:
-        logger.error(f"[排程] 市場情緒更新失敗: {e}")
-    finally:
-        db.close()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """應用程式生命週期管理"""
-    # 啟動時
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
 
-    # ★★★ 診斷資料庫連線 ★★★
+    # 診斷資料庫連線
     from app.database import database_url, is_postgres
     db_type = "PostgreSQL" if is_postgres(database_url) else "SQLite"
     logger.info(f"★★★ Database Type: {db_type} ★★★")
     if is_postgres(database_url):
-        # 隱藏密碼
         safe_url = database_url.split("@")[-1] if "@" in database_url else database_url
         logger.info(f"★★★ Database Host: {safe_url} ★★★")
     else:
         logger.warning("⚠️ 使用 SQLite！資料會在重新部署後遺失！")
-        logger.warning("⚠️ 請設定 DATABASE_URL 環境變數指向 PostgreSQL")
 
     await init_db()
     logger.info("Database initialized")
 
     # ============================================================
-    # 🆕 優化後的排程設定
+    # 🆕 V1.02 極簡排程（大幅減少）
     # ============================================================
 
-    # 價格快取：每 30 分鐘（原本 10 分鐘）
-    # 內部會判斷交易時間，非交易時間自動跳過
+    # 每日預載：美股開盤前（21:00 台北時間）
     scheduler.add_job(
-        update_price_cache,
-        'interval',
-        minutes=30,  # 🆕 從 10 分鐘改為 30 分鐘
-        id='price_cache_update',
-        name='價格快取更新(每30分鐘)',
+        daily_preload,
+        CronTrigger(hour=21, minute=0, timezone=TW_TZ),
+        id='daily_preload',
+        name='每日預載(21:00)',
     )
 
-    # 台股收盤後（週一到週五 13:35）
+    # 情緒指數：早上補充一次（09:00）
     scheduler.add_job(
-        update_price_cache_force,
-        CronTrigger(day_of_week='mon-fri', hour=13, minute=35),
-        id='tw_close_update',
-        name='台股收盤更新',
+        update_market_sentiment,
+        CronTrigger(hour=9, minute=0, timezone=TW_TZ),
+        id='sentiment_morning',
+        name='情緒更新(早)',
     )
 
-    # 美股收盤後（週二到週六 05:05）
-    scheduler.add_job(
-        update_price_cache_force,
-        CronTrigger(day_of_week='tue-sat', hour=5, minute=5),
-        id='us_close_update',
-        name='美股收盤更新',
-    )
-
-    # ============================================================
-    # 匯率排程（每天 2 次：09:00、17:00）
-    # 🆕 從 3 次改為 2 次
-    # ============================================================
-
+    # 匯率：補充一次（09:30）
     scheduler.add_job(
         update_exchange_rate,
-        CronTrigger(hour=9, minute=0),
+        CronTrigger(hour=9, minute=30, timezone=TW_TZ),
         id='exchange_rate_morning',
         name='匯率更新(早)',
     )
 
-    scheduler.add_job(
-        update_exchange_rate,
-        CronTrigger(hour=17, minute=0),
-        id='exchange_rate_evening',
-        name='匯率更新(晚)',
-    )
-
-    # ============================================================
-    # 📡 訂閱源排程
-    # 🆕 從每小時改為每天 3 次（08:00、12:00、20:00）
-    # ============================================================
-
+    # 訂閱源：每天 2 次（08:00、18:00）
     scheduler.add_job(
         fetch_subscription_sources,
-        CronTrigger(hour=8, minute=0),
-        id='subscription_fetch_morning',
-        name='訂閱源抓取(早)',
+        CronTrigger(hour=8, minute=0, timezone=TW_TZ),
+        id='subscription_morning',
+        name='訂閱源(早)',
     )
-
     scheduler.add_job(
         fetch_subscription_sources,
-        CronTrigger(hour=12, minute=0),
-        id='subscription_fetch_noon',
-        name='訂閱源抓取(中)',
+        CronTrigger(hour=18, minute=0, timezone=TW_TZ),
+        id='subscription_evening',
+        name='訂閱源(晚)',
     )
 
+    # 🆕 V1.05 每日清除過期快取（凌晨 3:00）
     scheduler.add_job(
-        fetch_subscription_sources,
-        CronTrigger(hour=20, minute=0),
-        id='subscription_fetch_evening',
-        name='訂閱源抓取(晚)',
-    )
-
-    # ============================================================
-    # 🆕 市場情緒排程（每天 3 次：08:30, 14:30, 20:30）
-    # 解決前端每次載入都要等待外部 API 的問題
-    # ============================================================
-
-    scheduler.add_job(
-        update_market_sentiment,
-        CronTrigger(hour=8, minute=30),
-        id='sentiment_update_morning',
-        name='市場情緒更新(早)',
-    )
-
-    scheduler.add_job(
-        update_market_sentiment,
-        CronTrigger(hour=14, minute=30),
-        id='sentiment_update_afternoon',
-        name='市場情緒更新(午)',
-    )
-
-    scheduler.add_job(
-        update_market_sentiment,
-        CronTrigger(hour=20, minute=30),
-        id='sentiment_update_evening',
-        name='市場情緒更新(晚)',
+        clear_expired_caches,
+        CronTrigger(hour=3, minute=0, timezone=TW_TZ),
+        id='clear_caches',
+        name='清除過期快取',
     )
 
     # 啟動排程器
     scheduler.start()
-    logger.info("排程器已啟動（優化版：價格快取30分鐘 + 交易時間判斷 + 情緒排程）")
+    logger.info("✅ 排程器已啟動（V1.05：每日預載 + 指標預計算 + 快取清除）")
 
-    # 🆕 啟動時只更新匯率，價格讓排程處理（減少啟動負擔）
-    try:
-        update_exchange_rate()
-        # 只在交易時間才更新價格
-        if is_any_market_open():
-            update_price_cache()
-    except Exception as e:
-        logger.error(f"啟動時更新失敗: {e}")
-
-    # 🆕 啟動時初始化 sentiment（如果資料庫是空的或過期）
-    try:
-        update_market_sentiment()
-        logger.info("✅ 啟動時 sentiment 初始化完成")
-    except Exception as e:
-        logger.error(f"啟動時 sentiment 初始化失敗: {e}")
+    # 🆕 啟動時不做任何自動更新，完全依賴排程和用戶查詢
+    logger.info("🆕 V1.02: 啟動時不自動更新，節省資源")
 
     yield
 
@@ -386,41 +291,31 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="""
-## 📈 SELA 自動選股系統 API
+## 📈 AutoStock 自動選股系統 API
 
 多用戶股票與加密貨幣技術分析平台
 
-### 功能特色
-
-- **技術指標**: MA, RSI, MACD, KD, 布林通道, OBV
-- **智能訊號**: 黃金交叉、死亡交叉、超買超賣、突破預警
-- **綜合評分**: 多指標共振分析
-- **市場情緒**: CNN Fear & Greed / Alternative.me
-- **圖表生成**: 完整技術分析圖表
-- **報酬率比較**: 多標的年化報酬率 (CAGR) 比較
-- **個人投資記錄**: 交易紀錄、持股管理、損益追蹤
-- **訂閱精選**: 自動追蹤投資專家精選股票 📡
-
-### 認證方式
-
-使用 LINE Login 登入，取得 JWT Token 後在 Header 帶入：
-```
-Authorization: Bearer {token}
-```
-    """,
-    docs_url="/docs",
-    redoc_url="/redoc",
+### 🆕 V1.02 優化
+- 極簡排程：每日預載 21:00（美股開盤前）
+- 即時查詢：用戶查才查，不預先更新
+- 內存快取：60 秒過期，避免重複查詢
+""",
     lifespan=lifespan,
 )
 
 # CORS 設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 正式環境應限制來源
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 靜態檔案
+static_path = os.path.join(os.path.dirname(__file__), "..", "static")
+if os.path.exists(static_path):
+    app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 # 註冊路由
 app.include_router(auth_router)
@@ -429,72 +324,42 @@ app.include_router(crypto_router)
 app.include_router(watchlist_router)
 app.include_router(settings_router)
 app.include_router(admin_router)
-app.include_router(market_router)
 app.include_router(compare_router)
 app.include_router(portfolio_router)
-app.include_router(subscription_router)  # 📡 訂閱精選
-app.include_router(tags_router)  # 🏷️ 標籤管理
-app.include_router(stock_info_router)  # 📊 股票資訊
-app.include_router(broker_router)  # 券商管理
-
-# 掛載靜態檔案
-static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
-if os.path.exists(static_path):
-    app.mount("/static", StaticFiles(directory=static_path, html=True), name="static")
+app.include_router(market_router)
+app.include_router(subscription_router)
+app.include_router(tags_router)
+app.include_router(stock_info_router)
+app.include_router(broker_router)
 
 
-# 根路徑 - 重導向到登入頁
-@app.get("/", tags=["系統"])
+# ==================== 基本路由 ====================
+
+@app.get("/")
 async def root():
-    """重導向到首頁"""
+    """首頁重導向"""
     return RedirectResponse(url="/static/index.html")
 
 
-# API 狀態
-@app.get("/api", tags=["系統"])
-async def api_root():
-    """API 根路徑"""
-    return {
-        "name": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "status": "running",
-        "docs": "/docs",
-    }
-
-
-# 健康檢查
 @app.get("/health", tags=["系統"])
 async def health_check():
     """健康檢查"""
     return {
         "status": "healthy",
         "version": settings.APP_VERSION,
+        "app": settings.APP_NAME,
     }
 
 
-# 🆕 排程狀態 API
-@app.get("/api/admin/scheduler-status", tags=["管理"])
-async def scheduler_status():
-    """查看排程器狀態"""
-    jobs = []
-    for job in scheduler.get_jobs():
-        jobs.append({
-            "id": job.id,
-            "name": job.name,
-            "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
-        })
-    
+@app.get("/api/version", tags=["系統"])
+async def get_version():
+    """取得版本資訊"""
     return {
-        "running": scheduler.running,
-        "jobs": jobs,
-        "market_status": {
-            "tw_open": is_tw_market_hours(),
-            "us_open": is_us_market_hours(),
-            "any_open": is_any_market_open(),
-        }
+        "version": settings.APP_VERSION,
+        "app": settings.APP_NAME,
+        "features": [
+            "V1.02: 極簡排程",
+            "V1.01: 內存快取",
+            "V1.0.0: 完整功能",
+        ]
     }
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)

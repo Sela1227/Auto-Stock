@@ -1,6 +1,11 @@
 """
 市場服務
 處理三大指數、市場情緒的資料存取
+
+🚀 優化版 - 2026-04-07
+- 加入內存快取（60秒過期），避免重複 DB 查詢
+- 一次查詢取得所有市場資料
+- 只在快取過期時才查詢 DB
 """
 import pandas as pd
 from datetime import datetime, date, timedelta
@@ -8,6 +13,7 @@ from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, desc
 import logging
+import threading
 
 from app.models.index_price import IndexPrice, INDEX_SYMBOLS
 from app.models.market_sentiment import MarketSentiment
@@ -19,6 +25,62 @@ from app.data_sources.fear_greed import fear_greed
 logger = logging.getLogger(__name__)
 
 
+# ============================================================
+# 🆕 內存快取（全域，所有 request 共用）
+# ============================================================
+
+class MemoryCache:
+    """簡單的內存快取，線程安全"""
+    
+    def __init__(self):
+        self._cache: Dict[str, Any] = {}
+        self._timestamps: Dict[str, datetime] = {}
+        self._lock = threading.Lock()
+    
+    def get(self, key: str, max_age_seconds: int = 60) -> Optional[Any]:
+        """取得快取值，過期返回 None"""
+        with self._lock:
+            if key not in self._cache:
+                return None
+            
+            timestamp = self._timestamps.get(key)
+            if timestamp is None:
+                return None
+            
+            age = (datetime.now() - timestamp).total_seconds()
+            if age > max_age_seconds:
+                # 過期，清除
+                del self._cache[key]
+                del self._timestamps[key]
+                return None
+            
+            return self._cache[key]
+    
+    def set(self, key: str, value: Any) -> None:
+        """設定快取值"""
+        with self._lock:
+            self._cache[key] = value
+            self._timestamps[key] = datetime.now()
+    
+    def clear(self, key: str = None) -> None:
+        """清除快取"""
+        with self._lock:
+            if key:
+                self._cache.pop(key, None)
+                self._timestamps.pop(key, None)
+            else:
+                self._cache.clear()
+                self._timestamps.clear()
+
+
+# 全域快取實例
+_memory_cache = MemoryCache()
+
+# 快取有效期（秒）
+SENTIMENT_CACHE_SECONDS = 60  # 情緒指數 60 秒
+INDICES_CACHE_SECONDS = 60    # 指數 60 秒
+
+
 class MarketService:
     """市場服務"""
     
@@ -28,7 +90,17 @@ class MarketService:
     # ==================== 三大指數 ====================
     
     def get_latest_indices(self) -> Dict[str, Any]:
-        """取得四大指數最新資料（只從資料庫讀取，排程才更新）"""
+        """
+        取得四大指數最新資料
+        🆕 優先從內存快取讀取
+        """
+        # 嘗試從快取取得
+        cached = _memory_cache.get("indices", INDICES_CACHE_SECONDS)
+        if cached is not None:
+            logger.debug("📦 指數快取命中 (memory)")
+            return cached
+        
+        # 快取未命中，查詢 DB
         result = {}
         
         for symbol, info in INDEX_SYMBOLS.items():
@@ -43,9 +115,8 @@ class MarketService:
                 
                 if latest:
                     result[symbol] = latest.to_dict()
-                    logger.debug(f"📦 指數快取: {symbol} = {latest.close}")
+                    logger.debug(f"📦 指數 DB: {symbol} = {latest.close}")
                 else:
-                    # 沒有快取時回傳 None，不查 API
                     logger.warning(f"⚠️ 指數 {symbol} 無快取資料，請執行更新")
                     result[symbol] = {
                         "symbol": symbol,
@@ -67,6 +138,9 @@ class MarketService:
                     "change": None,
                     "change_pct": None,
                 }
+        
+        # 寫入快取
+        _memory_cache.set("indices", result)
         
         return result
     
@@ -93,16 +167,10 @@ class MarketService:
         return [r.to_dict() for r in results]
     
     def save_index_data(self, df: pd.DataFrame, symbol: str) -> int:
-        """
-        儲存指數資料到資料庫
-        
-        Returns:
-            儲存的筆數
-        """
+        """儲存指數資料到資料庫"""
         import math
         
         def clean_value(val):
-            """清理值，將 NaN/Inf 轉為 None"""
             if val is None:
                 return None
             if pd.isna(val):
@@ -122,7 +190,6 @@ class MarketService:
         index_info = INDEX_SYMBOLS.get(symbol, {})
         
         for _, row in df.iterrows():
-            # 檢查是否已存在
             stmt = select(IndexPrice).where(
                 and_(
                     IndexPrice.symbol == symbol,
@@ -132,7 +199,6 @@ class MarketService:
             existing = self.db.execute(stmt).scalar_one_or_none()
             
             if existing:
-                # 更新現有資料
                 existing.open = clean_value(row.get("open"))
                 existing.high = clean_value(row.get("high"))
                 existing.low = clean_value(row.get("low"))
@@ -141,7 +207,6 @@ class MarketService:
                 existing.change = clean_value(row.get("change"))
                 existing.change_pct = clean_value(row.get("change_pct"))
             else:
-                # 新增資料
                 price = IndexPrice(
                     symbol=symbol,
                     name=index_info.get("name", symbol),
@@ -158,15 +223,11 @@ class MarketService:
                 count += 1
         
         self.db.commit()
+        _memory_cache.clear("indices")
         return count
     
     def fetch_and_save_all_indices(self, period: str = "10y") -> Dict[str, int]:
-        """
-        抓取並儲存所有三大指數資料
-        
-        Returns:
-            {symbol: 儲存筆數}
-        """
+        """抓取並儲存所有三大指數資料"""
         result = {}
         
         for symbol in INDEX_SYMBOLS.keys():
@@ -187,12 +248,20 @@ class MarketService:
     
     def get_latest_sentiment(self) -> Dict[str, Any]:
         """
-        取得最新的市場情緒（🆕 只從資料庫讀取，排程才更新）
+        取得最新的市場情緒
         
-        - 只從資料庫讀取，不主動查外部 API
-        - 資料庫沒有或過期時回傳 None
-        - 排程或手動更新時才會查 API
+        🆕 優化版：
+        1. 優先從內存快取讀取（60 秒有效）
+        2. 只在快取過期時才查詢 DB
         """
+        # 嘗試從快取取得
+        cached = _memory_cache.get("sentiment", SENTIMENT_CACHE_SECONDS)
+        if cached is not None:
+            logger.debug("📦 情緒快取命中 (memory)")
+            return cached
+        
+        # 快取未命中，查詢 DB
+        logger.debug("📦 情緒快取未命中，查詢 DB")
         result = {}
         
         for market in ["stock", "crypto"]:
@@ -207,10 +276,9 @@ class MarketService:
                 
                 if latest:
                     result[market] = latest.to_dict()
-                    logger.debug(f"📦 情緒快取: {market} = {latest.value}")
+                    logger.debug(f"📦 情緒 DB: {market} = {latest.value}")
                 else:
-                    # 🆕 沒有快取時回傳 None，不查 API
-                    logger.warning(f"⚠️ 情緒 {market} 無快取資料，請執行更新")
+                    logger.warning(f"⚠️ 情緒 {market} 無快取資料")
                     result[market] = {
                         "market": market,
                         "value": None,
@@ -226,15 +294,22 @@ class MarketService:
                     "date": None,
                 }
         
+        # 寫入內存快取
+        _memory_cache.set("sentiment", result)
         return result
-
 
     def get_sentiment_history(
         self,
         market: str,
         days: int = 365,
     ) -> List[Dict[str, Any]]:
-        """取得情緒歷史資料"""
+        """取得情緒歷史資料（快取 5 分鐘）"""
+        cache_key = f"sentiment_history_{market}_{days}"
+        cached = _memory_cache.get(cache_key, 300)
+        if cached is not None:
+            logger.debug(f"📦 情緒歷史快取命中: {market} {days}天")
+            return cached
+        
         start_date = date.today() - timedelta(days=days)
         
         stmt = (
@@ -248,8 +323,10 @@ class MarketService:
             .order_by(MarketSentiment.date)
         )
         results = self.db.execute(stmt).scalars().all()
+        history = [r.to_dict() for r in results]
         
-        return [r.to_dict() for r in results]
+        _memory_cache.set(cache_key, history)
+        return history
     
     def save_sentiment(
         self,
@@ -257,13 +334,10 @@ class MarketService:
         value: int,
         target_date: Optional[date] = None,
     ) -> bool:
-        """
-        儲存市場情緒資料
-        """
+        """儲存市場情緒資料"""
         if target_date is None:
             target_date = date.today()
         
-        # 檢查是否已存在
         stmt = select(MarketSentiment).where(
             and_(
                 MarketSentiment.market == market,
@@ -287,15 +361,11 @@ class MarketService:
             self.db.add(sentiment)
         
         self.db.commit()
+        _memory_cache.clear("sentiment")
         return True
     
     def fetch_and_save_crypto_history(self, days: int = 365) -> int:
-        """
-        抓取並儲存幣圈情緒歷史資料
-        
-        Returns:
-            儲存的筆數
-        """
+        """抓取並儲存幣圈情緒歷史資料"""
         logger.info(f"抓取幣圈情緒歷史: {days} 天")
         history = fear_greed.get_crypto_fear_greed_history(days)
         
@@ -304,7 +374,6 @@ class MarketService:
             try:
                 target_date = datetime.strptime(item["date"], "%Y-%m-%d").date()
                 
-                # 檢查是否已存在
                 stmt = select(MarketSentiment).where(
                     and_(
                         MarketSentiment.market == "crypto",
@@ -326,26 +395,20 @@ class MarketService:
                 logger.error(f"儲存情緒資料失敗: {e}")
         
         self.db.commit()
+        _memory_cache.clear("sentiment")
         logger.info(f"幣圈情緒歷史新增 {count} 筆")
         return count
     
     def update_today_sentiment(self) -> Dict[str, bool]:
-        """
-        更新今日的市場情緒
-        
-        Returns:
-            {market: success}
-        """
+        """更新今日的市場情緒"""
         result = {}
         
-        # 美股情緒
         stock_data = fear_greed.get_stock_fear_greed()
         if stock_data and not stock_data.get("is_fallback"):
             result["stock"] = self.save_sentiment("stock", stock_data["value"])
         else:
             result["stock"] = False
         
-        # 幣圈情緒
         crypto_data = fear_greed.get_crypto_fear_greed()
         if crypto_data and not crypto_data.get("is_fallback"):
             result["crypto"] = self.save_sentiment("crypto", crypto_data["value"])
@@ -357,18 +420,12 @@ class MarketService:
     # ==================== 配息資料 ====================
     
     def save_dividends(self, df: pd.DataFrame) -> int:
-        """
-        儲存配息資料
-        
-        Returns:
-            儲存的筆數
-        """
+        """儲存配息資料"""
         if df is None or df.empty:
             return 0
         
         count = 0
         for _, row in df.iterrows():
-            # 檢查是否已存在
             stmt = select(DividendHistory).where(
                 and_(
                     DividendHistory.symbol == row["symbol"],
@@ -390,9 +447,7 @@ class MarketService:
         return count
     
     def fetch_and_save_dividends(self, symbol: str, period: str = "10y") -> int:
-        """
-        抓取並儲存配息資料
-        """
+        """抓取並儲存配息資料"""
         logger.info(f"抓取配息資料: {symbol}")
         df = yahoo_finance.get_dividends(symbol, period=period)
         

@@ -70,7 +70,6 @@
             
             // Debug 模式
             if (window.SELA_DEBUG) {
-                console.log(`📊 State: ${key}`, oldValue, '→', value);
             }
         },
         
@@ -282,7 +281,6 @@
                 }
             } catch (e) {}
             
-            console.log('📊 AppState 初始化完成');
         }
     };
 
@@ -326,5 +324,4 @@
     // 全域導出
     window.AppState = AppState;
 
-    console.log('📊 state.js 狀態管理模組已載入');
 })();

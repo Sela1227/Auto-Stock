@@ -38,7 +38,6 @@
             const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');
             const data = await res.json();
             
-            console.log('[BTC] CoinGecko 回應:', data);
 
             if (data.bitcoin) {
                 const price = data.bitcoin.usd || 0;
@@ -100,7 +99,6 @@
         if (!btcRefreshInterval) {
             btcRefreshInterval = setInterval(loadBtcPrice, 60000);
         }
-    }
     
     // ============================================================
     // 三大指數
@@ -108,7 +106,6 @@
     
     async function loadIndices() {
         try {
-            console.log('開始載入指數...');
             const res = await fetch('/api/market/indices');
             const data = await res.json();
             
@@ -123,7 +120,6 @@
         } catch (e) {
             console.error('載入指數失敗', e);
         }
-    }
     
     function updateIndexCard(symbol, data) {
         const priceEl = document.getElementById(`index-${symbol}-price`);
@@ -145,7 +141,6 @@
         if (dateEl && data.date) {
             dateEl.textContent = `更新: ${data.date}`;
         }
-    }
     
     // ============================================================
     // 指數圖表 Modal
@@ -229,7 +224,6 @@
         } catch (e) {
             console.error('載入指數走勢失敗', e);
         }
-    }
     
     // ============================================================
     // 市場情緒
@@ -241,15 +235,14 @@
             const data = await res.json();
             
             if (data.success) {
-                updateSentimentCard('stock', data.stock || { value: 50, classification: 'neutral' });
-                updateSentimentCard('crypto', data.crypto || { value: 50, classification: 'neutral' });
+                updateSentimentCard('stock', data.data?.stock || { value: 50, classification: 'neutral' });
+                updateSentimentCard('crypto', data.data?.crypto || { value: 50, classification: 'neutral' });
             }
         } catch (e) {
             console.error('載入情緒失敗', e);
             updateSentimentCard('stock', { value: 50, classification: 'neutral' });
             updateSentimentCard('crypto', { value: 50, classification: 'neutral' });
         }
-    }
 
     function updateSentimentCard(type, sentiment) {
         if (!sentiment) return;
@@ -467,10 +460,11 @@
     // ============================================================
     
     async function loadDashboard() {
-        await loadIndices();
+        // 🆕 V1.04 情緒指數優先載入（最常看）
         await loadSentiment();
+        await loadIndices();
         await loadBtcPrice();
-        await loadPopularStocks();  // 🆕 載入熱門追蹤
+        await loadPopularStocks();
         if (typeof loadWatchlistOverview === 'function') {
             await loadWatchlistOverview();
         }
@@ -478,7 +472,6 @@
     
     // 管理員更新
     async function triggerAdminUpdates() {
-        console.log('🔄 管理員登入，觸發全部更新...');
         const token = localStorage.getItem('token');
         
         try {
@@ -486,14 +479,12 @@
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             }).then(r => r.json()).then(d => {
-                console.log('✅ 四大指數更新:', d.success ? '成功' : '失敗');
             });
             
             fetch('/api/admin/update-price-cache', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             }).then(r => r.json()).then(d => {
-                console.log('✅ 價格快取更新:', d.success ? '成功' : '失敗');
             });
             
             loadBtcPrice();
@@ -502,12 +493,10 @@
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             }).then(r => r.json()).then(d => {
-                console.log('✅ 匯率更新:', d.success ? '成功' : '失敗');
             });
         } catch (e) {
             console.error('管理員更新觸發失敗:', e);
         }
-    }
     
     /**
      * 載入恐懼貪婪詳細頁面
@@ -524,8 +513,8 @@
             const res = await fetch('/api/market/sentiment');
             if (res.ok) {
                 const data = await res.json();
-                if (data.stock) stockData = data.stock;
-                if (data.crypto) cryptoData = data.crypto;
+                if (data.data?.stock) stockData = data.data.stock;
+                if (data.data?.crypto) cryptoData = data.data.crypto;
             }
         } catch (e) {
             console.error('載入情緒資料失敗', e);
@@ -650,5 +639,4 @@
     window.loadSentimentModalChart = loadSentimentModalChart;
     window.triggerAdminUpdates = triggerAdminUpdates;
     
-    console.log('📊 dashboard.js 模組已載入 (P2 含熱門追蹤統計)');
 })();

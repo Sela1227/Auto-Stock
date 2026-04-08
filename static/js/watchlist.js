@@ -284,7 +284,6 @@
 
         container.addEventListener('click', handleWatchlistClick);
         delegationInitialized = true;
-        console.log('📌 追蹤清單事件委託已初始化');
     }
 
     function handleWatchlistClick(e) {
@@ -376,7 +375,6 @@
                 await loadTags();
             }
 
-            console.log('📦 階段1: 載入基本資料...');
             const basicRes = await apiRequest('/api/watchlist/basic');
             const basicData = await basicRes.json();
 
@@ -404,10 +402,8 @@
 
             // 🆕 立即渲染（價格顯示「載入中」）
             renderWatchlistCards(basicData.data);
-            console.log('✅ 階段1完成: 顯示基本資料');
 
             // 🆕 階段 2：背景載入價格
-            console.log('📦 階段2: 背景載入價格...');
             const priceRes = await apiRequest('/api/watchlist/with-prices');
             const priceData = await priceRes.json();
 
@@ -418,7 +414,6 @@
 
                 // 🆕 平滑更新（不閃爍）
                 updateWatchlistPrices(priceData.data);
-                console.log('✅ 階段2完成: 價格已更新');
             }
 
         } catch (e) {
@@ -1010,5 +1005,4 @@
     window.saveTargetPrice = saveTargetPrice;
     window.clearTargetPrice = clearTargetPrice;
 
-    console.log('⭐ watchlist.js 模組已載入 (P3 優化版)');
 })();

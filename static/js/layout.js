@@ -135,7 +135,6 @@
         renderMobileSidebar();
         renderDesktopSidebar();
         renderMobileBottomNav();
-        console.log('✅ 佈局元件已初始化');
     }
 
     // ============================================================

@@ -61,7 +61,6 @@
     function clearDomCache() {
         _domCache.clear();
         _querySelectorCache.clear();
-        console.log('🗑️ DOM 快取已清除');
     }
     
     /**
@@ -78,7 +77,6 @@
             'adminLink', 'adminSidebarLink', 'adminMobileLink'
         ];
         commonIds.forEach(id => $(id));
-        console.log(`📦 已預載入 ${_domCache.size} 個 DOM 元素到快取`);
     }
     
     // ============================================================
@@ -274,7 +272,6 @@
     
     async function checkAuth() {
         if (!token) {
-            console.log('無 token，跳轉登入頁');
             clearAllUserData();
             window.location.href = '/static/index.html';
             return;
@@ -317,7 +314,6 @@
                 is_admin: serverUser.is_admin || false
             }));
             
-            console.log('登入驗證成功: 用戶 ID =', serverUser.id);
             
             // ✅ P1: 同步到 AppState
             if (window.AppState) {
@@ -373,8 +369,10 @@
                 adminMobileLink.classList.add('flex');
             }
             
-            if (typeof triggerAdminUpdates === 'function') {
-                triggerAdminUpdates();
+            // 🆕 V1.02 移除自動更新，改為手動觸發
+            // if (typeof triggerAdminUpdates === 'function') {
+            //     triggerAdminUpdates();
+            // }
             }
         }
     }
@@ -587,8 +585,6 @@
     // ============================================================
     
     function init() {
-        console.log('🚀 SELA 系統初始化中... (P0 優化版)');
-        console.log('Device info:', deviceInfo);
         
         // ✅ 預載入常用 DOM 元素
         preloadDomCache();
@@ -665,5 +661,4 @@
     window.batchUpdate = batchUpdate;
     window.setHtml = setHtml;
     
-    console.log('🎯 core.js 核心模組已載入 (P0 優化版)');
 })();

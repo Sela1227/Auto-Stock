@@ -420,5 +420,4 @@
     window.loadReturnsModal = loadReturnsModal;
     window.closeReturnsModal = closeReturnsModal;
 
-    console.log('📊 search-chart.js 圖表模組已載入');
 })();
