@@ -460,14 +460,20 @@
     // ============================================================
     
     async function loadDashboard() {
-        // 🆕 V1.04 情緒指數優先載入（最常看）
-        await loadSentiment();
-        await loadIndices();
-        await loadBtcPrice();
-        await loadPopularStocks();
-        if (typeof loadWatchlistOverview === 'function') {
-            await loadWatchlistOverview();
-        }
+        // 🆕 V1.07 並行載入（不互相等待）
+        // 1. 最重要的三個同時載入（都是讀 DB，毫秒級）
+        const dbTasks = [
+            loadSentiment(),
+            loadIndices(),
+            typeof loadWatchlistOverview === 'function' ? loadWatchlistOverview() : Promise.resolve(),
+            loadPopularStocks(),
+        ];
+        
+        // 2. BTC 價格是外部 API，獨立載入不阻塞
+        loadBtcPrice();  // 不 await，讓它背景執行
+        
+        // 等待 DB 任務完成
+        await Promise.all(dbTasks);
     }
     
     // 管理員更新
