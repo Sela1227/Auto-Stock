@@ -255,49 +255,17 @@ async def get_crypto_analysis(
         )
 
 
-@router.get("/api/crypto/{symbol}/chart", summary="取得加密貨幣圖表")
-async def get_crypto_chart(
-    symbol: str,
-    days: int = Query(120, ge=30, le=365, description="顯示天數"),
-):
+@router.get("/{symbol}/chart", summary="圖表功能已移除")
+async def get_crypto_chart(symbol: str):
     """
-    生成加密貨幣技術分析圖表
+    🆕 V1.08 此功能已移除
     
-    - **symbol**: 加密貨幣代號 (BTC, ETH)
-    - **days**: 顯示天數 (30-365)
-    
-    回傳 PNG 圖片
+    圖表已改用前端 Chart.js 繪製，不再需要後端生成 PNG
+    請使用前端圖表功能
     """
-    from app.data_sources.coingecko import coingecko
-    from app.services.chart_service import chart_service
-    
-    symbol = symbol.upper()
-    
-    df = coingecko.get_ohlc(symbol, days=days)
-    
-    if df is None or df.empty:
-        raise HTTPException(
-            status_code=404,
-            detail=f"找不到加密貨幣: {symbol}"
-        )
-    
-    # 取得名稱
-    info = coingecko.get_coin_info(symbol)
-    name = info.get("name", "") if info else ""
-    
-    # 生成圖表
-    chart_path = chart_service.plot_stock_analysis(
-        df,
-        symbol=symbol,
-        name=name,
-        days=days,
-        show_kd=False,
-    )
-    
-    return FileResponse(
-        chart_path,
-        media_type="image/png",
-        filename=f"{symbol}_chart.png",
+    raise HTTPException(
+        status_code=410,  # Gone
+        detail="圖表功能已移除，請使用前端 Chart.js 圖表"
     )
 
 

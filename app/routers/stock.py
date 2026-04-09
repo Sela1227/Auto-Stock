@@ -354,70 +354,20 @@ async def get_stock_returns(symbol: str):
         raise HTTPException(status_code=500, detail=f"計算失敗: {str(e)}")
 
 
-@router.get("/{symbol}/chart", summary="取得股票圖表")
-async def get_stock_chart(
-    symbol: str,
-    days: int = Query(120, ge=30, le=365, description="顯示天數"),
-):
+@router.get("/{symbol}/chart", summary="圖表功能已移除")
+async def get_stock_chart(symbol: str):
     """
-    生成股票技術分析圖表
+    🆕 V1.08 此功能已移除
     
-    🆕 V1.05 快取優化：1 小時內相同請求直接返回快取
+    圖表已改用前端 Chart.js 繪製，不再需要後端生成 PNG
+    請使用前端圖表功能
     """
-    from app.data_sources.yahoo_finance import yahoo_finance
-    from app.services.chart_service import chart_service
-    from app.services.analysis_cache_service import AnalysisCacheService
-    from app.database import SyncSessionLocal
-    from fastapi.responses import Response
-    
-    # 🆕 V1.05 圖表快取檢查
-    try:
-        sync_db = SyncSessionLocal()
-        cache_service = AnalysisCacheService(sync_db)
-        cached_chart = cache_service.get_chart_cache(symbol.upper(), days)
-        
-        if cached_chart:
-            sync_db.close()
-            logger.info(f"📦 使用圖表快取: {symbol}_{days}")
-            return Response(content=cached_chart, media_type="image/png")
-    except Exception as e:
-        logger.warning(f"圖表快取讀取失敗: {e}")
-    
-    symbol = normalize_tw_symbol(symbol)
-    
-    # 🆕 使用智慧版本
-    df, symbol, _, _ = _get_stock_df_smart(symbol, years=2)
-    
-    if df is None or df.empty:
-        raise HTTPException(status_code=404, detail=f"找不到股票: {symbol}")
-    
-    df.columns = [c.lower() for c in df.columns]
-    if 'date' not in df.columns:
-        df['date'] = df.index
-    
-    info = yahoo_finance.get_stock_info(symbol)
-    name = info.get("name", "") if info else ""
-    
-    chart_path = chart_service.plot_stock_analysis(
-        df,
-        symbol=symbol,
-        name=name,
-        days=days,
-        show_kd=False,
+    from fastapi import HTTPException
+    raise HTTPException(
+        status_code=410,  # Gone
+        detail="圖表功能已移除，請使用前端 Chart.js 圖表"
     )
-    
-    logger.info(f"圖表生成完成: {chart_path}")
-    
-    # 🆕 V1.05 儲存圖表到快取
-    try:
-        with open(chart_path, 'rb') as f:
-            chart_data = f.read()
-        cache_service.save_chart_cache(symbol.upper(), days, chart_data)
-        sync_db.close()
-    except Exception as e:
-        logger.warning(f"圖表快取儲存失敗: {e}")
-    
-    return FileResponse(chart_path, media_type="image/png", filename=f"{symbol}_chart.png")
+
 
 
 @router.delete("/cache/{symbol}", summary="清除快取")
