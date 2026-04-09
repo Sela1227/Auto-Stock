@@ -460,20 +460,32 @@
     // ============================================================
     
     async function loadDashboard() {
-        // 🆕 V1.07 並行載入（不互相等待）
-        // 1. 最重要的三個同時載入（都是讀 DB，毫秒級）
-        const dbTasks = [
+        // 🆕 V1.09 完整載入（首次或刷新時使用）
+        const tasks = [
             loadSentiment(),
             loadIndices(),
             typeof loadWatchlistOverview === 'function' ? loadWatchlistOverview() : Promise.resolve(),
             loadPopularStocks(),
         ];
         
-        // 2. BTC 價格是外部 API，獨立載入不阻塞
-        loadBtcPrice();  // 不 await，讓它背景執行
+        loadBtcPrice();  // 外部 API，背景執行
         
-        // 等待 DB 任務完成
-        await Promise.all(dbTasks);
+        await Promise.all(tasks);
+    }
+    
+    /**
+     * 🆕 V1.09 只載入需要登入的資料
+     * 公開資料（情緒、指數）已在 init 時載入
+     */
+    async function loadDashboardPrivate() {
+        const tasks = [
+            typeof loadWatchlistOverview === 'function' ? loadWatchlistOverview() : Promise.resolve(),
+            loadPopularStocks(),
+        ];
+        
+        loadBtcPrice();  // 外部 API，背景執行
+        
+        await Promise.all(tasks);
     }
     
     // 管理員更新
@@ -632,6 +644,7 @@
     // ============================================================
     
     window.loadDashboard = loadDashboard;
+    window.loadDashboardPrivate = loadDashboardPrivate;
     window.loadBtcPrice = loadBtcPrice;
     window.loadIndices = loadIndices;
     window.loadSentiment = loadSentiment;
