@@ -667,6 +667,8 @@
             if (headerVersion) headerVersion.textContent = versionText;
             if (mobileVersion) mobileVersion.textContent = versionText;
             if (sidebarVersion) sidebarVersion.textContent = versionText;
+            const settingsVersion = document.getElementById('settingsVersion');
+            if (settingsVersion) settingsVersion.textContent = versionText;
         } catch (e) {
             // 版本號載入失敗不影響主要功能
         }
