@@ -399,6 +399,8 @@ async def get_watchlist_with_prices(
     - 包含目標價及是否達標
     - 包含該項目的所有標籤
     """
+    import time
+    start_time = time.time()
     logger.info(f"API: 追蹤清單(含價格) - user_id={user.id}")
 
     try:
@@ -506,6 +508,9 @@ async def get_watchlist_with_prices(
                 "tags": tags_map.get(item.id, []),
             })
 
+        elapsed = (time.time() - start_time) * 1000
+        logger.info(f"API: 追蹤清單(含價格) 完成 - {len(data)} 筆, {elapsed:.0f}ms")
+        
         return {
             "success": True,
             "data": data,

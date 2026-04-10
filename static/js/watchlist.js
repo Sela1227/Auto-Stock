@@ -887,6 +887,9 @@
         const container = $('dashboardWatchlist');
         if (!container) return;
 
+        // 🆕 V1.10 立即顯示 loading 狀態
+        container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-gray-400"></i></div>';
+
         const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : window.currentUser;
 
         if (!currentUser || !currentUser.id) {
@@ -914,54 +917,31 @@
                 return;
             }
 
+            // 🆕 V1.10 優化：預先構建 HTML 字串
             const items = data.data.slice(0, 5);
-            let html = '<div class="space-y-2" id="dashboardWatchlistItems">';
+            const htmlParts = ['<div class="space-y-2" id="dashboardWatchlistItems">'];
 
-            for (const item of items) {
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
                 const change = item.change_pct || 0;
                 const changeClass = change >= 0 ? 'text-green-600' : 'text-red-600';
-
-                const priceText = item.price !== null && item.price !== undefined
-                    ? `$${item.price.toLocaleString()}`
-                    : '--';
-
-                const changeText = item.price !== null && item.price !== undefined
-                    ? `<span class="${changeClass} text-sm ml-1">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</span>`
-                    : '';
-
+                const priceText = item.price != null ? `$${item.price.toLocaleString()}` : '--';
+                const changeText = item.price != null ? `<span class="${changeClass} text-sm ml-1">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</span>` : '';
                 const isCrypto = item.asset_type === 'crypto';
                 const isTw = item.symbol.includes('.TW') || /^\d+$/.test(item.symbol);
                 const market = isTw ? 'tw' : 'us';
 
-                const tradeButtons = isCrypto ? '' : `
-                    <button data-action="trade" data-symbol="${item.symbol}" data-name="${item.name || ''}" data-market="${market}" data-type="buy"
-                            class="p-1.5 bg-green-100 text-green-600 rounded text-xs hover:bg-green-200">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                `;
-
-                html += `
-                    <div class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
-                        <div class="flex items-center cursor-pointer" data-action="analyze" data-symbol="${item.symbol}">
-                            <span class="font-medium text-gray-800">${item.symbol}</span>
-                            <span class="text-gray-500 text-sm ml-2">${priceText}</span>
-                            ${changeText}
-                        </div>
-                        <div class="flex items-center gap-1">
-                            ${tradeButtons}
-                            <button data-action="analyze" data-symbol="${item.symbol}" class="p-1.5 bg-orange-100 text-orange-600 rounded text-xs hover:bg-orange-200">
-                                <i class="fas fa-chart-line"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
+                htmlParts.push(`<div class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50"><div class="flex items-center cursor-pointer" data-action="analyze" data-symbol="${item.symbol}"><span class="font-medium text-gray-800">${item.symbol}</span><span class="text-gray-500 text-sm ml-2">${priceText}</span>${changeText}</div><div class="flex items-center gap-1">${isCrypto ? '' : `<button data-action="trade" data-symbol="${item.symbol}" data-name="${item.name || ''}" data-market="${market}" data-type="buy" class="p-1.5 bg-green-100 text-green-600 rounded text-xs hover:bg-green-200"><i class="fas fa-plus"></i></button>`}<button data-action="analyze" data-symbol="${item.symbol}" class="p-1.5 bg-orange-100 text-orange-600 rounded text-xs hover:bg-orange-200"><i class="fas fa-chart-line"></i></button></div></div>`);
             }
 
-            html += '</div>';
-            container.innerHTML = html;
+            htmlParts.push('</div>');
+            container.innerHTML = htmlParts.join('');
 
-            // 初始化儀表板事件委託
-            container.addEventListener('click', handleWatchlistClick);
+            // 初始化儀表板事件委託（只綁定一次）
+            if (!container._watchlistClickBound) {
+                container.addEventListener('click', handleWatchlistClick);
+                container._watchlistClickBound = true;
+            }
 
         } catch (e) {
             console.error('載入追蹤快覽失敗:', e);
