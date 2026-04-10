@@ -193,7 +193,7 @@
         }, 500);
     }
 
-    // 🔧 新增：獲取最後一筆交易價格
+    // 🔧 新增：獲取最後一筆交易價格（自動填入）
     async function fetchLastTransactionPrice(symbol, market) {
         try {
             const res = await apiRequest(`/api/portfolio/transactions/last-price/${symbol}`);
@@ -209,6 +209,63 @@
             }
         } catch (e) {
             // 沒有歷史交易，不處理
+        }
+    }
+
+    // 🆕 V1.09 手動複製上次台股價格
+    async function copyLastTwPrice() {
+        const rawSymbol = $('twSymbol')?.value?.trim();
+        if (!rawSymbol) {
+            showToast('請先輸入股票代碼');
+            return;
+        }
+        
+        const symbol = `${rawSymbol}.TW`;
+        try {
+            const res = await apiRequest(`/api/portfolio/transactions/last-price/${symbol}`);
+            const data = await res.json();
+            
+            if (data.success && data.price) {
+                const priceInput = $('twPrice');
+                if (priceInput) {
+                    priceInput.value = data.price;
+                    priceInput.classList.add('bg-yellow-50');
+                    setTimeout(() => priceInput.classList.remove('bg-yellow-50'), 1000);
+                    showToast(`已填入上次價格: ${data.price}`);
+                }
+            } else {
+                showToast('查無此股票的歷史交易');
+            }
+        } catch (e) {
+            showToast('查詢失敗');
+        }
+    }
+
+    // 🆕 V1.09 手動複製上次美股價格
+    async function copyLastUsPrice() {
+        const symbol = $('usSymbol')?.value?.trim().toUpperCase();
+        if (!symbol) {
+            showToast('請先輸入股票代碼');
+            return;
+        }
+        
+        try {
+            const res = await apiRequest(`/api/portfolio/transactions/last-price/${symbol}`);
+            const data = await res.json();
+            
+            if (data.success && data.price) {
+                const priceInput = $('usPrice');
+                if (priceInput) {
+                    priceInput.value = data.price;
+                    priceInput.classList.add('bg-yellow-50');
+                    setTimeout(() => priceInput.classList.remove('bg-yellow-50'), 1000);
+                    showToast(`已填入上次價格: ${data.price}`);
+                }
+            } else {
+                showToast('查無此股票的歷史交易');
+            }
+        } catch (e) {
+            showToast('查詢失敗');
         }
     }
 
@@ -599,5 +656,9 @@
     // 🔧 券商相關函數
     window.loadBrokers = loadBrokers;
     window.handleBrokerChange = handleBrokerChange;
+
+    // 🆕 V1.09 複製上次價格
+    window.copyLastTwPrice = copyLastTwPrice;
+    window.copyLastUsPrice = copyLastUsPrice;
 
 })();

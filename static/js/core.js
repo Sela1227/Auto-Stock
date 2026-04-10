@@ -330,11 +330,7 @@
             
             startSessionMonitor();
             
-            // 🆕 V1.09 公開資料已在 init 時載入，這裡只載入需要登入的資料
-            if (typeof loadDashboardPrivate === 'function') {
-                loadDashboardPrivate();
-            } else if (typeof loadDashboard === 'function') {
-                // fallback: 如果 dashboard.js 還沒載入，用原本的
+            if (typeof loadDashboard === 'function') {
                 loadDashboard();
             }
             
@@ -593,24 +589,7 @@
         // ✅ 預載入常用 DOM 元素
         preloadDomCache();
         
-        // 🆕 V1.09 立即載入公開資料（不需要等驗證）
-        loadPublicDataImmediately();
-        
         checkAuth();
-    }
-    
-    /**
-     * 🆕 V1.09 立即載入公開資料
-     * 情緒指數和四大指數不需要登入，可以在驗證 token 的同時載入
-     */
-    function loadPublicDataImmediately() {
-        // 不用 await，讓它們背景執行
-        if (typeof loadSentiment === 'function') {
-            loadSentiment();
-        }
-        if (typeof loadIndices === 'function') {
-            loadIndices();
-        }
     }
     
     if (document.readyState === 'loading') {

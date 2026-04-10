@@ -460,25 +460,10 @@
     // ============================================================
     
     async function loadDashboard() {
-        // 🆕 V1.09 完整載入（首次或刷新時使用）
+        // 🆕 V1.07 並行載入（不互相等待）
         const tasks = [
             loadSentiment(),
             loadIndices(),
-            typeof loadWatchlistOverview === 'function' ? loadWatchlistOverview() : Promise.resolve(),
-            loadPopularStocks(),
-        ];
-        
-        loadBtcPrice();  // 外部 API，背景執行
-        
-        await Promise.all(tasks);
-    }
-    
-    /**
-     * 🆕 V1.09 只載入需要登入的資料
-     * 公開資料（情緒、指數）已在 init 時載入
-     */
-    async function loadDashboardPrivate() {
-        const tasks = [
             typeof loadWatchlistOverview === 'function' ? loadWatchlistOverview() : Promise.resolve(),
             loadPopularStocks(),
         ];
@@ -644,7 +629,6 @@
     // ============================================================
     
     window.loadDashboard = loadDashboard;
-    window.loadDashboardPrivate = loadDashboardPrivate;
     window.loadBtcPrice = loadBtcPrice;
     window.loadIndices = loadIndices;
     window.loadSentiment = loadSentiment;
