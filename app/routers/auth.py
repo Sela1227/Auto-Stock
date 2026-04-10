@@ -462,7 +462,7 @@ async def receive_debug_log(
 
 @router.get("/debug-logs", summary="查看前端診斷日誌（管理員）")
 async def get_debug_logs(
-    user: User = Depends(get_current_user),
+    user: UserResponse = Depends(get_current_user),
 ):
     """
     管理員查看前端診斷日誌
