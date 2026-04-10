@@ -12,9 +12,11 @@
 (function() {
     'use strict';
     
-    // 🆕 V1.12 調試輸出到畫面
-    function debugLog(msg, isError = false) {
+    // 🆕 V1.12 調試輸出 + 自動回報後端
+    function debugLog(msg, isError = false, extraData = {}) {
         console.log(msg);
+        
+        // 顯示在畫面上
         const logEl = document.getElementById('debugLog');
         if (logEl) {
             const line = document.createElement('div');
@@ -22,6 +24,21 @@
             if (isError) line.className = 'text-red-400';
             logEl.appendChild(line);
         }
+        
+        // 🆕 發送到後端（非同步，不阻塞）
+        try {
+            const payload = {
+                step: msg,
+                status: isError ? 'error' : 'info',
+                error: isError ? msg : null,
+                ...extraData
+            };
+            fetch('/auth/debug-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(() => {}); // 忽略錯誤
+        } catch (e) {}
     }
     
     // ============================================================
@@ -286,7 +303,7 @@
         debugLog('[checkAuth] 開始驗證...');
         
         if (!token) {
-            debugLog('[checkAuth] 無 token，跳轉登入頁');
+            debugLog('[checkAuth] 無 token，跳轉登入頁', true);
             clearAllUserData();
             window.location.href = '/static/index.html';
             return;
@@ -306,7 +323,10 @@
             }
             
             const serverUser = await res.json();
-            debugLog('[checkAuth] 用戶資料:', serverUser.display_name, 'is_admin:', serverUser.is_admin);
+            debugLog('[checkAuth] 用戶資料: ' + serverUser.display_name + ' is_admin: ' + serverUser.is_admin, false, {
+                user_id: serverUser.id,
+                display_name: serverUser.display_name
+            });
             
             const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
             if (storedUser.id && storedUser.id !== serverUser.id) {
@@ -364,7 +384,7 @@
             debugLog('[checkAuth] ✅ 完成');
             
         } catch (e) {
-            debugLog('[checkAuth] ❌ 驗證失敗:', e);
+            debugLog('[checkAuth] ❌ 驗證失敗: ' + e.message, true, { error: e.message });
             clearAllUserData();
             window.location.href = '/static/index.html';
         }

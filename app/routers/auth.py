@@ -409,3 +409,69 @@ async def get_current_user(
         )
 
     return UserResponse.model_validate(user)
+
+
+# ============================================================
+# 🆕 V1.12 前端診斷日誌
+# ============================================================
+
+from datetime import datetime
+
+# 簡易記憶體儲存（重啟會清空，但足夠診斷）
+_frontend_logs = []
+_MAX_LOGS = 100
+
+@router.post("/debug-log", summary="前端診斷日誌")
+async def receive_debug_log(
+    request: Request,
+):
+    """
+    接收前端的診斷日誌（不需要登入）
+    """
+    try:
+        data = await request.json()
+        
+        # 取得用戶資訊
+        user_agent = request.headers.get("User-Agent", "unknown")[:100]
+        client_ip = request.client.host if request.client else "unknown"
+        
+        log_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "ip": client_ip,
+            "user_agent": user_agent,
+            "step": data.get("step", "unknown"),
+            "status": data.get("status", "unknown"),
+            "error": data.get("error", None),
+            "user_id": data.get("user_id", None),
+            "display_name": data.get("display_name", None),
+        }
+        
+        # 記錄到 Railway 日誌
+        logger.info(f"[Frontend Debug] {log_entry}")
+        
+        # 也存到記憶體供管理員查看
+        _frontend_logs.insert(0, log_entry)
+        if len(_frontend_logs) > _MAX_LOGS:
+            _frontend_logs.pop()
+        
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"接收前端日誌失敗: {e}")
+        return {"success": False}
+
+
+@router.get("/debug-logs", summary="查看前端診斷日誌（管理員）")
+async def get_debug_logs(
+    user: User = Depends(get_current_user),
+):
+    """
+    管理員查看前端診斷日誌
+    """
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="需要管理員權限")
+    
+    return {
+        "success": True,
+        "data": _frontend_logs,
+        "total": len(_frontend_logs),
+    }
