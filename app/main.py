@@ -358,8 +358,9 @@ async def get_version():
         "version": settings.APP_VERSION,
         "app": settings.APP_NAME,
         "features": [
+            "V1.12.1: 修復啟動 crash (NameError)",
+            "V1.12: 前端診斷日誌",
             "V1.02: 極簡排程",
             "V1.01: 內存快取",
-            "V1.0.0: 完整功能",
         ]
     }
