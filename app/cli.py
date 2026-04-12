@@ -15,7 +15,6 @@ from rich import box
 from app.database import init_db_sync, get_sync_session
 from app.services.stock_service import StockService
 from app.services.crypto_service import CryptoService
-from app.services.chart_service import chart_service
 from app.data_sources.coingecko import CRYPTO_MAP
 from app.config import settings
 
@@ -534,15 +533,9 @@ def cmd_chart(args):
             console.print(f"[red]❌ 無法取得資料: {symbol}[/red]")
             return 1
         
-        # 生成圖表
-        chart_path = chart_service.plot_stock_analysis(
-            df,
-            symbol,
-            days=args.days,
-            show_kd=args.kd,
-        )
-        
-        console.print(f"[green]✅ 圖表已儲存: {chart_path}[/green]")
+        # 🆕 V1.08 圖表功能已移除
+        console.print(f"[yellow]⚠️ 圖表功能已移除，請使用前端 Chart.js 圖表[/yellow]")
+        console.print(f"[blue]📊 取得了 {len(df)} 筆 {symbol} 資料[/blue]")
         return 0
         
     finally:

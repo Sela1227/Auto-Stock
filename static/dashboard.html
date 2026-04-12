@@ -16,6 +16,8 @@
             <img src="/static/logo.png" alt="SELA" class="w-24 h-24 mx-auto mb-4 rounded-xl">
             <p class="text-white text-lg">載入中...</p>
             <i class="fas fa-spinner fa-spin text-white text-2xl mt-4"></i>
+            <!-- 🆕 V1.12 調試狀態（直接顯示在畫面上） -->
+            <div id="debugLog" class="mt-6 text-left text-xs text-gray-400 max-w-xs mx-auto font-mono space-y-1"></div>
         </div>
     </div>
     <div id="app-content">
@@ -26,7 +28,7 @@
             <div class="p-4 border-b flex items-center justify-between">
                 <div class="flex items-center">
                     <img src="/static/logo.png" alt="SELA" class="w-10 h-10 rounded-lg mr-2">
-                    <span class="font-bold text-lg">SELA</span>
+                    <span class="font-bold text-lg">SELA</span><span id="sidebarVersion" class="ml-2 text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">v--</span>
                 </div>
                 <button onclick="closeMobileSidebar()" class="p-2 text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times text-xl"></i>
@@ -95,8 +97,8 @@
                 
                 <div class="flex items-center">
                     <img src="/static/logo.png" alt="SELA" class="w-8 h-8 rounded-lg mr-2">
-                    <span class="font-bold text-lg text-gray-800 hidden sm:inline">自動選股系統</span>
-                    <span class="font-bold text-lg text-gray-800 sm:hidden">SELA</span>
+                    <span class="font-bold text-lg text-gray-800 hidden sm:inline">自動選股系統</span><span id="headerVersion" class="ml-2 text-xs text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded hidden sm:inline">v--</span>
+                    <span class="font-bold text-lg text-gray-800 sm:hidden">SELA</span><span id="mobileVersion" class="ml-1 text-xs text-orange-500 sm:hidden">v--</span>
                 </div>
                 
                 <div class="flex items-center space-x-2">
@@ -1005,7 +1007,7 @@
                         </div>
                         <div class="flex justify-between py-2">
                             <span class="text-gray-500">系統版本</span>
-                            <span class="font-medium">v0.5.3</span>
+                            <span id="settingsVersion" class="font-medium">v--</span>
                         </div>
                     </div>
                     <button onclick="logout()" class="mt-4 w-full py-3 border border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-50">

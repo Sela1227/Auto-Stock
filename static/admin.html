@@ -158,6 +158,24 @@
         </div>
     </div>
 
+    <!-- 🆕 V1.12 前端診斷日誌 -->
+    <div class="max-w-7xl mx-auto px-4 pb-6">
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">
+                    <i class="fas fa-bug text-orange-500 mr-2"></i>前端診斷日誌
+                </h3>
+                <button onclick="loadDebugLogs()" class="px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 text-sm">
+                    <i class="fas fa-sync-alt mr-1"></i>刷新
+                </button>
+            </div>
+            <p class="text-sm text-gray-500 mb-3">用戶登入過程的診斷日誌，用於排查無法登入問題（最近100筆）</p>
+            <div id="debugLogsContainer">
+                <div class="text-center py-4 text-gray-400">點擊「刷新」載入</div>
+            </div>
+        </div>
+    </div>
+
     <!-- 用戶詳情 Modal -->
     <div id="userModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -669,9 +687,52 @@
             if (e.key === 'Enter') loadUsers();
         });
 
+
+        // 🆕 V1.12 載入診斷日誌
+        async function loadDebugLogs() {
+            const container = document.getElementById('debugLogsContainer');
+            if (!container) return;
+            
+            container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 載入中...</div>';
+            
+            try {
+                const res = await apiRequest('/auth/debug-logs');
+                
+                if (!res.success || !res.data || res.data.length === 0) {
+                    container.innerHTML = '<div class="text-center py-4 text-gray-500">暫無診斷日誌</div>';
+                    return;
+                }
+                
+                let html = '<div class="space-y-2 max-h-96 overflow-y-auto">';
+                for (const log of res.data) {
+                    const isError = log.status === 'error';
+                    const bgClass = isError ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200';
+                    const textClass = isError ? 'text-red-700' : 'text-gray-700';
+                    
+                    html += `
+                        <div class="p-3 rounded border ${bgClass}">
+                            <div class="flex justify-between text-xs text-gray-500 mb-1">
+                                <span>${log.timestamp}</span>
+                                <span>${log.ip}</span>
+                            </div>
+                            <div class="${textClass} text-sm font-mono">${log.step}</div>
+                            ${log.display_name ? `<div class="text-xs text-blue-600 mt-1">用戶: ${log.display_name}</div>` : ''}
+                            ${log.error ? `<div class="text-xs text-red-600 mt-1">錯誤: ${log.error}</div>` : ''}
+                        </div>
+                    `;
+                }
+                html += '</div>';
+                
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<div class="text-center py-4 text-red-500">載入失敗: ' + e.message + '</div>';
+            }
+        }
+
         // 初始載入
         loadStats();
         loadUsers();
+        loadDebugLogs();
     </script>
 </body>
 </html>

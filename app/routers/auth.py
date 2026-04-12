@@ -15,6 +15,7 @@ import logging
 from app.database import get_async_session
 from app.services.auth_service import AuthService
 from app.schemas.schemas import LoginResponse, UserResponse, ErrorResponse
+from app.dependencies import get_current_user as _get_current_user
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -31,54 +32,58 @@ AUTH_VERSION = "2.1.0-admin-update"
 
 async def trigger_admin_updates():
     """
-    管理員登入觸發的背景更新（優化版）
-    - 🆕 只在股市開盤時間更新股票價格
+    管理員登入觸發的背景更新
+    - 只在股市開盤時間更新股票價格
     - 更新市場情緒指數（不受時間限制）
     """
+    from contextlib import contextmanager
     from app.database import SessionLocal
     from app.services.price_cache_service import is_tw_market_open, is_us_market_open
-    
+
+    @contextmanager
+    def _db():
+        db = SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
     tw_open = is_tw_market_open()
     us_open = is_us_market_open()
-    
-    logger.info(f"🔄 管理員登入，檢查更新狀態...")
-    logger.info(f"   台股: {'開盤' if tw_open else '收盤'}, 美股: {'開盤' if us_open else '收盤'}")
-    
+
+    logger.info(f"🔄 管理員登入，台股: {'開盤' if tw_open else '收盤'}, 美股: {'開盤' if us_open else '收盤'}")
+
     try:
-        db = SessionLocal()
-        
-        # 1. 更新股票價格快取（🆕 只在開盤時）
-        if tw_open or us_open:
+        with _db() as db:
+            # 1. 股票價格快取（只在開盤時）
+            if tw_open or us_open:
+                try:
+                    from app.services.price_cache_service import PriceCacheService
+                    result = PriceCacheService(db).update_all_prices()
+                    logger.info(f"✅ 股票價格更新完成: {result}")
+                except Exception as e:
+                    logger.error(f"❌ 股票價格更新失敗: {e}")
+            else:
+                logger.info("💤 台股美股皆收盤，跳過股票價格更新")
+
+            # 2. 市場情緒（總是更新）
             try:
-                from app.services.price_cache_service import PriceCacheService
-                cache_service = PriceCacheService(db)
-                result = cache_service.update_all_prices()
-                logger.info(f"✅ 股票價格更新完成: {result}")
+                from app.services.market_service import market_service
+                market_service.update_fear_greed()
+                logger.info("✅ 市場情緒更新完成")
             except Exception as e:
-                logger.error(f"❌ 股票價格更新失敗: {e}")
-        else:
-            logger.info("💤 台股美股皆收盤，跳過股票價格更新")
-        
-        # 2. 更新市場情緒（總是更新）
-        try:
-            from app.services.market_service import market_service
-            market_service.update_fear_greed()
-            logger.info("✅ 市場情緒更新完成")
-        except Exception as e:
-            logger.error(f"❌ 市場情緒更新失敗: {e}")
-        
-        # 3. 抓取訂閱精選（如果有）
-        try:
-            from app.services.subscription_service import SubscriptionService
-            sub_service = SubscriptionService(db)
-            sub_result = sub_service.fetch_all_sources(backfill=False)
-            logger.info(f"✅ 訂閱精選更新完成: {sub_result}")
-        except Exception as e:
-            logger.warning(f"⚠️ 訂閱精選更新跳過: {e}")
-        
-        db.close()
+                logger.error(f"❌ 市場情緒更新失敗: {e}")
+
+            # 3. 訂閱精選
+            try:
+                from app.services.subscription_service import SubscriptionService
+                result = SubscriptionService(db).fetch_all_sources(backfill=False)
+                logger.info(f"✅ 訂閱精選更新完成: {result}")
+            except Exception as e:
+                logger.warning(f"⚠️ 訂閱精選更新跳過: {e}")
+
         logger.info("🎉 管理員自動更新完成")
-        
+
     except Exception as e:
         logger.error(f"❌ 管理員自動更新失敗: {e}")
 
@@ -109,13 +114,13 @@ def create_state_token() -> str:
     ).hexdigest()[:16]  # 只取前 16 字元
 
     state = f"{timestamp}.{nonce}.{signature}"
-    logger.info(f"Created state: {state}")
+    logger.info(f"Created state: {state[:8]}...{state[-4:]}")
     return state
 
 
 def verify_state_token(state: str) -> bool:
     """驗證 state token"""
-    logger.info(f"Verifying state: {state}")
+    logger.info(f"Verifying state: {state[:8]}...{state[-4:]}")
     try:
         parts = state.split(".")
         logger.info(f"State parts count: {len(parts)}")
@@ -179,7 +184,7 @@ async def line_login():
         f"&scope=profile%20openid%20email"
     )
 
-    logger.info(f"Redirecting to LINE with state: {state}")
+    logger.info(f"Redirecting to LINE with state: {state[:8]}...")
 
     return RedirectResponse(url=auth_url)
 
@@ -274,6 +279,21 @@ async def line_callback(
         logger.info(f"🔑 管理員 {user.display_name} 登入，觸發背景更新")
         background_tasks.add_task(trigger_admin_updates)
 
+    # ★ 安全：用 json.dumps 序列化所有用戶資料，避免 XSS
+    import json as _json
+    safe_user_json = _json.dumps({
+        "id": user.id,
+        "display_name": user.display_name,
+        "picture_url": user.picture_url or "",
+        "line_user_id": user.line_user_id,
+        "is_admin": is_admin,
+    })
+    # token 本身是 JWT（只含 base64url 字元），可安全插入
+    # 但仍用 json.dumps 確保無歧義
+    safe_token = _json.dumps(token)
+    safe_name_html = user.display_name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    admin_badge_html = '<div class="admin-badge">🔄 管理員模式 - 正在背景更新數據</div>' if is_admin else ''
+
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -338,27 +358,24 @@ async def line_callback(
             <div class="logo">SELA</div>
             <div class="spinner"></div>
             <h2>登入成功！</h2>
-            <p>歡迎回來，{user.display_name}</p>
-            {'<div class="admin-badge">🔄 管理員模式 - 正在背景更新數據</div>' if is_admin else ''}
+            <p>歡迎回來，{safe_name_html}</p>
+            {admin_badge_html}
         </div>
         <script>
             // ★★★ 重要：先清除所有舊資料，避免 A 用戶看到 B 用戶的資料 ★★★
             localStorage.clear();
             sessionStorage.clear();
-            
-            // 設定新的用戶資料
-            localStorage.setItem('token', '{token}');
-            localStorage.setItem('user', JSON.stringify({{
-                id: {user.id},
-                display_name: "{user.display_name}",
-                picture_url: "{user.picture_url or ''}",
-                line_user_id: "{user.line_user_id}",
-                is_admin: {'true' if is_admin else 'false'}
-            }}));
+
+            // ★ 安全：所有用戶資料經 json.dumps 序列化，無 XSS 風險
+            var _token = {safe_token};
+            var _user  = {safe_user_json};
+
+            localStorage.setItem('token', _token);
+            localStorage.setItem('user', JSON.stringify(_user));
             localStorage.setItem('login_time', new Date().toISOString());
-            
-            console.log('登入成功: 用戶 ID = {user.id}, LINE ID = {user.line_user_id}, 管理員 = {str(is_admin).lower()}');
-            
+
+            console.log('登入成功: 用戶 ID = ' + _user.id + ', 管理員 = ' + _user.is_admin);
+
             setTimeout(function() {{
                 window.location.href = '/static/dashboard.html';
             }}, 1500);
@@ -379,33 +396,103 @@ async def logout():
 
 
 @router.get("/me", summary="取得當前用戶", response_model=UserResponse)
-async def get_current_user(
-    request: Request,
-    db: AsyncSession = Depends(get_async_session),
+async def get_me(
+    user=Depends(_get_current_user),
 ):
     """
     取得當前登入用戶資訊
-    
+
     需要在 Header 帶入 Authorization: Bearer {token}
     """
-    # 從 Header 取得 Token
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="未提供認證 Token"
-        )
-
-    token = auth_header.split(" ")[1]
-
-    # 驗證 Token 並取得用戶
-    auth_service = AuthService(db)
-    user = await auth_service.get_user_from_token(token)
-
-    if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="無效的 Token"
-        )
-
     return UserResponse.model_validate(user)
+
+
+# ============================================================
+# 🆕 V1.12 前端診斷日誌
+# ============================================================
+
+from datetime import datetime
+
+# 簡易記憶體儲存（重啟會清空，但足夠診斷）
+_frontend_logs = []
+_MAX_LOGS = 100
+
+# 速率限制：每 IP 每分鐘最多 20 次
+_rate_limit: dict = {}   # { ip: [timestamp, ...] }
+_RATE_LIMIT_MAX = 20
+_RATE_LIMIT_WINDOW = 60  # 秒
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """回傳 True 表示允許，False 表示超過限制"""
+    import time
+    now = time.time()
+    timestamps = _rate_limit.get(ip, [])
+    # 清除視窗外的記錄
+    timestamps = [t for t in timestamps if now - t < _RATE_LIMIT_WINDOW]
+    if len(timestamps) >= _RATE_LIMIT_MAX:
+        _rate_limit[ip] = timestamps
+        return False
+    timestamps.append(now)
+    _rate_limit[ip] = timestamps
+    return True
+
+@router.post("/debug-log", summary="前端診斷日誌")
+async def receive_debug_log(
+    request: Request,
+):
+    """
+    接收前端的診斷日誌（不需要登入）
+    """
+    try:
+        client_ip = request.client.host if request.client else "unknown"
+
+        # 速率限制：超過則直接拒絕，不記錄
+        if not _check_rate_limit(client_ip):
+            return {"success": False, "reason": "rate_limited"}
+
+        data = await request.json()
+
+        # 取得用戶資訊
+        user_agent = request.headers.get("User-Agent", "unknown")[:100]
+        
+        log_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "ip": client_ip,
+            "user_agent": user_agent,
+            "step": data.get("step", "unknown"),
+            "status": data.get("status", "unknown"),
+            "error": data.get("error", None),
+            "user_id": data.get("user_id", None),
+            "display_name": data.get("display_name", None),
+        }
+        
+        # 記錄到 Railway 日誌
+        logger.info(f"[Frontend Debug] {log_entry}")
+        
+        # 也存到記憶體供管理員查看
+        _frontend_logs.insert(0, log_entry)
+        if len(_frontend_logs) > _MAX_LOGS:
+            _frontend_logs.pop()
+        
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"接收前端日誌失敗: {e}")
+        return {"success": False}
+
+
+@router.get("/debug-logs", summary="查看前端診斷日誌（管理員）")
+async def get_debug_logs(
+    user=Depends(_get_current_user),
+):
+    """
+    管理員查看前端診斷日誌
+    """
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="需要管理員權限")
+    
+    return {
+        "success": True,
+        "data": _frontend_logs,
+        "total": len(_frontend_logs),
+    }

@@ -323,7 +323,6 @@
 
         section.addEventListener('click', handlePortfolioClick);
         delegationInitialized = true;
-        console.log('📌 投資記錄事件委託已初始化');
     }
 
     function handlePortfolioClick(e) {
@@ -550,5 +549,4 @@
     window.importPortfolio = importPortfolio;
     window.quickTrade = quickTrade;
 
-    console.log('💼 portfolio.js 模組已載入 (P3 優化版)');
 })();

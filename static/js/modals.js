@@ -190,8 +190,15 @@
                         <!-- 成交價 -->
                         <div class="mb-4">
                             <label class="block text-gray-700 mb-2 text-sm">成交價 <span class="text-red-500">*</span></label>
-                            <input type="number" id="twPrice" placeholder="850" step="0.01" min="0.01"
-                                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500">
+                            <div class="flex gap-2">
+                                <input type="number" id="twPrice" placeholder="850" step="0.01" min="0.01"
+                                       class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500">
+                                <button type="button" onclick="copyLastTwPrice()" 
+                                        class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm whitespace-nowrap"
+                                        title="複製上次成交價">
+                                    <i class="fas fa-copy"></i> 上次
+                                </button>
+                            </div>
                         </div>
                         <!-- 手續費和交易稅（隱藏） -->
                         <input type="hidden" id="twFee" value="0">
@@ -598,7 +605,6 @@
         }
         
         container.innerHTML = html;
-        console.log('✅ 所有 Modal 已初始化');
     }
 
     /**

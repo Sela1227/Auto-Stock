@@ -284,7 +284,6 @@
 
         container.addEventListener('click', handleWatchlistClick);
         delegationInitialized = true;
-        console.log('📌 追蹤清單事件委託已初始化');
     }
 
     function handleWatchlistClick(e) {
@@ -361,30 +360,25 @@
             return;
         }
 
-        // ✅ P3: 檢查 AppState 是否已有資料
+        // ✅ 檢查 AppState 是否已有完整資料（含價格）
         if (window.AppState && AppState.watchlistLoaded && AppState.watchlist.length > 0) {
-            renderWatchlistCards(AppState.watchlist);
-            return;
+            const hasPrice = AppState.watchlist.some(item => item.price !== null);
+            if (hasPrice) {
+                renderWatchlistCards(AppState.watchlist);
+                return;
+            }
         }
 
-        if (container) {
-            container.innerHTML = `
-                <div class="text-center py-8">
-                    <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
-                    <p class="mt-2 text-gray-500">載入中...</p>
-                </div>
-            `;
-        }
-
+        // 🆕 階段 1：先載入基本資料（毫秒級）
         try {
             if (typeof loadTags === 'function') {
                 await loadTags();
             }
 
-            const res = await apiRequest('/api/watchlist/with-prices');
-            const data = await res.json();
+            const basicRes = await apiRequest('/api/watchlist/basic');
+            const basicData = await basicRes.json();
 
-            if (!data.success || !data.data || data.data.length === 0) {
+            if (!basicData.success || !basicData.data || basicData.data.length === 0) {
                 if (container) {
                     container.innerHTML = `
                         <div class="text-center py-12">
@@ -400,14 +394,27 @@
                 return;
             }
 
-            // ⭐ 效能優化：直接使用 API 返回的標籤，消除 N+1 問題
-            // 舊方法：await loadAllWatchlistTags(data.data); // 會產生 N 次請求
+            // 更新標籤 map
             watchlistTagsMap = {};
-            data.data.forEach(item => {
+            basicData.data.forEach(item => {
                 watchlistTagsMap[item.id] = item.tags || [];
             });
-            
-            renderWatchlistCards(data.data);
+
+            // 🆕 立即渲染（價格顯示「載入中」）
+            renderWatchlistCards(basicData.data);
+
+            // 🆕 階段 2：背景載入價格
+            const priceRes = await apiRequest('/api/watchlist/with-prices');
+            const priceData = await priceRes.json();
+
+            if (priceData.success && priceData.data) {
+                priceData.data.forEach(item => {
+                    watchlistTagsMap[item.id] = item.tags || [];
+                });
+
+                // 🆕 平滑更新（不閃爍）
+                updateWatchlistPrices(priceData.data);
+            }
 
         } catch (e) {
             console.error('載入追蹤清單失敗:', e);
@@ -416,6 +423,82 @@
             }
         }
     }
+
+    /**
+     * 🆕 平滑更新價格（不重新渲染整個清單）
+     */
+    function updateWatchlistPrices(data) {
+        // 更新全域資料
+        watchlistData = data;
+        if (window.AppState) {
+            AppState.setWatchlist(data);
+        }
+
+        // 逐一更新卡片價格
+        data.forEach(item => {
+            const card = document.querySelector(`.stock-card[data-symbol="${item.symbol}"]`);
+            if (!card) return;
+
+            // 找到價格區域並更新
+            const priceContainer = card.querySelector('.flex.items-baseline');
+            if (priceContainer && item.price !== null) {
+                const change = item.change_pct || 0;
+                const changeClass = change >= 0 ? 'text-green-600' : 'text-red-600';
+                const changeIcon = change >= 0 ? '▲' : '▼';
+                const ma20Badge = getMa20Badge(item);
+
+                // 目標價 badge
+                let targetBadge = '';
+                const hasTarget = item.target_price !== null && item.target_price !== undefined;
+                if (hasTarget) {
+                    const isAbove = item.target_direction !== 'below';
+                    const dirIcon = isAbove ? 'fa-arrow-up' : 'fa-arrow-down';
+                    const dirText = isAbove ? '↑' : '↓';
+                    
+                    if (item.target_reached) {
+                        targetBadge = `<span class="ml-2 px-3 py-1 text-sm font-bold rounded-full bg-yellow-400 text-yellow-900 animate-pulse shadow">
+                            <i class="fas fa-bell mr-1"></i>${dirText} 已達標 $${item.target_price.toLocaleString()}
+                        </span>`;
+                    } else {
+                        const diff = ((item.target_price - item.price) / item.price * 100).toFixed(1);
+                        const badgeStyle = isAbove 
+                            ? 'bg-green-100 text-green-700 border border-green-400' 
+                            : 'bg-red-100 text-red-700 border border-red-400';
+                        targetBadge = `<span class="ml-2 px-3 py-1 text-sm font-medium rounded-full ${badgeStyle}">
+                            <i class="fas ${dirIcon} mr-1"></i>目標 $${item.target_price.toLocaleString()} (${diff > 0 ? '+' : ''}${diff}%)
+                        </span>`;
+                    }
+                }
+
+                priceContainer.innerHTML = `
+                    <span class="text-xl font-bold text-gray-800">$${item.price.toLocaleString()}</span>
+                    <span class="${changeClass} text-sm font-medium">${changeIcon} ${Math.abs(change).toFixed(2)}%</span>
+                    ${ma20Badge}
+                    ${targetBadge}
+                `;
+
+                // 淡入效果
+                priceContainer.style.opacity = '0';
+                priceContainer.style.transition = 'opacity 0.3s';
+                setTimeout(() => { priceContainer.style.opacity = '1'; }, 50);
+            }
+
+            // 更新名稱
+            if (item.name) {
+                const nameSpan = card.querySelector('.text-gray-500.text-sm.ml-2');
+                if (nameSpan) {
+                    nameSpan.textContent = item.name;
+                }
+            }
+
+            // 更新到價提示
+            if (item.target_reached) {
+                card.classList.add('border-yellow-500', 'ring-2', 'ring-yellow-300');
+                card.classList.remove('border-blue-500', 'border-purple-500');
+            }
+        });
+    }
+
 
     async function loadAllWatchlistTags(items) {
         watchlistTagsMap = {};
@@ -804,6 +887,9 @@
         const container = $('dashboardWatchlist');
         if (!container) return;
 
+        // 🆕 V1.10 立即顯示 loading 狀態
+        container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-gray-400"></i></div>';
+
         const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : window.currentUser;
 
         if (!currentUser || !currentUser.id) {
@@ -831,54 +917,31 @@
                 return;
             }
 
+            // 🆕 V1.10 優化：預先構建 HTML 字串
             const items = data.data.slice(0, 5);
-            let html = '<div class="space-y-2" id="dashboardWatchlistItems">';
+            const htmlParts = ['<div class="space-y-2" id="dashboardWatchlistItems">'];
 
-            for (const item of items) {
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
                 const change = item.change_pct || 0;
                 const changeClass = change >= 0 ? 'text-green-600' : 'text-red-600';
-
-                const priceText = item.price !== null && item.price !== undefined
-                    ? `$${item.price.toLocaleString()}`
-                    : '--';
-
-                const changeText = item.price !== null && item.price !== undefined
-                    ? `<span class="${changeClass} text-sm ml-1">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</span>`
-                    : '';
-
+                const priceText = item.price != null ? `$${item.price.toLocaleString()}` : '--';
+                const changeText = item.price != null ? `<span class="${changeClass} text-sm ml-1">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</span>` : '';
                 const isCrypto = item.asset_type === 'crypto';
                 const isTw = item.symbol.includes('.TW') || /^\d+$/.test(item.symbol);
                 const market = isTw ? 'tw' : 'us';
 
-                const tradeButtons = isCrypto ? '' : `
-                    <button data-action="trade" data-symbol="${item.symbol}" data-name="${item.name || ''}" data-market="${market}" data-type="buy"
-                            class="p-1.5 bg-green-100 text-green-600 rounded text-xs hover:bg-green-200">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                `;
-
-                html += `
-                    <div class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
-                        <div class="flex items-center cursor-pointer" data-action="analyze" data-symbol="${item.symbol}">
-                            <span class="font-medium text-gray-800">${item.symbol}</span>
-                            <span class="text-gray-500 text-sm ml-2">${priceText}</span>
-                            ${changeText}
-                        </div>
-                        <div class="flex items-center gap-1">
-                            ${tradeButtons}
-                            <button data-action="analyze" data-symbol="${item.symbol}" class="p-1.5 bg-orange-100 text-orange-600 rounded text-xs hover:bg-orange-200">
-                                <i class="fas fa-chart-line"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
+                htmlParts.push(`<div class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50"><div class="flex items-center cursor-pointer" data-action="analyze" data-symbol="${item.symbol}"><span class="font-medium text-gray-800">${item.symbol}</span><span class="text-gray-500 text-sm ml-2">${priceText}</span>${changeText}</div><div class="flex items-center gap-1">${isCrypto ? '' : `<button data-action="trade" data-symbol="${item.symbol}" data-name="${item.name || ''}" data-market="${market}" data-type="buy" class="p-1.5 bg-green-100 text-green-600 rounded text-xs hover:bg-green-200"><i class="fas fa-plus"></i></button>`}<button data-action="analyze" data-symbol="${item.symbol}" class="p-1.5 bg-orange-100 text-orange-600 rounded text-xs hover:bg-orange-200"><i class="fas fa-chart-line"></i></button></div></div>`);
             }
 
-            html += '</div>';
-            container.innerHTML = html;
+            htmlParts.push('</div>');
+            container.innerHTML = htmlParts.join('');
 
-            // 初始化儀表板事件委託
-            container.addEventListener('click', handleWatchlistClick);
+            // 初始化儀表板事件委託（只綁定一次）
+            if (!container._watchlistClickBound) {
+                container.addEventListener('click', handleWatchlistClick);
+                container._watchlistClickBound = true;
+            }
 
         } catch (e) {
             console.error('載入追蹤快覽失敗:', e);
@@ -922,5 +985,4 @@
     window.saveTargetPrice = saveTargetPrice;
     window.clearTargetPrice = clearTargetPrice;
 
-    console.log('⭐ watchlist.js 模組已載入 (P3 優化版)');
 })();

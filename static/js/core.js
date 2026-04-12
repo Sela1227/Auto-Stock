@@ -12,6 +12,35 @@
 (function() {
     'use strict';
     
+    // 🆕 V1.12 調試輸出 + 自動回報後端
+    function debugLog(msg, isError = false, extraData = {}) {
+        console.log(msg);
+        
+        // 顯示在畫面上
+        const logEl = document.getElementById('debugLog');
+        if (logEl) {
+            const line = document.createElement('div');
+            line.textContent = msg;
+            if (isError) line.className = 'text-red-400';
+            logEl.appendChild(line);
+        }
+        
+        // 🆕 發送到後端（非同步，不阻塞）
+        try {
+            const payload = {
+                step: msg,
+                status: isError ? 'error' : 'info',
+                error: isError ? msg : null,
+                ...extraData
+            };
+            fetch('/auth/debug-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(() => {}); // 忽略錯誤
+        } catch (e) {}
+    }
+    
     // ============================================================
     // DOM 快取系統 (P0 核心優化)
     // ============================================================
@@ -61,7 +90,6 @@
     function clearDomCache() {
         _domCache.clear();
         _querySelectorCache.clear();
-        console.log('🗑️ DOM 快取已清除');
     }
     
     /**
@@ -78,7 +106,6 @@
             'adminLink', 'adminSidebarLink', 'adminMobileLink'
         ];
         commonIds.forEach(id => $(id));
-        console.log(`📦 已預載入 ${_domCache.size} 個 DOM 元素到快取`);
     }
     
     // ============================================================
@@ -220,8 +247,8 @@
     // ============================================================
     
     function getSessionTimeout() {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const isAdmin = user.is_admin === true;
+        // ★ 安全：從 server 驗證過的 currentUser 讀取，而非 localStorage
+        const isAdmin = currentUser ? currentUser.is_admin === true : false;
         return isAdmin ? 60 * 60 * 1000 : 10 * 60 * 1000;
     }
     
@@ -234,7 +261,7 @@
         const elapsed = Date.now() - lastActivity;
         const remaining = SESSION_TIMEOUT - elapsed;
         
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const user = currentUser || {};
         const isAdmin = user.is_admin === true;
         const timeoutMinutes = isAdmin ? 60 : 10;
         
@@ -273,35 +300,44 @@
     // ============================================================
     
     async function checkAuth() {
+        debugLog('[checkAuth] 開始驗證...');
+        
         if (!token) {
-            console.log('無 token，跳轉登入頁');
+            debugLog('[checkAuth] 無 token，跳轉登入頁', true);
             clearAllUserData();
             window.location.href = '/static/index.html';
             return;
         }
 
         try {
+            debugLog('[checkAuth] 發送 /auth/me 請求...');
             const res = await fetch(`${API_BASE}/auth/me`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
+            debugLog('[checkAuth] /auth/me 回應狀態:', res.status);
+            
             if (!res.ok) {
-                console.error('Token 驗證失敗，狀態碼:', res.status);
+                debugLog('[checkAuth] Token 驗證失敗，狀態碼:', res.status);
                 throw new Error('Unauthorized');
             }
             
             const serverUser = await res.json();
+            debugLog('[checkAuth] 用戶資料: ' + serverUser.display_name + ' is_admin: ' + serverUser.is_admin, false, {
+                user_id: serverUser.id,
+                display_name: serverUser.display_name
+            });
             
             const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
             if (storedUser.id && storedUser.id !== serverUser.id) {
-                console.error('用戶 ID 不一致!');
+                debugLog('[checkAuth] 用戶 ID 不一致!');
                 clearAllUserData();
                 window.location.href = '/static/index.html';
                 return;
             }
             
             if (storedUser.line_user_id && storedUser.line_user_id !== serverUser.line_user_id) {
-                console.error('LINE ID 不一致!');
+                debugLog('[checkAuth] LINE ID 不一致!');
                 clearAllUserData();
                 window.location.href = '/static/index.html';
                 return;
@@ -317,39 +353,53 @@
                 is_admin: serverUser.is_admin || false
             }));
             
-            console.log('登入驗證成功: 用戶 ID =', serverUser.id);
+            debugLog('[checkAuth] localStorage 已更新');
             
             // ✅ P1: 同步到 AppState
             if (window.AppState) {
                 window.AppState.setUser(serverUser);
             }
             
+            debugLog('[checkAuth] 更新 UI...');
             updateUserUI();
             
             // ✅ 使用快取版 DOM 查詢
+            debugLog('[checkAuth] 隱藏 loading screen...');
             const loadingScreen = $('loading-screen');
             const appContent = $('app-content');
+            debugLog('[checkAuth] loadingScreen:', loadingScreen ? '存在' : '不存在');
+            debugLog('[checkAuth] appContent:', appContent ? '存在' : '不存在');
+            
             if (loadingScreen) loadingScreen.style.display = 'none';
             if (appContent) appContent.style.display = 'block';
             
+            debugLog('[checkAuth] 啟動 session 監控...');
             startSessionMonitor();
             
+            debugLog('[checkAuth] 載入 Dashboard...');
             if (typeof loadDashboard === 'function') {
                 loadDashboard();
             }
             
+            debugLog('[checkAuth] ✅ 完成');
+            
         } catch (e) {
-            console.error('驗證失敗:', e);
+            debugLog('[checkAuth] ❌ 驗證失敗: ' + e.message, true, { error: e.message });
             clearAllUserData();
             window.location.href = '/static/index.html';
         }
     }
     
     function updateUserUI() {
-        if (!currentUser) return;
+        debugLog('[updateUserUI] 開始...');
+        if (!currentUser) {
+            debugLog('[updateUserUI] 無用戶，跳過');
+            return;
+        }
         
-        // ✅ 使用批量更新減少重排
-        batchUpdate([
+        try {
+            // ✅ 使用批量更新減少重排
+            batchUpdate([
             { id: 'userName', prop: 'textContent', value: currentUser.display_name },
             { id: 'sidebarUserName', prop: 'textContent', value: currentUser.display_name },
         ]);
@@ -373,8 +423,10 @@
                 adminMobileLink.classList.add('flex');
             }
             
-            if (typeof triggerAdminUpdates === 'function') {
-                triggerAdminUpdates();
+            // 🆕 V1.02 移除自動更新，改為手動觸發
+            // if (typeof triggerAdminUpdates === 'function') {
+            //     triggerAdminUpdates();
+            // }
             }
         }
     }
@@ -587,13 +639,39 @@
     // ============================================================
     
     function init() {
-        console.log('🚀 SELA 系統初始化中... (P0 優化版)');
-        console.log('Device info:', deviceInfo);
         
         // ✅ 預載入常用 DOM 元素
         preloadDomCache();
         
+        // 🆕 V1.10 載入系統版本號
+        loadAppVersion();
+        
         checkAuth();
+    }
+    
+    /**
+     * 🆕 V1.10 載入並顯示系統版本號
+     */
+    async function loadAppVersion() {
+        try {
+            const res = await fetch('/api/version');
+            const data = await res.json();
+            const version = data.version || '--';
+            
+            // 更新所有版本號顯示
+            const versionText = `v${version}`;
+            const headerVersion = document.getElementById('headerVersion');
+            const mobileVersion = document.getElementById('mobileVersion');
+            const sidebarVersion = document.getElementById('sidebarVersion');
+            
+            if (headerVersion) headerVersion.textContent = versionText;
+            if (mobileVersion) mobileVersion.textContent = versionText;
+            if (sidebarVersion) sidebarVersion.textContent = versionText;
+            const settingsVersion = document.getElementById('settingsVersion');
+            if (settingsVersion) settingsVersion.textContent = versionText;
+        } catch (e) {
+            // 版本號載入失敗不影響主要功能
+        }
     }
     
     if (document.readyState === 'loading') {
@@ -665,5 +743,4 @@
     window.batchUpdate = batchUpdate;
     window.setHtml = setHtml;
     
-    console.log('🎯 core.js 核心模組已載入 (P0 優化版)');
 })();

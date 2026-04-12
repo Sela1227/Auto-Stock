@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     """應用程式設定"""
     
     # 應用程式
-    APP_NAME: str = "SELA 自動選股系統"
-    APP_VERSION: str = "0.8.2"  # Phase 4 訊號偵測 + LINE 推播
+    APP_NAME: str = "AutoStock 自動選股系統"
+    APP_VERSION: str = "1.12.1"  # 修復 auth.py NameError crash
     APP_ENV: str = "development"
     DEBUG: bool = True
     

@@ -50,3 +50,6 @@ __all__ = [
     "watchlist_tags",
     "StockInfo",
 ]
+
+# V1.05 分析快取
+from app.models.analysis_cache import StockDetailCache, IndicatorCache, ChartCache

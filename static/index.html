@@ -20,7 +20,10 @@
         <!-- Logo -->
         <div class="text-center mb-6 md:mb-8">
             <img src="/static/logo.png" alt="SELA Logo" class="w-20 h-20 md:w-24 md:h-24 mx-auto mb-3 md:mb-4 rounded-xl">
-            <h1 class="text-xl md:text-2xl font-bold text-gray-800">SELA 自動選股系統</h1>
+            <h1 class="text-xl md:text-2xl font-bold text-gray-800">
+                SELA 自動選股系統
+                <span id="indexVersion" class="ml-2 text-sm font-normal text-orange-500 bg-orange-50 px-2 py-0.5 rounded">v--</span>
+            </h1>
             <p class="text-gray-500 mt-2 text-sm md:text-base">技術指標分析 · 智能預警通知</p>
         </div>
 
@@ -54,7 +57,7 @@
 
         <!-- 版權 -->
         <p class="text-center text-gray-400 text-xs md:text-sm mt-6 md:mt-8">
-            © 2025 SELA · 自動選股系統 v0.3.2
+            © 2025 SELA · 自動選股系統 <span id="footerVersion">v--</span>
         </p>
     </div>
 
@@ -64,6 +67,19 @@
         if (token) {
             window.location.href = '/static/dashboard.html';
         }
+    </script>
+<script>
+    // 載入系統版本號
+    fetch('/api/version')
+        .then(res => res.json())
+        .then(data => {
+            const version = 'v' + (data.version || '--');
+            const indexVersion = document.getElementById('indexVersion');
+            const footerVersion = document.getElementById('footerVersion');
+            if (indexVersion) indexVersion.textContent = version;
+            if (footerVersion) footerVersion.textContent = version;
+        })
+        .catch(() => {});
     </script>
 </body>
 </html>

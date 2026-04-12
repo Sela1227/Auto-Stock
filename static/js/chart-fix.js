@@ -45,5 +45,4 @@
         }
     };
 
-    console.log('chart-fix.js loaded');
 })();

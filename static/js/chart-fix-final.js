@@ -4,7 +4,6 @@
  */
 (function() {
     'use strict';
-    console.log('🔧 [FINAL] chart-fix-final.js 載入中...');
 
     var _chart = null;
     var _initialized = false;
@@ -23,7 +22,6 @@
     }
 
     function _render(data, days) {
-        console.log('📊 [FINAL] _render days=' + days);
         
         var canvas = document.getElementById('fullscreenChart');
         if (!canvas) { console.error('[FINAL] 找不到 canvas'); return; }
@@ -54,7 +52,6 @@
         var ma200 = safeSlice(data.ma200, start);
         var ma250 = safeSlice(data.ma250, start);
 
-        console.log('📊 [FINAL] MA:', { ma20: hasValid(ma20), ma50: hasValid(ma50), ma200: hasValid(ma200) });
 
         var datasets = [{
             label: '收盤價', data: prices, borderColor: '#3B82F6',
@@ -94,12 +91,10 @@
                     }
                 }
             });
-            console.log('✅ [FINAL] 圖表完成');
         } catch(e) { console.error('[FINAL] Chart error:', e); }
     }
 
     function _setRange(days) {
-        console.log('📊 [FINAL] _setRange days=' + days);
         var data = window.currentChartData;
         if (!data) { console.error('[FINAL] 無 currentChartData'); return; }
 
@@ -114,7 +109,6 @@
     }
 
     function _open(symbol, price) {
-        console.log('📊 [FINAL] _open symbol=' + symbol);
         var data = window.currentChartData;
         if (!data) { alert('無圖表資料'); return; }
 
@@ -165,7 +159,6 @@
             window.closeChartFullscreen = _close;
         }
         _fixBtns();
-        console.log('✅ [FINAL] 函數安裝完成');
     }
 
     document.addEventListener('click', function(e) {
@@ -194,5 +187,4 @@
 
     window.addEventListener('load', function() { setTimeout(install, 100); });
 
-    console.log('✅ [FINAL] chart-fix-final.js 載入完成');
 })();

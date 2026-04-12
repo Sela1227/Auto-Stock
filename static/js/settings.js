@@ -324,5 +324,4 @@
     window.adminUpdateExchangeRate = adminUpdateExchangeRate;
     window.adminFetchSubscriptions = adminFetchSubscriptions;
     
-    console.log('⚙️ settings.js 模組已載入');
 })();

@@ -39,7 +39,7 @@ from app.models.price_cache import StockPriceCache
 from app.models.watchlist_tag import UserTag, watchlist_tags  # ⭐ 新增
 
 # 🔧 使用統一認證模組
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_admin_user
 
 logger = logging.getLogger(__name__)
 
@@ -273,6 +273,109 @@ async def import_watchlist(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+# ============================================================
+# 🆕 基本資料 API（快速版，用於分階段載入）
+# ============================================================
+
+@router.get("/basic", summary="追蹤清單（基本資料，快速）")
+async def get_watchlist_basic(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    取得用戶追蹤清單基本資料（不含價格，毫秒級回應）
+    
+    🚀 效能優化：用於分階段載入的第一階段
+    - 只查 watchlist 表和標籤
+    - 不查 stock_price_cache
+    - 價格欄位回傳 null，前端顯示「載入中」
+    """
+    logger.info(f"API: 追蹤清單(基本) - user_id={user.id}")
+
+    try:
+        # 1. 取得用戶的追蹤清單
+        stmt = (
+            select(Watchlist)
+            .where(Watchlist.user_id == user.id)
+            .order_by(Watchlist.added_at.desc())
+        )
+        result = await db.execute(stmt)
+        watchlist_items = list(result.scalars().all())
+
+        if not watchlist_items:
+            return {
+                "success": True,
+                "data": [],
+                "total": 0,
+            }
+
+        watchlist_ids = [item.id for item in watchlist_items]
+
+        # 2. 批次取得所有標籤關聯
+        tags_map = {}
+        try:
+            tags_stmt = (
+                select(
+                    watchlist_tags.c.watchlist_id,
+                    UserTag
+                )
+                .join(UserTag, UserTag.id == watchlist_tags.c.tag_id)
+                .where(watchlist_tags.c.watchlist_id.in_(watchlist_ids))
+            )
+            tags_result = await db.execute(tags_stmt)
+            
+            for row in tags_result:
+                wl_id = row[0]
+                tag = row[1]
+                if wl_id not in tags_map:
+                    tags_map[wl_id] = []
+                tags_map[wl_id].append({
+                    "id": tag.id,
+                    "name": tag.name,
+                    "color": tag.color,
+                    "icon": tag.icon,
+                })
+        except Exception as e:
+            logger.warning(f"載入標籤失敗: {e}")
+
+        # 3. 組合資料（不含價格）
+        data = []
+        for item in watchlist_items:
+            target_price = float(item.target_price) if item.target_price else None
+            target_direction = getattr(item, 'target_direction', 'above') or 'above'
+
+            data.append({
+                "id": item.id,
+                "symbol": item.symbol,
+                "asset_type": item.asset_type,
+                "note": item.note,
+                "target_price": target_price,
+                "target_direction": target_direction,
+                "target_reached": False,  # 沒有價格無法判斷
+                "added_at": item.added_at.isoformat() if item.added_at else None,
+                # 價格欄位全部 null（前端會顯示「載入中」）
+                "name": None,
+                "price": None,
+                "change": None,
+                "change_pct": None,
+                "ma20": None,
+                "price_updated_at": None,
+                # 標籤
+                "tags": tags_map.get(item.id, []),
+            })
+
+        return {
+            "success": True,
+            "data": data,
+            "total": len(data),
+        }
+
+    except Exception as e:
+        logger.error(f"取得追蹤清單(基本)失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============================================================
 # 價格快取 API（⭐ 優化版：包含標籤 + 市場狀態）
 # ============================================================
@@ -296,6 +399,8 @@ async def get_watchlist_with_prices(
     - 包含目標價及是否達標
     - 包含該項目的所有標籤
     """
+    import time
+    start_time = time.time()
     logger.info(f"API: 追蹤清單(含價格) - user_id={user.id}")
 
     try:
@@ -403,6 +508,9 @@ async def get_watchlist_with_prices(
                 "tags": tags_map.get(item.id, []),
             })
 
+        elapsed = (time.time() - start_time) * 1000
+        logger.info(f"API: 追蹤清單(含價格) 完成 - {len(data)} 筆, {elapsed:.0f}ms")
+        
         return {
             "success": True,
             "data": data,
@@ -417,6 +525,7 @@ async def get_watchlist_with_prices(
 
 @router.get("/cache-status", summary="快取狀態")
 async def get_cache_status(
+    admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """查看價格快取狀態"""
