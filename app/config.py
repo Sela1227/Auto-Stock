@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # 應用程式
     APP_NAME: str = "AutoStock 自動選股系統"
-    APP_VERSION: str = "1.12.2"  # JS 語法修復、資安強化、情緒指數修復、重構
+    APP_VERSION: str = "1.12.3"  # 修復情緒指數顯示（data.stock 解析錯誤）
     APP_ENV: str = "development"
     DEBUG: bool = True
     
