@@ -75,58 +75,56 @@ TW_TZ = timezone(timedelta(hours=8))
 # 排程任務函數
 # ============================================================
 
-def update_exchange_rate():
-    """更新匯率"""
+from contextlib import contextmanager
+
+@contextmanager
+def sync_db_session():
+    """同步 DB session context manager，自動關閉，統一取代各函數內的重複樣板"""
     from app.database import SyncSessionLocal
-    from app.services.exchange_rate_service import ExchangeRateService
-    
-    logger.info("⏰ [排程] 更新匯率...")
     db = SyncSessionLocal()
     try:
-        service = ExchangeRateService(db)
-        rate = service.update_usd_twd_rate()
-        if rate:
-            logger.info(f"✅ 匯率更新成功: USD/TWD = {rate}")
-        else:
-            logger.warning("⚠️ 匯率更新失敗")
-    except Exception as e:
-        logger.error(f"❌ 匯率更新錯誤: {e}")
+        yield db
     finally:
         db.close()
+
+
+def update_exchange_rate():
+    """更新匯率"""
+    from app.services.exchange_rate_service import ExchangeRateService
+    logger.info("⏰ [排程] 更新匯率...")
+    try:
+        with sync_db_session() as db:
+            rate = ExchangeRateService(db).update_usd_twd_rate()
+            if rate:
+                logger.info(f"✅ 匯率更新成功: USD/TWD = {rate}")
+            else:
+                logger.warning("⚠️ 匯率更新失敗")
+    except Exception as e:
+        logger.error(f"❌ 匯率更新錯誤: {e}")
 
 
 def update_market_sentiment():
     """更新市場情緒（存入 DB）"""
-    from app.database import SyncSessionLocal
     from app.services.market_service import MarketService
-    
     logger.info("⏰ [排程] 更新市場情緒...")
-    db = SyncSessionLocal()
     try:
-        service = MarketService(db)
-        result = service.update_today_sentiment()
-        logger.info(f"✅ 情緒更新: stock={result.get('stock')}, crypto={result.get('crypto')}")
+        with sync_db_session() as db:
+            result = MarketService(db).update_today_sentiment()
+            logger.info(f"✅ 情緒更新: stock={result.get('stock')}, crypto={result.get('crypto')}")
     except Exception as e:
         logger.error(f"❌ 情緒更新錯誤: {e}")
-    finally:
-        db.close()
 
 
 def update_indices():
     """更新四大指數"""
-    from app.database import SyncSessionLocal
     from app.services.market_service import MarketService
-    
     logger.info("⏰ [排程] 更新四大指數...")
-    db = SyncSessionLocal()
     try:
-        service = MarketService(db)
-        result = service.fetch_and_save_all_indices(period="5d")
-        logger.info(f"✅ 指數更新完成: {result}")
+        with sync_db_session() as db:
+            result = MarketService(db).fetch_and_save_all_indices(period="5d")
+            logger.info(f"✅ 指數更新完成: {result}")
     except Exception as e:
         logger.error(f"❌ 指數更新錯誤: {e}")
-    finally:
-        db.close()
 
 
 def daily_preload():
@@ -135,69 +133,53 @@ def daily_preload():
     - 更新情緒指數
     - 更新四大指數
     - 更新匯率
-    - 🆕 V1.05 預計算追蹤清單技術指標
+    - V1.05 預計算追蹤清單技術指標
     """
     logger.info("⏰ [排程] === 每日預載開始 ===")
-    
     try:
         update_market_sentiment()
         update_indices()
         update_exchange_rate()
-        precompute_indicators()  # 🆕 V1.05
+        precompute_indicators()
         logger.info("✅ [排程] === 每日預載完成 ===")
     except Exception as e:
         logger.error(f"❌ 每日預載錯誤: {e}")
 
 
 def precompute_indicators():
-    """🆕 V1.05 預計算追蹤清單股票的技術指標"""
-    from app.database import SyncSessionLocal
+    """V1.05 預計算追蹤清單股票的技術指標"""
     from app.services.analysis_cache_service import AnalysisCacheService
-    
     logger.info("⏰ [排程] 預計算技術指標...")
-    db = SyncSessionLocal()
     try:
-        service = AnalysisCacheService(db)
-        result = service.precompute_indicators_for_watchlist()
-        logger.info(f"✅ 指標預計算: 成功 {result['success']}, 失敗 {result['failed']}")
+        with sync_db_session() as db:
+            result = AnalysisCacheService(db).precompute_indicators_for_watchlist()
+            logger.info(f"✅ 指標預計算: 成功 {result['success']}, 失敗 {result['failed']}")
     except Exception as e:
         logger.error(f"❌ 指標預計算錯誤: {e}")
-    finally:
-        db.close()
 
 
 def clear_expired_caches():
-    """🆕 V1.05 清除過期快取"""
-    from app.database import SyncSessionLocal
+    """V1.05 清除過期快取"""
     from app.services.analysis_cache_service import AnalysisCacheService
-    
     logger.info("⏰ [排程] 清除過期快取...")
-    db = SyncSessionLocal()
     try:
-        service = AnalysisCacheService(db)
-        result = service.clear_expired_caches()
-        logger.info(f"✅ 快取清除: {result}")
+        with sync_db_session() as db:
+            result = AnalysisCacheService(db).clear_expired_caches()
+            logger.info(f"✅ 快取清除: {result}")
     except Exception as e:
         logger.error(f"❌ 快取清除錯誤: {e}")
-    finally:
-        db.close()
 
 
 def fetch_subscription_sources():
     """抓取訂閱源"""
-    from app.database import SyncSessionLocal
     from app.services.subscription_service import SubscriptionService
-    
     logger.info("⏰ [排程] 抓取訂閱源...")
-    db = SyncSessionLocal()
     try:
-        service = SubscriptionService(db)
-        result = service.fetch_all_sources()
-        logger.info(f"✅ 訂閱源抓取完成: {result}")
+        with sync_db_session() as db:
+            result = SubscriptionService(db).fetch_all_sources()
+            logger.info(f"✅ 訂閱源抓取完成: {result}")
     except Exception as e:
         logger.error(f"❌ 訂閱源抓取錯誤: {e}")
-    finally:
-        db.close()
 
 
 # ============================================================
@@ -358,8 +340,9 @@ async def get_version():
         "version": settings.APP_VERSION,
         "app": settings.APP_NAME,
         "features": [
+            "V1.12.1: 修復啟動 crash (NameError)",
+            "V1.12: 前端診斷日誌",
             "V1.02: 極簡排程",
             "V1.01: 內存快取",
-            "V1.0.0: 完整功能",
         ]
     }

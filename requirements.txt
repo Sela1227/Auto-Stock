@@ -20,8 +20,6 @@ numpy>=1.26.0
 # pandas-ta>=0.3.14b  # 已在 indicator_service.py 手動實作指標計算
 
 # Chart Generation
-matplotlib>=3.8.0
-mplfinance>=0.12.9b7
 
 # Authentication
 python-jose[cryptography]>=3.3.0

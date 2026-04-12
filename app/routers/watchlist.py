@@ -39,7 +39,7 @@ from app.models.price_cache import StockPriceCache
 from app.models.watchlist_tag import UserTag, watchlist_tags  # ⭐ 新增
 
 # 🔧 使用統一認證模組
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_admin_user
 
 logger = logging.getLogger(__name__)
 
@@ -399,6 +399,8 @@ async def get_watchlist_with_prices(
     - 包含目標價及是否達標
     - 包含該項目的所有標籤
     """
+    import time
+    start_time = time.time()
     logger.info(f"API: 追蹤清單(含價格) - user_id={user.id}")
 
     try:
@@ -506,6 +508,9 @@ async def get_watchlist_with_prices(
                 "tags": tags_map.get(item.id, []),
             })
 
+        elapsed = (time.time() - start_time) * 1000
+        logger.info(f"API: 追蹤清單(含價格) 完成 - {len(data)} 筆, {elapsed:.0f}ms")
+        
         return {
             "success": True,
             "data": data,
@@ -520,6 +525,7 @@ async def get_watchlist_with_prices(
 
 @router.get("/cache-status", summary="快取狀態")
 async def get_cache_status(
+    admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """查看價格快取狀態"""
