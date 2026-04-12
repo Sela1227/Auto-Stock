@@ -340,9 +340,9 @@ async def get_version():
         "version": settings.APP_VERSION,
         "app": settings.APP_NAME,
         "features": [
+            "V1.12.3: 修復情緒指數顯示（data.stock 解析錯誤）",
             "V1.12.2: JS 語法修復、資安強化、情緒指數多來源",
             "V1.12.1: 修復啟動 crash (NameError)",
             "V1.12: 前端診斷日誌",
-            "V1.02: 極簡排程",
         ]
     }

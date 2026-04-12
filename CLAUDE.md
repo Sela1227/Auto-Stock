@@ -13,7 +13,7 @@
 - 手機優先，響應式設計，Tailwind CSS
 - 支援台股（.TW/.TWO）、美股、加密貨幣（BTC/ETH）
 
-**當前版本：V1.12.2**
+**當前版本：V1.12.3**
 
 ---
 
@@ -301,6 +301,7 @@ zip -r "AutoStock V版本號.zip" "AutoStock V版本號/" \
 
 | 版本 | 日期 | 關鍵變更 |
 |------|------|---------|
+| V1.12.3 | 2026-04-12 | 修復情緒指數顯示：`loadSentiment` 和 `loadSentimentDetail` 的 `data.data?.stock` 改回 `data.stock`（`/api/market/sentiment` 回傳頂層欄位，不是 `data` 包一層）|
 | V1.12.2 | 2026-04-12 | JS 語法修復（core.js try/catch、dashboard.js 多處缺 `}`）；favicon 新增；移除 404 的 target-price-fix.js；資安強化（XSS json.dumps、rate limit、state log 遮蔽）；重構消除重複（Bearer 解析、sync_db_session、get_current_user）；情緒指數多來源（feargreedmeter、alternative.me 備用）＋ DB 12 小時新鮮度檢查；版本號動態顯示修復（設定頁、admin 自動載入日誌）|
 | V1.12.1 | 2026-04-10 | 修復啟動 crash（`NameError: User`）|
 | V1.12 | 2026-04-10 | 前端診斷日誌（`/auth/debug-log`）；管理後台自動顯示診斷區塊 |

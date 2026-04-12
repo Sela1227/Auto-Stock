@@ -239,8 +239,8 @@
             const data = await res.json();
             
             if (data.success) {
-                updateSentimentCard('stock', data.data?.stock || { value: 50, classification: 'neutral' });
-                updateSentimentCard('crypto', data.data?.crypto || { value: 50, classification: 'neutral' });
+                updateSentimentCard('stock', data.stock || { value: 50, classification: 'neutral' });
+                updateSentimentCard('crypto', data.crypto || { value: 50, classification: 'neutral' });
             }
         } catch (e) {
             console.error('載入情緒失敗', e);
@@ -555,8 +555,8 @@
             const res = await fetch('/api/market/sentiment');
             if (res.ok) {
                 const data = await res.json();
-                if (data.data?.stock) stockData = data.data.stock;
-                if (data.data?.crypto) cryptoData = data.data.crypto;
+                if (data.stock) stockData = data.stock;
+                if (data.crypto) cryptoData = data.crypto;
             }
         } catch (e) {
             console.error('載入情緒資料失敗', e);
