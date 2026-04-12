@@ -400,37 +400,34 @@
         try {
             // ✅ 使用批量更新減少重排
             batchUpdate([
-            { id: 'userName', prop: 'textContent', value: currentUser.display_name },
-            { id: 'sidebarUserName', prop: 'textContent', value: currentUser.display_name },
-        ]);
-        
-        // 頭像單獨處理（src 屬性）
-        const avatarUrl = currentUser.picture_url || 'https://via.placeholder.com/40';
-        const avatarEl = $('userAvatar');
-        const sidebarAvatarEl = $('sidebarAvatar');
-        if (avatarEl) avatarEl.src = avatarUrl;
-        if (sidebarAvatarEl) sidebarAvatarEl.src = avatarUrl;
-        
-        // 管理員入口
-        if (currentUser.is_admin) {
-            const adminLink = $('adminLink');
-            const adminSidebarLink = $('adminSidebarLink');
-            const adminMobileLink = $('adminMobileLink');
-            if (adminLink) adminLink.classList.remove('hidden');
-            if (adminSidebarLink) adminSidebarLink.classList.remove('hidden');
-            if (adminMobileLink) {
-                adminMobileLink.classList.remove('hidden');
-                adminMobileLink.classList.add('flex');
+                { id: 'userName', prop: 'textContent', value: currentUser.display_name },
+                { id: 'sidebarUserName', prop: 'textContent', value: currentUser.display_name },
+            ]);
+
+            // 頭像單獨處理（src 屬性）
+            const avatarUrl = currentUser.picture_url || 'https://via.placeholder.com/40';
+            const avatarEl = $('userAvatar');
+            const sidebarAvatarEl = $('sidebarAvatar');
+            if (avatarEl) avatarEl.src = avatarUrl;
+            if (sidebarAvatarEl) sidebarAvatarEl.src = avatarUrl;
+
+            // 管理員入口
+            if (currentUser.is_admin) {
+                const adminLink = $('adminLink');
+                const adminSidebarLink = $('adminSidebarLink');
+                const adminMobileLink = $('adminMobileLink');
+                if (adminLink) adminLink.classList.remove('hidden');
+                if (adminSidebarLink) adminSidebarLink.classList.remove('hidden');
+                if (adminMobileLink) {
+                    adminMobileLink.classList.remove('hidden');
+                    adminMobileLink.classList.add('flex');
+                }
             }
-            
-            // 🆕 V1.02 移除自動更新，改為手動觸發
-            // if (typeof triggerAdminUpdates === 'function') {
-            //     triggerAdminUpdates();
-            // }
-            }
+        } catch (e) {
+            console.error('[updateUserUI] 更新失敗:', e);
         }
     }
-    
+
     function clearAllUserData() {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
