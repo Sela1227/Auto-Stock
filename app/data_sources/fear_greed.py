@@ -128,46 +128,82 @@ class FearGreedClient:
     
     def _get_cnn_fear_greed_api(self) -> Optional[Dict[str, Any]]:
         """從 CNN API 取得 Fear & Greed"""
-        try:
-            # CNN 的非官方 API 端點
-            url = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
-            
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            
-            if not data.get("fear_and_greed"):
-                return None
-            
-            fg_data = data["fear_and_greed"]
-            value = int(round(fg_data.get("score", 0)))
-            
-            return {
-                "value": value,
-                "classification": self._get_classification(value),
-                "classification_zh": self._get_classification_zh(value),
-                "timestamp": date.today().strftime("%Y-%m-%d"),
-                "market": "stock",
-                "rating": fg_data.get("rating", ""),
-            }
-            
-        except Exception as e:
-            logger.debug(f"CNN API 取得失敗: {e}")
-            return None
-    
+        # 嘗試多個 CNN 端點
+        urls = [
+            "https://production.dataviz.cnn.io/index/fearandgreed/graphdata",
+            "https://production.dataviz.cnn.io/index/fearandgreed/graphdata/",
+        ]
+        for url in urls:
+            try:
+                r = self.session.get(url, timeout=8)
+                r.raise_for_status()
+                data = r.json()
+                if not data.get("fear_and_greed"):
+                    continue
+                fg = data["fear_and_greed"]
+                value = int(round(fg.get("score", 0)))
+                if value == 0:
+                    continue
+                return {
+                    "value": value,
+                    "classification": self._get_classification(value),
+                    "classification_zh": self._get_classification_zh(value),
+                    "timestamp": date.today().strftime("%Y-%m-%d"),
+                    "market": "stock",
+                    "rating": fg.get("rating", ""),
+                }
+            except Exception as e:
+                logger.debug(f"CNN API 端點失敗 {url}: {e}")
+        return None
+
     def _get_fear_greed_alternative(self) -> Optional[Dict[str, Any]]:
-        """備用方法：使用其他資料來源"""
+        """備用方法：使用多個替代來源取得美股 Fear & Greed"""
+        # 來源 1：feargreedmeter.com JSON API
         try:
-            # 可以使用其他公開 API 或爬蟲
-            # 這裡提供一個模擬的備用方案
-            
-            # 例如從 rapidapi 或其他來源取得
-            # 目前返回 None，表示無法取得
-            return None
-            
+            r = self.session.get(
+                "https://feargreedmeter.com/api/fear-greed-index/",
+                timeout=8
+            )
+            if r.status_code == 200:
+                data = r.json()
+                value = int(data.get("value") or data.get("score") or 0)
+                if value > 0:
+                    logger.info(f"[FearGreed] 備用來源 feargreedmeter 成功: {value}")
+                    return {
+                        "value": value,
+                        "classification": self._get_classification(value),
+                        "classification_zh": self._get_classification_zh(value),
+                        "timestamp": date.today().strftime("%Y-%m-%d"),
+                        "market": "stock",
+                    }
         except Exception as e:
-            logger.debug(f"備用來源取得失敗: {e}")
-            return None
+            logger.debug(f"feargreedmeter 失敗: {e}")
+
+        # 來源 2：用 Alternative.me 的股票情緒（不完全一樣但可用）
+        # Alternative.me 也有股票版
+        try:
+            r = self.session.get(
+                "https://api.alternative.me/fng/?limit=1&format=json",
+                timeout=8
+            )
+            if r.status_code == 200:
+                data = r.json()
+                if data.get("data"):
+                    item = data["data"][0]
+                    value = int(item["value"])
+                    logger.info(f"[FearGreed] 備用來源 alternative.me (股票代用) 成功: {value}")
+                    return {
+                        "value": value,
+                        "classification": self._get_classification(value),
+                        "classification_zh": self._get_classification_zh(value),
+                        "timestamp": date.today().strftime("%Y-%m-%d"),
+                        "market": "stock",
+                        "source": "alternative.me_proxy",
+                    }
+        except Exception as e:
+            logger.debug(f"alternative.me 備用失敗: {e}")
+
+        return None
     
     # ==================== 通用方法 ====================
     

@@ -247,8 +247,8 @@
     // ============================================================
     
     function getSessionTimeout() {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const isAdmin = user.is_admin === true;
+        // ★ 安全：從 server 驗證過的 currentUser 讀取，而非 localStorage
+        const isAdmin = currentUser ? currentUser.is_admin === true : false;
         return isAdmin ? 60 * 60 * 1000 : 10 * 60 * 1000;
     }
     
@@ -261,7 +261,7 @@
         const elapsed = Date.now() - lastActivity;
         const remaining = SESSION_TIMEOUT - elapsed;
         
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const user = currentUser || {};
         const isAdmin = user.is_admin === true;
         const timeoutMinutes = isAdmin ? 60 : 10;
         
@@ -400,37 +400,34 @@
         try {
             // ✅ 使用批量更新減少重排
             batchUpdate([
-            { id: 'userName', prop: 'textContent', value: currentUser.display_name },
-            { id: 'sidebarUserName', prop: 'textContent', value: currentUser.display_name },
-        ]);
-        
-        // 頭像單獨處理（src 屬性）
-        const avatarUrl = currentUser.picture_url || 'https://via.placeholder.com/40';
-        const avatarEl = $('userAvatar');
-        const sidebarAvatarEl = $('sidebarAvatar');
-        if (avatarEl) avatarEl.src = avatarUrl;
-        if (sidebarAvatarEl) sidebarAvatarEl.src = avatarUrl;
-        
-        // 管理員入口
-        if (currentUser.is_admin) {
-            const adminLink = $('adminLink');
-            const adminSidebarLink = $('adminSidebarLink');
-            const adminMobileLink = $('adminMobileLink');
-            if (adminLink) adminLink.classList.remove('hidden');
-            if (adminSidebarLink) adminSidebarLink.classList.remove('hidden');
-            if (adminMobileLink) {
-                adminMobileLink.classList.remove('hidden');
-                adminMobileLink.classList.add('flex');
+                { id: 'userName', prop: 'textContent', value: currentUser.display_name },
+                { id: 'sidebarUserName', prop: 'textContent', value: currentUser.display_name },
+            ]);
+
+            // 頭像單獨處理（src 屬性）
+            const avatarUrl = currentUser.picture_url || 'https://via.placeholder.com/40';
+            const avatarEl = $('userAvatar');
+            const sidebarAvatarEl = $('sidebarAvatar');
+            if (avatarEl) avatarEl.src = avatarUrl;
+            if (sidebarAvatarEl) sidebarAvatarEl.src = avatarUrl;
+
+            // 管理員入口
+            if (currentUser.is_admin) {
+                const adminLink = $('adminLink');
+                const adminSidebarLink = $('adminSidebarLink');
+                const adminMobileLink = $('adminMobileLink');
+                if (adminLink) adminLink.classList.remove('hidden');
+                if (adminSidebarLink) adminSidebarLink.classList.remove('hidden');
+                if (adminMobileLink) {
+                    adminMobileLink.classList.remove('hidden');
+                    adminMobileLink.classList.add('flex');
+                }
             }
-            
-            // 🆕 V1.02 移除自動更新，改為手動觸發
-            // if (typeof triggerAdminUpdates === 'function') {
-            //     triggerAdminUpdates();
-            // }
-            }
+        } catch (e) {
+            console.error('[updateUserUI] 更新失敗:', e);
         }
     }
-    
+
     function clearAllUserData() {
         localStorage.removeItem('token');
         localStorage.removeItem('user');

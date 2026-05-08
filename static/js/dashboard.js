@@ -99,7 +99,8 @@
         if (!btcRefreshInterval) {
             btcRefreshInterval = setInterval(loadBtcPrice, 60000);
         }
-    
+    }
+
     // ============================================================
     // 三大指數
     // ============================================================
@@ -120,7 +121,8 @@
         } catch (e) {
             console.error('載入指數失敗', e);
         }
-    
+    }
+
     function updateIndexCard(symbol, data) {
         const priceEl = document.getElementById(`index-${symbol}-price`);
         const changeEl = document.getElementById(`index-${symbol}-change`);
@@ -141,7 +143,8 @@
         if (dateEl && data.date) {
             dateEl.textContent = `更新: ${data.date}`;
         }
-    
+    }
+
     // ============================================================
     // 指數圖表 Modal
     // ============================================================
@@ -224,7 +227,8 @@
         } catch (e) {
             console.error('載入指數走勢失敗', e);
         }
-    
+    }
+
     // ============================================================
     // 市場情緒
     // ============================================================
@@ -235,14 +239,15 @@
             const data = await res.json();
             
             if (data.success) {
-                updateSentimentCard('stock', data.data?.stock || { value: 50, classification: 'neutral' });
-                updateSentimentCard('crypto', data.data?.crypto || { value: 50, classification: 'neutral' });
+                updateSentimentCard('stock', data.stock || { value: 50, classification: 'neutral' });
+                updateSentimentCard('crypto', data.crypto || { value: 50, classification: 'neutral' });
             }
         } catch (e) {
             console.error('載入情緒失敗', e);
             updateSentimentCard('stock', { value: 50, classification: 'neutral' });
             updateSentimentCard('crypto', { value: 50, classification: 'neutral' });
         }
+    }
 
     function updateSentimentCard(type, sentiment) {
         if (!sentiment) return;
@@ -500,97 +505,76 @@
         } catch (e) {
             console.error('管理員更新觸發失敗:', e);
         }
-    
+    }
+
+    function createGaugeSVG(id, value) {
+        const angle = -90 + (value / 100) * 180;
+        let label, colorClass;
+        if (value <= 25) {
+            label = 'Extreme Fear'; colorClass = 'text-red-600';
+        } else if (value <= 45) {
+            label = 'Fear'; colorClass = 'text-orange-500';
+        } else if (value <= 55) {
+            label = 'Neutral'; colorClass = 'text-gray-500';
+        } else if (value <= 75) {
+            label = 'Greed'; colorClass = 'text-green-500';
+        } else {
+            label = 'Extreme Greed'; colorClass = 'text-emerald-600';
+        }
+        return `<div class="fear-greed-gauge">
+            <svg viewBox="0 0 200 115" class="gauge-svg">
+                <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
+                <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
+                <path class="gauge-arc gauge-arc-neutral" d="M 75 32 A 80 80 0 0 1 125 32" />
+                <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
+                <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
+                <text x="8" y="105" class="gauge-tick-text">0</text>
+                <text x="96" y="12" class="gauge-tick-text" text-anchor="middle">50</text>
+                <text x="188" y="105" class="gauge-tick-text">100</text>
+                <g class="gauge-needle-group" style="transform: rotate(${angle}deg); transform-origin: 100px 100px;">
+                    <polygon class="gauge-needle" points="100,25 97,100 103,100" />
+                </g>
+                <circle class="gauge-center-dot" cx="100" cy="100" r="6" />
+            </svg>
+            <div class="text-center mt-2"><span class="text-4xl font-bold text-gray-800">${value}</span></div>
+            <p class="text-center font-semibold text-lg mt-1 ${colorClass}">${label}</p>
+        </div>`;
+    }
+
     /**
      * 載入恐懼貪婪詳細頁面
      */
     async function loadSentimentDetail() {
         const container = document.getElementById('sentimentContent');
         if (!container) return;
-        
-        // 先嘗試取得情緒資料
+
         let stockData = { value: 50, classification: 'neutral' };
         let cryptoData = { value: 50, classification: 'neutral' };
-        
+
         try {
             const res = await fetch('/api/market/sentiment');
             if (res.ok) {
                 const data = await res.json();
-                if (data.data?.stock) stockData = data.data.stock;
-                if (data.data?.crypto) cryptoData = data.data.crypto;
+                if (data.stock) stockData = data.stock;
+                if (data.crypto) cryptoData = data.crypto;
             }
         } catch (e) {
             console.error('載入情緒資料失敗', e);
         }
-        
-        // 生成簡潔儀表盤 SVG HTML
-        function createGaugeSVG(id, value) {
-            const angle = -90 + (value / 100) * 180;
-            
-            let label, colorClass;
-            if (value <= 25) {
-                label = 'Extreme Fear';
-                colorClass = 'text-red-600';
-            } else if (value <= 45) {
-                label = 'Fear';
-                colorClass = 'text-orange-500';
-            } else if (value <= 55) {
-                label = 'Neutral';
-                colorClass = 'text-gray-500';
-            } else if (value <= 75) {
-                label = 'Greed';
-                colorClass = 'text-green-500';
-            } else {
-                label = 'Extreme Greed';
-                colorClass = 'text-emerald-600';
-            }
-            
-            return `
-                <div class="fear-greed-gauge">
-                    <svg viewBox="0 0 200 115" class="gauge-svg">
-                        <!-- 弧形背景區段 -->
-                        <path class="gauge-arc gauge-arc-extreme-fear" d="M 20 100 A 80 80 0 0 1 38 62" />
-                        <path class="gauge-arc gauge-arc-fear" d="M 38 62 A 80 80 0 0 1 75 32" />
-                        <path class="gauge-arc gauge-arc-neutral" d="M 75 32 A 80 80 0 0 1 125 32" />
-                        <path class="gauge-arc gauge-arc-greed" d="M 125 32 A 80 80 0 0 1 162 62" />
-                        <path class="gauge-arc gauge-arc-extreme-greed" d="M 162 62 A 80 80 0 0 1 180 100" />
-                        
-                        <!-- 刻度數字 -->
-                        <text x="8" y="105" class="gauge-tick-text">0</text>
-                        <text x="96" y="12" class="gauge-tick-text" text-anchor="middle">50</text>
-                        <text x="188" y="105" class="gauge-tick-text">100</text>
-                        
-                        <!-- 指針 -->
-                        <g class="gauge-needle-group" style="transform: rotate(${angle}deg); transform-origin: 100px 100px;">
-                            <polygon class="gauge-needle" points="100,25 97,100 103,100" />
-                        </g>
-                        <circle class="gauge-center-dot" cx="100" cy="100" r="6" />
-                    </svg>
-                </div>
-                <div class="text-center mt-2">
-                    <span class="text-4xl font-bold text-gray-800">${value}</span>
-                </div>
-                <p class="text-center font-semibold text-lg mt-1 ${colorClass}">${label}</p>
-            `;
-        }
-        
+
         container.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <!-- 美股情緒 -->
                 <div class="bg-white rounded-xl shadow p-6 cursor-pointer hover:shadow-lg" onclick="openSentimentModal('stock', '美股恐懼貪婪指數')">
                     <h3 class="font-semibold text-gray-700 mb-4 text-center">美股情緒指數 (Fear & Greed)</h3>
                     ${createGaugeSVG('stock-detail', stockData.value)}
                     <p class="text-center text-xs text-gray-400 mt-2">點擊查看歷史趨勢</p>
                 </div>
-                
-                <!-- 幣圈情緒 -->
                 <div class="bg-white rounded-xl shadow p-6 cursor-pointer hover:shadow-lg" onclick="openSentimentModal('crypto', '幣圈恐懼貪婪指數')">
                     <h3 class="font-semibold text-gray-700 mb-4 text-center">幣圈情緒指數</h3>
                     ${createGaugeSVG('crypto-detail', cryptoData.value)}
                     <p class="text-center text-xs text-gray-400 mt-2">點擊查看歷史趨勢</p>
                 </div>
             </div>
-            
             <div class="bg-white rounded-xl shadow p-6">
                 <h3 class="font-semibold text-gray-700 mb-4">市場情緒解讀</h3>
                 <div class="space-y-4 text-sm text-gray-600">
@@ -623,6 +607,7 @@
             </div>
         `;
     }
+
     
     // ============================================================
     // 導出到全域

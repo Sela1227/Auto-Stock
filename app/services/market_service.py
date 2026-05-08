@@ -249,21 +249,23 @@ class MarketService:
     def get_latest_sentiment(self) -> Dict[str, Any]:
         """
         取得最新的市場情緒
-        
-        🆕 優化版：
-        1. 優先從內存快取讀取（60 秒有效）
-        2. 只在快取過期時才查詢 DB
+
+        優先順序：
+        1. 內存快取（60 秒有效）
+        2. DB 當日資料（新鮮）
+        3. 外部 API 即時抓取（DB 無當日資料時）
+        4. DB 最舊資料（API 也失敗時的保底）
         """
-        # 嘗試從快取取得
+        # 1. 內存快取
         cached = _memory_cache.get("sentiment", SENTIMENT_CACHE_SECONDS)
         if cached is not None:
             logger.debug("📦 情緒快取命中 (memory)")
             return cached
-        
-        # 快取未命中，查詢 DB
-        logger.debug("📦 情緒快取未命中，查詢 DB")
+
         result = {}
-        
+        needs_api_refresh = []  # 需要去外部 API 更新的市場
+
+        # 2. 查 DB，同時判斷新鮮度（12 小時內視為新鮮）
         for market in ["stock", "crypto"]:
             try:
                 stmt = (
@@ -273,27 +275,50 @@ class MarketService:
                     .limit(1)
                 )
                 latest = self.db.execute(stmt).scalar_one_or_none()
-                
+
                 if latest:
-                    result[market] = latest.to_dict()
-                    logger.debug(f"📦 情緒 DB: {market} = {latest.value}")
+                    data_date = latest.date  # date 型別
+                    today = date.today()
+                    age_hours = (today - data_date).total_seconds() / 3600 if hasattr(data_date, 'total_seconds') else (datetime.combine(today, datetime.min.time()) - datetime.combine(data_date, datetime.min.time())).total_seconds() / 3600
+                    is_fresh = age_hours < 12
+
+                    if is_fresh:
+                        result[market] = latest.to_dict()
+                        logger.debug(f"📦 情緒 DB (新鮮): {market} = {latest.value}")
+                    else:
+                        # DB 有資料但已過期，先暫存，等 API 更新
+                        result[market] = latest.to_dict()  # 保底
+                        needs_api_refresh.append(market)
+                        logger.info(f"⏰ 情緒 {market} DB 資料已 {age_hours:.0f} 小時，嘗試刷新")
                 else:
-                    logger.warning(f"⚠️ 情緒 {market} 無快取資料")
-                    result[market] = {
-                        "market": market,
-                        "value": None,
-                        "label": "無資料",
-                        "date": None,
-                    }
+                    needs_api_refresh.append(market)
+                    logger.warning(f"⚠️ 情緒 {market} DB 無資料，嘗試從 API 取得")
             except Exception as e:
                 logger.error(f"讀取情緒 {market} 失敗: {e}")
-                result[market] = {
-                    "market": market,
-                    "value": None,
-                    "label": "錯誤",
-                    "date": None,
-                }
-        
+                needs_api_refresh.append(market)
+
+        # 3. 對需要更新的市場，呼叫外部 API
+        if needs_api_refresh:
+            for market in needs_api_refresh:
+                try:
+                    if market == "crypto":
+                        api_data = fear_greed.get_crypto_fear_greed()
+                    else:
+                        api_data = fear_greed.get_stock_fear_greed()
+
+                    if api_data and not api_data.get("is_fallback"):
+                        self.save_sentiment(market, api_data["value"])
+                        result[market] = api_data
+                        logger.info(f"✅ 情緒 {market} 從 API 更新成功: {api_data['value']}")
+                    else:
+                        logger.warning(f"⚠️ 情緒 {market} API 返回 fallback，使用 DB 舊值或預設")
+                        if market not in result:
+                            result[market] = {"market": market, "value": None, "label": "無資料", "date": None}
+                except Exception as e:
+                    logger.error(f"情緒 {market} API 更新失敗: {e}")
+                    if market not in result:
+                        result[market] = {"market": market, "value": None, "label": "錯誤", "date": None}
+
         # 寫入內存快取
         _memory_cache.set("sentiment", result)
         return result

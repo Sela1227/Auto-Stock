@@ -39,7 +39,7 @@ from app.models.price_cache import StockPriceCache
 from app.models.watchlist_tag import UserTag, watchlist_tags  # ⭐ 新增
 
 # 🔧 使用統一認證模組
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_admin_user
 
 logger = logging.getLogger(__name__)
 
@@ -525,6 +525,7 @@ async def get_watchlist_with_prices(
 
 @router.get("/cache-status", summary="快取狀態")
 async def get_cache_status(
+    admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """查看價格快取狀態"""

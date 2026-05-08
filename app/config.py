@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # 應用程式
     APP_NAME: str = "AutoStock 自動選股系統"
-    APP_VERSION: str = "1.12.1"  # 修復 auth.py NameError crash
+    APP_VERSION: str = "1.13.0"  # 首次 Kit 對齊：SELA logo/favicon、CLAUDE.md 章法格式
     APP_ENV: str = "development"
     DEBUG: bool = True
     
