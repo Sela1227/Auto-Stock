@@ -241,7 +241,7 @@
         `;
 
         try {
-            const res = await apiRequest(`/api/portfolio/transactions/${market}`);
+            const res = await apiRequest(`/api/portfolio/transactions?market=${market}`);
             const data = await res.json();
 
             if (data.success && data.data && data.data.length > 0) {

@@ -241,3 +241,25 @@ function previewFile(file, callback) {
     reader.readAsText(file);
 }
 
+
+/**
+ * XSS 防護：統一的 HTML 跳脫函數
+ * 
+ * 所有來自 server/外部的資料插入 innerHTML 前，必須經過此函數。
+ * 內部事件屬性（onclick 等）應改用 addEventListener，不用字串插值。
+ * 
+ * 使用方式：
+ *   element.innerHTML = `<p>${escapeHTML(source.name)}</p>`;
+ * 
+ * 安全的替代方式（純文字不需要 escape）：
+ *   element.textContent = source.name;
+ */
+function escapeHTML(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+}

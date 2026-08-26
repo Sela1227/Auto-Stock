@@ -734,15 +734,28 @@
             return;
         }
 
-        const formData = new FormData();
-        formData.append('file', file);
+        // 後端接收 JSON { items: [...] }，不是 FormData
+        let items;
+        try {
+            const text = await file.text();
+            const parsed = JSON.parse(text);
+            // 支援兩種格式：直接陣列，或 { items: [...] } / { data: [...] }
+            items = Array.isArray(parsed) ? parsed : (parsed.items || parsed.data);
+            if (!Array.isArray(items)) throw new Error('格式錯誤');
+        } catch (err) {
+            showToast('檔案格式錯誤，請確認是有效的 JSON');
+            return;
+        }
 
         try {
             const token = localStorage.getItem('token');
             const res = await fetch('/api/watchlist/import', {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: formData
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ items })
             });
 
             const data = await res.json();

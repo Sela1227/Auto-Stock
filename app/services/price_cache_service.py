@@ -82,15 +82,21 @@ class PriceCacheService:
         
         return categorized
 
-    def batch_update_stock_prices(self, symbols: List[str]) -> Dict[str, Any]:
-        """批次更新股票價格"""
+    def batch_update_stock_prices(self, symbols: List[str], force: bool = False) -> Dict[str, Any]:
+        """
+        批次更新股票價格
+
+        Args:
+            symbols: 股票代號清單
+            force: True 時忽略開盤判斷，強制更新（每日 06:00 批次用）
+        """
         if not symbols:
             return {"updated": 0, "failed": 0, "skipped": 0}
         
         updated, failed, skipped = 0, 0, 0
         
         for symbol in symbols:
-            if not is_market_open_for_symbol(symbol):
+            if not force and not is_market_open_for_symbol(symbol):
                 skipped += 1
                 continue
             
@@ -262,16 +268,25 @@ class PriceCacheService:
         }
 
     def update_all(self, force: bool = False) -> Dict[str, Any]:
-        """更新所有被追蹤的股票"""
+        """
+        更新所有被追蹤的標的
+
+        Args:
+            force: True 時忽略開盤判斷（每日 06:00 批次必須用 True，否則收盤時會全部跳過）
+        """
         symbols = self.get_all_tracked_symbols()
-        
+
         result = {
-            "tw": self.batch_update_stock_prices(symbols["tw"]),
-            "us": self.batch_update_stock_prices(symbols["us"]),
+            "tw": self.batch_update_stock_prices(symbols["tw"], force),
+            "us": self.batch_update_stock_prices(symbols["us"], force),
             "crypto": self.batch_update_crypto_prices(symbols["crypto"], force),
         }
-        
+
         total = sum(r.get("updated", 0) for r in result.values())
         result["total_updated"] = total
-        
+
         return result
+
+    # 向後相容別名（舊程式碼有呼叫 update_all_prices）
+    def update_all_prices(self, force: bool = False) -> Dict[str, Any]:
+        return self.update_all(force=force)

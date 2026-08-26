@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.portfolio import PortfolioTransaction, PortfolioHolding, ExchangeRate
 from app.models.price_cache import StockPriceCache
+from app.models.broker import Broker
 from app.services.exchange_rate_service import DEFAULT_USD_TWD_RATE
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,18 @@ class PortfolioService:
         
         # 標準化 symbol
         symbol = symbol.upper().strip()
-        
+
+        # 驗證 broker_id 所有權
+        if broker_id is not None:
+            broker = await self.db.scalar(
+                select(Broker).where(
+                    Broker.id == broker_id,
+                    Broker.user_id == user_id
+                )
+            )
+            if not broker:
+                raise ValueError("無效的券商 ID，或您無權使用此券商")
+
         # 建立交易紀錄
         transaction = PortfolioTransaction(
             user_id=user_id,
@@ -133,11 +145,24 @@ class PortfolioService:
         
         old_symbol = transaction.symbol
         old_market = transaction.market
-        
+
+        # 驗證 broker_id 所有權（update 時也要驗）
+        new_broker_id = kwargs.get('broker_id')
+        if new_broker_id is not None:
+            broker = await self.db.scalar(
+                select(Broker).where(
+                    Broker.id == new_broker_id,
+                    Broker.user_id == user_id
+                )
+            )
+            if not broker:
+                raise ValueError("無效的券商 ID，或您無權使用此券商")
+
         # 更新欄位
         allowed_fields = {
             'symbol', 'name', 'market', 'transaction_type',
-            'quantity', 'price', 'fee', 'tax', 'transaction_date', 'note'
+            'quantity', 'price', 'fee', 'tax', 'transaction_date', 'note',
+            'broker_id'  # ✅ 修復：原本漏掉，導致修改券商時 silent ignore
         }
         
         for key, value in kwargs.items():

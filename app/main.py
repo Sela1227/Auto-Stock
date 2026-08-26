@@ -127,23 +127,47 @@ def update_indices():
         logger.error(f"❌ 指數更新錯誤: {e}")
 
 
+def update_all_stock_prices():
+    """
+    股價全量更新（追蹤清單所有標的）
+    V1.14.0 起改為每日批次，不再依賴管理員登入觸發
+    """
+    from app.services.price_cache_service import PriceCacheService
+    logger.info("⏰ [排程] 股價全量更新...")
+    try:
+        with sync_db_session() as db:
+            result = PriceCacheService(db).update_all_prices(force=True)
+            logger.info(f"✅ 股價更新完成: {result}")
+    except Exception as e:
+        logger.error(f"❌ 股價更新錯誤: {e}")
+
+
 def daily_preload():
     """
-    每日預載（美股開盤前 21:00）
-    - 更新情緒指數
-    - 更新四大指數
-    - 更新匯率
-    - V1.05 預計算追蹤清單技術指標
+    每日批次更新（週一~週六 06:00 台北時間）
+
+    時間點選擇理由：
+    - 美股 05:00（台北）收盤，06:00 抓到的是最新收盤價
+    - 台股抓到的是前一交易日收盤價
+    - 週六跑是為了補抓週五的美股收盤（週五 21:30 開盤，週六 05:00 收盤）
+
+    更新項目：
+    - 股價全量（追蹤清單所有標的）
+    - 情緒指數
+    - 四大指數
+    - 匯率
+    - 技術指標預計算
     """
-    logger.info("⏰ [排程] === 每日預載開始 ===")
+    logger.info("⏰ [排程] === 每日批次更新開始（06:00）===")
     try:
+        update_all_stock_prices()
         update_market_sentiment()
         update_indices()
         update_exchange_rate()
         precompute_indicators()
-        logger.info("✅ [排程] === 每日預載完成 ===")
+        logger.info("✅ [排程] === 每日批次更新完成 ===")
     except Exception as e:
-        logger.error(f"❌ 每日預載錯誤: {e}")
+        logger.error(f"❌ 每日批次更新錯誤: {e}")
 
 
 def precompute_indicators():
@@ -205,48 +229,24 @@ async def lifespan(app: FastAPI):
     logger.info("Database initialized")
 
     # ============================================================
-    # 🆕 V1.02 極簡排程（大幅減少）
+    # V1.14.0 極簡排程：每日單一批次
+    # ============================================================
+    # 設計理由：
+    # - 本系統定位為「追蹤」而非「即時分析」，不需要盤中更新
+    # - 06:00 台北時間 = 美股 05:00 收盤後，抓到的是最新收盤價
+    # - mon-sat：週六補抓週五美股收盤（週五 21:30 開盤，週六 05:00 收盤）
+    # - 需要即時資料時，管理後台有手動更新按鈕
     # ============================================================
 
-    # 每日預載：美股開盤前（21:00 台北時間）
+    # 每日批次：美股收盤後（06:00 台北時間，週一~週六）
     scheduler.add_job(
         daily_preload,
-        CronTrigger(hour=21, minute=0, timezone=TW_TZ),
+        CronTrigger(day_of_week='mon-sat', hour=6, minute=0, timezone=TW_TZ),
         id='daily_preload',
-        name='每日預載(21:00)',
+        name='每日批次更新(06:00)',
     )
 
-    # 情緒指數：早上補充一次（09:00）
-    scheduler.add_job(
-        update_market_sentiment,
-        CronTrigger(hour=9, minute=0, timezone=TW_TZ),
-        id='sentiment_morning',
-        name='情緒更新(早)',
-    )
-
-    # 匯率：補充一次（09:30）
-    scheduler.add_job(
-        update_exchange_rate,
-        CronTrigger(hour=9, minute=30, timezone=TW_TZ),
-        id='exchange_rate_morning',
-        name='匯率更新(早)',
-    )
-
-    # 訂閱源：每天 2 次（08:00、18:00）
-    scheduler.add_job(
-        fetch_subscription_sources,
-        CronTrigger(hour=8, minute=0, timezone=TW_TZ),
-        id='subscription_morning',
-        name='訂閱源(早)',
-    )
-    scheduler.add_job(
-        fetch_subscription_sources,
-        CronTrigger(hour=18, minute=0, timezone=TW_TZ),
-        id='subscription_evening',
-        name='訂閱源(晚)',
-    )
-
-    # 🆕 V1.05 每日清除過期快取（凌晨 3:00）
+    # 每日清除過期快取（凌晨 3:00）
     scheduler.add_job(
         clear_expired_caches,
         CronTrigger(hour=3, minute=0, timezone=TW_TZ),
@@ -254,12 +254,17 @@ async def lifespan(app: FastAPI):
         name='清除過期快取',
     )
 
+    # 註：以下排程於 V1.14.0 移除（改為手動觸發，降低 Railway 資源消耗）
+    # - 訂閱源抓取（原 08:00 / 18:00）→ 管理後台手動按
+    # - 情緒指數補充（原 09:00）→ 併入 06:00 批次
+    # - 匯率補充（原 09:30）→ 併入 06:00 批次
+    # - 每日預載（原 21:00）→ 移至 06:00
+
     # 啟動排程器
     scheduler.start()
-    logger.info("✅ 排程器已啟動（V1.05：每日預載 + 指標預計算 + 快取清除）")
+    logger.info("✅ 排程器已啟動（V1.14.0：每日 06:00 單一批次 + 03:00 快取清除）")
 
-    # 🆕 啟動時不做任何自動更新，完全依賴排程和用戶查詢
-    logger.info("🆕 V1.02: 啟動時不自動更新，節省資源")
+    logger.info("🆕 啟動時不自動更新，完全依賴排程和用戶查詢")
 
     yield
 
@@ -285,13 +290,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS 設定
+# CORS 設定（production 限縮，development 全開）
+_cors_origins = (
+    [settings.LINE_LOGIN_CALLBACK_URL.rsplit("/", 2)[0]]  # 取 scheme+host
+    if settings.APP_ENV == "production" and settings.LINE_LOGIN_CALLBACK_URL
+    else ["*"]
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # 靜態檔案
@@ -340,7 +350,7 @@ async def get_version():
         "version": settings.APP_VERSION,
         "app": settings.APP_NAME,
         "features": [
-            "V1.13.0: Kit 對齊（SELA favicon、CLAUDE.md 章法）",
+            "V1.14.0: 排程簡化為每日 06:00 單一批次",
             "V1.12.3: 修復情緒指數顯示",
             "V1.12.2: JS 語法修復、資安強化",
             "V1.12.1: 修復啟動 crash",

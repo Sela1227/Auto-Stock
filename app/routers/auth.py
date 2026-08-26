@@ -26,67 +26,6 @@ router = APIRouter(prefix="/auth", tags=["認證"])
 AUTH_VERSION = "2.1.0-admin-update"
 
 
-# ============================================================
-# 🆕 管理員登入自動更新
-# ============================================================
-
-async def trigger_admin_updates():
-    """
-    管理員登入觸發的背景更新
-    - 只在股市開盤時間更新股票價格
-    - 更新市場情緒指數（不受時間限制）
-    """
-    from contextlib import contextmanager
-    from app.database import SessionLocal
-    from app.services.price_cache_service import is_tw_market_open, is_us_market_open
-
-    @contextmanager
-    def _db():
-        db = SessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    tw_open = is_tw_market_open()
-    us_open = is_us_market_open()
-
-    logger.info(f"🔄 管理員登入，台股: {'開盤' if tw_open else '收盤'}, 美股: {'開盤' if us_open else '收盤'}")
-
-    try:
-        with _db() as db:
-            # 1. 股票價格快取（只在開盤時）
-            if tw_open or us_open:
-                try:
-                    from app.services.price_cache_service import PriceCacheService
-                    result = PriceCacheService(db).update_all_prices()
-                    logger.info(f"✅ 股票價格更新完成: {result}")
-                except Exception as e:
-                    logger.error(f"❌ 股票價格更新失敗: {e}")
-            else:
-                logger.info("💤 台股美股皆收盤，跳過股票價格更新")
-
-            # 2. 市場情緒（總是更新）
-            try:
-                from app.services.market_service import market_service
-                market_service.update_fear_greed()
-                logger.info("✅ 市場情緒更新完成")
-            except Exception as e:
-                logger.error(f"❌ 市場情緒更新失敗: {e}")
-
-            # 3. 訂閱精選
-            try:
-                from app.services.subscription_service import SubscriptionService
-                result = SubscriptionService(db).fetch_all_sources(backfill=False)
-                logger.info(f"✅ 訂閱精選更新完成: {result}")
-            except Exception as e:
-                logger.warning(f"⚠️ 訂閱精選更新跳過: {e}")
-
-        logger.info("🎉 管理員自動更新完成")
-
-    except Exception as e:
-        logger.error(f"❌ 管理員自動更新失敗: {e}")
-
 
 @router.get("/version", summary="認證模組版本")
 async def auth_version():
@@ -273,11 +212,11 @@ async def line_callback(
     logger.info(f"=== 登入成功，準備跳轉 ===")
     logger.info(f"用戶 ID: {user.id}, LINE ID: {user.line_user_id}, 名稱: {user.display_name}")
 
-    # 🆕 管理員登入觸發自動更新
+    # V1.14.0：移除管理員登入自動更新
+    # 改為每日 06:00 排程批次；需要即時更新時，管理後台有手動按鈕
     is_admin = getattr(user, 'is_admin', False)
     if is_admin:
-        logger.info(f"🔑 管理員 {user.display_name} 登入，觸發背景更新")
-        background_tasks.add_task(trigger_admin_updates)
+        logger.info(f"🔑 管理員 {user.display_name} 登入")
 
     # ★ 安全：用 json.dumps 序列化所有用戶資料，避免 XSS
     import json as _json

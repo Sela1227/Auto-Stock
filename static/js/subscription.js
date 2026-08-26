@@ -37,24 +37,30 @@
                 container.innerHTML = '';
                 for (const source of subscriptionSources) {
                     const isSubscribed = mySubscriptions.includes(source.id);
-                    container.innerHTML += `
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2">
-                            <div class="flex items-center flex-1 min-w-0">
-                                <i class="fas fa-rss text-orange-500 mr-3 flex-shrink-0"></i>
-                                <div class="min-w-0">
-                                    <p class="font-medium text-gray-800 truncate">${source.name}</p>
-                                    <p class="text-xs text-gray-500 truncate">${source.description || ''}</p>
-                                </div>
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2';
+                    div.innerHTML = `
+                        <div class="flex items-center flex-1 min-w-0">
+                            <i class="fas fa-rss text-orange-500 mr-3 flex-shrink-0"></i>
+                            <div class="min-w-0">
+                                <p class="font-medium text-gray-800 truncate">${escapeHTML(source.name)}</p>
+                                <p class="text-xs text-gray-500 truncate">${escapeHTML(source.description || '')}</p>
                             </div>
-                            <button onclick="window.toggleSubscription(${source.id}, ${isSubscribed})" 
-                                    class="ml-3 px-3 py-1.5 text-sm rounded-lg flex-shrink-0 ${isSubscribed 
-                                        ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}">
-                                <i class="fas fa-${isSubscribed ? 'check' : 'plus'} mr-1"></i>
-                                ${isSubscribed ? '已訂閱' : '訂閱'}
-                            </button>
                         </div>
+                        <button data-source-id="${Number(source.id)}" data-subscribed="${isSubscribed ? '1' : '0'}"
+                                class="toggle-sub-btn ml-3 px-3 py-1.5 text-sm rounded-lg flex-shrink-0 ${isSubscribed
+                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}">
+                            <i class="fas fa-${isSubscribed ? 'check' : 'plus'} mr-1"></i>
+                            ${isSubscribed ? '已訂閱' : '訂閱'}
+                        </button>
                     `;
+                    div.querySelector('.toggle-sub-btn').addEventListener('click', function () {
+                        const sid = Number(this.dataset.sourceId);
+                        const isSub = this.dataset.subscribed === '1';
+                        window.toggleSubscription(sid, isSub);
+                    });
+                    container.appendChild(div);
                 }
             }
             
@@ -128,19 +134,19 @@
                     
                     return `
                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2 cursor-pointer hover:bg-gray-100"
-                         onclick="searchSymbol('${p.symbol}')">
+                         data-symbol="${escapeHTML(p.symbol)}" class="picks-symbol-click">
                         <div class="flex items-center">
                             <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
                                 <span class="font-bold text-blue-600 text-sm">${p.symbol.substring(0, 2)}</span>
                             </div>
                             <div>
                                 <p class="font-medium text-gray-800">${p.symbol}</p>
-                                <p class="text-xs text-gray-500">${p.source_name || ''}${timeStr ? ' · ' + timeStr : ''}</p>
+                                <p class="text-xs text-gray-500">${escapeHTML(p.source_name || '')}${timeStr ? ' · ' + timeStr : ''}</p>
                             </div>
                         </div>
                         <div class="text-right">
                             <span class="text-xs text-gray-400">提及 ${p.mention_count || 1} 次</span>
-                            <button onclick="event.stopPropagation(); quickAddToWatchlist('${p.symbol}', 'stock')" 
+                            <button data-add-symbol="${escapeHTML(p.symbol)}" class="quick-add-btn" 
                                     class="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-600 rounded hover:bg-orange-200">
                                 <i class="fas fa-plus"></i>
                             </button>
@@ -151,6 +157,21 @@
                 if (countEl) countEl.textContent = '';
                 container.innerHTML = '<p class="text-gray-400 text-center py-4">尚無精選股票，請先更新訂閱</p>';
             }
+
+            // 事件委派：picks 的 symbol click 和 watchlist 快速加入
+            container.addEventListener('click', function(e) {
+                const symbolEl = e.target.closest('[data-symbol]');
+                if (symbolEl) {
+                    searchSymbol(symbolEl.dataset.symbol);
+                    return;
+                }
+                const addEl = e.target.closest('.quick-add-btn');
+                if (addEl) {
+                    e.stopPropagation();
+                    quickAddToWatchlist(addEl.dataset.addSymbol, 'stock');
+                }
+            }, { once: false });
+
         } catch (e) {
             console.error('載入精選股票失敗:', e);
             container.innerHTML = '<p class="text-gray-400 text-center py-4">載入失敗</p>';

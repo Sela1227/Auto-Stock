@@ -365,16 +365,30 @@ async function cagrLoadSavedComparisons() {
             const container = document.getElementById('cagrSavedComparisons');
             container.innerHTML = data.comparisons.map(c => `
                 <div class="flex justify-between items-center p-2 rounded hover:bg-gray-50">
-                    <button onclick="cagrLoadSavedComparison(${c.id}, ${JSON.stringify(c.symbols).replace(/"/g, '&quot;')})" 
-                        class="text-left flex-1">
-                        <div class="font-medium text-sm">${c.name}</div>
-                        <div class="text-xs text-gray-400">${c.symbols.join(', ')}</div>
+                    <button data-cmp-id="${Number(c.id)}" class="cagr-load-btn text-left flex-1">
+                        <div class="font-medium text-sm">${escapeHTML(c.name)}</div>
+                        <div class="text-xs text-gray-400">${escapeHTML(c.symbols.join(', '))}</div>
                     </button>
-                    <button onclick="cagrDeleteSavedComparison(${c.id})" class="text-red-400 hover:text-red-600 ml-2">
+                    <button data-del-id="${Number(c.id)}" class="cagr-del-btn text-red-400 hover:text-red-600 ml-2">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
             `).join('');
+
+            // 事件委派：避免 onclick 字串插值造成 XSS
+            const cmpMap = {};
+            data.comparisons.forEach(c => { cmpMap[c.id] = c.symbols; });
+            container.querySelectorAll('.cagr-load-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = Number(btn.dataset.cmpId);
+                    cagrLoadSavedComparison(id, cmpMap[id]);
+                });
+            });
+            container.querySelectorAll('.cagr-del-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    cagrDeleteSavedComparison(Number(btn.dataset.delId));
+                });
+            });
         }
     } catch (e) {
         console.error('載入儲存組合失敗', e);

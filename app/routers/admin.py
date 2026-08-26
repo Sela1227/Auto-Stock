@@ -313,6 +313,126 @@ async def set_admin(
     }
 
 
+@router.post("/users/{user_id}/kick", summary="踢出用戶（使其 Token 失效）")
+async def kick_user(
+    user_id: int,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    踢出指定用戶：寫入 user_token_version，讓該用戶所有既有 JWT 立即失效。
+    用戶下次請求會收到 401，需重新登入。不影響帳號狀態（跟封鎖不同）。
+    """
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="用戶不存在")
+
+    # 用當前時間戳作為版本號，早於此時間簽發的 token 全部失效
+    now_ts = str(int(datetime.utcnow().timestamp()))
+    key = f"user_token_version:{user_id}"
+
+    result = await db.execute(select(SystemConfig).where(SystemConfig.key == key))
+    config = result.scalar_one_or_none()
+    if config:
+        config.value = now_ts
+    else:
+        db.add(SystemConfig(
+            key=key,
+            value=now_ts,
+            description=f"用戶 {user_id} 的 token 版本（踢出用）",
+        ))
+
+    db.add(LoginLog(
+        user_id=user_id,
+        action="kicked",
+        ip_address=None,
+        user_agent=f"By admin: {admin.display_name}",
+    ))
+    await db.commit()
+
+    logger.info(f"管理員 {admin.id} 踢出用戶 {user_id}")
+    return {
+        "success": True,
+        "message": f"已踢出 {user.display_name}，該用戶需重新登入",
+    }
+
+
+@router.post("/kick-all", summary="踢出所有用戶（全域 Token 失效）")
+async def kick_all_users(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    踢出所有用戶（含管理員自己）：寫入 global_token_version。
+    所有既有 JWT 立即失效，全體需重新登入。
+    """
+    now_ts = str(int(datetime.utcnow().timestamp()))
+    key = "global_token_version"
+
+    result = await db.execute(select(SystemConfig).where(SystemConfig.key == key))
+    config = result.scalar_one_or_none()
+    if config:
+        config.value = now_ts
+    else:
+        db.add(SystemConfig(
+            key=key,
+            value=now_ts,
+            description="全域 token 版本（踢出全部用戶）",
+        ))
+
+    db.add(LoginLog(
+        user_id=admin.id,
+        action="kicked_all",
+        ip_address=None,
+        user_agent=f"By admin: {admin.display_name}",
+    ))
+    await db.commit()
+
+    logger.warning(f"管理員 {admin.id} 踢出所有用戶（全域 token 失效）")
+    return {
+        "success": True,
+        "message": "已使所有登入 Token 失效，全體用戶需重新登入",
+    }
+
+
+@router.post("/users/{user_id}/remove-admin", summary="移除管理員權限")
+async def remove_admin(
+    user_id: int,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    移除指定用戶的管理員權限。
+    不能移除自己（避免系統失去所有管理員）。
+    """
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="不能移除自己的管理員權限")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="用戶不存在")
+
+    if not user.is_admin:
+        return {"success": True, "message": f"{user.display_name} 本來就不是管理員"}
+
+    user.is_admin = False
+    db.add(LoginLog(
+        user_id=user_id,
+        action="demoted_from_admin",
+        ip_address=None,
+        user_agent=f"By admin: {admin.display_name}",
+    ))
+    await db.commit()
+
+    logger.info(f"管理員 {admin.id} 移除用戶 {user_id} 的管理員權限")
+    return {
+        "success": True,
+        "message": f"已移除 {user.display_name} 的管理員權限",
+    }
+
+
 @router.delete("/users/{user_id}", summary="刪除用戶")
 async def delete_user(
     user_id: int,

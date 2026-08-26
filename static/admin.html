@@ -425,19 +425,18 @@
 
         async function kickUser(userId) {
             if (!confirm('確定要踢出此用戶嗎？用戶需要重新登入。')) return;
-            
             const data = await apiRequest(`/api/admin/users/${userId}/kick`, {
                 method: 'POST'
             });
             if (data && data.success) {
                 alert(data.message);
+                loadUsers();
             }
         }
 
         async function kickAllUsers() {
             if (!confirm('⚠️ 確定要踢出所有用戶嗎？所有人（包括您自己）都需要重新登入！')) return;
             if (!confirm('再次確認：這將使所有登入 Token 失效！')) return;
-            
             const data = await apiRequest('/api/admin/kick-all', {
                 method: 'POST'
             });
@@ -451,7 +450,7 @@
         async function setAdmin(userId) {
             if (!confirm('確定要將此用戶設為管理員嗎？')) return;
             
-            const data = await apiRequest(`/api/admin/users/${userId}/set-admin`, {
+            const data = await apiRequest(`/api/admin/users/${userId}/set-admin?is_admin=true`, {
                 method: 'POST'
             });
             if (data && data.success) {
