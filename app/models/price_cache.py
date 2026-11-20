@@ -32,7 +32,7 @@ class StockPriceCache(Base):
     change = Column(Numeric(12, 4))          # 漲跌金額
     change_pct = Column(Numeric(8, 4))       # 漲跌幅 %
     
-    # 🆕 技術指標（用於排序）
+    # 技術指標（用於排序）
     ma20 = Column(Numeric(12, 4))            # 20日均線
     
     # 成交量

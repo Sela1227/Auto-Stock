@@ -125,13 +125,13 @@ def run_p1_migrations(db: Session) -> dict:
             
             db.commit()
             results["tables_created"].append("stock_info")
-            logger.info("✅ stock_info 表已建立")
+            logger.info("stock_info 表已建立")
         except Exception as e:
             if "already exists" in str(e).lower():
-                logger.info("ℹ️ stock_info 表已存在")
+                logger.info("stock_info 表已存在")
             else:
                 results["errors"].append(f"stock_info: {e}")
-                logger.error(f"❌ stock_info 建立失敗: {e}")
+                logger.error(f"stock_info 建立失敗: {e}")
         
         # ============================================================
         # 2. user_tags 表
@@ -155,13 +155,13 @@ def run_p1_migrations(db: Session) -> dict:
             
             db.commit()
             results["tables_created"].append("user_tags")
-            logger.info("✅ user_tags 表已建立")
+            logger.info("user_tags 表已建立")
         except Exception as e:
             if "already exists" in str(e).lower():
-                logger.info("ℹ️ user_tags 表已存在")
+                logger.info("user_tags 表已存在")
             else:
                 results["errors"].append(f"user_tags: {e}")
-                logger.error(f"❌ user_tags 建立失敗: {e}")
+                logger.error(f"user_tags 建立失敗: {e}")
         
         # ============================================================
         # 3. watchlist_tags 關聯表
@@ -177,13 +177,13 @@ def run_p1_migrations(db: Session) -> dict:
             
             db.commit()
             results["tables_created"].append("watchlist_tags")
-            logger.info("✅ watchlist_tags 表已建立")
+            logger.info("watchlist_tags 表已建立")
         except Exception as e:
             if "already exists" in str(e).lower():
-                logger.info("ℹ️ watchlist_tags 表已存在")
+                logger.info("watchlist_tags 表已存在")
             else:
                 results["errors"].append(f"watchlist_tags: {e}")
-                logger.error(f"❌ watchlist_tags 建立失敗: {e}")
+                logger.error(f"watchlist_tags 建立失敗: {e}")
         
         # ============================================================
         # 4. 檢查 watchlist 表是否有 target_price 欄位
@@ -200,15 +200,15 @@ def run_p1_migrations(db: Session) -> dict:
                 """))
                 db.commit()
                 results["columns_added"].append("watchlist.target_price")
-                logger.info("✅ watchlist.target_price 欄位已新增")
+                logger.info("watchlist.target_price 欄位已新增")
             else:
-                logger.info("ℹ️ watchlist.target_price 欄位已存在")
+                logger.info("watchlist.target_price 欄位已存在")
         except Exception as e:
             if "already exists" in str(e).lower():
                 pass
             else:
                 results["errors"].append(f"target_price: {e}")
-                logger.warning(f"⚠️ 新增 target_price 欄位失敗: {e}")
+                logger.warning(f"⚠ 新增 target_price 欄位失敗: {e}")
         
         # ============================================================
         # 5. 自動填入種子資料
@@ -219,7 +219,7 @@ def run_p1_migrations(db: Session) -> dict:
             count = count_result.scalar()
             
             if count == 0:
-                logger.info("📊 stock_info 為空，開始填入種子資料...")
+                logger.info("stock_info 為空，開始填入種子資料...")
                 for stock_data in DEFAULT_STOCK_INFO:
                     db.execute(text("""
                         INSERT INTO stock_info (symbol, name, name_zh, market, exchange, sector, is_popular)
@@ -228,11 +228,11 @@ def run_p1_migrations(db: Session) -> dict:
                     """), stock_data)
                 db.commit()
                 results["seed_data"] = len(DEFAULT_STOCK_INFO)
-                logger.info(f"✅ 已填入 {len(DEFAULT_STOCK_INFO)} 筆種子資料")
+                logger.info(f"已填入 {len(DEFAULT_STOCK_INFO)} 筆種子資料")
             else:
-                logger.info(f"ℹ️ stock_info 已有 {count} 筆資料，跳過種子填入")
+                logger.info(f"stock_info 已有 {count} 筆資料，跳過種子填入")
         except Exception as e:
-            logger.warning(f"⚠️ 種子資料填入失敗: {e}")
+            logger.warning(f"⚠ 種子資料填入失敗: {e}")
         
         # ============================================================
         # 總結
@@ -241,12 +241,12 @@ def run_p1_migrations(db: Session) -> dict:
             results["success"] = False
             logger.warning(f"P1 遷移完成，但有錯誤: {results['errors']}")
         else:
-            logger.info(f"✅ P1 遷移完成: 建立 {len(results['tables_created'])} 個表, 種子 {results['seed_data']} 筆")
+            logger.info(f"P1 遷移完成: 建立 {len(results['tables_created'])} 個表, 種子 {results['seed_data']} 筆")
         
         return results
         
     except Exception as e:
-        logger.error(f"❌ P1 遷移失敗: {e}")
+        logger.error(f"P1 遷移失敗: {e}")
         db.rollback()
         results["success"] = False
         results["errors"].append(str(e))

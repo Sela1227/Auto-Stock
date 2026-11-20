@@ -14,7 +14,7 @@
 
     let twLookupTimer = null;
     let usLookupTimer = null;
-    let userBrokers = [];  // 🔧 券商列表快取
+    let userBrokers = [];  // 券商列表快取
 
     // ============================================================
     // 券商管理
@@ -40,7 +40,7 @@
 
         let html = '<option value="">不指定券商</option>';
         userBrokers.forEach(b => {
-            const defaultMark = b.is_default ? ' ⭐' : '';
+            const defaultMark = b.is_default ? ' ' : '';
             html += `<option value="${b.id}" ${b.is_default ? 'selected' : ''}>${b.name}${defaultMark}</option>`;
         });
         html += '<option value="__new__">+ 新增券商...</option>';
@@ -87,7 +87,7 @@
     // ============================================================
 
     function showAddTwModal() {
-        // ✅ P4: 使用 $() 快取
+        // P4: 使用 $() 快取
         $('twEditId').value = '';
         $('twModalTitle').textContent = '新增台股交易';
         setTwType('buy');
@@ -103,7 +103,7 @@
         $('twDate').value = new Date().toISOString().split('T')[0];
         $('twNote').value = '';
 
-        // 🔧 載入券商列表
+        // 載入券商列表
         loadBrokers();
 
         const modal = $('twTransactionModal');
@@ -167,20 +167,20 @@
             if (!symbol || symbol.length < 4) return;
 
             try {
-                // 🔧 修正：使用正確的 API 路徑
+                // 修正：使用正確的 API 路徑
                 const res = await apiRequest(`/api/stock/${symbol}.TW`);
                 const data = await res.json();
 
                 const nameDisplay = $('twNameDisplay');
                 const nameInput = $('twName');
 
-                // 🔧 修正：從回傳資料取得名稱
+                // 修正：從回傳資料取得名稱
                 const stockName = data.name || data.data?.name;
                 if (data.success && stockName) {
                     if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${stockName}</span>`;
                     if (nameInput) nameInput.value = stockName;
                     
-                    // 🔧 查詢該股票最後一筆交易價格
+                    // 查詢該股票最後一筆交易價格
                     fetchLastTransactionPrice(`${symbol}.TW`, 'tw');
                 } else {
                     if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
@@ -193,7 +193,7 @@
         }, 500);
     }
 
-    // 🔧 新增：獲取最後一筆交易價格（自動填入）
+    // 新增：獲取最後一筆交易價格（自動填入）
     async function fetchLastTransactionPrice(symbol, market) {
         try {
             const res = await apiRequest(`/api/portfolio/transactions/last-price/${symbol}`);
@@ -212,7 +212,7 @@
         }
     }
 
-    // 🆕 V1.09 手動複製上次台股價格
+    // V1.09 手動複製上次台股價格
     async function copyLastTwPrice() {
         const rawSymbol = $('twSymbol')?.value?.trim();
         if (!rawSymbol) {
@@ -241,7 +241,7 @@
         }
     }
 
-    // 🆕 V1.09 手動複製上次美股價格
+    // V1.09 手動複製上次美股價格
     async function copyLastUsPrice() {
         const symbol = $('usSymbol')?.value?.trim().toUpperCase();
         if (!symbol) {
@@ -272,16 +272,16 @@
     async function submitTwTransaction() {
         const editId = $('twEditId')?.value;
         const rawSymbol = $('twSymbol')?.value?.trim();
-        const symbol = rawSymbol ? `${rawSymbol}.TW` : '';  // 🔧 加上 .TW 後綴
+        const symbol = rawSymbol ? `${rawSymbol}.TW` : '';  // 加上 .TW 後綴
         const name = $('twName')?.value?.trim();
         const type = $('twType')?.value;
         const quantity = parseInt($('twQuantity')?.value) || 0;
         const price = parseFloat($('twPrice')?.value) || 0;
-        const fee = 0;  // 🔧 忽略手續費
-        const tax = 0;  // 🔧 忽略交易稅
+        const fee = 0;  // 忽略手續費
+        const tax = 0;  // 忽略交易稅
         const date = $('twDate')?.value;
         const note = $('twNote')?.value?.trim();
-        const brokerId = $('twBroker')?.value;  // 🔧 券商 ID
+        const brokerId = $('twBroker')?.value;  // 券商 ID
 
         if (!symbol || quantity <= 0 || price <= 0) {
             showToast('請填寫完整資料');
@@ -291,7 +291,7 @@
         const body = {
             symbol,
             name,
-            market: 'tw',  // ✅ 必填：市場類型
+            market: 'tw',  // 必填：市場類型
             transaction_type: type,
             quantity,
             price,
@@ -299,7 +299,7 @@
             tax,
             transaction_date: date,
             note,
-            broker_id: brokerId && brokerId !== '__new__' ? parseInt(brokerId) : null  // 🔧 加入券商
+            broker_id: brokerId && brokerId !== '__new__' ? parseInt(brokerId) : null  // 加入券商
         };
 
         try {
@@ -322,7 +322,7 @@
                 showToast(editId ? '交易已更新' : '交易已新增');
                 closeTwModal();
 
-                // ✅ P4: 清除 AppState 快取
+                // P4: 清除 AppState 快取
                 if (window.AppState) {
                     AppState.set('portfolioLoaded', false);
                 }
@@ -401,7 +401,7 @@
         $('usDate').value = new Date().toISOString().split('T')[0];
         $('usNote').value = '';
 
-        // 🔧 載入券商列表
+        // 載入券商列表
         loadBrokers();
 
         const modal = $('usTransactionModal');
@@ -453,20 +453,20 @@
             if (!symbol || symbol.length < 1) return;
 
             try {
-                // 🔧 修正：使用正確的 API 路徑
+                // 修正：使用正確的 API 路徑
                 const res = await apiRequest(`/api/stock/${symbol}`);
                 const data = await res.json();
 
                 const nameDisplay = $('usNameDisplay');
                 const nameInput = $('usName');
 
-                // 🔧 修正：從回傳資料取得名稱
+                // 修正：從回傳資料取得名稱
                 const stockName = data.name || data.data?.name;
                 if (data.success && stockName) {
                     if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${stockName}</span>`;
                     if (nameInput) nameInput.value = stockName;
                     
-                    // 🔧 查詢該股票最後一筆交易價格
+                    // 查詢該股票最後一筆交易價格
                     fetchLastTransactionPrice(symbol, 'us');
                 } else {
                     if (nameDisplay) nameDisplay.innerHTML = '<span class="text-gray-400">查無資料</span>';
@@ -486,11 +486,11 @@
         const type = $('usType')?.value;
         const quantity = parseFloat($('usQuantity')?.value) || 0;
         const price = parseFloat($('usPrice')?.value) || 0;
-        const fee = 0;  // 🔧 忽略手續費
-        const tax = 0;  // 🔧 忽略交易稅
+        const fee = 0;  // 忽略手續費
+        const tax = 0;  // 忽略交易稅
         const date = $('usDate')?.value;
         const note = $('usNote')?.value?.trim();
-        const brokerId = $('usBroker')?.value;  // 🔧 券商 ID
+        const brokerId = $('usBroker')?.value;  // 券商 ID
 
         if (!symbol || quantity <= 0 || price <= 0) {
             showToast('請填寫完整資料');
@@ -500,7 +500,7 @@
         const body = {
             symbol,
             name,
-            market: 'us',  // ✅ 必填：市場類型
+            market: 'us',  // 必填：市場類型
             transaction_type: type,
             quantity,
             price,
@@ -508,7 +508,7 @@
             tax,
             transaction_date: date,
             note,
-            broker_id: brokerId && brokerId !== '__new__' ? parseInt(brokerId) : null  // 🔧 加入券商
+            broker_id: brokerId && brokerId !== '__new__' ? parseInt(brokerId) : null  // 加入券商
         };
 
         try {
@@ -531,7 +531,7 @@
                 showToast(editId ? '交易已更新' : '交易已新增');
                 closeUsModal();
 
-                // ✅ P4: 清除 AppState 快取
+                // P4: 清除 AppState 快取
                 if (window.AppState) {
                     AppState.set('portfolioLoaded', false);
                 }
@@ -653,11 +653,11 @@
 
     window.quickTrade = quickTrade;
 
-    // 🔧 券商相關函數
+    // 券商相關函數
     window.loadBrokers = loadBrokers;
     window.handleBrokerChange = handleBrokerChange;
 
-    // 🆕 V1.09 複製上次價格
+    // V1.09 複製上次價格
     window.copyLastTwPrice = copyLastTwPrice;
     window.copyLastUsPrice = copyLastUsPrice;
 

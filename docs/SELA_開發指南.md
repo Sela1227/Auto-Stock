@@ -1,4 +1,6 @@
-# 🔧 SELA 開發指南
+> 歷史文件（V0.x–V1.0 時期），現況以根目錄 CLAUDE.md 為準。
+
+# SELA 開發指南
 
 > 版本: 2.0  
 > 最後更新: 2026-01-17  
@@ -29,12 +31,12 @@
 
 **修復**:
 ```javascript
-// ❌ 錯誤
+// ✗ 錯誤
 function showSection(name) {
     event.target.closest('.nav-link').classList.add('bg-blue-50');
 }
 
-// ✅ 正確 - event 改為可選參數
+// ✓ 正確 - event 改為可選參數
 function showSection(name, evt) {
     // ...
     if (evt && evt.target) {
@@ -57,10 +59,10 @@ function showSection(name, evt) {
 
 **修復**:
 ```javascript
-// ❌ 錯誤
+// ✗ 錯誤
 updateSentimentCard('stock', data.data.stock);
 
-// ✅ 正確 - 符合 API 實際返回格式
+// ✓ 正確 - 符合 API 實際返回格式
 updateSentimentCard('stock', data.stock);
 ```
 
@@ -79,18 +81,18 @@ updateSentimentCard('stock', data.stock);
 
 ### 1.2 後端 Bug
 
-#### Bug 5: 技術指標欄位名大小寫不一致（重要⚠️）
+#### Bug 5: 技術指標欄位名大小寫不一致（重要⚠）
 
 **問題**: `indicator_service.py` 用小寫，但 `routers` 讀取用大寫
 
 **修復**:
 ```python
-# ❌ 錯誤 (routers/stock.py)
+# ✗ 錯誤 (routers/stock.py)
 ma20 = float(latest.get('MA20', 0))
 rsi_value = float(latest.get('RSI', 50))
 macd_dif = float(latest.get('MACD_DIF', 0))
 
-# ✅ 正確 - 使用小寫
+# ✓ 正確 - 使用小寫
 ma20 = float(latest.get('ma20', 0)) if 'ma20' in latest else None
 rsi_value = float(latest.get('rsi', 50)) if 'rsi' in latest else 50
 macd_dif = float(latest.get('macd_dif', 0)) if 'macd_dif' in latest else 0
@@ -107,11 +109,11 @@ macd_dif = float(latest.get('macd_dif', 0)) if 'macd_dif' in latest else 0
 #### Bug 6: data_sources 方法名稱錯誤
 
 ```python
-# ❌ 錯誤
+# ✗ 錯誤
 df = yahoo_finance.get_stock_data(symbol)      # 不存在
 df = coingecko.get_historical_data(symbol)     # 不存在
 
-# ✅ 正確
+# ✓ 正確
 df = yahoo_finance.get_stock_history(symbol, period="1y")
 df = coingecko.get_ohlc(symbol, days=365)
 ```
@@ -125,11 +127,11 @@ df = coingecko.get_ohlc(symbol, days=365)
 #### Bug 7: AsyncSession 缺少 await
 
 ```python
-# ❌ 錯誤
+# ✗ 錯誤
 settings = db.execute(stmt).scalar_one_or_none()
 db.commit()
 
-# ✅ 正確
+# ✓ 正確
 result = await db.execute(stmt)
 settings = result.scalar_one_or_none()
 await db.commit()
@@ -147,10 +149,10 @@ await db.commit()
 
 1. 修改路由定義:
 ```python
-# ❌ 原本
+# ✗ 原本
 @router.get("/{symbol}", summary="查詢股票")
 
-# ✅ 改為
+# ✓ 改為
 @router.get("/{symbol:path}", summary="查詢股票")
 ```
 
@@ -215,10 +217,10 @@ ModuleNotFoundError: No module named 'app.services.index_service'
 ### 2.2 DOM 快取查詢 (P0)
 
 ```javascript
-// ❌ 舊寫法 - 每次都查詢 DOM
+// ✗ 舊寫法 - 每次都查詢 DOM
 const el = document.getElementById('userName');
 
-// ✅ 新寫法 - 快取查詢結果
+// ✓ 新寫法 - 快取查詢結果
 const el = $('userName');
 
 // 強制重新查詢（DOM 結構變化後）
@@ -231,12 +233,12 @@ const el = $q('.my-class');
 ### 2.3 批量更新 (P0)
 
 ```javascript
-// ❌ 舊寫法 - 多次觸發重排
+// ✗ 舊寫法 - 多次觸發重排
 document.getElementById('price').textContent = '100';
 document.getElementById('price').classList.add('green');
 document.getElementById('change').textContent = '+5%';
 
-// ✅ 新寫法 - 一次 requestAnimationFrame 內完成
+// ✓ 新寫法 - 一次 requestAnimationFrame 內完成
 batchUpdate([
     { id: 'price', prop: 'textContent', value: '100' },
     { id: 'price', classList: { add: ['green'] } },
@@ -278,10 +280,10 @@ AppState.on('currentStock', (newStock, oldStock) => {
 ### 2.5 事件委託 (P2-P4)
 
 ```html
-<!-- ❌ 舊寫法 - 每個按鈕都有 onclick -->
+<!-- ✗ 舊寫法 - 每個按鈕都有 onclick -->
 <button onclick="removeFromWatchlist('AAPL')">刪除</button>
 
-<!-- ✅ 新寫法 - 使用 data-action -->
+<!-- ✓ 新寫法 - 使用 data-action -->
 <button data-action="remove" data-symbol="AAPL">刪除</button>
 ```
 
@@ -519,14 +521,14 @@ async def get_admin_user(
 **刪除重複的認證函數，改為 import**:
 
 ```python
-# ❌ 刪除這整段
+# ✗ 刪除這整段
 async def get_current_user(
     request: Request,
     db: AsyncSession = Depends(get_async_session),
 ) -> User:
     ...
 
-# ✅ 加入這行
+# ✓ 加入這行
 from app.dependencies import get_current_user, get_admin_user, get_optional_user
 ```
 
@@ -669,7 +671,7 @@ function showSection(name, evt) {
 "chart_data": {
     "dates": [str(d) for d in df['date'].tail(1500).tolist()],
     "prices": [float(p) for p in df['close'].tail(1500).tolist()],
-    "volumes": [int(v) if not pd.isna(v) else 0 for v in df['volume'].tail(1500).tolist()] if 'volume' in df.columns else [],  # 🆕
+    "volumes": [int(v) if not pd.isna(v) else 0 for v in df['volume'].tail(1500).tolist()] if 'volume' in df.columns else [],  # 
     "ma20": [...],
     "ma50": [...],
     "ma200": [...],
@@ -774,7 +776,7 @@ http://localhost:8000/auth/line/callback
 
 ```javascript
 // 善用 console.log 加上前綴
-console.log('📊 [FINAL] _render days=' + days);
+console.log('[FINAL] _render days=' + days);
 
 // 檢查數據是否正確傳遞
 console.log(window.currentChartData);

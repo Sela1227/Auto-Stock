@@ -1,4 +1,6 @@
-# 🚀 SELA 部署與運維指南
+> 歷史文件（V0.x–V1.0 時期），現況以根目錄 CLAUDE.md 為準。
+
+# SELA 部署與運維指南
 
 > 版本: 2.0  
 > 最後更新: 2026-01-17  
@@ -59,7 +61,7 @@ http://localhost:8000/auth/line/callback
 
 ### 2.1 重要限制
 
-⚠️ **Railway 一般用戶無法直接執行 SQL**
+⚠ **Railway 一般用戶無法直接執行 SQL**
 
 所有資料庫遷移必須透過 `database.py` 的 `run_migrations()` 函數自動執行。
 

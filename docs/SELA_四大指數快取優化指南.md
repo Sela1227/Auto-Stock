@@ -1,6 +1,8 @@
+> 歷史文件（V0.x–V1.0 時期），現況以根目錄 CLAUDE.md 為準。
+
 # SELA 四大指數快取優化
 
-## 📋 修改目標
+## 修改目標
 
 | 項目 | 原本 | 修改後 |
 |------|------|--------|
@@ -10,7 +12,7 @@
 
 ---
 
-## 🔧 修改步驟
+## 修改步驟
 
 ### 方法一：使用腳本（推薦）
 
@@ -50,10 +52,10 @@ git push origin main
                 
                 if latest:
                     result[symbol] = latest.to_dict()
-                    logger.debug(f"📦 指數快取: {symbol} = {latest.close}")
+                    logger.debug(f"指數快取: {symbol} = {latest.close}")
                 else:
                     # 沒有快取時回傳 None，不查 API
-                    logger.warning(f"⚠️ 指數 {symbol} 無快取資料，請執行更新")
+                    logger.warning(f"⚠ 指數 {symbol} 無快取資料，請執行更新")
                     result[symbol] = {
                         "symbol": symbol,
                         "name": info["name"],
@@ -80,18 +82,18 @@ git push origin main
 
 ---
 
-## ✅ 驗證
+## ✓ 驗證
 
 部署後進入儀表板，檢查 Railway log：
 
 ```
-✅ 應該看到: 📦 指數快取: ^GSPC = 5930.85
-❌ 不應看到: 從 API 取得 ^GSPC
+✓ 應該看到: 指數快取: ^GSPC = 5930.85
+✗ 不應看到: 從 API 取得 ^GSPC
 ```
 
 ---
 
-## 📝 注意事項
+## 注意事項
 
 1. **首次部署**：如果資料庫沒有指數資料，儀表板會顯示「--」
 2. **手動更新**：管理員面板點擊「更新指數」可手動觸發

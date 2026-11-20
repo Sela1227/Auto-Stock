@@ -2,7 +2,7 @@
 資料庫優化索引遷移腳本
 執行方式: python -m migrations.add_optimized_indexes
 
-🔧 優化版本 - 2026-04-06
+優化版本 - 2026-04-06
 """
 import os
 import sys
@@ -131,16 +131,16 @@ def run_migration():
                 db.execute(text(idx['sql']))
                 db.commit()
                 
-                logger.info(f"  ✅ 成功創建或已存在")
+                logger.info(f"  成功創建或已存在")
                 success_count += 1
                 
             except Exception as e:
                 error_msg = str(e).lower()
                 if 'already exists' in error_msg or 'duplicate' in error_msg:
-                    logger.info(f"  ⏭️ 索引已存在，跳過")
+                    logger.info(f"  索引已存在，跳過")
                     skip_count += 1
                 else:
-                    logger.error(f"  ❌ 創建失敗: {e}")
+                    logger.error(f"  創建失敗: {e}")
                     fail_count += 1
                 db.rollback()
         
@@ -148,15 +148,15 @@ def run_migration():
         logger.info("\n" + "=" * 60)
         logger.info("遷移完成摘要")
         logger.info("=" * 60)
-        logger.info(f"  ✅ 成功: {success_count}")
-        logger.info(f"  ⏭️ 跳過: {skip_count}")
-        logger.info(f"  ❌ 失敗: {fail_count}")
-        logger.info(f"  📊 總計: {len(OPTIMIZED_INDEXES)}")
+        logger.info(f"  成功: {success_count}")
+        logger.info(f"  跳過: {skip_count}")
+        logger.info(f"  失敗: {fail_count}")
+        logger.info(f"  總計: {len(OPTIMIZED_INDEXES)}")
         
         if fail_count == 0:
-            logger.info("\n🎉 所有索引處理完成！")
+            logger.info("\n所有索引處理完成！")
         else:
-            logger.warning(f"\n⚠️ 有 {fail_count} 個索引創建失敗，請檢查日誌")
+            logger.warning(f"\n⚠ 有 {fail_count} 個索引創建失敗，請檢查日誌")
         
     finally:
         db.close()

@@ -174,7 +174,7 @@
             </div>`,
 
         subscription: `<div class="flex items-center justify-between mb-4 md:mb-6">
-                <h2 class="text-xl md:text-2xl font-bold text-gray-800">📡 訂閱精選</h2>
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800"><i class="fas fa-satellite-dish mr-2"></i>訂閱精選</h2>
                 <button onclick="refreshSubscriptionPicks()" class="text-gray-500 hover:text-gray-700 p-2" title="重新整理"><i class="fas fa-sync-alt"></i></button>
             </div>
             <div id="subscriptionSourcesCard" class="bg-white rounded-xl shadow p-4 md:p-6 mb-4">

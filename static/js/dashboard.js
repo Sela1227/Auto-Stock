@@ -393,7 +393,7 @@
     }
     
     // ============================================================
-    // 🆕 熱門追蹤統計
+    // 熱門追蹤統計
     // ============================================================
     
     async function loadPopularStocks() {
@@ -434,13 +434,12 @@
             <div class="space-y-2">
                 ${stocks.map((stock, index) => {
                     const barWidth = Math.max(20, (stock.count / maxCount) * 100);
-                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
-                    const bgClass = index < 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50' : 'bg-gray-50';
+                                        const bgClass = index < 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50' : 'bg-gray-50';
                     
                     return `
                         <div class="flex items-center p-2 rounded-lg ${bgClass} hover:shadow-sm transition cursor-pointer" 
                              onclick="searchSymbol('${stock.symbol}')">
-                            <span class="w-6 text-center text-sm">${medal || (index + 1)}</span>
+                            <span class="w-6 text-center text-sm ${index < 3 ? 'font-bold text-orange-600' : 'text-gray-500'}">${index + 1}</span>
                             <div class="flex-1 ml-2">
                                 <div class="flex items-center justify-between">
                                     <span class="font-medium text-gray-800 text-sm">${stock.symbol}</span>
@@ -465,7 +464,7 @@
     // ============================================================
     
     async function loadDashboard() {
-        // 🆕 V1.07 並行載入（不互相等待）
+        // V1.07 並行載入（不互相等待）
         const tasks = [
             loadSentiment(),
             loadIndices(),
@@ -618,7 +617,7 @@
     window.loadIndices = loadIndices;
     window.loadSentiment = loadSentiment;
     window.loadSentimentDetail = loadSentimentDetail;
-    window.loadPopularStocks = loadPopularStocks;  // 🆕
+    window.loadPopularStocks = loadPopularStocks;  // 
     window.openIndexModal = openIndexModal;
     window.closeIndexModal = closeIndexModal;
     window.loadIndexModalChart = loadIndexModalChart;

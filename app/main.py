@@ -2,7 +2,7 @@
 FastAPI 主程式
 股票技術分析系統 API
 
-🚀 V1.02 極簡排程版 - 2026-04-07
+V1.02 極簡排程版 - 2026-04-07
 - 移除所有自動更新排程
 - 價格查詢改為純即時查（用戶查才查）
 - 每天只預查一次（美股開盤前 21:00）
@@ -91,40 +91,40 @@ def sync_db_session():
 def update_exchange_rate():
     """更新匯率"""
     from app.services.exchange_rate_service import ExchangeRateService
-    logger.info("⏰ [排程] 更新匯率...")
+    logger.info("[排程] 更新匯率...")
     try:
         with sync_db_session() as db:
             rate = ExchangeRateService(db).update_usd_twd_rate()
             if rate:
-                logger.info(f"✅ 匯率更新成功: USD/TWD = {rate}")
+                logger.info(f"匯率更新成功: USD/TWD = {rate}")
             else:
-                logger.warning("⚠️ 匯率更新失敗")
+                logger.warning("⚠ 匯率更新失敗")
     except Exception as e:
-        logger.error(f"❌ 匯率更新錯誤: {e}")
+        logger.error(f"匯率更新錯誤: {e}")
 
 
 def update_market_sentiment():
     """更新市場情緒（存入 DB）"""
     from app.services.market_service import MarketService
-    logger.info("⏰ [排程] 更新市場情緒...")
+    logger.info("[排程] 更新市場情緒...")
     try:
         with sync_db_session() as db:
             result = MarketService(db).update_today_sentiment()
-            logger.info(f"✅ 情緒更新: stock={result.get('stock')}, crypto={result.get('crypto')}")
+            logger.info(f"情緒更新: stock={result.get('stock')}, crypto={result.get('crypto')}")
     except Exception as e:
-        logger.error(f"❌ 情緒更新錯誤: {e}")
+        logger.error(f"情緒更新錯誤: {e}")
 
 
 def update_indices():
     """更新四大指數"""
     from app.services.market_service import MarketService
-    logger.info("⏰ [排程] 更新四大指數...")
+    logger.info("[排程] 更新四大指數...")
     try:
         with sync_db_session() as db:
             result = MarketService(db).fetch_and_save_all_indices(period="5d")
-            logger.info(f"✅ 指數更新完成: {result}")
+            logger.info(f"指數更新完成: {result}")
     except Exception as e:
-        logger.error(f"❌ 指數更新錯誤: {e}")
+        logger.error(f"指數更新錯誤: {e}")
 
 
 def update_all_stock_prices():
@@ -133,13 +133,13 @@ def update_all_stock_prices():
     V1.14.0 起改為每日批次，不再依賴管理員登入觸發
     """
     from app.services.price_cache_service import PriceCacheService
-    logger.info("⏰ [排程] 股價全量更新...")
+    logger.info("[排程] 股價全量更新...")
     try:
         with sync_db_session() as db:
             result = PriceCacheService(db).update_all_prices(force=True)
-            logger.info(f"✅ 股價更新完成: {result}")
+            logger.info(f"股價更新完成: {result}")
     except Exception as e:
-        logger.error(f"❌ 股價更新錯誤: {e}")
+        logger.error(f"股價更新錯誤: {e}")
 
 
 def daily_preload():
@@ -158,52 +158,52 @@ def daily_preload():
     - 匯率
     - 技術指標預計算
     """
-    logger.info("⏰ [排程] === 每日批次更新開始（06:00）===")
+    logger.info("[排程] === 每日批次更新開始（06:00）===")
     try:
         update_all_stock_prices()
         update_market_sentiment()
         update_indices()
         update_exchange_rate()
         precompute_indicators()
-        logger.info("✅ [排程] === 每日批次更新完成 ===")
+        logger.info("[排程] === 每日批次更新完成 ===")
     except Exception as e:
-        logger.error(f"❌ 每日批次更新錯誤: {e}")
+        logger.error(f"每日批次更新錯誤: {e}")
 
 
 def precompute_indicators():
     """V1.05 預計算追蹤清單股票的技術指標"""
     from app.services.analysis_cache_service import AnalysisCacheService
-    logger.info("⏰ [排程] 預計算技術指標...")
+    logger.info("[排程] 預計算技術指標...")
     try:
         with sync_db_session() as db:
             result = AnalysisCacheService(db).precompute_indicators_for_watchlist()
-            logger.info(f"✅ 指標預計算: 成功 {result['success']}, 失敗 {result['failed']}")
+            logger.info(f"指標預計算: 成功 {result['success']}, 失敗 {result['failed']}")
     except Exception as e:
-        logger.error(f"❌ 指標預計算錯誤: {e}")
+        logger.error(f"指標預計算錯誤: {e}")
 
 
 def clear_expired_caches():
     """V1.05 清除過期快取"""
     from app.services.analysis_cache_service import AnalysisCacheService
-    logger.info("⏰ [排程] 清除過期快取...")
+    logger.info("[排程] 清除過期快取...")
     try:
         with sync_db_session() as db:
             result = AnalysisCacheService(db).clear_expired_caches()
-            logger.info(f"✅ 快取清除: {result}")
+            logger.info(f"快取清除: {result}")
     except Exception as e:
-        logger.error(f"❌ 快取清除錯誤: {e}")
+        logger.error(f"快取清除錯誤: {e}")
 
 
 def fetch_subscription_sources():
     """抓取訂閱源"""
     from app.services.subscription_service import SubscriptionService
-    logger.info("⏰ [排程] 抓取訂閱源...")
+    logger.info("[排程] 抓取訂閱源...")
     try:
         with sync_db_session() as db:
             result = SubscriptionService(db).fetch_all_sources()
-            logger.info(f"✅ 訂閱源抓取完成: {result}")
+            logger.info(f"訂閱源抓取完成: {result}")
     except Exception as e:
-        logger.error(f"❌ 訂閱源抓取錯誤: {e}")
+        logger.error(f"訂閱源抓取錯誤: {e}")
 
 
 # ============================================================
@@ -223,7 +223,7 @@ async def lifespan(app: FastAPI):
         safe_url = database_url.split("@")[-1] if "@" in database_url else database_url
         logger.info(f"★★★ Database Host: {safe_url} ★★★")
     else:
-        logger.warning("⚠️ 使用 SQLite！資料會在重新部署後遺失！")
+        logger.warning("⚠ 使用 SQLite！資料會在重新部署後遺失！")
 
     await init_db()
     logger.info("Database initialized")
@@ -262,9 +262,9 @@ async def lifespan(app: FastAPI):
 
     # 啟動排程器
     scheduler.start()
-    logger.info("✅ 排程器已啟動（V1.14.0：每日 06:00 單一批次 + 03:00 快取清除）")
+    logger.info("排程器已啟動（V1.14.0：每日 06:00 單一批次 + 03:00 快取清除）")
 
-    logger.info("🆕 啟動時不自動更新，完全依賴排程和用戶查詢")
+    logger.info("啟動時不自動更新，完全依賴排程和用戶查詢")
 
     yield
 
@@ -278,11 +278,11 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="""
-## 📈 AutoStock 自動選股系統 API
+## AutoStock 自動選股系統 API
 
 多用戶股票與加密貨幣技術分析平台
 
-### 🆕 V1.02 優化
+### V1.02 優化
 - 極簡排程：每日預載 21:00（美股開盤前）
 - 即時查詢：用戶查才查，不預先更新
 - 內存快取：60 秒過期，避免重複查詢
@@ -343,6 +343,12 @@ async def health_check():
     }
 
 
+@app.get("/_health", tags=["系統"], include_in_schema=False)
+async def public_health():
+    """賈維斯巡邏讀版號用：免登入、只回版號，不帶任何資料"""
+    return {"ok": True, "version": settings.APP_VERSION}
+
+
 @app.get("/api/version", tags=["系統"])
 async def get_version():
     """取得版本資訊"""
@@ -350,6 +356,7 @@ async def get_version():
         "version": settings.APP_VERSION,
         "app": settings.APP_NAME,
         "features": [
+            "V1.15.0: 對齊 SELA Starter Kit V4.16.0",
             "V1.14.0: 排程簡化為每日 06:00 單一批次",
             "V1.12.3: 修復情緒指數顯示",
             "V1.12.2: JS 語法修復、資安強化",

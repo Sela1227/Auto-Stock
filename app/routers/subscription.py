@@ -1,6 +1,6 @@
 """
 訂閱精選 API 路由
-🔧 P0修復：使用統一認證模組
+P0修復：使用統一認證模組
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -13,7 +13,7 @@ from app.services.subscription_service import SubscriptionService
 from app.models.subscription import SubscriptionSource, AutoPick
 from app.models.price_cache import StockPriceCache
 
-# 🔧 使用統一認證模組
+# 使用統一認證模組
 from app.dependencies import get_current_user, get_admin_user
 
 logger = logging.getLogger(__name__)

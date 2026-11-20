@@ -20,7 +20,7 @@
             <div id="chartFullscreen" class="chart-fullscreen">
                 <div class="chart-container h-full flex flex-col">
                     <div class="rotate-banner">
-                        📱 橫向放置手機可獲得更好的圖表體驗
+                        <i class="fas fa-mobile-screen mr-2"></i>橫向放置手機可獲得更好的圖表體驗
                     </div>
                     <div class="flex items-center justify-between p-3 border-b bg-white">
                         <button onclick="closeChartFullscreen()" class="p-2 text-gray-600 touch-target">
@@ -50,7 +50,7 @@
             <div id="indexChartModal" class="chart-fullscreen">
                 <div class="chart-container h-full flex flex-col">
                     <div class="rotate-banner">
-                        📱 橫向放置手機可獲得更好的圖表體驗
+                        <i class="fas fa-mobile-screen mr-2"></i>橫向放置手機可獲得更好的圖表體驗
                     </div>
                     <div class="flex items-center justify-between p-3 border-b bg-white">
                         <button onclick="closeIndexModal()" class="p-2 text-gray-600 touch-target">
@@ -77,7 +77,7 @@
             <div id="sentimentChartModal" class="chart-fullscreen">
                 <div class="chart-container h-full flex flex-col">
                     <div class="rotate-banner">
-                        📱 橫向放置手機可獲得更好的圖表體驗
+                        <i class="fas fa-mobile-screen mr-2"></i>橫向放置手機可獲得更好的圖表體驗
                     </div>
                     <div class="flex items-center justify-between p-3 border-b bg-white">
                         <button onclick="closeSentimentModal()" class="p-2 text-gray-600 touch-target">

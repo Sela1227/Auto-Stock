@@ -6,7 +6,7 @@
  * - API 請求
  * - 快取管理
  * 
- * ⭐ 效能優化：
+ * 效能優化：
  * - 快取時間延長到 30 分鐘
  * - 使用 sessionStorage 持久化（頁面刷新後保留）
  * - 當日有效期判斷
@@ -23,7 +23,7 @@
     // ============================================================
     
     const stockCache = new Map();
-    const CACHE_TTL = 30 * 60 * 1000; // ⭐ 延長到 30 分鐘
+    const CACHE_TTL = 30 * 60 * 1000; // 延長到 30 分鐘
     const STORAGE_KEY = 'sela_stock_cache';
 
     /**

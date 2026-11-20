@@ -42,7 +42,7 @@ class PortfolioService:
         fee: float = 0,
         tax: float = 0,
         note: Optional[str] = None,
-        broker_id: Optional[int] = None,  # ✅ 新增：券商 ID
+        broker_id: Optional[int] = None,  # 新增：券商 ID
     ) -> PortfolioTransaction:
         """新增交易紀錄"""
         
@@ -83,7 +83,7 @@ class PortfolioService:
             tax=Decimal(str(tax)) if tax else Decimal("0"),
             transaction_date=transaction_date,
             note=note,
-            broker_id=broker_id,  # ✅ 新增：券商 ID
+            broker_id=broker_id,  # 新增：券商 ID
         )
         
         self.db.add(transaction)
@@ -162,7 +162,7 @@ class PortfolioService:
         allowed_fields = {
             'symbol', 'name', 'market', 'transaction_type',
             'quantity', 'price', 'fee', 'tax', 'transaction_date', 'note',
-            'broker_id'  # ✅ 修復：原本漏掉，導致修改券商時 silent ignore
+            'broker_id'  # 修復：原本漏掉，導致修改券商時 silent ignore
         }
         
         for key, value in kwargs.items():

@@ -1,6 +1,8 @@
+> 歷史文件（V0.x–V1.0 時期），現況以根目錄 CLAUDE.md 為準。
+
 # SELA 快取優化（四大指數 + 恐懼貪婪指數）
 
-## 📋 修改目標
+## 修改目標
 
 | 項目 | 原本 | 修改後 |
 |------|------|--------|
@@ -10,7 +12,7 @@
 
 ---
 
-## 🔧 修改步驟
+## 修改步驟
 
 ### 方法一：使用腳本（推薦）
 
@@ -37,7 +39,7 @@ git push origin main
 
 ```python
     def get_latest_indices(self) -> Dict[str, Any]:
-        """取得四大指數最新資料（🆕 只從資料庫讀取，排程才更新）"""
+        """取得四大指數最新資料（只從資料庫讀取，排程才更新）"""
         result = {}
         
         for symbol, info in INDEX_SYMBOLS.items():
@@ -52,10 +54,10 @@ git push origin main
                 
                 if latest:
                     result[symbol] = latest.to_dict()
-                    logger.debug(f"📦 指數快取: {symbol} = {latest.close}")
+                    logger.debug(f"指數快取: {symbol} = {latest.close}")
                 else:
-                    # 🆕 沒有快取時回傳 None，不查 API
-                    logger.warning(f"⚠️ 指數 {symbol} 無快取資料，請執行更新")
+                    # 沒有快取時回傳 None，不查 API
+                    logger.warning(f"⚠ 指數 {symbol} 無快取資料，請執行更新")
                     result[symbol] = {
                         "symbol": symbol,
                         "name": info["name"],
@@ -89,7 +91,7 @@ git push origin main
 ```python
     def get_latest_sentiment(self) -> Dict[str, Any]:
         """
-        取得最新的市場情緒（🆕 只從資料庫讀取，排程才更新）
+        取得最新的市場情緒（只從資料庫讀取，排程才更新）
         
         - 只從資料庫讀取，不主動查外部 API
         - 資料庫沒有或過期時回傳 None
@@ -109,10 +111,10 @@ git push origin main
                 
                 if latest:
                     result[market] = latest.to_dict()
-                    logger.debug(f"📦 情緒快取: {market} = {latest.value}")
+                    logger.debug(f"情緒快取: {market} = {latest.value}")
                 else:
-                    # 🆕 沒有快取時回傳 None，不查 API
-                    logger.warning(f"⚠️ 情緒 {market} 無快取資料，請執行更新")
+                    # 沒有快取時回傳 None，不查 API
+                    logger.warning(f"⚠ 情緒 {market} 無快取資料，請執行更新")
                     result[market] = {
                         "market": market,
                         "value": None,
@@ -133,19 +135,19 @@ git push origin main
 
 ---
 
-## ✅ 驗證
+## ✓ 驗證
 
 部署後進入儀表板，檢查 Railway log：
 
 ```
-✅ 應該看到: 📦 指數快取: ^GSPC = 5930.85
-✅ 應該看到: 📦 情緒快取: stock = 45
-❌ 不應看到: 從 API 取得 / 從 API 更新成功
+✓ 應該看到: 指數快取: ^GSPC = 5930.85
+✓ 應該看到: 情緒快取: stock = 45
+✗ 不應看到: 從 API 取得 / 從 API 更新成功
 ```
 
 ---
 
-## 📝 注意事項
+## 注意事項
 
 1. **首次部署**：如果資料庫沒有資料，儀表板會顯示「--」或「無資料」
 2. **手動更新**：管理員面板可手動觸發更新

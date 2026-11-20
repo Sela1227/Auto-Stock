@@ -1,7 +1,7 @@
 /**
  * 搜尋結果渲染模組 (修復版 2026-01-17)
  * 
- * 🔧 修復：
+ * 修復：
  * 1. 時間範圍按鈕無法點擊 - 使用 onclick 直接綁定
  * 2. 圖例無法點擊切換 - 啟用 Chart.js legend onClick
  * 3. 圖表右邊空白太小 - 增加 layout.padding
@@ -202,7 +202,7 @@
     }
 
     // ============================================================
-    // 🔧 修復：全螢幕圖表（使用正確的 ID）
+    // 修復：全螢幕圖表（使用正確的 ID）
     // ============================================================
 
     function openChartFullscreen(symbol, currentPrice) {
@@ -214,14 +214,14 @@
             return;
         }
 
-        // 🔧 使用正確的 ID: chartFullscreen
+        // 使用正確的 ID: chartFullscreen
         const modal = $('chartFullscreen');
         if (!modal) {
             console.error('找不到 chartFullscreen 元素');
             return;
         }
 
-        // 🔧 使用正確的 ID: chartFullscreenTitle
+        // 使用正確的 ID: chartFullscreenTitle
         const title = $('chartFullscreenTitle');
         if (title) title.textContent = `${symbol} Technical Analysis`;
 
@@ -229,7 +229,7 @@
         modal.style.display = 'block';
         modal.classList.add('active');
 
-        // 🔧 更新按鈕狀態（預設 3M = 65天）
+        // 更新按鈕狀態（預設 3M = 65天）
         updateRangeButtonState(65);
 
         // 預設顯示 65 天 (3M)
@@ -249,7 +249,7 @@
         }
     }
 
-    // 🔧 新增：更新按鈕狀態
+    // 新增：更新按鈕狀態
     function updateRangeButtonState(days) {
         document.querySelectorAll('.chart-range-btn').forEach(btn => {
             const btnDays = parseInt(btn.dataset.days);
@@ -263,7 +263,7 @@
         });
     }
 
-    // 🔧 修復：設定圖表範圍（全域函數）
+    // 修復：設定圖表範圍（全域函數）
     window.setChartRange = function(days) {
         const chartData = window.currentChartData;
         if (!chartData) return;
@@ -273,7 +273,7 @@
     };
 
     // ============================================================
-    // 🔧 修復：渲染全螢幕圖表（增加右邊空白 + 圖例可點擊）
+    // 修復：渲染全螢幕圖表（增加右邊空白 + 圖例可點擊）
     // ============================================================
 
     function renderFullscreenChart(chartData, days = 65) {
@@ -385,10 +385,10 @@
                     mode: 'index',
                     intersect: false,
                 },
-                // 🔧 增加右邊空白
+                // 增加右邊空白
                 layout: {
                     padding: {
-                        right: 20,  // 🔧 增加右邊 padding
+                        right: 20,  // 增加右邊 padding
                         top: 10,
                         bottom: 10,
                         left: 10,
@@ -398,7 +398,7 @@
                     legend: {
                         display: true,
                         position: 'top',
-                        // 🔧 啟用圖例點擊切換顯示/隱藏
+                        // 啟用圖例點擊切換顯示/隱藏
                         onClick: function(e, legendItem, legend) {
                             const index = legendItem.datasetIndex;
                             const ci = legend.chart;
@@ -414,7 +414,7 @@
                             font: {
                                 size: 12,
                             },
-                            // 🔧 添加游標樣式提示可點擊
+                            // 添加游標樣式提示可點擊
                             generateLabels: function(chart) {
                                 const original = Chart.defaults.plugins.legend.labels.generateLabels;
                                 const labels = original.call(this, chart);
@@ -424,7 +424,7 @@
                                 return labels;
                             }
                         },
-                        // 🔧 滑鼠移上去顯示手指游標
+                        // 滑鼠移上去顯示手指游標
                         onHover: function(e) {
                             e.native.target.style.cursor = 'pointer';
                         },
@@ -462,7 +462,7 @@
                         },
                         ticks: {
                             font: { size: 10 },
-                            // 🔧 增加一些額外空間
+                            // 增加一些額外空間
                             padding: 8,
                         },
                     },

@@ -1,7 +1,7 @@
 """
 股票查詢 API 路由
 
-🚀 效能優化版 - 2026-01-17
+效能優化版 - 2026-01-17
 - 非開盤時間直接使用永久資料（不再呼叫 API）
 - 優先返回永久資料，體感速度大幅提升
 - 歷史資料存入 PostgreSQL
@@ -78,7 +78,7 @@ def _get_stock_df(symbol: str, years: int = 10, force_refresh: bool = False):
 
 def _get_stock_df_smart(symbol: str, years: int = 10, force_refresh: bool = False):
     """
-    🆕 智慧取得股票 DataFrame（效能優化版）
+    智慧取得股票 DataFrame（效能優化版）
     
     邏輯：
     1. 非開盤時間 + 有永久資料 → 直接用永久資料，不呼叫 API
@@ -106,14 +106,14 @@ def _get_stock_df_smart(symbol: str, years: int = 10, force_refresh: bool = Fals
         try:
             history_service = StockHistoryService(db)
             
-            # 🆕 非開盤時間，嘗試只讀取永久資料（不強制更新）
+            # 非開盤時間，嘗試只讀取永久資料（不強制更新）
             if not market_open and not force_refresh:
                 df, data_source = history_service.get_stock_history(
                     symbol, years=years, force_refresh=False
                 )
                 
                 if df is not None and not df.empty:
-                    logger.info(f"⚡ 非開盤時間，使用永久資料: {symbol} ({len(df)} 筆)")
+                    logger.info(f"非開盤時間，使用永久資料: {symbol} ({len(df)} 筆)")
                     return df, symbol, data_source, False
                 
                 # 嘗試上櫃
@@ -123,7 +123,7 @@ def _get_stock_df_smart(symbol: str, years: int = 10, force_refresh: bool = Fals
                         two_symbol, years=years, force_refresh=False
                     )
                     if df is not None and not df.empty:
-                        logger.info(f"⚡ 非開盤時間，使用永久資料: {two_symbol} ({len(df)} 筆)")
+                        logger.info(f"非開盤時間，使用永久資料: {two_symbol} ({len(df)} 筆)")
                         return df, two_symbol, data_source, False
             
             # 開盤時間或無資料，正常流程
@@ -156,7 +156,7 @@ def _get_stock_df_smart(symbol: str, years: int = 10, force_refresh: bool = Fals
 
 
 # ============================================================
-# 🔴 重要：靜態路由必須放在動態路由之前！
+# 重要：靜態路由必須放在動態路由之前！
 # ============================================================
 
 @router.get("/cache/stats", summary="快取統計")
@@ -199,7 +199,7 @@ async def compare_stocks(
             if symbol.startswith("^"):
                 df = yahoo_finance.get_index_data(symbol, period="2y")
             else:
-                # 🆕 使用智慧版本
+                # 使用智慧版本
                 df, symbol, _, _ = _get_stock_df_smart(symbol, years=2)
             
             if df is None or df.empty:
@@ -248,7 +248,7 @@ async def compare_stocks(
 
 
 # ============================================================
-# 🔴 帶路徑參數的子路由（必須在 /{symbol} 之前）
+# 帶路徑參數的子路由（必須在 /{symbol} 之前）
 # ============================================================
 
 @router.get("/{symbol}/returns", summary="年化報酬率")
@@ -263,7 +263,7 @@ async def get_stock_returns(symbol: str):
     symbol = normalize_tw_symbol(symbol)
     logger.info(f"計算年化報酬率: {symbol}")
     
-    # 🆕 使用智慧版本
+    # 使用智慧版本
     df, symbol, _, _ = _get_stock_df_smart(symbol, years=10, force_refresh=False)
     
     if df is None or df.empty:
@@ -357,7 +357,7 @@ async def get_stock_returns(symbol: str):
 @router.get("/{symbol}/chart", summary="圖表功能已移除")
 async def get_stock_chart(symbol: str):
     """
-    🆕 V1.08 此功能已移除
+    V1.08 此功能已移除
     
     圖表已改用前端 Chart.js 繪製，不再需要後端生成 PNG
     請使用前端圖表功能
@@ -388,7 +388,7 @@ async def clear_cache(symbol: str):
 
 
 # ============================================================
-# 🔴 最通用的路由放最後
+# 最通用的路由放最後
 # ============================================================
 
 @router.get("/{symbol}", summary="查詢股票")
@@ -399,14 +399,14 @@ async def get_stock_analysis(
     """
     查詢單一股票的技術分析報告
     
-    🆕 V1.05 快取優化：優先使用指標快取
+    V1.05 快取優化：優先使用指標快取
     """
     from app.data_sources.yahoo_finance import yahoo_finance
     from app.services.indicator_service import indicator_service
     from app.services.analysis_cache_service import AnalysisCacheService
     from app.database import SyncSessionLocal
     
-    # 🆕 V1.05 快取檢查
+    # V1.05 快取檢查
     if not refresh:
         try:
             sync_db = SyncSessionLocal()
@@ -415,7 +415,7 @@ async def get_stock_analysis(
             sync_db.close()
             
             if cached and cached.get("price"):
-                logger.info(f"📦 使用指標快取: {symbol}")
+                logger.info(f"使用指標快取: {symbol}")
                 return {"success": True, "data": {"symbol": symbol, "cached": True, **cached}}
         except Exception as e:
             logger.warning(f"快取讀取失敗: {e}")
@@ -427,11 +427,11 @@ async def get_stock_analysis(
     original_symbol = symbol
     logger.info(f"開始查詢股票: {symbol}, refresh={refresh}")
     
-    # 🆕 判斷市場狀態
+    # 判斷市場狀態
     market_open = is_market_open_for_symbol(symbol)
     logger.info(f"市場狀態: {'開盤' if market_open else '收盤'}")
     
-    # 🆕 使用智慧版本取得資料
+    # 使用智慧版本取得資料
     df, symbol, data_source, _ = _get_stock_df_smart(symbol, years=10, force_refresh=refresh)
     
     if df is None or df.empty:
@@ -454,7 +454,7 @@ async def get_stock_analysis(
         latest = df.iloc[-1]
         current_price = float(latest.get('close_raw', latest['close']))
         
-        # 🆕 非開盤時間，不呼叫 get_stock_info（避免 API 呼叫）
+        # 非開盤時間，不呼叫 get_stock_info（避免 API 呼叫）
         info = None
         if market_open or refresh:
             info = yahoo_finance.get_stock_info(symbol)
@@ -481,7 +481,7 @@ async def get_stock_analysis(
             elif current_price_adj < ma20 < ma50 < ma200:
                 alignment = "bearish"
         
-        # 🆕 MA 進階分析
+        # MA 進階分析
         ma_advanced = analyze_ma_advanced(df, current_price_adj)
         # 確保所有值都是 JSON 可序列化的類型
         def safe_value(v):
@@ -513,7 +513,7 @@ async def get_stock_analysis(
         else: sell_score += 1
         rating = "bullish" if buy_score > sell_score else "bearish" if sell_score > buy_score else "neutral"
         
-        # 🆕 取得名稱（優先從 info，其次從快取或對照表）
+        # 取得名稱（優先從 info，其次從快取或對照表）
         stock_name = ""
         if info:
             stock_name = info.get("name", "")
@@ -539,7 +539,7 @@ async def get_stock_analysis(
                         volume=volume_today, asset_type="stock", ma20=ma20,
                     )
                     db.commit()
-                    logger.info(f"📦 價格快取已更新: {symbol}")
+                    logger.info(f"價格快取已更新: {symbol}")
                 finally:
                     db.close()
             except Exception as e:
@@ -589,7 +589,7 @@ async def get_stock_analysis(
                     "price_vs_ma20": "above" if ma20 and current_price > ma20 else "below" if ma20 else None,
                     "price_vs_ma50": "above" if ma50 and current_price > ma50 else "below" if ma50 else None,
                     "price_vs_ma200": "above" if ma200 and current_price > ma200 else "below" if ma200 else None,
-                    **ma_advanced,  # 🆕 合併 MA 進階分析
+                    **ma_advanced,  # 合併 MA 進階分析
                 },
                 "rsi": {"value": rsi_value, "period": 14, "status": rsi_status},
                 "macd": {"dif": macd_dif, "macd": macd_dea, "histogram": macd_hist, "status": macd_status},
@@ -599,7 +599,7 @@ async def get_stock_analysis(
             "from_cache": data_source in ('cache', 'partial'),
             "data_source": data_source,
             "total_records": len(df),
-            "market_open": market_open,  # 🆕 回傳市場狀態
+            "market_open": market_open,  # 回傳市場狀態
         }
         
     except HTTPException:

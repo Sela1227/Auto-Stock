@@ -42,7 +42,7 @@ class StockHistoryService:
         
         # 強制刷新
         if force_refresh:
-            logger.info(f"🔄 強制刷新: {symbol}")
+            logger.info(f"強制刷新: {symbol}")
             df = self._fetch_and_save(symbol, years)
             return df, "yahoo"
         
@@ -51,7 +51,7 @@ class StockHistoryService:
         
         if cache_info is None:
             # 無快取，首次查詢
-            logger.info(f"📥 首次查詢: {symbol}")
+            logger.info(f"首次查詢: {symbol}")
             df = self._fetch_and_save(symbol, years)
             return df, "yahoo"
         
@@ -60,13 +60,13 @@ class StockHistoryService:
         
         # 判斷快取是否足夠新
         if self._is_cache_fresh(latest_date, today):
-            logger.info(f"📦 快取命中: {symbol} ({record_count} 筆，最新 {latest_date})")
+            logger.info(f"快取命中: {symbol} ({record_count} 筆，最新 {latest_date})")
             df = self._load_from_db(symbol, years)
             return df, "cache"
         else:
             # 需要補抓
             days_missing = (today - latest_date).days
-            logger.info(f"📥 補抓 {symbol}: {days_missing} 天")
+            logger.info(f"補抓 {symbol}: {days_missing} 天")
             df = self._fetch_incremental(symbol, latest_date, years)
             return df, "partial" if df is not None else "cache"
     
@@ -111,7 +111,7 @@ class StockHistoryService:
         
         if df is not None and not df.empty:
             saved = self._save_to_db(symbol, df)
-            logger.info(f"💾 已存入 DB: {symbol} ({saved} 筆)")
+            logger.info(f"已存入 DB: {symbol} ({saved} 筆)")
         
         return df
     
@@ -134,7 +134,7 @@ class StockHistoryService:
             df_to_save = df_new[df_new['date'] > last_date]
             if not df_to_save.empty:
                 saved = self._save_to_db(symbol, df_to_save)
-                logger.info(f"💾 增量存入: {symbol} ({saved} 筆)")
+                logger.info(f"增量存入: {symbol} ({saved} 筆)")
         
         # 返回完整資料
         return self._load_from_db(symbol, years)
@@ -278,7 +278,7 @@ class StockHistoryService:
                 count = self.db.query(StockPrice).delete()
             
             self.db.commit()
-            logger.info(f"🗑️ 已清除快取: {symbol or '全部'} ({count} 筆)")
+            logger.info(f"已清除快取: {symbol or '全部'} ({count} 筆)")
             return count
         except Exception as e:
             logger.error(f"清除快取失敗: {e}")

@@ -1,4 +1,6 @@
-# 📊 SELA MA 強化分析開發記錄
+> 歷史文件（V0.x–V1.0 時期），現況以根目錄 CLAUDE.md 為準。
+
+# SELA MA 強化分析開發記錄
 
 > 日期: 2026-01-17  
 > 版本: 1.0  
@@ -6,22 +8,22 @@
 
 ---
 
-## 📋 功能概述
+## 功能概述
 
 ### 新增功能
 
 | 功能 | 說明 | 狀態 |
 |------|------|------|
-| **距離均線百分比** | dist_ma20/50/200/250 | ✅ 完成 |
-| **黃金/死亡交叉偵測** | 支援 MA20/50、MA50/200、MA20/200 | ✅ 完成 |
-| **交叉發生天數** | golden_cross_xx_days | ✅ 完成 |
-| **均線排列分析** | 多頭/空頭/盤整 + 強度評分 | ✅ 完成 |
-| **支撐/壓力位判斷** | 最近支撐/壓力 + 完整列表 | ✅ 完成 |
-| **前端渲染模組** | search-ma-advanced.js | ✅ 完成 |
+| **距離均線百分比** | dist_ma20/50/200/250 | ✓ 完成 |
+| **黃金/死亡交叉偵測** | 支援 MA20/50、MA50/200、MA20/200 | ✓ 完成 |
+| **交叉發生天數** | golden_cross_xx_days | ✓ 完成 |
+| **均線排列分析** | 多頭/空頭/盤整 + 強度評分 | ✓ 完成 |
+| **支撐/壓力位判斷** | 最近支撐/壓力 + 完整列表 | ✓ 完成 |
+| **前端渲染模組** | search-ma-advanced.js | ✓ 完成 |
 
 ---
 
-## 📦 交付檔案
+## 交付檔案
 
 ### 1. 後端服務 (app/services/ma_advanced_service.py)
 
@@ -50,7 +52,7 @@
 
 ---
 
-## 🔧 部署步驟
+## 部署步驟
 
 ### 步驟 1: 部署後端服務
 
@@ -136,7 +138,7 @@ if (data.indicators && data.indicators.ma) {
 
 ---
 
-## 📊 API 回傳結構
+## API 回傳結構
 
 ### indicators.ma 新增欄位
 
@@ -152,35 +154,35 @@ if (data.indicators && data.indicators.ma) {
     "price_vs_ma50": "above",
     "price_vs_ma200": "above",
     
-    // 🆕 距離百分比
+    // 距離百分比
     "dist_ma20": 2.5,
     "dist_ma50": 4.2,
     "dist_ma200": 10.3,
     
-    // 🆕 交叉偵測 - MA20/MA50
+    // 交叉偵測 - MA20/MA50
     "golden_cross_20_50": true,
     "golden_cross_20_50_days": 5,
     "death_cross_20_50": false,
     "death_cross_20_50_days": null,
     
-    // 🆕 交叉偵測 - MA50/MA200
+    // 交叉偵測 - MA50/MA200
     "golden_cross_50_200": false,
     "golden_cross_50_200_days": null,
     "death_cross_50_200": false,
     "death_cross_50_200_days": null,
     
-    // 🆕 交叉偵測 - MA20/MA200
+    // 交叉偵測 - MA20/MA200
     "golden_cross_20_200": false,
     "golden_cross_20_200_days": null,
     "death_cross_20_200": false,
     "death_cross_20_200_days": null,
     
-    // 🆕 排列分析
+    // 排列分析
     "alignment_status": "bullish",
     "alignment_detail": "完美多頭排列",
     "alignment_score": 4,
     
-    // 🆕 支撐/壓力
+    // 支撐/壓力
     "nearest_support": {
       "ma": "MA20",
       "price": 150.5,
@@ -198,7 +200,7 @@ if (data.indicators && data.indicators.ma) {
 
 ---
 
-## 🧪 測試驗證
+## 測試驗證
 
 ### 1. 後端測試
 
@@ -249,7 +251,7 @@ console.log(renderMAAdvanced(testMa));
 
 ---
 
-## 📝 注意事項
+## 注意事項
 
 1. **資料依賴**: 需要 df 包含 ma20, ma50, ma200 欄位才能計算
 2. **回溯天數**: 預設 30 天，可調整 `lookback_days` 參數
@@ -258,8 +260,8 @@ console.log(renderMAAdvanced(testMa));
 
 ---
 
-## 📋 待辦追蹤更新
+## 待辦追蹤更新
 
 完成此功能後，更新 Memory：
 
-> SELA 待辦: P1: ~~(1)MA強化分析~~ ✅ (2)追蹤清單載入效能診斷 P2: (3)訂閱排程驗證 (4)前端效能優化
+> SELA 待辦: P1: ~~(1)MA強化分析~~ ✓ (2)追蹤清單載入效能診斷 P2: (3)訂閱排程驗證 (4)前端效能優化

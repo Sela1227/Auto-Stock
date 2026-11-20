@@ -1,0 +1,9 @@
+{
+  "_說明": "賈維斯接口（Kit sela-deploy references/jarvis-interface.md）。部署走 SELA 自己推 GitHub → Railway 自動部署，所以不寫 prod.cmd、沒有 -test 試用站。",
+  "monitor": {"url": "https://web-production-c219.up.railway.app/_health", "kind": "site"},
+  "smoke": "python3 tests/smoke.py",
+  "prod": {
+    "url": "https://web-production-c219.up.railway.app/",
+    "version_url": "https://web-production-c219.up.railway.app/_health"
+  }
+}

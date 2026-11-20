@@ -28,7 +28,7 @@
         const activeClass = 'px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-600 whitespace-nowrap';
         const inactiveClass = 'px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap';
 
-        // ✅ P3: 使用 $() 快取
+        // P3: 使用 $() 快取
         const tabHoldings = $('tabHoldings');
         const tabTw = $('tabTwTransactions');
         const tabUs = $('tabUsTransactions');
@@ -60,7 +60,7 @@
         await loadPortfolioSummary();
         await loadHoldings();
 
-        // ✅ P3: 初始化事件委託
+        // P3: 初始化事件委託
         initPortfolioEventDelegation();
     }
 
@@ -72,7 +72,7 @@
             if (data.success) {
                 const s = data.data;
 
-                // ✅ P3: 同步到 AppState
+                // P3: 同步到 AppState
                 if (window.AppState) {
                     AppState.setPortfolio({ summary: s });
                 }
@@ -168,7 +168,7 @@
             const data = await res.json();
 
             if (data.success) {
-                // ✅ P3: 同步到 AppState
+                // P3: 同步到 AppState
                 if (window.AppState) {
                     AppState.setPortfolio({
                         tw: data.data.tw || [],
@@ -200,12 +200,12 @@
         const profitPrefix = (h.unrealized_profit || 0) >= 0 ? '+' : '';
         const currency = market === 'tw' ? 'NT$' : '$';
         
-        // 🔧 安全處理 return_rate（可能是 null 或 undefined）
+        // 安全處理 return_rate（可能是 null 或 undefined）
         const returnRateDisplay = (h.return_rate != null) 
             ? `${h.return_rate >= 0 ? '+' : ''}${h.return_rate.toFixed(2)}%` 
             : '--';
 
-        // ✅ P3: 使用 data-action 替代 onclick
+        // P3: 使用 data-action 替代 onclick
         return `
             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
                  data-action="analyze" data-symbol="${h.symbol}">
@@ -260,7 +260,7 @@
         const typeText = t.transaction_type === 'buy' ? '買入' : '賣出';
         const currency = market === 'tw' ? 'NT$' : '$';
 
-        // ✅ P3: 使用 data-action 替代 onclick
+        // P3: 使用 data-action 替代 onclick
         return `
             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg" data-id="${t.id}">
                 <div class="flex-1">
@@ -475,7 +475,7 @@
                 showToast(data.message);
                 hideImportPortfolioModal();
 
-                // ✅ P3: 清除 AppState 快取
+                // P3: 清除 AppState 快取
                 if (window.AppState) {
                     AppState.set('portfolioLoaded', false);
                 }

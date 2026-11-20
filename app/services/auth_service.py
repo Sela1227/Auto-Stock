@@ -325,7 +325,7 @@ class AuthService:
         Returns:
             JWT Token 字串
         
-        🆕 過期時間：
+        過期時間：
         - 一般用戶：10 分鐘
         - 管理員：1 小時
         """
@@ -348,7 +348,7 @@ class AuthService:
             "exp": expire,
             "iat": issued_at,
             "jti": str(uuid.uuid4()),  # 唯一 Token ID
-            "expire_minutes": expire_minutes,  # 🆕 告訴前端過期時間
+            "expire_minutes": expire_minutes,  # 告訴前端過期時間
         }
         
         token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)

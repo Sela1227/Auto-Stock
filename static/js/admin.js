@@ -250,12 +250,12 @@ async function adminInitializeData() {
     try {
         const data = await adminApiRequest('/api/market/admin/initialize', { method: 'POST' });
         if (data && data.success) {
-            adminShowSystemMessage(`✅ 初始化完成！${data.data?.count || 0} 筆資料`);
+            adminShowSystemMessage(`初始化完成！${data.data?.count || 0} 筆資料`);
         } else {
-            adminShowSystemMessage(`❌ 初始化失敗: ${data?.detail || '未知錯誤'}`, true);
+            adminShowSystemMessage(`初始化失敗: ${data?.detail || '未知錯誤'}`, true);
         }
     } catch (e) {
-        adminShowSystemMessage(`❌ 初始化失敗: ${e.message}`, true);
+        adminShowSystemMessage(`初始化失敗: ${e.message}`, true);
     }
 }
 
@@ -265,12 +265,12 @@ async function adminUpdateIndices() {
     try {
         const data = await adminApiRequest('/api/market/admin/update-indices', { method: 'POST' });
         if (data && data.success) {
-            adminShowSystemMessage(`✅ 三大指數更新完成！${data.data?.count || 0} 筆資料`);
+            adminShowSystemMessage(`三大指數更新完成！${data.data?.count || 0} 筆資料`);
         } else {
-            adminShowSystemMessage(`❌ 更新失敗: ${data?.detail || '未知錯誤'}`, true);
+            adminShowSystemMessage(`更新失敗: ${data?.detail || '未知錯誤'}`, true);
         }
     } catch (e) {
-        adminShowSystemMessage(`❌ 更新失敗: ${e.message}`, true);
+        adminShowSystemMessage(`更新失敗: ${e.message}`, true);
     }
 }
 
@@ -280,12 +280,12 @@ async function adminUpdateSentiment() {
     try {
         const data = await adminApiRequest('/api/market/admin/update-sentiment', { method: 'POST' });
         if (data && data.success) {
-            adminShowSystemMessage(`✅ 恐懼貪婪指數更新完成！`);
+            adminShowSystemMessage(`恐懼貪婪指數更新完成！`);
         } else {
-            adminShowSystemMessage(`❌ 更新失敗: ${data?.detail || '未知錯誤'}`, true);
+            adminShowSystemMessage(`更新失敗: ${data?.detail || '未知錯誤'}`, true);
         }
     } catch (e) {
-        adminShowSystemMessage(`❌ 更新失敗: ${e.message}`, true);
+        adminShowSystemMessage(`更新失敗: ${e.message}`, true);
     }
 }
 
@@ -295,12 +295,12 @@ async function adminTriggerDailyUpdate() {
     try {
         const data = await adminApiRequest('/api/market/admin/update', { method: 'POST' });
         if (data && data.success) {
-            adminShowSystemMessage(`✅ 每日更新完成！`);
+            adminShowSystemMessage(`每日更新完成！`);
         } else {
-            adminShowSystemMessage(`❌ 更新失敗: ${data?.detail || '未知錯誤'}`, true);
+            adminShowSystemMessage(`更新失敗: ${data?.detail || '未知錯誤'}`, true);
         }
     } catch (e) {
-        adminShowSystemMessage(`❌ 更新失敗: ${e.message}`, true);
+        adminShowSystemMessage(`更新失敗: ${e.message}`, true);
     }
 }
 
@@ -320,7 +320,7 @@ async function adminRunSignalCheck() {
     try {
         const data = await adminApiRequest('/api/admin/signal/detect', { method: 'POST' });
         if (data && data.success) {
-            adminShowSignalMessage(`✅ 檢查完成：偵測到 ${data.total_signals} 個訊號`);
+            adminShowSignalMessage(`檢查完成：偵測到 ${data.total_signals} 個訊號`);
             
             if (data.signals_by_symbol && Object.keys(data.signals_by_symbol).length > 0) {
                 document.getElementById('adminSignalResult')?.classList.remove('hidden');
@@ -330,10 +330,10 @@ async function adminRunSignalCheck() {
                 }
             }
         } else {
-            adminShowSignalMessage(`❌ 檢查失敗: ${data?.detail || '未知錯誤'}`, true);
+            adminShowSignalMessage(`檢查失敗: ${data?.detail || '未知錯誤'}`, true);
         }
     } catch (e) {
-        adminShowSignalMessage(`❌ 檢查失敗: ${e.message}`, true);
+        adminShowSignalMessage(`檢查失敗: ${e.message}`, true);
     }
 }
 
@@ -344,7 +344,7 @@ async function adminSendSignalNotifications() {
         const data = await adminApiRequest('/api/admin/signal/notify', { method: 'POST' });
         if (data && data.success) {
             const r = data.result || {};
-            adminShowSignalMessage(`✅ ${data.message} - 股票更新: ${r.stocks_updated}, 訊號偵測: ${r.signals_detected}, 通知發送: ${r.notifications_sent}`);
+            adminShowSignalMessage(`${data.message} - 股票更新: ${r.stocks_updated}, 訊號偵測: ${r.signals_detected}, 通知發送: ${r.notifications_sent}`);
             
             if (r.errors && r.errors.length > 0) {
                 document.getElementById('adminSignalResult')?.classList.remove('hidden');
@@ -354,10 +354,10 @@ async function adminSendSignalNotifications() {
                 }
             }
         } else {
-            adminShowSignalMessage(`❌ 發送失敗: ${data?.detail || '未知錯誤'}`, true);
+            adminShowSignalMessage(`發送失敗: ${data?.detail || '未知錯誤'}`, true);
         }
     } catch (e) {
-        adminShowSignalMessage(`❌ 發送失敗: ${e.message}`, true);
+        adminShowSignalMessage(`發送失敗: ${e.message}`, true);
     }
 }
 
@@ -377,7 +377,7 @@ async function adminTestSignalDetection() {
             const symbolUpper = symbol.toUpperCase();
             const symbolSignals = data.signals_by_symbol[symbolUpper] || [];
             
-            adminShowSignalMessage(`✅ ${symbolUpper} 偵測到 ${symbolSignals.length} 個訊號`);
+            adminShowSignalMessage(`${symbolUpper} 偵測到 ${symbolSignals.length} 個訊號`);
             
             document.getElementById('adminSignalResult')?.classList.remove('hidden');
             const contentEl = document.getElementById('adminSignalResultContent');
@@ -385,10 +385,10 @@ async function adminTestSignalDetection() {
                 contentEl.textContent = JSON.stringify({ symbol: symbolUpper, signals: symbolSignals }, null, 2);
             }
         } else {
-            adminShowSignalMessage(`❌ 偵測失敗: ${data?.detail || '未知錯誤'}`, true);
+            adminShowSignalMessage(`偵測失敗: ${data?.detail || '未知錯誤'}`, true);
         }
     } catch (e) {
-        adminShowSignalMessage(`❌ 偵測失敗: ${e.message}`, true);
+        adminShowSignalMessage(`偵測失敗: ${e.message}`, true);
     }
 }
 
@@ -398,12 +398,12 @@ async function adminTestLineNotify() {
     try {
         const data = await adminApiRequest('/api/admin/signal/test-push?message=管理員測試訊息', { method: 'POST' });
         if (data && data.success) {
-            adminShowSignalMessage('✅ 測試訊息已發送，請檢查 LINE');
+            adminShowSignalMessage('測試訊息已發送，請檢查 LINE');
         } else {
-            adminShowSignalMessage(`❌ 發送失敗: ${data?.message || data?.detail || '未知錯誤'}`, true);
+            adminShowSignalMessage(`發送失敗: ${data?.message || data?.detail || '未知錯誤'}`, true);
         }
     } catch (e) {
-        adminShowSignalMessage(`❌ 發送失敗: ${e.message}`, true);
+        adminShowSignalMessage(`發送失敗: ${e.message}`, true);
     }
 }
 
@@ -422,12 +422,12 @@ async function adminFetchSubscriptions() {
     try {
         const data = await adminApiRequest('/api/subscription/admin/fetch', { method: 'POST' });
         if (data && data.success) {
-            adminShowSubscriptionMessage(`✅ 抓取完成！新增 ${data.new_articles || 0} 篇文章，${data.new_mentions || 0} 個提及`);
+            adminShowSubscriptionMessage(`抓取完成！新增 ${data.new_articles || 0} 篇文章，${data.new_mentions || 0} 個提及`);
         } else {
-            adminShowSubscriptionMessage(`❌ 抓取失敗: ${data?.detail || '未知錯誤'}`, true);
+            adminShowSubscriptionMessage(`抓取失敗: ${data?.detail || '未知錯誤'}`, true);
         }
     } catch (e) {
-        adminShowSubscriptionMessage(`❌ 抓取失敗: ${e.message}`, true);
+        adminShowSubscriptionMessage(`抓取失敗: ${e.message}`, true);
     }
 }
 
@@ -440,12 +440,12 @@ async function adminBackfillSubscriptions() {
     try {
         const data = await adminApiRequest(`/api/subscription/admin/backfill?days=${days}`, { method: 'POST' });
         if (data && data.success) {
-            adminShowSubscriptionMessage(`✅ 回補完成！新增 ${data.new_articles || 0} 篇文章，${data.new_mentions || 0} 個提及`);
+            adminShowSubscriptionMessage(`回補完成！新增 ${data.new_articles || 0} 篇文章，${data.new_mentions || 0} 個提及`);
         } else {
-            adminShowSubscriptionMessage(`❌ 回補失敗: ${data?.detail || '未知錯誤'}`, true);
+            adminShowSubscriptionMessage(`回補失敗: ${data?.detail || '未知錯誤'}`, true);
         }
     } catch (e) {
-        adminShowSubscriptionMessage(`❌ 回補失敗: ${e.message}`, true);
+        adminShowSubscriptionMessage(`回補失敗: ${e.message}`, true);
     }
 }
 

@@ -1,6 +1,6 @@
 """
 報酬率比較 API 路由
-🔧 P0修復：使用統一認證模組
+P0修復：使用統一認證模組
 """
 from typing import List, Optional
 from datetime import datetime
@@ -14,7 +14,7 @@ from app.database import get_async_session
 from app.services.compare_service import compare_service, ComparisonCRUD
 from app.models.user import User
 
-# 🔧 使用統一認證模組
+# 使用統一認證模組
 from app.dependencies import get_current_user, get_optional_user
 
 logger = logging.getLogger(__name__)

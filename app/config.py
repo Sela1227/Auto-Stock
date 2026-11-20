@@ -5,13 +5,16 @@ from pydantic_settings import BaseSettings
 from pathlib import Path
 from typing import Optional, List
 
+# 版號單一真相：UI、/api/version、/_health、zip 檔名都從這裡來（Kit 鐵律）
+VERSION = 'V1.15.0'
+
 
 class Settings(BaseSettings):
     """應用程式設定"""
 
     # 應用程式
     APP_NAME: str = "AutoStock 自動選股系統"
-    APP_VERSION: str = "1.14.0"  # 排程簡化：每日 06:00 單一批次，移除登入觸發與訂閱排程
+    APP_VERSION: str = VERSION  # 不要在這裡改版號，改上面的 VERSION
     APP_ENV: str = "development"
     DEBUG: bool = True
 
@@ -30,7 +33,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "your-secret-key-change-in-production"
     JWT_EXPIRE_DAYS: int = 7  # 保留向後相容
 
-    # 🆕 Token 過期時間（分鐘）
+    # Token 過期時間（分鐘）
     JWT_EXPIRE_MINUTES_USER: int = 10      # 一般用戶 10 分鐘
     JWT_EXPIRE_MINUTES_ADMIN: int = 60     # 管理員 1 小時
 

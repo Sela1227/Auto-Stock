@@ -1,12 +1,12 @@
 """
 追蹤清單 API 路由
 
-🚀 效能優化版 - 2026-01-17
+效能優化版 - 2026-01-17
 - 非開盤時間直接使用快取（體感速度大幅提升）
 - 回傳市場狀態，讓前端知道是否為開盤時間
 - 批量載入標籤，消除 N+1 問題
 
-🆕 目標價強化 - 2026-01-17
+目標價強化 - 2026-01-17
 - 新增 target_direction 欄位（above/below）
 - 支援「高於時提醒」和「低於時提醒」兩種模式
 """
@@ -36,9 +36,9 @@ from app.schemas.schemas import (
 from app.models.user import User
 from app.models.watchlist import Watchlist
 from app.models.price_cache import StockPriceCache
-from app.models.watchlist_tag import UserTag, watchlist_tags  # ⭐ 新增
+from app.models.watchlist_tag import UserTag, watchlist_tags  # 新增
 
-# 🔧 使用統一認證模組
+# 使用統一認證模組
 from app.dependencies import get_current_user, get_admin_user
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ router = APIRouter(prefix="/api/watchlist", tags=["追蹤清單"])
 # Schemas
 class TargetPriceUpdate(BaseModel):
     target_price: Optional[float] = None
-    target_direction: Optional[str] = "above"  # 🆕 above=高於時提醒, below=低於時提醒
+    target_direction: Optional[str] = "above"  # above=高於時提醒, below=低於時提醒
 
 
 class WatchlistImportItem(BaseModel):
@@ -57,7 +57,7 @@ class WatchlistImportItem(BaseModel):
     asset_type: Optional[str] = "stock"
     note: Optional[str] = None
     target_price: Optional[float] = None
-    target_direction: Optional[str] = "above"  # 🆕
+    target_direction: Optional[str] = "above"  # 
 
 
 class WatchlistImportRequest(BaseModel):
@@ -65,7 +65,7 @@ class WatchlistImportRequest(BaseModel):
 
 
 # ============================================================
-# 🆕 熱門追蹤統計 API
+# 熱門追蹤統計 API
 # ============================================================
 
 @router.get("/popular", summary="熱門追蹤統計")
@@ -158,7 +158,7 @@ async def export_watchlist(
                 "asset_type": item.asset_type,
                 "note": item.note or "",
                 "target_price": float(item.target_price) if item.target_price else None,
-                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # 🆕
+                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # 
                 "added_at": item.added_at.isoformat() if item.added_at else None,
             })
 
@@ -167,7 +167,7 @@ async def export_watchlist(
         if format.lower() == "csv":
             # CSV 格式
             output = io.StringIO()
-            writer = csv.DictWriter(output, fieldnames=["symbol", "asset_type", "note", "target_price", "target_direction", "added_at"])  # 🆕
+            writer = csv.DictWriter(output, fieldnames=["symbol", "asset_type", "note", "target_price", "target_direction", "added_at"])  # 
             writer.writeheader()
             writer.writerows(export_data)
             
@@ -244,7 +244,7 @@ async def import_watchlist(
                     note=item.note,
                     target_price=item.target_price,
                 )
-                # 🆕 設定 target_direction（如果模型支援）
+                # 設定 target_direction（如果模型支援）
                 if hasattr(new_item, 'target_direction'):
                     new_item.target_direction = item.target_direction or "above"
                 db.add(new_item)
@@ -275,7 +275,7 @@ async def import_watchlist(
 
 
 # ============================================================
-# 🆕 基本資料 API（快速版，用於分階段載入）
+# 基本資料 API（快速版，用於分階段載入）
 # ============================================================
 
 @router.get("/basic", summary="追蹤清單（基本資料，快速）")
@@ -286,7 +286,7 @@ async def get_watchlist_basic(
     """
     取得用戶追蹤清單基本資料（不含價格，毫秒級回應）
     
-    🚀 效能優化：用於分階段載入的第一階段
+    效能優化：用於分階段載入的第一階段
     - 只查 watchlist 表和標籤
     - 不查 stock_price_cache
     - 價格欄位回傳 null，前端顯示「載入中」
@@ -377,7 +377,7 @@ async def get_watchlist_basic(
 
 
 # ============================================================
-# 價格快取 API（⭐ 優化版：包含標籤 + 市場狀態）
+# 價格快取 API（優化版：包含標籤 + 市場狀態）
 # ============================================================
 
 @router.get("/with-prices", summary="追蹤清單（含即時價格）")
@@ -388,7 +388,7 @@ async def get_watchlist_with_prices(
     """
     取得用戶追蹤清單，包含即時價格（從快取讀取）
     
-    🚀 效能優化版 2026-01-17：
+    效能優化版 2026-01-17：
     - 非開盤時間直接使用快取（毫秒級回應）
     - 回傳市場狀態，讓前端知道資料的時效性
     - 一次性載入所有標籤，消除 N+1 問題
@@ -404,7 +404,7 @@ async def get_watchlist_with_prices(
     logger.info(f"API: 追蹤清單(含價格) - user_id={user.id}")
 
     try:
-        # 🆕 取得市場狀態
+        # 取得市場狀態
         from app.services.price_cache_service import get_market_status
         market_status = get_market_status()
         
@@ -422,7 +422,7 @@ async def get_watchlist_with_prices(
                 "success": True,
                 "data": [],
                 "total": 0,
-                "market_status": market_status,  # 🆕
+                "market_status": market_status,  # 
             }
 
         # 2. 取得所有 symbol 和 watchlist_id
@@ -436,7 +436,7 @@ async def get_watchlist_with_prices(
         cache_result = await db.execute(cache_stmt)
         cache_map = {c.symbol: c for c in cache_result.scalars().all()}
 
-        # 4. ⭐ 批次取得所有標籤關聯（消除 N+1 問題）
+        # 4. 批次取得所有標籤關聯（消除 N+1 問題）
         tags_map = {}
         try:
             tags_stmt = (
@@ -478,11 +478,11 @@ async def get_watchlist_with_prices(
             current_price = float(cache.price) if cache and cache.price else None
             target_reached = False
             
-            # 🆕 取得 target_direction，預設為 above
+            # 取得 target_direction，預設為 above
             target_direction = getattr(item, 'target_direction', 'above') or 'above'
             
             if current_price and target_price:
-                # 🆕 根據方向判斷是否達標
+                # 根據方向判斷是否達標
                 if target_direction == 'below':
                     target_reached = current_price <= target_price
                 else:
@@ -494,7 +494,7 @@ async def get_watchlist_with_prices(
                 "asset_type": item.asset_type,
                 "note": item.note,
                 "target_price": target_price,
-                "target_direction": target_direction,  # 🆕
+                "target_direction": target_direction,  # 
                 "target_reached": target_reached,
                 "added_at": item.added_at.isoformat() if item.added_at else None,
                 # 價格資訊（從快取）
@@ -504,7 +504,7 @@ async def get_watchlist_with_prices(
                 "change_pct": float(cache.change_pct) if cache and cache.change_pct else None,
                 "ma20": ma20_value,
                 "price_updated_at": cache.updated_at.isoformat() if cache and cache.updated_at else None,
-                # ⭐ 標籤資訊（批量載入）
+                # 標籤資訊（批量載入）
                 "tags": tags_map.get(item.id, []),
             })
 
@@ -515,7 +515,7 @@ async def get_watchlist_with_prices(
             "success": True,
             "data": data,
             "total": len(data),
-            "market_status": market_status,  # 🆕 回傳市場狀態
+            "market_status": market_status,  # 回傳市場狀態
         }
 
     except Exception as e:
@@ -599,7 +599,7 @@ async def set_target_price(
 
         # 更新目標價
         item.target_price = data.target_price
-        # 🆕 更新方向（如果模型支援）
+        # 更新方向（如果模型支援）
         if hasattr(item, 'target_direction'):
             item.target_direction = data.target_direction or "above"
         await db.commit()
@@ -611,7 +611,7 @@ async def set_target_price(
                 "id": item.id,
                 "symbol": item.symbol,
                 "target_price": float(item.target_price) if item.target_price else None,
-                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # 🆕
+                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # 
             }
         }
 
@@ -764,7 +764,7 @@ async def get_watchlist_overview(
                 "asset_type": item.asset_type,
                 "note": item.note,
                 "target_price": float(item.target_price) if item.target_price else None,
-                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # 🆕
+                "target_direction": getattr(item, 'target_direction', 'above') or "above",  # 
                 "added_at": item.added_at.isoformat() if item.added_at else None,
             }
             for item in items

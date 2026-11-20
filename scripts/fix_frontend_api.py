@@ -52,7 +52,7 @@ def fix_file(filepath: str) -> tuple[int, list[str]]:
 
 def main():
     print("=" * 60)
-    print("🔧 前端 API 端點修復腳本")
+    print("前端 API 端點修復腳本")
     print("=" * 60)
     print()
     
@@ -61,7 +61,7 @@ def main():
     if not (project_root / 'static').exists():
         project_root = Path('..')
         if not (project_root / 'static').exists():
-            print("❌ 錯誤：找不到 static 目錄，請在專案根目錄執行此腳本")
+            print("錯誤：找不到 static 目錄，請在專案根目錄執行此腳本")
             return
     
     # 要檢查的檔案
@@ -75,13 +75,13 @@ def main():
     for filepath in files_to_check:
         filepath_str = str(filepath)
         if not filepath.exists():
-            print(f"⏭️  跳過（不存在）: {filepath_str}")
+            print(f" 跳過（不存在）: {filepath_str}")
             continue
         
         count, changes = fix_file(filepath_str)
         
         if count > 0:
-            print(f"✅ 修復: {filepath_str}")
+            print(f"修復: {filepath_str}")
             for change in changes:
                 print(change)
             total_fixes += count
@@ -91,11 +91,11 @@ def main():
     print()
     print("=" * 60)
     if total_fixes > 0:
-        print(f"✅ 完成！共修復 {total_fixes} 處")
+        print(f"完成！共修復 {total_fixes} 處")
         print()
         print("下一步：")
         print("1. git add .")
-        print("2. git commit -m '🔧 修復 sentiment API 端點使用快取版本'")
+        print("2. git commit -m '修復 sentiment API 端點使用快取版本'")
         print("3. git push")
     else:
         print("✓ 所有檔案已是最新，無需修改")

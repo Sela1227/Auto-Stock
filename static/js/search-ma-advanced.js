@@ -27,7 +27,7 @@
         let html = '<div class="mb-4"><div class="flex items-center mb-2"><i class="fas fa-exchange-alt text-blue-500 mr-2"></i><span class="text-sm font-medium text-gray-700">交叉訊號</span></div><div class="flex flex-wrap gap-2">';
         for (const s of signals) {
             const cls = s.type === 'golden' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-            const icon = s.type === 'golden' ? '🔺' : '🔻';
+            const icon = s.type === 'golden' ? '<i class="fas fa-caret-up"></i>' : '<i class="fas fa-caret-down"></i>';
             html += `<span class="px-2 py-1 rounded text-xs ${cls}">${icon} ${s.label}`;
             if (s.days) html += ` (${s.days}天前)`;
             html += '</span>';
@@ -58,7 +58,7 @@
         if (!ma.alignment_detail) return '';
         const status = ma.alignment_status || 'neutral';
         const cls = status === 'bullish' ? 'bg-green-100 text-green-700' : status === 'bearish' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700';
-        const icon = status === 'bullish' ? '📈' : status === 'bearish' ? '📉' : '📊';
+        const icon = status === 'bullish' ? '<i class="fas fa-arrow-trend-up mr-1"></i>' : status === 'bearish' ? '<i class="fas fa-arrow-trend-down mr-1"></i>' : '<i class="fas fa-minus mr-1"></i>';
         
         let html = '<div class="mb-4"><div class="flex items-center mb-2"><i class="fas fa-layer-group text-orange-500 mr-2"></i><span class="text-sm font-medium text-gray-700">均線排列</span></div>';
         html += `<span class="px-3 py-2 rounded-lg ${cls} inline-flex items-center">${icon} ${ma.alignment_detail}`;
@@ -72,7 +72,7 @@
         
         let html = '<div class="mb-4"><div class="flex items-center mb-2"><i class="fas fa-arrows-alt-v text-cyan-500 mr-2"></i><span class="text-sm font-medium text-gray-700">支撐/壓力</span></div><div class="grid grid-cols-2 gap-2">';
         
-        html += '<div class="p-2 rounded bg-green-50 border border-green-200"><div class="text-xs text-green-600 mb-1">📗 支撐</div>';
+        html += '<div class="p-2 rounded bg-green-50 border border-green-200"><div class="text-xs text-green-600 mb-1">支撐</div>';
         if (ma.nearest_support) {
             html += `<div class="font-bold text-green-700">${ma.nearest_support.ma}</div><div class="text-sm text-green-600">${ma.nearest_support.price}</div>`;
         } else {
@@ -80,7 +80,7 @@
         }
         html += '</div>';
         
-        html += '<div class="p-2 rounded bg-red-50 border border-red-200"><div class="text-xs text-red-600 mb-1">📕 壓力</div>';
+        html += '<div class="p-2 rounded bg-red-50 border border-red-200"><div class="text-xs text-red-600 mb-1">壓力</div>';
         if (ma.nearest_resistance) {
             html += `<div class="font-bold text-red-700">${ma.nearest_resistance.ma}</div><div class="text-sm text-red-600">${ma.nearest_resistance.price}</div>`;
         } else {

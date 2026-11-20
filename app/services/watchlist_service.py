@@ -1,7 +1,7 @@
 """
 追蹤清單服務 (Async 版本)
 
-🔧 修復版本 - 2026-01-16
+修復版本 - 2026-01-16
 - 新增追蹤後立即更新快取（加速追蹤清單載入）
 """
 from typing import Optional, Dict, Any, List
@@ -39,7 +39,7 @@ class WatchlistService:
         """
         新增追蹤標的
         
-        🔧 優化版本：新增後立即更新快取
+        優化版本：新增後立即更新快取
         
         Args:
             user_id: 用戶 ID
@@ -99,10 +99,10 @@ class WatchlistService:
         
         logger.info(f"★ 追蹤清單寫入成功: id={watchlist.id}, user_id={user_id}, symbol={symbol}")
         
-        # 🆕 新增追蹤後立即更新快取（這樣追蹤清單馬上就有價格）
+        # 新增追蹤後立即更新快取（這樣追蹤清單馬上就有價格）
         try:
             await self._update_price_cache_for_symbol(symbol, asset_type)
-            logger.info(f"✅ 已更新 {symbol} 快取")
+            logger.info(f"已更新 {symbol} 快取")
         except Exception as e:
             logger.warning(f"更新 {symbol} 快取失敗: {e}")
             # 不影響主流程，快取會在下次排程更新
@@ -115,7 +115,7 @@ class WatchlistService:
     
     async def _update_price_cache_for_symbol(self, symbol: str, asset_type: str):
         """
-        🆕 更新單一股票/加密貨幣的價格快取
+        更新單一股票/加密貨幣的價格快取
         用於新增追蹤後立即更新，不用等排程
         """
         from app.database import SyncSessionLocal

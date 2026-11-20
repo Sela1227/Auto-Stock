@@ -635,10 +635,10 @@ class IndicatorService:
         alignment, alignment_desc = self.get_ma_alignment(df)
         if alignment == TrendDirection.BULLISH:
             buy_score += 1
-            details.append(f"✅ {alignment_desc}")
+            details.append(f"{alignment_desc}")
         elif alignment == TrendDirection.BEARISH:
             sell_score += 1
-            details.append(f"❌ {alignment_desc}")
+            details.append(f"{alignment_desc}")
         
         # 2. RSI
         if "rsi" in df.columns:
@@ -646,10 +646,10 @@ class IndicatorService:
             if not pd.isna(rsi):
                 if rsi <= self.rsi_oversold:
                     buy_score += 1
-                    details.append(f"✅ RSI 超賣 ({rsi:.1f})")
+                    details.append(f"RSI 超賣 ({rsi:.1f})")
                 elif rsi >= self.rsi_overbought:
                     sell_score += 1
-                    details.append(f"❌ RSI 超買 ({rsi:.1f})")
+                    details.append(f"RSI 超買 ({rsi:.1f})")
         
         # 3. MACD
         if "macd_hist" in df.columns and len(df) >= 2:
@@ -658,10 +658,10 @@ class IndicatorService:
             if not pd.isna(hist_today) and not pd.isna(hist_yesterday):
                 if hist_today > 0 and hist_today > hist_yesterday:
                     buy_score += 1
-                    details.append("✅ MACD 動能增強")
+                    details.append("MACD 動能增強")
                 elif hist_today < 0 and hist_today < hist_yesterday:
                     sell_score += 1
-                    details.append("❌ MACD 動能減弱")
+                    details.append("MACD 動能減弱")
         
         # 4. KD
         if "kd_k" in df.columns:
@@ -670,10 +670,10 @@ class IndicatorService:
             if not pd.isna(k) and not pd.isna(d):
                 if k < 20 and k > d:
                     buy_score += 1
-                    details.append(f"✅ KD 低檔黃金交叉 (K={k:.1f})")
+                    details.append(f"KD 低檔黃金交叉 (K={k:.1f})")
                 elif k > 80 and k < d:
                     sell_score += 1
-                    details.append(f"❌ KD 高檔死亡交叉 (K={k:.1f})")
+                    details.append(f"KD 高檔死亡交叉 (K={k:.1f})")
         
         # 5. 布林通道
         if "bb_lower" in df.columns:
@@ -685,31 +685,31 @@ class IndicatorService:
             if not pd.isna(bb_lower):
                 if price <= bb_lower:
                     buy_score += 1
-                    details.append("✅ 觸及布林下軌")
+                    details.append("觸及布林下軌")
                 elif price >= bb_upper:
                     sell_score += 1
-                    details.append("❌ 觸及布林上軌")
+                    details.append("觸及布林上軌")
                 elif price < bb_middle and len(df) >= 2:
                     if df["close"].iloc[-2] >= bb_middle:
                         sell_score += 1
-                        details.append("❌ 跌破布林中軌")
+                        details.append("跌破布林中軌")
         
         # 6. 量能
         if "volume_ratio" in df.columns:
             vol_ratio = latest["volume_ratio"]
             if not pd.isna(vol_ratio):
                 if vol_ratio >= 2.0:
-                    details.append(f"📊 成交量爆增 (量比 {vol_ratio:.1f})")
+                    details.append(f"成交量爆增 (量比 {vol_ratio:.1f})")
         
         # 7. OBV
         if "obv" in df.columns:
             obv_trend = self.get_obv_trend(df)
             if obv_trend == "rising":
                 buy_score += 1
-                details.append("✅ OBV 上升趨勢")
+                details.append("OBV 上升趨勢")
             elif obv_trend == "falling":
                 sell_score += 1
-                details.append("❌ OBV 下降趨勢")
+                details.append("OBV 下降趨勢")
         
         # 計算評等
         if buy_score >= 5:

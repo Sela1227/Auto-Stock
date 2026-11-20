@@ -26,7 +26,7 @@
     // ============================================================
 
     async function loadTags() {
-        // ✅ P4: 檢查 AppState 快取
+        // P4: 檢查 AppState 快取
         if (window.AppState && AppState.tagsLoaded && AppState.tags.length > 0) {
             userTags = AppState.tags;
             return userTags;
@@ -38,7 +38,7 @@
             if (data.success) {
                 userTags = data.data || [];
 
-                // ✅ P4: 同步到 AppState
+                // P4: 同步到 AppState
                 if (window.AppState) {
                     AppState.setTags(userTags);
                 }
@@ -60,7 +60,7 @@
             if (data.success) {
                 showToast('標籤已建立');
 
-                // ✅ P4: 樂觀更新
+                // P4: 樂觀更新
                 if (data.data) {
                     userTags.push(data.data);
                     if (window.AppState) {
@@ -93,7 +93,7 @@
             if (data.success) {
                 showToast('標籤已更新');
 
-                // ✅ P4: 樂觀更新
+                // P4: 樂觀更新
                 const idx = userTags.findIndex(t => t.id === tagId);
                 if (idx !== -1) {
                     userTags[idx] = { ...userTags[idx], ...updates };
@@ -122,7 +122,7 @@
             if (data.success) {
                 showToast('標籤已刪除');
 
-                // ✅ P4: 樂觀更新
+                // P4: 樂觀更新
                 userTags = userTags.filter(t => t.id !== tagId);
                 if (window.AppState) {
                     AppState.setTags([...userTags]);
@@ -213,7 +213,7 @@
             return;
         }
 
-        // ✅ P4: 使用 data-action 替代 onclick
+        // P4: 使用 data-action 替代 onclick
         container.innerHTML = `
             <div class="flex flex-wrap gap-2 mb-4" id="tagList">
                 ${userTags.map(tag => `
@@ -249,7 +249,7 @@
 
     function renderTagFilter(selectedTagId = null) {
         if (userTags.length === 0) return '';
-        // ✅ P4: 使用 data-action 替代 onclick
+        // P4: 使用 data-action 替代 onclick
         return `
             <div class="flex items-center gap-2 mb-4 flex-wrap">
                 <span class="text-sm text-gray-500"><i class="fas fa-filter mr-1"></i>篩選:</span>

@@ -111,7 +111,7 @@
                 throw new Error(data.detail || '取得資料失敗');
             }
             
-            // ✅ 修正：後端返回 data.data 直接是股票字典，不是 data.data.stocks
+            // 修正：後端返回 data.data 直接是股票字典，不是 data.data.stocks
             const stocks = data.data;
             const symbolList = Object.keys(stocks);
             
@@ -127,7 +127,7 @@
                 const stock = stocks[sym];
                 const color = compareColors[idx % compareColors.length];
                 
-                // ✅ 修正：後端返回 stock.history，不是 stock.data
+                // 修正：後端返回 stock.history，不是 stock.data
                 const historyData = stock.history || [];
                 
                 if (historyData.length === 0) return;
@@ -144,7 +144,7 @@
                     fill: false,
                 });
                 
-                // ✅ 修正：從 history 計算起始價、結束價、漲跌幅
+                // 修正：從 history 計算起始價、結束價、漲跌幅
                 const startValue = historyData[0]?.value || 100;
                 const endValue = historyData[historyData.length - 1]?.value || 100;
                 const changePct = endValue - startValue; // 因為已經正規化為 100 基準

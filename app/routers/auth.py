@@ -34,7 +34,7 @@ async def auth_version():
         "auth_version": AUTH_VERSION,
         "state_method": "HMAC",
         "jwt_key_set": bool(settings.JWT_SECRET_KEY and settings.JWT_SECRET_KEY != "your-secret-key-change-in-production"),
-        "admin_auto_update": True,  # 🆕
+        "admin_auto_update": True,  # 
     }
 
 
@@ -131,7 +131,7 @@ async def line_login():
 @router.get("/line/callback", summary="LINE 登入回調")
 async def line_callback(
     request: Request,
-    background_tasks: BackgroundTasks,  # 🆕 加入 BackgroundTasks
+    background_tasks: BackgroundTasks,  # 加入 BackgroundTasks
     code: str = Query(..., description="授權碼"),
     state: str = Query(..., description="State"),
     db: AsyncSession = Depends(get_async_session),
@@ -143,7 +143,7 @@ async def line_callback(
     - 用 code 換取 access token
     - 取得用戶資料
     - 建立/更新用戶
-    - 🆕 管理員登入時觸發背景更新
+    - 管理員登入時觸發背景更新
     - 回傳 HTML 頁面儲存 Token 並跳轉
     """
     from fastapi.responses import HTMLResponse
@@ -195,7 +195,7 @@ async def line_callback(
         </head>
         <body>
             <div class="card">
-                <h2>⚠️ 登入失敗</h2>
+                <h2>⚠ 登入失敗</h2>
                 <p>您的帳號已被停用或登入過程發生錯誤</p>
                 <p style="margin-top: 1rem;"><a href="/static/index.html">返回首頁</a></p>
             </div>
@@ -216,7 +216,7 @@ async def line_callback(
     # 改為每日 06:00 排程批次；需要即時更新時，管理後台有手動按鈕
     is_admin = getattr(user, 'is_admin', False)
     if is_admin:
-        logger.info(f"🔑 管理員 {user.display_name} 登入")
+        logger.info(f"管理員 {user.display_name} 登入")
 
     # ★ 安全：用 json.dumps 序列化所有用戶資料，避免 XSS
     import json as _json
@@ -231,7 +231,7 @@ async def line_callback(
     # 但仍用 json.dumps 確保無歧義
     safe_token = _json.dumps(token)
     safe_name_html = user.display_name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
-    admin_badge_html = '<div class="admin-badge">🔄 管理員模式 - 正在背景更新數據</div>' if is_admin else ''
+    admin_badge_html = '<div class="admin-badge">管理員模式 - 正在背景更新數據</div>' if is_admin else ''
 
     html_content = f"""
     <!DOCTYPE html>
@@ -347,7 +347,7 @@ async def get_me(
 
 
 # ============================================================
-# 🆕 V1.12 前端診斷日誌
+# V1.12 前端診斷日誌
 # ============================================================
 
 from datetime import datetime

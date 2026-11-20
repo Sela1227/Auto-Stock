@@ -2,7 +2,7 @@
 市場服務
 處理三大指數、市場情緒的資料存取
 
-🚀 優化版 - 2026-04-07
+優化版 - 2026-04-07
 - 加入內存快取（60秒過期），避免重複 DB 查詢
 - 一次查詢取得所有市場資料
 - 只在快取過期時才查詢 DB
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
-# 🆕 內存快取（全域，所有 request 共用）
+# 內存快取（全域，所有 request 共用）
 # ============================================================
 
 class MemoryCache:
@@ -92,12 +92,12 @@ class MarketService:
     def get_latest_indices(self) -> Dict[str, Any]:
         """
         取得四大指數最新資料
-        🆕 優先從內存快取讀取
+        優先從內存快取讀取
         """
         # 嘗試從快取取得
         cached = _memory_cache.get("indices", INDICES_CACHE_SECONDS)
         if cached is not None:
-            logger.debug("📦 指數快取命中 (memory)")
+            logger.debug("指數快取命中 (memory)")
             return cached
         
         # 快取未命中，查詢 DB
@@ -115,9 +115,9 @@ class MarketService:
                 
                 if latest:
                     result[symbol] = latest.to_dict()
-                    logger.debug(f"📦 指數 DB: {symbol} = {latest.close}")
+                    logger.debug(f"指數 DB: {symbol} = {latest.close}")
                 else:
-                    logger.warning(f"⚠️ 指數 {symbol} 無快取資料，請執行更新")
+                    logger.warning(f"⚠ 指數 {symbol} 無快取資料，請執行更新")
                     result[symbol] = {
                         "symbol": symbol,
                         "name": info["name"],
@@ -259,7 +259,7 @@ class MarketService:
         # 1. 內存快取
         cached = _memory_cache.get("sentiment", SENTIMENT_CACHE_SECONDS)
         if cached is not None:
-            logger.debug("📦 情緒快取命中 (memory)")
+            logger.debug("情緒快取命中 (memory)")
             return cached
 
         result = {}
@@ -284,15 +284,15 @@ class MarketService:
 
                     if is_fresh:
                         result[market] = latest.to_dict()
-                        logger.debug(f"📦 情緒 DB (新鮮): {market} = {latest.value}")
+                        logger.debug(f"情緒 DB (新鮮): {market} = {latest.value}")
                     else:
                         # DB 有資料但已過期，先暫存，等 API 更新
                         result[market] = latest.to_dict()  # 保底
                         needs_api_refresh.append(market)
-                        logger.info(f"⏰ 情緒 {market} DB 資料已 {age_hours:.0f} 小時，嘗試刷新")
+                        logger.info(f"情緒 {market} DB 資料已 {age_hours:.0f} 小時，嘗試刷新")
                 else:
                     needs_api_refresh.append(market)
-                    logger.warning(f"⚠️ 情緒 {market} DB 無資料，嘗試從 API 取得")
+                    logger.warning(f"⚠ 情緒 {market} DB 無資料，嘗試從 API 取得")
             except Exception as e:
                 logger.error(f"讀取情緒 {market} 失敗: {e}")
                 needs_api_refresh.append(market)
@@ -309,9 +309,9 @@ class MarketService:
                     if api_data and not api_data.get("is_fallback"):
                         self.save_sentiment(market, api_data["value"])
                         result[market] = api_data
-                        logger.info(f"✅ 情緒 {market} 從 API 更新成功: {api_data['value']}")
+                        logger.info(f"情緒 {market} 從 API 更新成功: {api_data['value']}")
                     else:
-                        logger.warning(f"⚠️ 情緒 {market} API 返回 fallback，使用 DB 舊值或預設")
+                        logger.warning(f"⚠ 情緒 {market} API 返回 fallback，使用 DB 舊值或預設")
                         if market not in result:
                             result[market] = {"market": market, "value": None, "label": "無資料", "date": None}
                 except Exception as e:
@@ -332,7 +332,7 @@ class MarketService:
         cache_key = f"sentiment_history_{market}_{days}"
         cached = _memory_cache.get(cache_key, 300)
         if cached is not None:
-            logger.debug(f"📦 情緒歷史快取命中: {market} {days}天")
+            logger.debug(f"情緒歷史快取命中: {market} {days}天")
             return cached
         
         start_date = date.today() - timedelta(days=days)

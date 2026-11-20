@@ -1,6 +1,6 @@
 """
 設定管理 API 路由
-🔧 P0修復：使用統一認證模組
+P0修復：使用統一認證模組
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +23,7 @@ from app.schemas.schemas import (
     ResponseBase,
 )
 
-# 🔧 使用統一認證模組
+# 使用統一認證模組
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/settings", tags=["設定"])

@@ -82,25 +82,25 @@ class SignalService:
         SignalType.SENTIMENT_EXTREME_GREED: "極度貪婪",
     }
     
-    # 訊號 Emoji
+    # 訊號符號（LINE 純文字推播；單色符號，不用彩色 emoji）
     SIGNAL_EMOJI = {
-        SignalType.MA_GOLDEN_CROSS: "🟢",
-        SignalType.MA_DEATH_CROSS: "🔴",
-        SignalType.APPROACHING_BREAKOUT: "⬆️",
-        SignalType.APPROACHING_BREAKDOWN: "⬇️",
-        SignalType.BREAKOUT: "✅",
-        SignalType.BREAKDOWN: "❌",
-        SignalType.RSI_OVERBOUGHT: "⚠️",
-        SignalType.RSI_OVERSOLD: "🟢",
-        SignalType.MACD_GOLDEN_CROSS: "🟢",
-        SignalType.MACD_DEATH_CROSS: "🔴",
-        SignalType.KD_GOLDEN_CROSS: "🟢",
-        SignalType.KD_DEATH_CROSS: "🔴",
-        SignalType.BOLLINGER_BREAKOUT: "📈",
-        SignalType.BOLLINGER_BREAKDOWN: "📉",
-        SignalType.VOLUME_SURGE: "📊",
-        SignalType.SENTIMENT_EXTREME_FEAR: "😱",
-        SignalType.SENTIMENT_EXTREME_GREED: "🤑",
+        SignalType.MA_GOLDEN_CROSS: "▲",
+        SignalType.MA_DEATH_CROSS: "▼",
+        SignalType.APPROACHING_BREAKOUT: "→",
+        SignalType.APPROACHING_BREAKDOWN: "→",
+        SignalType.BREAKOUT: "▲",
+        SignalType.BREAKDOWN: "▼",
+        SignalType.RSI_OVERBOUGHT: "⚠",
+        SignalType.RSI_OVERSOLD: "▲",
+        SignalType.MACD_GOLDEN_CROSS: "▲",
+        SignalType.MACD_DEATH_CROSS: "▼",
+        SignalType.KD_GOLDEN_CROSS: "▲",
+        SignalType.KD_DEATH_CROSS: "▼",
+        SignalType.BOLLINGER_BREAKOUT: "▲",
+        SignalType.BOLLINGER_BREAKDOWN: "▼",
+        SignalType.VOLUME_SURGE: "※",
+        SignalType.SENTIMENT_EXTREME_FEAR: "▼",
+        SignalType.SENTIMENT_EXTREME_GREED: "▲",
     }
     
     def __init__(self):
@@ -506,7 +506,7 @@ class SignalService:
     
     def format_signal_message(self, signal: Signal) -> str:
         """格式化訊號訊息（用於 LINE 推播）"""
-        emoji = self.SIGNAL_EMOJI.get(signal.signal_type, "📢")
+        emoji = self.SIGNAL_EMOJI.get(signal.signal_type, "•")
         return f"{emoji} {signal.message}"
     
     def format_signals_summary(self, signals: List[Signal]) -> str:
@@ -529,7 +529,7 @@ class SignalService:
                 by_symbol[s.symbol] = []
             by_symbol[s.symbol].append(s)
         
-        lines = ["📊 技術訊號通知", ""]
+        lines = ["技術訊號通知", ""]
         
         for symbol, symbol_signals in by_symbol.items():
             lines.append(f"【{symbol}】")
@@ -542,7 +542,7 @@ class SignalService:
                     lines.append(f"  {emoji} {s.message}")
             lines.append("")
         
-        lines.append(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append(f"{datetime.now().strftime('%Y-%m-%d %H:%M')}")
         
         return "\n".join(lines)
 

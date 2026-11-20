@@ -1,157 +1,81 @@
-# SELA-handoff.md — AutoStock（SELA 自動選股系統）
+# SELA-handoff.md ｜ AutoStock V1.15.0
 
-> 產出時機：首次對齊 Kit（V1.13.0）= 重大里程碑必產出
-> 完成版本：V1.13.0（2026-04-12）
-
----
+> 上一份 handoff 是 V1.13.0（對齊 Kit V1.8.1），當時提的 N1 市場感知快取、N2 FastAPI 啟動 NameError、#3 補強不重搬。
 
 ## 〇、專案速覽
 
-- **專案名稱：** AutoStock（SELA 自動選股分析系統）
-- **專案類型：** FastAPI 後端 + Vanilla JS 前端 + PostgreSQL，Railway 部署
-- **技術棧：** Python 3.11 + FastAPI + SQLAlchemy 2.0 + PostgreSQL + Vanilla JS + Tailwind CSS + APScheduler + LINE Login + JWT
-- **規模：** ~30 個 Python 檔、~20 個 JS 檔、~15,000 行
-- **使用 Kit 版本：** V1.8.1（首次對齊）
-- **完成版本：** V1.13.0
-- **完成日期：** 2026-04-12
+- **專案名稱：** AutoStock（自動選股系統）
+- **專案類型：** FastAPI + Railway（多用戶 Web App，Vanilla JS + Tailwind CDN）
+- **技術棧：** Python 3.11 + FastAPI + SQLAlchemy 2.0 Async/Sync + PostgreSQL + APScheduler + LINE Login
+- **部署路徑：** SELA 推 GitHub → Railway 自動部署
+- **使用 Kit 版本：** V4.16.0（從 V1.8.1 跳版補對齊）
+- **完成版本：** V1.15.0
+- **完成日期：** 2026-11-20
 
----
+## 二、本次新增（建議進 Kit）
 
-## 一、用 Kit 的整體感受
+**[坑] 打包排除規則 `--exclude "*.git*"` 連 `.gitignore` 一起排掉**
+- 症狀：連續 4 版 zip 沒有 `.gitignore`，kit-check P1 才擋下
+- 原因：本意排 `.git/`，萬用字元也吃掉 `.gitignore`、`.github/`、`.gitattributes`
+- 做法：排除寫精確路徑 `-x "*/.git/*"`；打包後 `unzip -l` 確認 `.gitignore` 在。建議 Kit 給一行標準打包指令讓專案照抄
+- 影響範圍：所有用 `zip -r` 打包的專案
+- 證據：本專案 CLAUDE.md 坑 #13（V1.13.1–V1.14.0）
+- 查重：grep「exclude」「\*.git\*」→ 無
 
-### 預期外的順利
+**[坑] 背景任務呼叫不存在的方法名，被 except 吞掉好幾版**
+- 症狀：管理員登入觸發的股價更新從沒成功過，畫面無任何異狀，log 只有一行 error
+- 原因：呼叫 `update_all_prices()`，實際方法叫 `update_all`；`BackgroundTasks` 裡的 `AttributeError` 被 try/except 接住
+- 做法：煙霧測試實際呼叫一次背景任務進入點；失敗要在管理介面可見，不能只寫 log
+- 影響範圍：所有有排程 / BackgroundTasks 的後端
+- 證據：本專案坑 #12（V1.14.0 才發現）
+- 查重：grep「AttributeError」→ #28、#34 都是 framework 版本問題，不同；grep「吞」→ 無
 
-- `cross-project-pitfalls.md` 的坑 #3、#5、#18、#23、#24 全部在這個專案出現過，Kit 的診斷描述非常準確，對照後馬上找到原因
+**[Kit 修改建議] OPT-7 補強：批次去 emoji 的兩個死角**
+- 現狀：OPT-7 講「介面 emoji → ICO()」，沒講既有大專案怎麼批次清
+- 建議補：①先掃「整個字串就是 emoji」的值（`'🥇'`、`SIGNAL_EMOJI = {…: "📈"}`、`? '🔺' : '🔻'`），逐一換圖示或單色符號，**再**批次刪其餘——否則清成 `''`，語法照過、畫面與推播少了方向提示；②Markdown 表格的 ✅ ❌ 狀態欄要轉 ✓ ✗，不能刪（刪了整欄空白）；③`textContent` 渲染的訊息只能刪、不能塞 `<i>`
+- 理由：本案 749 處；純 emoji 字串 9 處 JS、17 個 LINE 推播符號、README 必填欄被清空，複查才補回
 
-### 預期外的卡住
+**[Kit 修改建議] 坑 #3 補強：請求端的契約漂移，加一個靜態比對當早期信號**
+- 現狀：#3 講回應結構一致；本案連踩的是**請求端**：路徑參數 vs query（`/transactions/tw` 被當 `transaction_id` → 422）、FormData vs JSON body、必填 `Query(...)` 沒傳、呼叫已刪除的端點
+- 建議：煙霧測試加「前端每個 `apiRequest/fetch('/api/…')` 都對得到後端路由」的靜態比對（解析 `APIRouter(prefix=)` + `@router.<method>("…")`，`{param}` 與 `${…}` 各當一段）。本案實作在 `tests/smoke.py` 的 `check_contract()`，約 40 行，對舊版實測抓到殘留的 `/remove-admin` 呼叫
+- 取捨：只比路徑形狀，抓不到型別與 body 格式
+- 理由：V1.13.1 外部審稿逐條人工比對才抓到 4 個 422/404
 
-- 本專案是「已有 13 個版本的成熟專案」，Kit 的 SOP 預設「從零建立」，第一次套用時很多步驟不適用（坑 #40 的情境）
-- `CLAUDE.md` 結構改為九章格式時，累積的踩坑紀錄需要重新整理，花了一些時間
+**[Kit 修改建議] sela-deploy railway.md：沙盒連不到站時，線上版號改用 Railway 部署紀錄**
+- 現狀：鐵律「讀不到線上版號就停」；本對話的出站代理擋 `*.up.railway.app`，curl 與 WebFetch 都讀不到
+- 建議：Railway 專案可用連接器 `list-deployments`，每筆有 commit 訊息（SELA 的 commit 訊息就是版號），當作線上版號來源並在回報寫明來源
+- 理由：本案靠這條確認線上 V1.14.0 才放行
 
-### 整體評價
+**[Kit 修改建議] jarvis-interface.md：補「Railway + SELA 自己推 GitHub」的 `.commander.json` 範例**
+- 現狀：範例都是 Cloudflare 腳本部署（有 `prod.cmd`、`-test`）
+- 建議：加一個只有 `monitor.url`（指向 `/_health`）、`smoke`、`prod.url`、`prod.version_url`，**不寫 `prod.cmd`** 的範例，並寫明「部署走 git 推送的專案，賈維斯只巡邏、同步、封存」
+- 理由：照範本寫 `prod.cmd` 等於在 git 上加自動化，違反鐵律
 
-- ✓ 坑庫的三段式（症狀/原因/做法）+ 全域編號對交叉引用非常有用
-- ✓ 業務對映表讓「版本號漏改 4 個地方」這個問題有了系統性的防範
-- ✗ 既有成熟專案首次對齊，Kit 的「鐵律/建議/順便/不做四級分類」（坑 #40）非常必要，但在 CLAUDE.md 主入口看不到明確提示
+### 可加但等更多證據
 
----
-
-## 二、發現的「跨專案通用坑」
-
-### 強烈建議（已在 Kit 有對應坑，屬確認）
-
-以下坑在 Kit 已有對應編號，AutoStock 是確認案例（加強通用性證據）：
-
-- **Kit #3（資料 vs 顯示混用）**：`data.stock` 被誤改成 `data.data?.stock`，一個字元的差異造成整個功能靜默失敗，前端無任何報錯
-  - 證據：本專案 CLAUDE.md 坑 #1
-  - **特別值得加到 #3 的說明**：「改前端 API 解析前先用 DevTools Network tab 看實際格式」這個做法很有效，值得補進 #3 的做法段
-
-- **Kit #15（外部 API 單一來源）**：CNN Fear & Greed API 在 Railway 部署環境被封，備用方案直接 `return None`
-  - 證據：本專案 CLAUDE.md 坑 #7
-  - 本案的修法：`find_with_fallback` 模式，依序試多個來源
-
-### 可加的新坑（Kit 目前沒有完整對應）
-
-#### N1. 市場感知快取（按交易時段決定是否呼叫外部 API）
-
-- **症狀**：非交易時段的每次 API 請求都打外部 API（如 Yahoo Finance），Railway 費用快速上升
-- **原因**：沒有區分「交易時段需要即時資料」和「非交易時段用 DB 快取即可」兩種場景
-- **做法**：
-  ```python
-  def is_tw_market_open() -> bool:
-      now = datetime.now(TW_TZ)
-      weekday = now.weekday()
-      if weekday >= 5:
-          return False
-      return time(9, 0) <= now.time() <= time(13, 30)
-  ```
-  非交易時段直接回 DB 快取，交易時段才打外部 API
-- **影響範圍**：所有有排程 + 外部 API 的 FastAPI 專案，特別是 Railway 計費環境
-- **效果**：非交易時段 10–40x 性能提升，Railway 費用大幅降低
-- **檢查 1 結果**：grep Kit「market hours」「cache strategy」→ 無完整對應
-
-#### N2. FastAPI startup 中 import 型別未定義導致整服務無法啟動
-
-- **症狀**：Railway 部署後整服務 502，log 顯示 `NameError: name 'User' is not defined`，但 Python import 鏈上所有語法都正確
-- **原因**：FastAPI 在啟動時就會解析所有 Depends() 的型別提示，某個函數的 type hint 引用了未 import 的類別
-- **做法**：打包前必跑 `python -c "from app.main import app; print(len(app.routes), 'routes')"` 強制觸發所有 import
-- **影響範圍**：所有 FastAPI 專案，特別是 Depends() 型別提示很多的情況
-- **檢查 1 結果**：grep Kit「startup」「NameError」→ 坑 #7 的煙霧測試提到了驗證指令，但沒有特別針對 FastAPI Depends 型別提示這個場景
-
----
-
-## 三、發現的「跨專案設計模式」
-
-### 1. 單一認證出口（從第 N 個版本才建立，代價昂貴）
-
-- **本案情境**：早期各 router 各自實作 `get_current_user`，到 V1.12.2 才統一到 `dependencies/auth.py`
-- **可推廣原則**：FastAPI 專案第一天就建 `dependencies/auth.py`，所有 router 只 import，不自己實作。即使 V0.1.0 只有 1 個 router 也要這樣做
-- **代價**：多一個檔案，但省去日後重構的成本
-- **建議寫入**：`start-project-decisions.md` 的 FastAPI 起始決策，Kit 坑 #5 已有，但可以加強「第一天就做」的時機說明
-
-### 2. Context Manager 統一管理同步 DB Session
-
-- **本案情境**：6 個排程任務各自 `db = SyncSessionLocal() / try / finally db.close()`，其中一個漏了 `finally`，connection pool 漸耗盡
-- **可推廣原則**：只要有超過 2 個地方手動開關同一種 session，就應該抽出 context manager
-- **代價**：需要重構，建議在第 3 個函數出現時就做
-- **建議寫入**：`tech-stack-lessons.md` FastAPI + SQLAlchemy 段落
-
----
-
-## 四、Kit 該調整的地方
-
-### Kit 規範修改建議
-
-#### 1. `CLAUDE.md` 主入口補「既有專案首次對齊」快速入口
-
-- **現狀**：CLAUDE.md 的第 2.2 節只有技術棧的路由表，沒有「我是帶著成熟專案來對齊 Kit」的入口
-- **建議改成**：在第 2.2 節加一行「**如果你是帶著 N 個版本的既有專案來對齊 Kit，先讀 `conventions/cross-project-pitfalls.md` 的坑 #40**」
-- **理由**：坑 #40 的四級分類是正確做法，但 CLAUDE.md 主入口看不到這條
-
-#### 2. `cross-project-pitfalls.md` 坑 #3 補「先看 Network tab 再改」
-
-- **現狀**：做法是「API 回應結構統一」，沒有具體的「診斷步驟」
-- **建議補充**：做法段加一句「改前端 API 解析前，先用 DevTools Network tab 確認實際回傳格式，不依賴記憶或推論」
-
----
+- zip 沒標 UTF-8 旗標時，中文檔名解壓變 `SELA_#U4ea4#U6613…`，之後每版照抄（本案 13 個 docs 檔名亂碼好幾個月）；用 Python `zipfile` 打包會自動標旗標。跟坑 #20（下載中文檔名）不同，N=1
+- 文件寫的環境變數名跟程式讀的不一致（2 個），照文件設會靜默無效；可考慮 smoke 比對 `.env.example` 與 `Settings` 欄位
 
 ## 五、留在這個專案、不要回流 Kit 的東西
 
-- LINE Login 完整 callback 流程（業務特定）
-- 台股 / 美股 / 加密貨幣交易時段判斷邏輯（業務模型）
-- 情緒指數的多來源備用具體實作（feargreedmeter + alternative.me，業務特定）
-- 技術指標計算邏輯（MA / RSI / MACD / KD / BB / OBV，業務模型）
-- 追蹤清單 / 投資記錄 / 訂閱精選的業務邏輯
-- Railway 的具體部署設定（`railway.json` / `Procfile`）
+- 週一~週六 06:00 單一批次的時間點選擇（美股收盤後、週六補抓週五）——業務決策
+- LINE 推播訊號符號對照（▲ ▼ → ⚠ ※ 對各技術訊號）
+- 前後端 API 契約表的具體端點（交易列表、追蹤清單匯入、set-admin）
+- 情緒指數多來源與 12 小時新鮮度
+- `validate_production()` 檢查的具體變數清單（做法可參考，清單是本專案的）
+- 管理員 kick / kick-all 寫 `SystemConfig` token 版本號的實作
+- 配色、品牌（SELA logo、不做 app logo）
 
----
+## 六、Kit 維護 Claude 的行動清單
 
-## 六、Kit Claude 的建議行動清單
-
-### 建議升 Kit 版本
-
-V1.9.0（b+1）— 有新坑提案（N1、N2）+ 修改建議 + 補強現有坑 #3
-
-### 必做
-
-- [ ] 坑 #3 做法段補：「改前端 API 解析前，先用 DevTools Network tab 確認實際格式」
-- [ ] `CLAUDE.md` 第 2.2 節加既有專案首次對齊的快速入口，指向坑 #40
-- [ ] 評估 N1（市場感知快取）是否進坑庫（影響範圍：排程 + 外部 API + 計費環境）
-- [ ] 評估 N2（FastAPI startup NameError）是否進坑庫，或補強坑 #7 的煙霧測試指令
-
-### 暫緩
-
-- [ ] `tech-stack-lessons.md` FastAPI + SQLAlchemy 段落補 context manager 模式 — 等更多專案確認
-
-### 不做
-
-- [ ] LINE Login 業務流程進 Kit（業務特定，不通用）
-- [ ] 台股交易時段判斷邏輯進 Kit（業務模型）
-
----
-
-## 七、給 Kit Claude 的最後備註
-
-AutoStock 是 Kit 建立以前就存在的成熟專案，是首個對齊 Kit 的「既有成熟 FastAPI 專案」。坑 #40 的四級分類做法在這個案例完整驗證過，非常適用。
-
-N1（市場感知快取）是這個專案最有商業價值的技術決策，但它的「跨專案通用性」取決於是否有其他用到排程 + 外部 API 的專案 — 建議觀察下一個同類型專案後再決定是否進坑庫。
+- **建議升 Kit 版本：** b+1，理由：2 條新坑 + 4 條修改建議（OPT-7、#3、railway.md、jarvis-interface.md）
+- **必做：**
+  - [ ] 新增坑「`--exclude "*.git*"` 排掉 `.gitignore`」，並在 sela-deploy 給標準打包指令
+  - [ ] 新增坑「背景任務的 AttributeError 被吞」
+  - [ ] OPT-7 補批次去 emoji 的三個死角
+  - [ ] 坑 #3 補請求端契約漂移與靜態比對
+- **暫緩：**
+  - [ ] railway.md 用部署紀錄讀線上版號——等第二個 Railway 專案也遇到代理擋站
+  - [ ] zip UTF-8 旗標、環境變數名不一致——各 N=1
+- **不做：**
+  - [ ] 06:00 批次、LINE 推播符號表（業務）

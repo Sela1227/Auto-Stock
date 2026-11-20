@@ -1,7 +1,7 @@
 """
 加密貨幣和市場情緒 API 路由
 
-🆕 2026-01-17 更新：
+2026-01-17 更新：
 - 加入查詢結果快取功能，查詢過的加密貨幣會儲存到本地資料庫
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -173,7 +173,7 @@ async def get_crypto_analysis(
         volume_24h = info.get("total_volume") if info else None
         day_change = calc_change(1)
         
-        # 🆕 將查詢結果寫入快取
+        # 將查詢結果寫入快取
         try:
             from app.services.cache_helper import cache_crypto_price
             
@@ -184,7 +184,7 @@ async def get_crypto_analysis(
                 change_pct=day_change,
                 volume=int(volume_24h) if volume_24h else None
             )
-            logger.info(f"📦 加密貨幣快取已更新: {symbol} = ${current_price}")
+            logger.info(f"加密貨幣快取已更新: {symbol} = ${current_price}")
         except Exception as e:
             # 快取失敗不影響主流程
             logger.warning(f"加密貨幣快取更新失敗（不影響查詢）: {e}")
@@ -258,7 +258,7 @@ async def get_crypto_analysis(
 @router.get("/{symbol}/chart", summary="圖表功能已移除")
 async def get_crypto_chart(symbol: str):
     """
-    🆕 V1.08 此功能已移除
+    V1.08 此功能已移除
     
     圖表已改用前端 Chart.js 繪製，不再需要後端生成 PNG
     請使用前端圖表功能

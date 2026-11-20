@@ -414,10 +414,10 @@ class SchedulerService:
     
     def _format_notification_message(self, bullish: List[Dict], bearish: List[Dict]) -> str:
         """格式化每日訊號通知訊息"""
-        lines = ["📊 SELA 選股系統 - 每日訊號", ""]
+        lines = ["SELA 選股系統 - 每日訊號", ""]
         
         if bullish:
-            lines.append("🟢 偏多訊號")
+            lines.append("偏多訊號")
             for item in bullish:
                 price_str = f" @ ${item['price']:.2f}" if item['price'] > 0 else ""
                 lines.append(f"  • {item['symbol']}{price_str}")
@@ -425,7 +425,7 @@ class SchedulerService:
             lines.append("")
         
         if bearish:
-            lines.append("🔴 偏空訊號")
+            lines.append("偏空訊號")
             for item in bearish:
                 price_str = f" @ ${item['price']:.2f}" if item['price'] > 0 else ""
                 lines.append(f"  • {item['symbol']}{price_str}")
@@ -433,10 +433,10 @@ class SchedulerService:
             lines.append("")
         
         if not bullish and not bearish:
-            lines.append("今日您的追蹤清單無重要訊號 ✨")
+            lines.append("今日您的追蹤清單無重要訊號 ")
             lines.append("")
         
-        lines.append(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append(f"{datetime.now().strftime('%Y-%m-%d %H:%M')}")
         
         return "\n".join(lines)
     

@@ -223,8 +223,8 @@ function cagrRenderResult(data) {
     
     data.comparison.forEach((item, index) => {
         const rankClass = index === 0 ? 'bg-yellow-100' : index === 1 ? 'bg-gray-100' : index === 2 ? 'bg-orange-100' : '';
-        const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`;
-        const typeIcon = item.type === 'crypto' ? '🪙' : item.type === 'index' ? '📈' : '📊';
+        const rankIcon = `${index + 1}`;
+        const typeIcon = item.type === 'crypto' ? '<i class="fab fa-bitcoin text-orange-500"></i>' : item.type === 'index' ? '<i class="fas fa-chart-line text-blue-500"></i>' : '<i class="fas fa-chart-bar text-gray-500"></i>';
         
         html += `
             <tr class="hover:bg-gray-50">
@@ -269,7 +269,7 @@ function cagrRenderResult(data) {
     if (data.benchmark) {
         html += `
             <div class="mt-4 p-3 bg-gray-50 rounded-lg text-sm">
-                <span class="text-gray-500">📌 基準指數：</span>
+                <span class="text-gray-500"><i class="fas fa-thumbtack mr-2"></i>基準指數：</span>
                 <span class="font-medium">${data.benchmark.name} (${data.benchmark.symbol})</span>
                 <span class="ml-4 text-gray-500">
                     ${periods.map(p => `${cagrFormatPeriod(p)}: ${cagrFormatCAGR(data.benchmark.cagr[p], true)}`).join(' | ')}

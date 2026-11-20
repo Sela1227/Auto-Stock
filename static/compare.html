@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon/apple-touch-icon.png">
     <link rel="manifest" href="/static/favicon/site.webmanifest">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>報酬率比較 - SELA 自動選股系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -63,7 +63,7 @@
                         <span class="font-bold text-xl">SELA</span>
                     </a>
                     <span class="text-gray-400">|</span>
-                    <span class="text-lg">📊 報酬率比較</span>
+                    <span class="text-lg"><i class="fas fa-chart-bar mr-2"></i>報酬率比較</span>
                 </div>
                 <div class="flex items-center space-x-4">
                     <a href="/static/dashboard.html" class="text-gray-300 hover:text-white">
@@ -79,7 +79,7 @@
     <div class="max-w-7xl mx-auto px-4 py-6">
         <!-- 說明卡片 -->
         <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-6 mb-6 text-white">
-            <h1 class="text-2xl font-bold mb-2">🏆 年化報酬率 (CAGR) 比較器</h1>
+            <h1 class="text-2xl font-bold mb-2"><i class="fas fa-trophy mr-2"></i>年化報酬率 (CAGR) 比較器</h1>
             <p class="text-blue-100">比較股票、加密貨幣、指數的長期投資報酬表現，找出最佳投資標的</p>
         </div>
 
@@ -88,7 +88,7 @@
             <div class="lg:col-span-1 space-y-4">
                 <!-- 快速選擇預設組合 -->
                 <div class="bg-white rounded-xl shadow p-4">
-                    <h3 class="font-bold text-gray-700 mb-3">🚀 快速比較</h3>
+                    <h3 class="font-bold text-gray-700 mb-3"><i class="fas fa-rocket mr-2"></i>快速比較</h3>
                     <div class="space-y-2" id="presetList">
                         <p class="text-gray-400 text-sm">載入中...</p>
                     </div>
@@ -96,7 +96,7 @@
 
                 <!-- 自訂標的 -->
                 <div class="bg-white rounded-xl shadow p-4">
-                    <h3 class="font-bold text-gray-700 mb-3">✏️ 自訂比較</h3>
+                    <h3 class="font-bold text-gray-700 mb-3"><i class="fas fa-pen mr-2"></i>自訂比較</h3>
                     
                     <!-- 已選標的 -->
                     <div class="mb-3">
@@ -167,7 +167,7 @@
                 <!-- 我的組合 -->
                 <div class="bg-white rounded-xl shadow p-4">
                     <div class="flex justify-between items-center mb-3">
-                        <h3 class="font-bold text-gray-700">💾 我的組合</h3>
+                        <h3 class="font-bold text-gray-700"><i class="fas fa-floppy-disk mr-2"></i>我的組合</h3>
                         <button onclick="saveCurrentComparison()" class="text-blue-600 hover:text-blue-800 text-sm">
                             <i class="fas fa-save mr-1"></i>儲存目前
                         </button>
@@ -182,7 +182,7 @@
             <div class="lg:col-span-2">
                 <div class="bg-white rounded-xl shadow p-6">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-gray-700 text-lg">📊 比較結果</h3>
+                        <h3 class="font-bold text-gray-700 text-lg"><i class="fas fa-chart-bar mr-2"></i>比較結果</h3>
                         <span id="resultTime" class="text-sm text-gray-400"></span>
                     </div>
                     
@@ -401,8 +401,8 @@
             
             data.comparison.forEach((item, index) => {
                 const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
-                const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`;
-                const typeIcon = item.type === 'crypto' ? '🪙' : item.type === 'index' ? '📈' : '📊';
+                const rankIcon = `${index + 1}`;
+                const typeIcon = item.type === 'crypto' ? '<i class="fab fa-bitcoin text-orange-500"></i>' : item.type === 'index' ? '<i class="fas fa-chart-line text-blue-500"></i>' : '<i class="fas fa-chart-bar text-gray-500"></i>';
                 
                 html += `
                     <tr class="hover:bg-gray-50">
@@ -447,7 +447,7 @@
             if (data.benchmark) {
                 html += `
                     <div class="mt-4 p-3 bg-gray-50 rounded-lg">
-                        <span class="text-sm text-gray-500">📌 基準指數：</span>
+                        <span class="text-sm text-gray-500"><i class="fas fa-thumbtack mr-2"></i>基準指數：</span>
                         <span class="font-medium">${data.benchmark.name} (${data.benchmark.symbol})</span>
                         <span class="ml-4 text-sm text-gray-500">
                             ${periods.map(p => `${formatPeriod(p)}: ${formatCAGR(data.benchmark.cagr[p], true)}`).join(' | ')}

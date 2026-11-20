@@ -1,4 +1,6 @@
-# 📈 SELA 系統規格書
+> 歷史文件（V0.x–V1.0 時期），現況以根目錄 CLAUDE.md 為準。
+
+# SELA 系統規格書
 
 > 版本: 2.0  
 > 最後更新: 2026-01-17  
@@ -49,7 +51,7 @@
 │                      商業邏輯層 (Services)                    │
 │    ├─ indicator_service.py    技術指標計算                   │
 │    ├─ signal_service.py       訊號偵測                       │
-│    ├─ price_cache_service.py  市場感知快取 ⭐                │
+│    ├─ price_cache_service.py  市場感知快取 ★                │
 │    ├─ chart_service.py        圖表生成                       │
 │    └─ portfolio_service.py    投資組合計算                   │
 ├─────────────────────────────────────────────────────────────┤
@@ -102,7 +104,7 @@ sela-stock-analysis/
 │   ├── tasks/                  # 排程任務
 │   │   ├── scheduler.py        # 排程器
 │   │   └── subscription_tasks.py
-│   ├── dependencies.py         # 認證依賴注入 ⭐
+│   ├── dependencies.py         # 認證依賴注入 ★
 │   ├── database.py             # 資料庫連線
 │   ├── config.py               # 設定
 │   └── main.py                 # 入口
@@ -234,7 +236,7 @@ sela-stock-analysis/
 | GET | `/api/watchlist/with-prices` | 追蹤清單含價格 |
 | POST | `/api/watchlist` | 新增追蹤 |
 | DELETE | `/api/watchlist/{symbol}` | 移除追蹤 |
-| GET | `/api/watchlist/popular` | 熱門追蹤 🆕 |
+| GET | `/api/watchlist/popular` | 熱門追蹤 |
 | **投資組合** |
 | GET | `/api/portfolio/summary` | 投資摘要 |
 | GET | `/api/portfolio/holdings` | 持股列表 |
@@ -278,15 +280,15 @@ sela-stock-analysis/
 {
   "market_open": false,  // 市場是否開盤
   "chart_data": {
-    "volumes": [...]     // 🆕 成交量數據
+    "volumes": [...]     // 成交量數據
   },
   "indicators": {
     "ma": {
-      "dist_ma20": 2.5,        // 🆕 距離 MA20 百分比
-      "dist_ma50": 5.1,        // 🆕 距離 MA50 百分比
-      "dist_ma200": 15.3,      // 🆕 距離 MA200 百分比
-      "golden_cross_20_50": true,   // 🆕 黃金交叉
-      "golden_cross_20_50_days": 5  // 🆕 幾天前
+      "dist_ma20": 2.5,        // 距離 MA20 百分比
+      "dist_ma50": 5.1,        // 距離 MA50 百分比
+      "dist_ma200": 15.3,      // 距離 MA200 百分比
+      "golden_cross_20_50": true,   // 黃金交叉
+      "golden_cross_20_50_days": 5  // 幾天前
     }
   }
 }
@@ -316,7 +318,7 @@ sela-stock-analysis/
 | 布林通道 | Bollinger Bands | 突破上/下軌 |
 | OBV | 能量潮 | 量價背離 |
 
-### 6.2 欄位名稱對照（重要⚠️）
+### 6.2 欄位名稱對照（重要⚠）
 
 `indicator_service.py` 產生的欄位都是**小寫**：
 

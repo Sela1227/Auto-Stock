@@ -1,6 +1,6 @@
 """
 管理員 API 路由
-🔧 P0修復：使用統一認證模組
+P0修復：使用統一認證模組
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -551,7 +551,7 @@ async def test_line_push(
         }
     
     try:
-        test_message = f"📊 SELA 系統測試\n\n{message}\n\n⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        test_message = f"SELA 系統測試\n\n{message}\n\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         
         success = await line_notify_service.push_text_message(admin.line_user_id, test_message)
         

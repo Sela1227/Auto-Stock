@@ -152,7 +152,7 @@
         html += '</div>';
         container.innerHTML = html;
 
-        // ✅ P3: 初始化事件委託
+        // P3: 初始化事件委託
         initWatchlistEventDelegation();
     }
 
@@ -217,7 +217,7 @@
         const itemTags = watchlistTagsMap[item.id] || [];
         const tagBadges = typeof renderTagBadges === 'function' ? renderTagBadges(itemTags) : '';
 
-        // ✅ P3: 使用 data-action 替代 onclick
+        // P3: 使用 data-action 替代 onclick
         const tradeButtons = isCrypto ? '' : `
             <div class="flex gap-2 mr-2">
                 <button data-action="trade" data-symbol="${item.symbol}" data-name="${item.name || ''}" data-market="${market}" data-type="buy"
@@ -324,7 +324,7 @@
                     parseInt(target.dataset.id),
                     target.dataset.symbol,
                     target.dataset.target ? parseFloat(target.dataset.target) : null,
-                    target.dataset.direction || 'above'  // 🔧 修正：加入 direction 參數
+                    target.dataset.direction || 'above'  // 修正：加入 direction 參數
                 );
                 break;
 
@@ -360,7 +360,7 @@
             return;
         }
 
-        // ✅ 檢查 AppState 是否已有完整資料（含價格）
+        // 檢查 AppState 是否已有完整資料（含價格）
         if (window.AppState && AppState.watchlistLoaded && AppState.watchlist.length > 0) {
             const hasPrice = AppState.watchlist.some(item => item.price !== null);
             if (hasPrice) {
@@ -369,7 +369,7 @@
             }
         }
 
-        // 🆕 階段 1：先載入基本資料（毫秒級）
+        // 階段 1：先載入基本資料（毫秒級）
         try {
             if (typeof loadTags === 'function') {
                 await loadTags();
@@ -400,10 +400,10 @@
                 watchlistTagsMap[item.id] = item.tags || [];
             });
 
-            // 🆕 立即渲染（價格顯示「載入中」）
+            // 立即渲染（價格顯示「載入中」）
             renderWatchlistCards(basicData.data);
 
-            // 🆕 階段 2：背景載入價格
+            // 階段 2：背景載入價格
             const priceRes = await apiRequest('/api/watchlist/with-prices');
             const priceData = await priceRes.json();
 
@@ -412,7 +412,7 @@
                     watchlistTagsMap[item.id] = item.tags || [];
                 });
 
-                // 🆕 平滑更新（不閃爍）
+                // 平滑更新（不閃爍）
                 updateWatchlistPrices(priceData.data);
             }
 
@@ -425,7 +425,7 @@
     }
 
     /**
-     * 🆕 平滑更新價格（不重新渲染整個清單）
+     * 平滑更新價格（不重新渲染整個清單）
      */
     function updateWatchlistPrices(data) {
         // 更新全域資料
@@ -539,7 +539,7 @@
                 showToast('已新增至追蹤清單');
                 hideAddWatchlistModal();
 
-                // ✅ P3: 樂觀更新 AppState
+                // P3: 樂觀更新 AppState
                 if (window.AppState) {
                     AppState.addToWatchlist({
                         id: data.data?.id,
@@ -576,7 +576,7 @@
             if (data.success) {
                 showToast('已移除');
 
-                // ✅ P3: 更新 AppState
+                // P3: 更新 AppState
                 if (window.AppState) {
                     AppState.removeFromWatchlist(symbol);
                 }
@@ -849,7 +849,7 @@
             if (data.success) {
                 showToast('目標價已設定');
                 hideTargetPriceModal();
-                // 🔧 清除 AppState 快取，強制重新載入
+                // 清除 AppState 快取，強制重新載入
                 if (window.AppState) {
                     AppState.watchlistLoaded = false;
                 }
@@ -867,7 +867,7 @@
         if (!currentTargetItemId) return;
 
         try {
-            // 🔧 使用 PUT 方法，傳入 null 來清除目標價
+            // 使用 PUT 方法，傳入 null 來清除目標價
             const res = await apiRequest(`/api/watchlist/${currentTargetItemId}/target-price`, {
                 method: 'PUT',
                 body: { target_price: null, target_direction: null }
@@ -878,7 +878,7 @@
             if (data.success) {
                 showToast('已清除目標價');
                 hideTargetPriceModal();
-                // 🔧 清除 AppState 快取，強制重新載入
+                // 清除 AppState 快取，強制重新載入
                 if (window.AppState) {
                     AppState.watchlistLoaded = false;
                 }
@@ -900,7 +900,7 @@
         const container = $('dashboardWatchlist');
         if (!container) return;
 
-        // 🆕 V1.10 立即顯示 loading 狀態
+        // V1.10 立即顯示 loading 狀態
         container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-gray-400"></i></div>';
 
         const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : window.currentUser;
@@ -930,7 +930,7 @@
                 return;
             }
 
-            // 🆕 V1.10 優化：預先構建 HTML 字串
+            // V1.10 優化：預先構建 HTML 字串
             const items = data.data.slice(0, 5);
             const htmlParts = ['<div class="space-y-2" id="dashboardWatchlistItems">'];
 

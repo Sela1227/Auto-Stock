@@ -118,7 +118,7 @@
                 if (countEl) countEl.textContent = `共 ${data.data.length} 檔`;
                 
                 container.innerHTML = data.data.map(p => {
-                    // 🆕 優先使用文章發佈日期 article_date
+                    // 優先使用文章發佈日期 article_date
                     let timeStr = '';
                     const dateField = p.article_date || p.mentioned_at || p.first_seen_at;
                     if (dateField) {
@@ -193,7 +193,7 @@
     }
     
     /**
-     * 🆕 管理員：手動抓取訂閱（回溯 30 天）
+     * 管理員：手動抓取訂閱（回溯 30 天）
      */
     async function adminFetchSubscriptions(backfill = true) {
         const btn = event?.target?.closest('button');

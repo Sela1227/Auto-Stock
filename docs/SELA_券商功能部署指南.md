@@ -1,6 +1,8 @@
+> 歷史文件（V0.x–V1.0 時期），現況以根目錄 CLAUDE.md 為準。
+
 # 券商功能部署指南
 
-## 📁 檔案清單
+## 檔案清單
 
 | 檔案 | 目標位置 | 說明 |
 |------|----------|------|
@@ -12,7 +14,7 @@
 
 ---
 
-## 🔧 後端修改
+## 後端修改
 
 ### 1. 新增檔案
 
@@ -68,7 +70,7 @@ async def migrate_add_brokers():
             if "already exists" not in str(e).lower():
                 logger.warning(f"broker_id: {e}")
         
-        logger.info("✅ brokers 遷移完成")
+        logger.info("✓ brokers 遷移完成")
 
 # 在 run_migrations() 中呼叫
 await migrate_add_brokers()
@@ -107,7 +109,7 @@ class PortfolioTransaction(Base):
 
 ---
 
-## 🎨 前端修改
+## 前端修改
 
 ### 1. 複製檔案
 
@@ -152,7 +154,7 @@ if (typeof loadBrokerManager === 'function') {
 
 ---
 
-## ✅ 功能說明
+## ✓ 功能說明
 
 ### 新增交易時
 - 下拉選單可選擇已建立的券商
@@ -166,7 +168,7 @@ if (typeof loadBrokerManager === 'function') {
 
 ---
 
-## 📝 測試檢查清單
+## 測試檢查清單
 
 - [ ] 新增券商
 - [ ] 編輯券商名稱

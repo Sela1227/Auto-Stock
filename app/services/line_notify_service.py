@@ -312,7 +312,7 @@ class LineNotifyService:
                 "contents": [
                     {
                         "type": "text",
-                        "text": f"📊 {symbol}",
+                        "text": f"{symbol}",
                         "weight": "bold",
                         "size": "lg",
                         "color": "#FFFFFF"

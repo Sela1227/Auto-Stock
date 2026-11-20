@@ -1,6 +1,6 @@
 """
 個人投資記錄 API 路由
-🔧 P0修復：使用統一認證模組
+P0修復：使用統一認證模組
 """
 from datetime import date, datetime
 from typing import Optional, List
@@ -21,7 +21,7 @@ from app.services.exchange_rate_service import get_exchange_rate, set_exchange_r
 from app.models.user import User
 from app.models.portfolio import PortfolioTransaction
 
-# 🔧 使用統一認證模組
+# 使用統一認證模組
 from app.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)

@@ -1,6 +1,8 @@
+> 歷史文件（V0.x–V1.0 時期），現況以根目錄 CLAUDE.md 為準。
+
 # SELA 管理員登入更新優化 - 修改指南
 
-## 📋 修改目標
+## 修改目標
 
 | 項目 | 原本行為 | 修改後 |
 |------|---------|--------|
@@ -9,9 +11,9 @@
 
 ---
 
-## 🔧 修改 1：管理員登入只在開盤時更新
+## 修改 1：管理員登入只在開盤時更新
 
-### 📁 檔案：`app/routers/auth.py`
+### 檔案：`app/routers/auth.py`
 
 ### 找到 `trigger_admin_updates` 函數（約第 5881 行），替換為：
 
@@ -19,7 +21,7 @@
 async def trigger_admin_updates():
     """
     管理員登入觸發的背景更新
-    - 🆕 只在股市開盤時間更新股票價格
+    - 只在股市開盤時間更新股票價格
     - 更新市場情緒指數（不受時間限制）
     """
     from app.database import SessionLocal
@@ -28,7 +30,7 @@ async def trigger_admin_updates():
     tw_open = is_tw_market_open()
     us_open = is_us_market_open()
     
-    logger.info(f"🔄 管理員登入，檢查是否需要更新...")
+    logger.info(f"管理員登入，檢查是否需要更新...")
     logger.info(f"   台股: {'開盤' if tw_open else '收盤'}, 美股: {'開盤' if us_open else '收盤'}")
     
     try:
@@ -40,41 +42,41 @@ async def trigger_admin_updates():
                 from app.services.price_cache_service import PriceCacheService
                 cache_service = PriceCacheService(db)
                 result = cache_service.update_all_prices()
-                logger.info(f"✅ 股票價格更新完成: {result}")
+                logger.info(f"✓ 股票價格更新完成: {result}")
             except Exception as e:
-                logger.error(f"❌ 股票價格更新失敗: {e}")
+                logger.error(f"✗ 股票價格更新失敗: {e}")
         else:
-            logger.info("💤 台股美股皆收盤，跳過股票價格更新")
+            logger.info("台股美股皆收盤，跳過股票價格更新")
         
         # 2. 更新市場情緒（總是更新）
         try:
             from app.services.market_service import market_service
             market_service.update_fear_greed()
-            logger.info("✅ 市場情緒更新完成")
+            logger.info("✓ 市場情緒更新完成")
         except Exception as e:
-            logger.error(f"❌ 市場情緒更新失敗: {e}")
+            logger.error(f"✗ 市場情緒更新失敗: {e}")
         
         # 3. 抓取訂閱精選（如果有）
         try:
             from app.services.subscription_service import SubscriptionService
             sub_service = SubscriptionService(db)
             sub_result = sub_service.fetch_all_sources(backfill=False)
-            logger.info(f"✅ 訂閱精選更新完成: {sub_result}")
+            logger.info(f"✓ 訂閱精選更新完成: {sub_result}")
         except Exception as e:
-            logger.warning(f"⚠️ 訂閱精選更新跳過: {e}")
+            logger.warning(f"⚠ 訂閱精選更新跳過: {e}")
         
         db.close()
-        logger.info("🎉 管理員自動更新完成")
+        logger.info("管理員自動更新完成")
         
     except Exception as e:
-        logger.error(f"❌ 管理員自動更新失敗: {e}")
+        logger.error(f"✗ 管理員自動更新失敗: {e}")
 ```
 
 ---
 
-## 🔧 修改 2：加密貨幣改為 3 小時更新
+## 修改 2：加密貨幣改為 3 小時更新
 
-### 📁 檔案：`app/services/price_cache_service.py`
+### 檔案：`app/services/price_cache_service.py`
 
 ### 2.1 修改 `is_market_open_for_symbol` 函數
 
@@ -95,7 +97,7 @@ def is_market_open_for_symbol(symbol: str) -> bool:
     market = get_symbol_market(symbol)
     
     if market == "crypto":
-        return False  # 🆕 加密貨幣改為定時更新（3小時），不需要即時查詢
+        return False  # 加密貨幣改為定時更新（3小時），不需要即時查詢
 ```
 
 ### 2.2 修改 `batch_update_crypto_prices` 方法
@@ -115,7 +117,7 @@ def batch_update_crypto_prices(self, symbols: List[str], force: bool = False) ->
     if not symbols:
         return {"updated": 0, "failed": [], "skipped": 0}
     
-    # 🆕 檢查快取時間（3小時 = 180分鐘）
+    # 檢查快取時間（3小時 = 180分鐘）
     CRYPTO_CACHE_MINUTES = 180
     
     if not force:
@@ -133,18 +135,18 @@ def batch_update_crypto_prices(self, symbols: List[str], force: bool = False) ->
                 needs_update.append(symbol)
         
         if not needs_update:
-            logger.info(f"💤 加密貨幣快取未過期（{CRYPTO_CACHE_MINUTES}分鐘內），跳過更新")
+            logger.info(f"加密貨幣快取未過期（{CRYPTO_CACHE_MINUTES}分鐘內），跳過更新")
             return {"updated": 0, "failed": [], "skipped": len(symbols)}
         
         symbols = needs_update
-        logger.info(f"🔄 {len(symbols)} 個加密貨幣需要更新")
+        logger.info(f"{len(symbols)} 個加密貨幣需要更新")
 ```
 
 ---
 
-## 🔧 修改 3：排程任務優化（可選）
+## 修改 3：排程任務優化（可選）
 
-### 📁 檔案：`app/tasks/price_cache_task.py`
+### 檔案：`app/tasks/price_cache_task.py`
 
 在 `run_update` 方法中，確保加密貨幣不會每 30 分鐘都更新：
 
@@ -165,15 +167,15 @@ if not tw_open and not us_open:
 
 ---
 
-## 📊 修改後的行為
+## 修改後的行為
 
 ### 管理員登入時：
 
 | 時間 | 台股 | 美股 | 更新行為 |
 |-----|------|------|---------|
-| 週一~五 09:00-13:30 | ✅ 開盤 | ❌ 收盤 | 更新台股價格 |
-| 週二~六 21:30-04:00 | ❌ 收盤 | ✅ 開盤 | 更新美股價格 |
-| 其他時間 | ❌ 收盤 | ❌ 收盤 | **不更新股票價格** |
+| 週一~五 09:00-13:30 | ✓ 開盤 | ✗ 收盤 | 更新台股價格 |
+| 週二~六 21:30-04:00 | ✗ 收盤 | ✓ 開盤 | 更新美股價格 |
+| 其他時間 | ✗ 收盤 | ✗ 收盤 | **不更新股票價格** |
 
 ### 加密貨幣更新：
 
@@ -185,20 +187,20 @@ if not tw_open and not us_open:
 
 ---
 
-## ✅ 驗證方式
+## ✓ 驗證方式
 
 1. **管理員登入測試**（非開盤時間）：
    - 登入後檢查 log
-   - 應該看到：`💤 台股美股皆收盤，跳過股票價格更新`
+   - 應該看到：`台股美股皆收盤，跳過股票價格更新`
 
 2. **加密貨幣快取測試**：
    - 查詢 BTC 價格
    - 3 小時內再次查詢，應使用快取
-   - log 應顯示：`💤 加密貨幣快取未過期`
+   - log 應顯示：`加密貨幣快取未過期`
 
 ---
 
-## 📦 部署步驟
+## 部署步驟
 
 ```bash
 # 1. 修改檔案

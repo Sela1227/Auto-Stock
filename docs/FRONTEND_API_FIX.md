@@ -1,4 +1,6 @@
-# 🔧 前端 API 端點修復指南
+> 歷史文件（V0.x–V1.0 時期），現況以根目錄 CLAUDE.md 為準。
+
+# 前端 API 端點修復指南
 
 ## 問題說明
 
@@ -8,8 +10,8 @@
 
 | 端點 | 定義位置 | 是否使用 DB 快取 | 狀態 |
 |------|----------|------------------|------|
-| `/api/market/sentiment` | stock.py | ❌ 否，直接打外部 API | 前端目前使用 |
-| `/market/sentiment` | market.py | ✅ 是，優先讀 DB | **應該使用** |
+| `/api/market/sentiment` | stock.py | ✗ 否，直接打外部 API | 前端目前使用 |
+| `/market/sentiment` | market.py | ✓ 是，優先讀 DB | **應該使用** |
 
 ---
 
@@ -22,7 +24,7 @@
 #### 修改 1: loadSentiment 函數
 
 ```javascript
-// ❌ 原本 (錯誤)
+// ✗ 原本 (錯誤)
 async function loadSentiment() {
     try {
         const res = await fetch('/api/market/sentiment');
@@ -30,7 +32,7 @@ async function loadSentiment() {
     }
 }
 
-// ✅ 修改後 (正確)
+// ✓ 修改後 (正確)
 async function loadSentiment() {
     try {
         const res = await fetch('/market/sentiment');  // 移除 /api 前綴
@@ -42,14 +44,14 @@ async function loadSentiment() {
 #### 修改 2: loadSentimentModalChart 函數
 
 ```javascript
-// ❌ 原本 (錯誤)
+// ✗ 原本 (錯誤)
 async function loadSentimentModalChart(days) {
     // ...
     const res = await fetch(`/api/market/sentiment/${currentSentimentMarket}/history?days=${days}`);
     // ...
 }
 
-// ✅ 修改後 (正確)
+// ✓ 修改後 (正確)
 async function loadSentimentModalChart(days) {
     // ...
     const res = await fetch(`/market/sentiment/${currentSentimentMarket}/history?days=${days}`);
@@ -90,6 +92,6 @@ sed -i 's|/api/market/sentiment|/market/sentiment|g' static/js/dashboard.js
 ## 效果
 
 修復後：
-- ✅ 非交易時段：直接從資料庫讀取（毫秒級回應）
-- ✅ 交易時段：檢查快取年齡，過期才打外部 API
-- ✅ 減少外部 API 調用，降低被限速風險
+- ✓ 非交易時段：直接從資料庫讀取（毫秒級回應）
+- ✓ 交易時段：檢查快取年齡，過期才打外部 API
+- ✓ 減少外部 API 調用，降低被限速風險

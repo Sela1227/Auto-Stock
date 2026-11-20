@@ -1,6 +1,6 @@
 """
 市場資料 API 路由
-🔧 P0修復：使用統一認證模組
+P0修復：使用統一認證模組
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
@@ -13,7 +13,7 @@ from app.services.market_service import MarketService
 from app.tasks.scheduler import scheduler_service
 from app.models.index_price import INDEX_SYMBOLS
 
-# 🔧 使用統一認證模組
+# 使用統一認證模組
 from app.dependencies import get_optional_user, get_admin_user
 
 logger = logging.getLogger(__name__)

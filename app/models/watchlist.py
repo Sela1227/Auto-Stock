@@ -17,7 +17,7 @@ class Watchlist(Base):
     asset_type = Column(String(10), nullable=False)  # stock / crypto
     note = Column(String(200))  # 自訂備註
     target_price = Column(Numeric(12, 4), nullable=True)  # 目標價格
-    target_direction = Column(String(10), nullable=True, default='above')  # above/below  # 🆕 目標價格
+    target_direction = Column(String(10), nullable=True, default='above')  # above/below  # 目標價格
     added_at = Column(DateTime, server_default=func.now())
 
     # 關聯

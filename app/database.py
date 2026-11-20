@@ -2,12 +2,14 @@
 資料庫連線與 Session 管理
 支援 SQLite (開發) 和 PostgreSQL (生產)
 
-🔧 修復版本 - 2026-01-16
+修復版本 - 2026-01-16
 新增 get_sync_db 別名
 
-🚀 效能優化 - 2026-01-16
+效能優化 - 2026-01-16
 新增 stock_prices 歷史資料表
 """
+import logging
+logger = logging.getLogger(__name__)
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import create_engine, text
@@ -85,7 +87,7 @@ else:
     )
 
 # ============================================================
-# 🆕 自動資料庫遷移
+# 自動資料庫遷移
 # ============================================================
 def run_auto_migrations():
     """啟動時自動執行資料庫遷移"""
@@ -161,7 +163,7 @@ def run_auto_migrations():
                 "migrate_sql": "ALTER TABLE watchlists ADD COLUMN target_direction VARCHAR(10) DEFAULT 'above'",
             },
         # ============================================================
-        # 🚀 2026-01-16: 股票歷史資料快取表（效能優化）
+        # 2026-01-16: 股票歷史資料快取表（效能優化）
         # ============================================================
         {
             "name": "create_stock_prices",
@@ -226,11 +228,11 @@ def run_auto_migrations():
                     if not result:
                         conn.execute(text(migration["migrate_sql"]))
                         conn.commit()
-                        print(f"✅ Migration: {migration['name']} completed")
+                        logger.info(f"Migration: {migration['name']} completed")
                 except Exception as e:
-                    print(f"⚠️ Migration {migration['name']} skipped: {e}")
+                    logger.warning(f"Migration {migration['name']} skipped: {e}")
     except Exception as e:
-        print(f"⚠️ Auto migration warning: {e}")
+        logger.warning(f"Auto migration warning: {e}")
 
 # 啟動時執行遷移
 run_auto_migrations()
@@ -291,6 +293,6 @@ def get_db():
 
 
 # ============================================================
-# 🆕 新增別名 - 修復 stock.py ImportError
+# 新增別名 - 修復 stock.py ImportError
 # ============================================================
 get_sync_db = get_db

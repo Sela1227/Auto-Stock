@@ -53,8 +53,6 @@
         
         // 也可以在儀表板區域加入快捷入口
         addDashboardQuickAccess();
-        
-        console.log('✅ 報酬率比較連結已注入');
     }
     
     function addDashboardQuickAccess() {
@@ -70,7 +68,7 @@
             <div class="compare-quick-access bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl shadow-lg p-4 mb-6 text-white">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="font-bold text-lg">🏆 報酬率比較</h3>
+                        <h3 class="font-bold text-lg"><i class="fas fa-trophy mr-2"></i>報酬率比較</h3>
                         <p class="text-indigo-100 text-sm">比較股票、加密貨幣的年化報酬</p>
                     </div>
                     <a href="/static/compare.html" 

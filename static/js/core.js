@@ -12,9 +12,8 @@
 (function() {
     'use strict';
     
-    // 🆕 V1.12 調試輸出 + 自動回報後端
+    // V1.12 調試輸出 + 自動回報後端
     function debugLog(msg, isError = false, extraData = {}) {
-        console.log(msg);
         
         // 顯示在畫面上
         const logEl = document.getElementById('debugLog');
@@ -25,7 +24,7 @@
             logEl.appendChild(line);
         }
         
-        // 🆕 發送到後端（非同步，不阻塞）
+        // 發送到後端（非同步，不阻塞）
         try {
             const payload = {
                 step: msg,
@@ -273,7 +272,7 @@
             const secs = Math.floor((remaining % 60000) / 1000);
             const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
             
-            // ✅ 使用快取版 DOM 查詢
+            // 使用快取版 DOM 查詢
             const timerEl = $('sessionTimer');
             const sidebarTimerEl = $('sidebarTimer');
             if (timerEl) timerEl.textContent = `閒置登出: ${timeStr}`;
@@ -355,7 +354,7 @@
             
             debugLog('[checkAuth] localStorage 已更新');
             
-            // ✅ P1: 同步到 AppState
+            // P1: 同步到 AppState
             if (window.AppState) {
                 window.AppState.setUser(serverUser);
             }
@@ -363,7 +362,7 @@
             debugLog('[checkAuth] 更新 UI...');
             updateUserUI();
             
-            // ✅ 使用快取版 DOM 查詢
+            // 使用快取版 DOM 查詢
             debugLog('[checkAuth] 隱藏 loading screen...');
             const loadingScreen = $('loading-screen');
             const appContent = $('app-content');
@@ -381,10 +380,10 @@
                 loadDashboard();
             }
             
-            debugLog('[checkAuth] ✅ 完成');
+            debugLog('[checkAuth] 完成');
             
         } catch (e) {
-            debugLog('[checkAuth] ❌ 驗證失敗: ' + e.message, true, { error: e.message });
+            debugLog('[checkAuth] 驗證失敗: ' + e.message, true, { error: e.message });
             clearAllUserData();
             window.location.href = '/static/index.html';
         }
@@ -398,7 +397,7 @@
         }
         
         try {
-            // ✅ 使用批量更新減少重排
+            // 使用批量更新減少重排
             batchUpdate([
                 { id: 'userName', prop: 'textContent', value: currentUser.display_name },
                 { id: 'sidebarUserName', prop: 'textContent', value: currentUser.display_name },
@@ -441,7 +440,7 @@
         stopSessionMonitor();
         clearAllUserData();
         
-        // ✅ P1: 重置 AppState
+        // P1: 重置 AppState
         if (window.AppState) {
             window.AppState.reset();
         }
@@ -462,7 +461,7 @@
     // ============================================================
     
     function openMobileSidebar() {
-        // ✅ 使用快取版 DOM 查詢
+        // 使用快取版 DOM 查詢
         const sidebar = $('mobileSidebar');
         const overlay = $('sidebarOverlay');
         if (sidebar) sidebar.classList.add('open');
@@ -482,7 +481,7 @@
         closeMobileSidebar();
         showSection(section);
         
-        // ✅ 只查詢一次，不在迴圈中重複查詢
+        // 只查詢一次，不在迴圈中重複查詢
         document.querySelectorAll('.bottom-nav-item, .mobile-nav-link').forEach(el => {
             const isActive = el.dataset.section === section;
             el.classList.remove('active', 'bg-blue-50', 'text-gray-700');
@@ -530,12 +529,12 @@
     }
     
     function showSection(name, evt) {
-        // ✅ P1: 同步到 AppState
+        // P1: 同步到 AppState
         if (window.AppState) {
             window.AppState.switchSection(name);
         }
         
-        // ✅ 使用快取的 section 列表
+        // 使用快取的 section 列表
         getAllSections().forEach(s => s.classList.add('hidden'));
         
         const section = $(`section-${name}`);
@@ -543,7 +542,7 @@
             section.classList.remove('hidden');
         }
         
-        // ✅ 使用快取的導航連結
+        // 使用快取的導航連結
         getAllNavLinks().forEach(l => {
             const isActive = l.dataset.section === name;
             l.classList.toggle('bg-blue-50', isActive);
@@ -559,7 +558,7 @@
             }
         }
         
-        // ✅ 使用快取的底部導航
+        // 使用快取的底部導航
         getAllBottomNav().forEach(el => {
             el.classList.toggle('active', el.dataset.section === name);
         });
@@ -583,7 +582,7 @@
     // ============================================================
     
     function showToast(message, type = 'info', duration = 3000) {
-        // ✅ 使用快取版 DOM 查詢
+        // 使用快取版 DOM 查詢
         const container = $('toastContainer');
         if (container) {
             const toast = document.createElement('div');
@@ -637,17 +636,17 @@
     
     function init() {
         
-        // ✅ 預載入常用 DOM 元素
+        // 預載入常用 DOM 元素
         preloadDomCache();
         
-        // 🆕 V1.10 載入系統版本號
+        // V1.10 載入系統版本號
         loadAppVersion();
         
         checkAuth();
     }
     
     /**
-     * 🆕 V1.10 載入並顯示系統版本號
+     * V1.10 載入並顯示系統版本號
      */
     async function loadAppVersion() {
         try {
@@ -656,7 +655,7 @@
             const version = data.version || '--';
             
             // 更新所有版本號顯示
-            const versionText = `v${version}`;
+            const versionText = version;
             const headerVersion = document.getElementById('headerVersion');
             const mobileVersion = document.getElementById('mobileVersion');
             const sidebarVersion = document.getElementById('sidebarVersion');
@@ -733,7 +732,7 @@
     window.token = token;
     window.currentUser = currentUser;
     
-    // ✅ 新增：導出 DOM 快取工具供其他模組使用
+    // 新增：導出 DOM 快取工具供其他模組使用
     window.$ = $;
     window.$q = $q;
     window.clearDomCache = clearDomCache;

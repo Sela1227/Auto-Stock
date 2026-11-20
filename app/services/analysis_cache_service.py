@@ -45,10 +45,10 @@ class AnalysisCacheService:
         age = (datetime.now() - cache.updated_at).total_seconds() / 60
         
         if age > max_age:
-            logger.debug(f"📦 股票詳情快取過期: {symbol} ({age:.1f} 分鐘)")
+            logger.debug(f"股票詳情快取過期: {symbol} ({age:.1f} 分鐘)")
             return None
         
-        logger.debug(f"📦 股票詳情快取命中: {symbol}")
+        logger.debug(f"股票詳情快取命中: {symbol}")
         return cache.to_dict()
     
     def save_stock_detail_cache(self, symbol: str, data: Dict) -> None:
@@ -92,7 +92,7 @@ class AnalysisCacheService:
             self.db.add(cache)
         
         self.db.commit()
-        logger.debug(f"💾 股票詳情已快取: {symbol}")
+        logger.debug(f"股票詳情已快取: {symbol}")
     
     # ==================== 技術指標快取 ====================
     
@@ -114,10 +114,10 @@ class AnalysisCacheService:
         age = (datetime.now() - cache.updated_at).total_seconds() / 60
         
         if age > max_age:
-            logger.debug(f"📦 指標快取過期: {symbol} ({age:.1f} 分鐘)")
+            logger.debug(f"指標快取過期: {symbol} ({age:.1f} 分鐘)")
             return None
         
-        logger.debug(f"📦 指標快取命中: {symbol}")
+        logger.debug(f"指標快取命中: {symbol}")
         return cache.to_dict()
     
     def save_indicator_cache(self, symbol: str, data: Dict) -> None:
@@ -136,7 +136,7 @@ class AnalysisCacheService:
             self.db.add(cache)
         
         self.db.commit()
-        logger.debug(f"💾 指標已快取: {symbol}")
+        logger.debug(f"指標已快取: {symbol}")
     
     def precompute_indicators_for_watchlist(self) -> Dict[str, int]:
         """
@@ -151,7 +151,7 @@ class AnalysisCacheService:
         symbols = self.db.query(Watchlist.symbol).distinct().all()
         symbols = [s[0] for s in symbols]
         
-        logger.info(f"⏰ [排程] 預計算 {len(symbols)} 檔股票指標...")
+        logger.info(f"[排程] 預計算 {len(symbols)} 檔股票指標...")
         
         success, failed = 0, 0
         indicator_service = IndicatorService()
@@ -202,7 +202,7 @@ class AnalysisCacheService:
                 logger.error(f"預計算 {symbol} 失敗: {e}")
                 failed += 1
         
-        logger.info(f"✅ 指標預計算完成: 成功 {success}, 失敗 {failed}")
+        logger.info(f"指標預計算完成: 成功 {success}, 失敗 {failed}")
         return {"success": success, "failed": failed}
     
     # ==================== 圖表快取 ====================
@@ -223,10 +223,10 @@ class AnalysisCacheService:
         # 檢查有效期（1 小時）
         age = (datetime.now() - cache.updated_at).total_seconds() / 3600
         if age > 1:
-            logger.debug(f"📦 圖表快取過期: {cache_key} ({age:.1f} 小時)")
+            logger.debug(f"圖表快取過期: {cache_key} ({age:.1f} 小時)")
             return None
         
-        logger.debug(f"📦 圖表快取命中: {cache_key}")
+        logger.debug(f"圖表快取命中: {cache_key}")
         return cache.chart_data
     
     def save_chart_cache(self, symbol: str, days: int, chart_data: bytes) -> None:
@@ -250,7 +250,7 @@ class AnalysisCacheService:
             self.db.add(cache)
         
         self.db.commit()
-        logger.debug(f"💾 圖表已快取: {cache_key}")
+        logger.debug(f"圖表已快取: {cache_key}")
     
     def clear_expired_caches(self) -> Dict[str, int]:
         """清除過期的快取"""

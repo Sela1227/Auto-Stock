@@ -92,7 +92,7 @@ class IndexService:
             
             self.db.commit()
             
-            logger.info(f"✅ {symbol} 更新完成: {count} 筆")
+            logger.info(f"{symbol} 更新完成: {count} 筆")
             return {
                 "success": True,
                 "symbol": symbol,

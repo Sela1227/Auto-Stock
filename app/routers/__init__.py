@@ -8,7 +8,7 @@ from app.routers.watchlist import router as watchlist_router
 from app.routers.settings import router as settings_router
 from app.routers.admin import router as admin_router
 from app.routers.compare import router as compare_router
-from app.routers.portfolio import router as portfolio_router  # 🆕 個人投資記錄
+from app.routers.portfolio import router as portfolio_router  # 個人投資記錄
 
 __all__ = [
     "auth_router",
@@ -18,5 +18,5 @@ __all__ = [
     "settings_router",
     "admin_router",
     "compare_router",
-    "portfolio_router",  # 🆕 個人投資記錄
+    "portfolio_router",  # 個人投資記錄
 ]

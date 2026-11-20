@@ -28,7 +28,7 @@ def print_header():
     """顯示標題"""
     console.print()
     console.print(Panel.fit(
-        "[bold orange1]📈 股票技術分析系統[/bold orange1]\n"
+        "[bold orange1]股票技術分析系統[/bold orange1]\n"
         f"[dim]版本 {settings.APP_VERSION}[/dim]",
         border_style="orange1",
     ))
@@ -58,7 +58,7 @@ def print_stock_analysis(analysis: dict):
     ))
     
     # 價格資訊
-    price_table = Table(title="💰 價格資訊", box=box.ROUNDED, show_header=False)
+    price_table = Table(title="價格資訊", box=box.ROUNDED, show_header=False)
     price_table.add_column("項目", style="cyan")
     price_table.add_column("數值", justify="right")
     
@@ -82,7 +82,7 @@ def print_stock_analysis(analysis: dict):
     console.print()
     
     # 漲跌幅
-    change_table = Table(title="📊 漲跌幅", box=box.ROUNDED)
+    change_table = Table(title="漲跌幅", box=box.ROUNDED)
     change_table.add_column("日", justify="center")
     change_table.add_column("週", justify="center")
     change_table.add_column("月", justify="center")
@@ -108,7 +108,7 @@ def print_stock_analysis(analysis: dict):
     
     # 成交量
     if volume_info:
-        vol_table = Table(title="📈 成交量", box=box.ROUNDED, show_header=False)
+        vol_table = Table(title="成交量", box=box.ROUNDED, show_header=False)
         vol_table.add_column("項目", style="cyan")
         vol_table.add_column("數值", justify="right")
         
@@ -130,7 +130,7 @@ def print_stock_analysis(analysis: dict):
     if signals:
         signal_panel = Panel(
             "\n".join([f"• {s['description']}" for s in signals]),
-            title="⚡ 最新訊號",
+            title="最新訊號",
             border_style="yellow",
         )
         console.print(signal_panel)
@@ -162,7 +162,7 @@ def print_crypto_analysis(analysis: dict):
     ))
     
     # 價格資訊
-    price_table = Table(title="💰 價格資訊", box=box.ROUNDED, show_header=False)
+    price_table = Table(title="價格資訊", box=box.ROUNDED, show_header=False)
     price_table.add_column("項目", style="cyan")
     price_table.add_column("數值", justify="right")
     
@@ -188,7 +188,7 @@ def print_crypto_analysis(analysis: dict):
     
     # 市場資訊
     if market_info:
-        market_table = Table(title="🌐 市場資訊", box=box.ROUNDED, show_header=False)
+        market_table = Table(title="市場資訊", box=box.ROUNDED, show_header=False)
         market_table.add_column("項目", style="cyan")
         market_table.add_column("數值", justify="right")
         
@@ -203,7 +203,7 @@ def print_crypto_analysis(analysis: dict):
         console.print()
     
     # 漲跌幅
-    change_table = Table(title="📊 漲跌幅", box=box.ROUNDED)
+    change_table = Table(title="漲跌幅", box=box.ROUNDED)
     change_table.add_column("24H", justify="center")
     change_table.add_column("7D", justify="center")
     change_table.add_column("30D", justify="center")
@@ -232,7 +232,7 @@ def print_crypto_analysis(analysis: dict):
     if signals:
         signal_panel = Panel(
             "\n".join([f"• {s['description']}" for s in signals]),
-            title="⚡ 最新訊號",
+            title="最新訊號",
             border_style="yellow",
         )
         console.print(signal_panel)
@@ -248,7 +248,7 @@ def print_crypto_analysis(analysis: dict):
 
 def _print_indicators(indicators: dict):
     """列印技術指標（股票版）"""
-    ind_table = Table(title="📐 技術指標", box=box.ROUNDED)
+    ind_table = Table(title="技術指標", box=box.ROUNDED)
     ind_table.add_column("指標", style="cyan")
     ind_table.add_column("數值", justify="right")
     ind_table.add_column("狀態", justify="center")
@@ -325,7 +325,7 @@ def _print_indicators(indicators: dict):
 
 def _print_crypto_indicators(indicators: dict):
     """列印技術指標（加密貨幣版）"""
-    ind_table = Table(title="📐 技術指標", box=box.ROUNDED)
+    ind_table = Table(title="技術指標", box=box.ROUNDED)
     ind_table.add_column("指標", style="cyan")
     ind_table.add_column("數值", justify="right")
     ind_table.add_column("狀態", justify="center")
@@ -390,11 +390,11 @@ def _print_score(score: dict):
     details = score.get("details", [])
     
     rating_text = {
-        "strong_buy": "[bold green]強烈買進 ⭐⭐⭐⭐⭐[/bold green]",
-        "buy": "[green]買進 ⭐⭐⭐⭐[/green]",
-        "neutral": "[yellow]中性 ⭐⭐⭐[/yellow]",
-        "sell": "[red]賣出 ⭐⭐[/red]",
-        "strong_sell": "[bold red]強烈賣出 ⭐[/bold red]",
+        "strong_buy": "[bold green]強烈買進 [/bold green]",
+        "buy": "[green]買進 [/green]",
+        "neutral": "[yellow]中性 [/yellow]",
+        "sell": "[red]賣出 [/red]",
+        "strong_sell": "[bold red]強烈賣出 [/bold red]",
         "insufficient_data": "[dim]資料不足[/dim]",
     }.get(rating, rating)
     
@@ -405,7 +405,7 @@ def _print_score(score: dict):
     
     console.print(Panel(
         score_content,
-        title="🎯 綜合評分",
+        title="綜合評分",
         border_style="magenta",
     ))
 
@@ -413,7 +413,7 @@ def _print_score(score: dict):
 def print_sentiment(sentiment: dict):
     """顯示市場情緒"""
     console.print(Panel.fit(
-        "[bold]📊 市場情緒指數[/bold]",
+        "[bold]市場情緒指數[/bold]",
         border_style="cyan",
     ))
     
@@ -435,19 +435,19 @@ def print_sentiment(sentiment: dict):
         # 根據數值決定顏色
         if value <= 25:
             color = "green"
-            emoji = "😱"
+            emoji = ""
         elif value <= 45:
             color = "cyan"
-            emoji = "😟"
+            emoji = ""
         elif value <= 55:
             color = "yellow"
-            emoji = "😐"
+            emoji = ""
         elif value <= 75:
             color = "orange1"
-            emoji = "😊"
+            emoji = ""
         else:
             color = "red"
-            emoji = "🤑"
+            emoji = ""
         
         market_name = "美股" if market == "stock" else "加密貨幣"
         advice = fg_client.get_sentiment_advice(value)
@@ -475,7 +475,7 @@ def cmd_query(args):
                 analysis = service.get_crypto_analysis(symbol, force_refresh=args.refresh)
                 
                 if analysis is None:
-                    console.print(f"[red]❌ 找不到加密貨幣: {symbol}[/red]")
+                    console.print(f"[red]找不到加密貨幣: {symbol}[/red]")
                     return 1
                 
                 print_crypto_analysis(analysis)
@@ -486,7 +486,7 @@ def cmd_query(args):
                 analysis = service.get_stock_analysis(symbol, force_refresh=args.refresh)
                 
                 if analysis is None:
-                    console.print(f"[red]❌ 找不到股票: {symbol}[/red]")
+                    console.print(f"[red]找不到股票: {symbol}[/red]")
                     return 1
                 
                 print_stock_analysis(analysis)
@@ -505,7 +505,7 @@ def cmd_sentiment(args):
             sentiment = service.get_market_sentiment("all")
             
             if not sentiment:
-                console.print("[yellow]⚠️ 無法取得市場情緒資料[/yellow]")
+                console.print("[yellow]⚠ 無法取得市場情緒資料[/yellow]")
                 return 1
             
             print_sentiment(sentiment)
@@ -530,12 +530,12 @@ def cmd_chart(args):
                 df = service.get_stock_data(symbol)
         
         if df is None:
-            console.print(f"[red]❌ 無法取得資料: {symbol}[/red]")
+            console.print(f"[red]無法取得資料: {symbol}[/red]")
             return 1
         
-        # 🆕 V1.08 圖表功能已移除
-        console.print(f"[yellow]⚠️ 圖表功能已移除，請使用前端 Chart.js 圖表[/yellow]")
-        console.print(f"[blue]📊 取得了 {len(df)} 筆 {symbol} 資料[/blue]")
+        # V1.08 圖表功能已移除
+        console.print(f"[yellow]⚠ 圖表功能已移除，請使用前端 Chart.js 圖表[/yellow]")
+        console.print(f"[blue]取得了 {len(df)} 筆 {symbol} 資料[/blue]")
         return 0
         
     finally:
@@ -558,10 +558,10 @@ def cmd_refresh(args):
                 success = service.fetch_and_cache_stock(symbol)
         
         if success:
-            console.print(f"[green]✅ 已更新 {symbol} 資料[/green]")
+            console.print(f"[green]已更新 {symbol} 資料[/green]")
             return 0
         else:
-            console.print(f"[red]❌ 更新失敗: {symbol}[/red]")
+            console.print(f"[red]更新失敗: {symbol}[/red]")
             return 1
     finally:
         db.close()
@@ -571,7 +571,7 @@ def cmd_init(args):
     """初始化資料庫"""
     with console.status("[bold green]正在初始化資料庫..."):
         init_db_sync()
-    console.print("[green]✅ 資料庫初始化完成[/green]")
+    console.print("[green]資料庫初始化完成[/green]")
     return 0
 
 
@@ -643,7 +643,7 @@ def main():
                         if sentiment:
                             print_sentiment(sentiment)
                         else:
-                            console.print("[yellow]⚠️ 無法取得市場情緒[/yellow]")
+                            console.print("[yellow]⚠ 無法取得市場情緒[/yellow]")
                         console.print()
                         continue
                     
@@ -654,14 +654,14 @@ def main():
                         if analysis:
                             print_crypto_analysis(analysis)
                         else:
-                            console.print(f"[red]❌ 找不到: {user_input}[/red]")
+                            console.print(f"[red]找不到: {user_input}[/red]")
                     else:
                         with console.status(f"[bold green]正在分析 {user_input}..."):
                             analysis = stock_service.get_stock_analysis(user_input)
                         if analysis:
                             print_stock_analysis(analysis)
                         else:
-                            console.print(f"[red]❌ 找不到: {user_input}[/red]")
+                            console.print(f"[red]找不到: {user_input}[/red]")
                     
                     console.print()
                     

@@ -296,13 +296,13 @@
 
         const priceChange = stock.change?.day || 0;
         const priceChangeClass = priceChange >= 0 ? 'text-green-600' : 'text-red-600';
-        const priceChangeIcon = priceChange >= 0 ? '📈' : '📉';
+        const priceChangeIcon = priceChange >= 0 ? '<i class="fas fa-arrow-trend-up"></i>' : '<i class="fas fa-arrow-trend-down"></i>';
 
         const alignmentClass = ma.alignment === 'bullish' ? 'text-green-600' : ma.alignment === 'bearish' ? 'text-red-600' : 'text-gray-600';
-        const alignmentText = ma.alignment === 'bullish' ? '多頭 🟢' : ma.alignment === 'bearish' ? '空頭 🔴' : '中性';
+        const alignmentText = ma.alignment === 'bullish' ? '多頭 <i class="fas fa-circle text-green-500 text-[8px] align-middle"></i>' : ma.alignment === 'bearish' ? '空頭 <i class="fas fa-circle text-red-500 text-[8px] align-middle"></i>' : '中性';
 
-        const rsiStatus = rsi.status === 'overbought' ? '超買 ⚠️' : rsi.status === 'oversold' ? '超賣 🟢' : '中性';
-        const macdStatus = macd.status === 'bullish' ? '偏多 🟢' : '偏空 🔴';
+        const rsiStatus = rsi.status === 'overbought' ? '超買 <i class="fas fa-triangle-exclamation"></i>' : rsi.status === 'oversold' ? '超賣 <i class="fas fa-circle text-green-500 text-[8px] align-middle"></i>' : '中性';
+        const macdStatus = macd.status === 'bullish' ? '偏多 <i class="fas fa-circle text-green-500 text-[8px] align-middle"></i>' : '偏空 <i class="fas fa-circle text-red-500 text-[8px] align-middle"></i>';
 
         let marketLabel, marketClass;
         if (isCrypto) {
@@ -351,7 +351,7 @@
 
                 <!-- 快速總覽 -->
                 <div class="p-4 md:p-6 border-b bg-gray-50">
-                    <h4 class="font-semibold text-gray-700 mb-3 text-sm">📊 快速總覽</h4>
+                    <h4 class="font-semibold text-gray-700 mb-3 text-sm"><i class="fas fa-chart-bar mr-2"></i>快速總覽</h4>
                     <div class="grid grid-cols-2 gap-3 text-sm">
                         <div class="flex justify-between">
                             <span class="text-gray-500">均線排列</span>
@@ -436,7 +436,7 @@
 
         let html = `
             <div class="p-4 md:p-6 border-b">
-                <h4 class="font-semibold text-gray-700 mb-3 text-sm">🔍 均線進階分析</h4>
+                <h4 class="font-semibold text-gray-700 mb-3 text-sm"><i class="fas fa-magnifying-glass mr-2"></i>均線進階分析</h4>
         `;
 
         // 交叉訊號
@@ -444,7 +444,7 @@
             html += `<div class="mb-3">`;
             crossSignals.forEach(signal => {
                 const bgClass = signal.type === 'golden' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-                const icon = signal.type === 'golden' ? '🔺' : '🔻';
+                const icon = signal.type === 'golden' ? '<i class="fas fa-caret-up"></i>' : '<i class="fas fa-caret-down"></i>';
                 const daysText = signal.days ? `(${signal.days}天前)` : '';
                 html += `
                     <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${bgClass} mr-2 mb-2">
@@ -485,7 +485,7 @@
     function renderCAGRSection(cagr) {
         return `
             <div class="p-4 md:p-6 border-b">
-                <h4 class="font-semibold text-gray-700 mb-3 text-sm">📈 年化報酬率 (CAGR)</h4>
+                <h4 class="font-semibold text-gray-700 mb-3 text-sm"><i class="fas fa-chart-line mr-2"></i>年化報酬率 (CAGR)</h4>
                 <div class="grid grid-cols-4 gap-2 text-center">
                     ${['1y', '3y', '5y', '10y'].map(period => {
                         const val = cagr[`cagr_${period}`];
@@ -526,7 +526,7 @@
                                 <p class="text-gray-500 text-xs">${key.toUpperCase()}</p>
                                 <p class="font-semibold">${val?.toFixed(2) || '--'}</p>
                                 <p class="text-xs ${isAbove ? 'text-green-600' : 'text-red-600'}">
-                                    ${isAbove ? '價格在上 ✔' : '價格在下'} ${distText ? `(${distText})` : ''}
+                                    ${isAbove ? '價格在上 ✓' : '價格在下'} ${distText ? `(${distText})` : ''}
                                 </p>
                             </div>
                         `;
