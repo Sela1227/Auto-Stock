@@ -156,16 +156,3 @@ def update_all_indices(period: str = "5d") -> Dict[str, Any]:
     finally:
         db.close()
 
-
-def update_single_index(symbol: str, period: str = "5d") -> Dict[str, Any]:
-    """
-    更新單一指數（全域函數）
-    """
-    from app.database import SessionLocal
-    
-    db = SessionLocal()
-    try:
-        service = IndexService(db)
-        return service.update_index(symbol, period)
-    finally:
-        db.close()

@@ -27,72 +27,7 @@ class AnalysisCacheService:
     
     # ==================== 股票詳情快取 ====================
     
-    def get_stock_detail_cache(self, symbol: str) -> Optional[Dict]:
-        """
-        取得股票詳情快取
-        - 交易時段：5 分鐘有效
-        - 非交易時段：1 小時有效
-        """
-        cache = self.db.query(StockDetailCache).filter(
-            StockDetailCache.symbol == symbol
-        ).first()
-        
-        if not cache:
-            return None
-        
-        # 檢查有效期
-        max_age = 5 if is_market_open_for_symbol(symbol) else 60  # 分鐘
-        age = (datetime.now() - cache.updated_at).total_seconds() / 60
-        
-        if age > max_age:
-            logger.debug(f"股票詳情快取過期: {symbol} ({age:.1f} 分鐘)")
-            return None
-        
-        logger.debug(f"股票詳情快取命中: {symbol}")
-        return cache.to_dict()
     
-    def save_stock_detail_cache(self, symbol: str, data: Dict) -> None:
-        """儲存股票詳情快取"""
-        cache = self.db.query(StockDetailCache).filter(
-            StockDetailCache.symbol == symbol
-        ).first()
-        
-        if cache:
-            cache.name = data.get("name") or cache.name
-            cache.price = data.get("price")
-            cache.prev_close = data.get("prev_close")
-            cache.open_price = data.get("open")
-            cache.high = data.get("high")
-            cache.low = data.get("low")
-            cache.volume = str(data.get("volume", ""))
-            cache.market_cap = data.get("market_cap")
-            cache.pe_ratio = data.get("pe_ratio")
-            cache.dividend_yield = data.get("dividend_yield")
-            cache.fifty_two_week_high = data.get("52_week_high")
-            cache.fifty_two_week_low = data.get("52_week_low")
-            cache.raw_data = data
-            cache.updated_at = datetime.now()
-        else:
-            cache = StockDetailCache(
-                symbol=symbol,
-                name=data.get("name"),
-                price=data.get("price"),
-                prev_close=data.get("prev_close"),
-                open_price=data.get("open"),
-                high=data.get("high"),
-                low=data.get("low"),
-                volume=str(data.get("volume", "")),
-                market_cap=data.get("market_cap"),
-                pe_ratio=data.get("pe_ratio"),
-                dividend_yield=data.get("dividend_yield"),
-                fifty_two_week_high=data.get("52_week_high"),
-                fifty_two_week_low=data.get("52_week_low"),
-                raw_data=data,
-            )
-            self.db.add(cache)
-        
-        self.db.commit()
-        logger.debug(f"股票詳情已快取: {symbol}")
     
     # ==================== 技術指標快取 ====================
     
@@ -207,50 +142,7 @@ class AnalysisCacheService:
     
     # ==================== 圖表快取 ====================
     
-    def get_chart_cache(self, symbol: str, days: int) -> Optional[bytes]:
-        """
-        取得圖表快取
-        - 有效期：1 小時
-        """
-        cache_key = f"{symbol}_{days}"
-        cache = self.db.query(ChartCache).filter(
-            ChartCache.cache_key == cache_key
-        ).first()
-        
-        if not cache:
-            return None
-        
-        # 檢查有效期（1 小時）
-        age = (datetime.now() - cache.updated_at).total_seconds() / 3600
-        if age > 1:
-            logger.debug(f"圖表快取過期: {cache_key} ({age:.1f} 小時)")
-            return None
-        
-        logger.debug(f"圖表快取命中: {cache_key}")
-        return cache.chart_data
     
-    def save_chart_cache(self, symbol: str, days: int, chart_data: bytes) -> None:
-        """儲存圖表快取"""
-        cache_key = f"{symbol}_{days}"
-        
-        cache = self.db.query(ChartCache).filter(
-            ChartCache.cache_key == cache_key
-        ).first()
-        
-        if cache:
-            cache.chart_data = chart_data
-            cache.updated_at = datetime.now()
-        else:
-            cache = ChartCache(
-                cache_key=cache_key,
-                symbol=symbol,
-                days=days,
-                chart_data=chart_data,
-            )
-            self.db.add(cache)
-        
-        self.db.commit()
-        logger.debug(f"圖表已快取: {cache_key}")
     
     def clear_expired_caches(self) -> Dict[str, int]:
         """清除過期的快取"""

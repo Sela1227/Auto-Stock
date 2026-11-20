@@ -4,7 +4,6 @@ MA 強化分析服務
 提供均線進階分析功能
 """
 import pandas as pd
-import numpy as np
 from typing import Dict, Any, Optional
 import logging
 

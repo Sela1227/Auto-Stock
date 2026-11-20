@@ -10,7 +10,6 @@
 - 修正 CAGR 計算使用實際天數
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
 import logging
 import pandas as pd
 from datetime import datetime, date, timedelta
@@ -34,46 +33,6 @@ def normalize_tw_symbol(symbol: str) -> str:
         return f"{symbol}.TW"
     
     return symbol
-
-
-def _get_stock_df(symbol: str, years: int = 10, force_refresh: bool = False):
-    """
-    取得股票 DataFrame（帶快取）
-    
-    Returns:
-        (df, symbol, data_source)
-    """
-    from app.data_sources.yahoo_finance import yahoo_finance
-    from app.services.stock_history_service import StockHistoryService
-    from app.database import SyncSessionLocal
-    
-    df = None
-    data_source = "yahoo"
-    
-    try:
-        db = SyncSessionLocal()
-        try:
-            history_service = StockHistoryService(db)
-            df, data_source = history_service.get_stock_history(symbol, years=years, force_refresh=force_refresh)
-            
-            if (df is None or df.empty) and symbol.endswith('.TW'):
-                two_symbol = symbol.replace('.TW', '.TWO')
-                df, data_source = history_service.get_stock_history(two_symbol, years=years, force_refresh=force_refresh)
-                if df is not None and not df.empty:
-                    symbol = two_symbol
-        finally:
-            db.close()
-    except Exception as e:
-        logger.warning(f"快取服務異常: {e}")
-        df = yahoo_finance.get_stock_history(symbol, period=f"{years}y")
-        if (df is None or df.empty) and symbol.endswith('.TW'):
-            two_symbol = symbol.replace('.TW', '.TWO')
-            df = yahoo_finance.get_stock_history(two_symbol, period=f"{years}y")
-            if df is not None and not df.empty:
-                symbol = two_symbol
-        data_source = "yahoo"
-    
-    return df, symbol, data_source
 
 
 def _get_stock_df_smart(symbol: str, years: int = 10, force_refresh: bool = False):

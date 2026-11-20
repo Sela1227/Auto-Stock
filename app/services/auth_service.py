@@ -30,29 +30,6 @@ class AuthService:
     
     # ==================== LINE Login ====================
     
-    def get_line_auth_url(self, state: str = None) -> str:
-        """
-        取得 LINE 授權 URL
-        
-        Args:
-            state: 防 CSRF 的隨機字串
-            
-        Returns:
-            LINE 授權頁面 URL
-        """
-        if not state:
-            state = secrets.token_urlsafe(32)
-        
-        params = {
-            "response_type": "code",
-            "client_id": settings.LINE_LOGIN_CHANNEL_ID,
-            "redirect_uri": settings.LINE_LOGIN_CALLBACK_URL,
-            "state": state,
-            "scope": "profile openid email",
-        }
-        
-        query_string = "&".join(f"{k}={v}" for k, v in params.items())
-        return f"https://access.line.me/oauth2/v2.1/authorize?{query_string}"
     
     async def exchange_code_for_token(self, code: str) -> Optional[Dict[str, Any]]:
         """
@@ -488,25 +465,6 @@ class AuthServiceSync:
         stmt = select(User).where(User.line_user_id == line_user_id)
         return self.db.execute(stmt).scalar_one_or_none()
     
-    def create_demo_user(self, name: str = "Demo User") -> User:
-        """建立測試用戶（開發用）"""
-        demo_line_id = f"demo_{secrets.token_hex(8)}"
-        
-        user = User(
-            line_user_id=demo_line_id,
-            display_name=name,
-        )
-        self.db.add(user)
-        self.db.flush()
-        
-        # 建立預設設定
-        self.db.add(UserIndicatorSettings.create_default(user.id))
-        self.db.add(UserAlertSettings.create_default(user.id))
-        self.db.add(UserIndicatorParams.create_default(user.id))
-        
-        self.db.commit()
-        self.db.refresh(user)
-        return user
     
     def verify_jwt_token(self, token: str) -> Optional[Dict[str, Any]]:
         """驗證 JWT Token"""

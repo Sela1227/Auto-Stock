@@ -201,71 +201,8 @@ class PriceCacheService:
             )
             self.db.add(cache)
 
-    def get_cached_price(self, symbol: str, max_age_minutes: int = 5) -> Optional[dict]:
-        """取得快取價格（有時效性檢查）"""
-        cache = self.db.query(StockPriceCache).filter(
-            StockPriceCache.symbol == symbol
-        ).first()
-        
-        if not cache:
-            return None
-        
-        # 檢查時效
-        age = datetime.now() - cache.updated_at
-        if age > timedelta(minutes=max_age_minutes):
-            return None
-        
-        return self._cache_to_dict(cache)
 
-    def get_cached_price_smart(self, symbol: str) -> Tuple[Optional[dict], bool]:
-        """
-        智慧取得快取價格
-        Returns: (cache_data, needs_update)
-        - 非開盤時間：直接返回快取，不需更新
-        - 開盤時間：返回快取 + 標記是否需更新
-        """
-        cache = self.db.query(StockPriceCache).filter(
-            StockPriceCache.symbol == symbol
-        ).first()
-        
-        if not cache:
-            return None, True
-        
-        # 非開盤時間：直接返回，不需更新
-        if not is_market_open_for_symbol(symbol):
-            return self._cache_to_dict(cache), False
-        
-        # 開盤時間：檢查時效
-        age = (datetime.now() - cache.updated_at).total_seconds() / 60
-        needs_update = age > 5  # 5 分鐘過期
-        
-        return self._cache_to_dict(cache), needs_update
 
-    def get_cached_prices_batch(self, symbols: List[str]) -> Dict[str, dict]:
-        """批次取得快取價格"""
-        result = {}
-        caches = self.db.query(StockPriceCache).filter(
-            StockPriceCache.symbol.in_(symbols)
-        ).all()
-        
-        for cache in caches:
-            result[cache.symbol] = self._cache_to_dict(cache)
-        
-        return result
-
-    def _cache_to_dict(self, cache: StockPriceCache) -> dict:
-        """快取轉字典"""
-        return {
-            "symbol": cache.symbol,
-            "name": cache.name,
-            "price": cache.price,
-            "prev_close": cache.prev_close,
-            "change": cache.change,
-            "change_pct": cache.change_pct,
-            "volume": cache.volume,
-            "ma20": cache.ma20,
-            "updated_at": cache.updated_at.isoformat() if cache.updated_at else None,
-        }
 
     def update_all(self, force: bool = False) -> Dict[str, Any]:
         """

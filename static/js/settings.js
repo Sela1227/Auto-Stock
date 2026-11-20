@@ -205,36 +205,6 @@
     // 匯率設定
     // ============================================================
     
-    async function updateExchangeRate() {
-        const input = document.getElementById('manualExchangeRate');
-        const rate = parseFloat(input?.value);
-        
-        if (!rate || rate <= 0) {
-            showToast('請輸入有效的匯率');
-            return;
-        }
-        
-        try {
-            const res = await apiRequest('/api/portfolio/exchange-rate', {
-                method: 'PUT',
-                body: { rate }
-            });
-            
-            const data = await res.json();
-            
-            if (data.success) {
-                showToast('匯率已更新');
-                if (typeof loadPortfolioSummary === 'function') {
-                    loadPortfolioSummary();
-                }
-            } else {
-                showToast(data.detail || '更新失敗');
-            }
-        } catch (e) {
-            console.error('更新匯率失敗:', e);
-            showToast('更新失敗');
-        }
-    }
     
     // ============================================================
     // 管理員工具
@@ -319,7 +289,6 @@
     window.saveAlertSettings = saveAlertSettings;
     window.saveParamSettings = saveParamSettings;
     window.applyTemplate = applyTemplate;
-    window.updateExchangeRate = updateExchangeRate;
     window.adminUpdatePriceCache = adminUpdatePriceCache;
     window.adminUpdateExchangeRate = adminUpdateExchangeRate;
     window.adminFetchSubscriptions = adminFetchSubscriptions;

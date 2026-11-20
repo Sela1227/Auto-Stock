@@ -1,6 +1,6 @@
 {
-  "name": "SELA",
-  "short_name": "SELA",
+  "name": "自動選股系統",
+  "short_name": "自動選股",
   "icons": [
     {
       "src": "android-chrome-192x192.png",
@@ -13,7 +13,7 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#F36825",
-  "background_color": "#F36825",
+  "theme_color": "#FA7A35",
+  "background_color": "#FED902",
   "display": "standalone"
 }

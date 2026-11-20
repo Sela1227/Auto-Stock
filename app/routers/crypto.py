@@ -5,7 +5,6 @@
 - 加入查詢結果快取功能，查詢過的加密貨幣會儲存到本地資料庫
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
 import pandas as pd
 import logging
 

@@ -494,27 +494,6 @@
     // 快速交易（從追蹤清單）
     // ============================================================
 
-    function quickTrade(symbol, name, market, type) {
-        if (market === 'tw') {
-            if (typeof showAddTwModal === 'function') showAddTwModal();
-            const symEl = $('twSymbol');
-            const nameEl = $('twName');
-            const nameDisplay = $('twNameDisplay');
-            if (symEl) symEl.value = symbol;
-            if (nameEl) nameEl.value = name;
-            if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${name}</span>`;
-            if (typeof setTwType === 'function') setTwType(type);
-        } else {
-            if (typeof showAddUsModal === 'function') showAddUsModal();
-            const symEl = $('usSymbol');
-            const nameEl = $('usName');
-            const nameDisplay = $('usNameDisplay');
-            if (symEl) symEl.value = symbol;
-            if (nameEl) nameEl.value = name;
-            if (nameDisplay) nameDisplay.innerHTML = `<span class="text-gray-800">${name}</span>`;
-            if (typeof setUsType === 'function') setUsType(type);
-        }
-    }
 
     // ============================================================
     // 導出
@@ -530,7 +509,6 @@
             switchTab: switchPortfolioTab,
             exportData: exportPortfolio,
             importData: importPortfolio,
-            quickTrade
         };
     }
 
@@ -547,6 +525,5 @@
     window.hideImportPortfolioModal = hideImportPortfolioModal;
     window.previewPortfolioFile = previewPortfolioFile;
     window.importPortfolio = importPortfolio;
-    window.quickTrade = quickTrade;
 
 })();

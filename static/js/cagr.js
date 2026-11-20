@@ -58,29 +58,6 @@ function cagrLoadPreset(presetId) {
     cagrRunComparison();
 }
 
-async function cagrQuickCompare(presetId) {
-    cagrShowLoading();
-    try {
-        const benchmark = document.getElementById('cagrBenchmarkSelect').value;
-        const sortBy = document.getElementById('cagrSortBySelect').value;
-        
-        const res = await fetch(`/api/compare/quick/${presetId}?benchmark=${benchmark}&sort_by=${sortBy}`);
-        const data = await res.json();
-        
-        if (data.success) {
-            // 更新選中的標的
-            if (data.preset && data.preset.symbols) {
-                cagrSelectedSymbols = data.preset.symbols;
-                cagrRenderSelectedSymbols();
-            }
-            cagrRenderResult(data);
-        } else {
-            showToast('比較失敗：' + (data.error || '未知錯誤'), 'error');
-        }
-    } catch (e) {
-        showToast('比較失敗：' + e.message, 'error');
-    }
-}
 
 // ==================== 標的選擇 ====================
 function cagrAddSymbol() {

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional, List
 
 # 版號單一真相：UI、/api/version、/_health、zip 檔名都從這裡來（Kit 鐵律）
-VERSION = 'V1.15.0'
+VERSION = 'V1.15.2'
 
 
 class Settings(BaseSettings):

@@ -25,9 +25,6 @@
     // 排序功能
     // ============================================================
 
-    function getSortConfig() {
-        return sortConfig;
-    }
 
     function setSort(field, order) {
         sortConfig = { field, order };
@@ -500,22 +497,6 @@
     }
 
 
-    async function loadAllWatchlistTags(items) {
-        watchlistTagsMap = {};
-
-        const promises = items.map(async item => {
-            try {
-                if (typeof getWatchlistTags === 'function') {
-                    const tags = await getWatchlistTags(item.id);
-                    watchlistTagsMap[item.id] = tags;
-                }
-            } catch (e) {
-                watchlistTagsMap[item.id] = [];
-            }
-        });
-
-        await Promise.all(promises);
-    }
 
     async function addToWatchlist() {
         const symbol = $('addSymbol')?.value?.trim().toUpperCase();

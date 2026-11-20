@@ -444,44 +444,7 @@ class MarketService:
     
     # ==================== 配息資料 ====================
     
-    def save_dividends(self, df: pd.DataFrame) -> int:
-        """儲存配息資料"""
-        if df is None or df.empty:
-            return 0
-        
-        count = 0
-        for _, row in df.iterrows():
-            stmt = select(DividendHistory).where(
-                and_(
-                    DividendHistory.symbol == row["symbol"],
-                    DividendHistory.date == row["date"],
-                )
-            )
-            existing = self.db.execute(stmt).scalar_one_or_none()
-            
-            if not existing:
-                dividend = DividendHistory(
-                    symbol=row["symbol"],
-                    date=row["date"],
-                    amount=row["amount"],
-                )
-                self.db.add(dividend)
-                count += 1
-        
-        self.db.commit()
-        return count
     
-    def fetch_and_save_dividends(self, symbol: str, period: str = "10y") -> int:
-        """抓取並儲存配息資料"""
-        logger.info(f"抓取配息資料: {symbol}")
-        df = yahoo_finance.get_dividends(symbol, period=period)
-        
-        if df is not None:
-            count = self.save_dividends(df)
-            logger.info(f"{symbol} 配息新增 {count} 筆")
-            return count
-        
-        return 0
     
     def get_dividends(
         self,

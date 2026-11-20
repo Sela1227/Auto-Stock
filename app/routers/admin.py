@@ -5,7 +5,6 @@ P0修復：使用統一認證模組
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, update, delete
-from sqlalchemy.orm import selectinload
 from typing import Optional
 from datetime import datetime, timedelta
 import logging

@@ -3,7 +3,7 @@
 > 1. 以本專案 CLAUDE.md 為主、Kit 為輔
 > 2. 本專案刻意不對齊 Kit 的部分：
 >    - 配色維持現有橘色系主色（非 Kit 工具類預設北歐霧藍 #5A7A8B），因 2026-01 起使用者已驗證 10 個月
->    - 不做業務 app 專屬 logo，保留 SELA logo 為主視覺（SELA 2026-11-20 決定，之後想做隨時可做）
+>    - App logo = 黃底（#FED902）白色壁虎 + 紅綠 K 線 + SELA 字樣（SELA 2026-11-20 提供，生圖 AI 產出 + Claude 底色校正與轉檔）；保留壁虎與 SELA 字樣是 SELA 的決定，不要再「修正」成不含壁虎的版本。SELA 原版 logo（`static/assets/sela.svg`）只用在 README 底部的品牌歸屬
 >    - 部署走 SELA 自己推 GitHub → Railway 自動部署；Claude 不 push、不設 hook，`.commander.json` 因此不寫 `prod.cmd`、沒有 `-test` 試用站
 >    - `docs/` 是 V0.x–V1.0 時期的歷史文件，只去 emoji、不改寫內容；現況以本檔為準
 >    - 英文程式名 = AutoStock、中文俗稱 = 自動選股系統（UI 顯示名維持中文）
@@ -21,7 +21,7 @@
 
 ## 〇、當前狀態
 
-- **版本：** V1.15.0
+- **版本：** V1.15.2
 - **正式網址：** https://web-production-c219.up.railway.app/
 - **已對齊 Kit：** V4.16.0
 - **狀態：** 上線中（Railway 專案「自動選股系統」、服務 Stock、region europe-west4）
@@ -57,11 +57,11 @@
 
 | 位置 | 說明 |
 |------|------|
-| `app/config.py` → `VERSION = 'V1.15.0'` | **唯一要改的地方**；`APP_VERSION`、`/api/version`、`/_health`、畫面四處版號都從這裡來 |
+| `app/config.py` → `VERSION = 'V1.15.2'` | **唯一要改的地方**；`APP_VERSION`、`/api/version`、`/_health`、畫面四處版號都從這裡來 |
 | `CLAUDE.md` 〇「版本」與六章版本歷程 | 手改 |
 | `README.md`「目前版本」與版本歷程 | 手改 |
 | `app/main.py` `/api/version` 的 features 清單 | 手改（只是說明文字）|
-| zip 檔名與資料夾名 | `AutoStock V1.15.0` |
+| zip 檔名與資料夾名 | `AutoStock V1.15.2` |
 
 前端顯示直接用 API 回的字串（已含 `V`），**不要再自己加 `v` 前綴**——`tests/smoke.py` 會擋。
 
@@ -113,9 +113,13 @@ from app.dependencies import get_current_user, get_admin_user, get_optional_user
 | 股價批次更新 | `app/services/price_cache_service.py` 的 `update_all(force=True)` |
 | DB session（排程用）| `app/main.py` 的 `sync_db_session()` context manager |
 | 情緒指數資料 | `app/data_sources/fear_greed.py` + `app/services/market_service.py` |
-| LINE 推播訊號符號 | `app/services/signal_service.py` 的 `SIGNAL_EMOJI`（單色符號 ▲ ▼ → ⚠ ※）|
+| LINE 推播訊息內容 | `app/tasks/scheduler.py`（名稱表用 `signal_service.SIGNAL_NAMES`）|
 | 前端認證 / session | `static/js/core.js` 的 `checkAuth()` + `updateUserUI()` |
 | 版本號顯示（前端）| `static/js/core.js` 的 `loadAppVersion()` → 4 個 element；登入頁 `static/index.html` |
+| App logo | 母圖 `static/assets/app-logo-1024.png`（其餘尺寸都由它縮）；畫面用 `static/logo.png`（256）；分頁與主畫面圖示在 `static/favicon/`；`theme-color` = 介面主色 `#FA7A35`（四頁 `<meta>` 與 `site.webmanifest` 要一致）|
+| 全螢幕圖表 | `static/js/chart-fix-final.js`（DOM 載入時鎖定 open/close/render/setChartRange，其他檔不要再定義同名函式）|
+| 網址直開區塊 | `dashboard.html#<區塊名>`（`core.js` 登入後讀 `location.hash`）；舊 `compare.html` 只轉址到 `#cagr` |
+| 訊號偵測 | `app/tasks/scheduler.py` 的 `scheduler_service` → `indicator_service`（`signal_service.py` 只剩型別與名稱表）|
 | XSS 跳脫 | `static/js/utils.js` 的 `escapeHTML()`；外部資料插 innerHTML 一律經過它 |
 | Production 設定檢查 | `app/config.py` 的 `validate_production()`（漏設就拒絕啟動）|
 | LINE Login callback | `app/routers/auth.py` 的 `/auth/line/callback` |
@@ -199,6 +203,27 @@ from app.dependencies import get_current_user, get_admin_user, get_optional_user
 - 原因：`'🥇'`、`SIGNAL_EMOJI` 這類值本身就是 emoji，正則一刪就成 `''`，語法照樣過
 - 做法：先掃「純 emoji 字串」逐一換成 Font Awesome 圖示或單色符號，再批次刪其餘（V1.15.0 已全數處理）
 
+**#15. 改到沒人用的程式還以為修好了**
+- 症狀：V1.15.0 把 `SIGNAL_EMOJI` 換成單色符號、CLAUDE.md 寫「LINE 推播符號在這裡」，V1.15.1 才發現它根本沒人讀
+- 原因：LINE 推播實際在 `scheduler.py` 組字；`signal_service.py` 的偵測與格式化函式全是舊版死碼
+- 做法：改之前先確認有人呼叫（全專案搜尋名稱）；`vulture app --min-confidence 60` 加上搜尋可找出這類死碼
+
+**#16. 同名全域函式在多支 JS 重複定義，後載入的蓋掉前面，前面的白寫**
+- 症狀：`openChartFullscreen` 三份（search.js → chart-fix.js → chart-fix-final.js）、`quickTrade`、`toggleCollapsible`、`adminFetchSubscriptions` 各兩份；改了前面那份畫面沒變
+- 原因：歷次修補都是「新檔覆蓋舊函式」，舊版沒刪
+- 做法：V1.15.1 只留實際生效的那份；新增修補直接改原檔，不再另開 *-fix.js
+
+
+**#17. 契約檢查只比路徑形狀，參數段剛好吻合就漏抓**
+- 症狀：dashboard 管理區「踢出全部」打 `/api/admin/users/kick-all`（後端是 `/api/admin/kick-all`），smoke 沒抓到
+- 原因：`users/kick-all` 剛好符合 `/users/{user_id}` 的形狀
+- 做法：V1.15.1 修正路徑；新增管理端點時，前端路徑對照後端定義逐字核對
+
+**#18. 有彩色細節的 AI 生圖 logo，不能用「底色↔白」亮度公式整張校正**
+- 症狀：照 sela-logo 的亮度混合公式校正，字下的金色陰影留下斑塊、白色偏米色
+- 原因：公式假設圖裡只有底色與白；這張有越往下越深的金色漸層，加上紅綠 K 線
+- 做法：用藍色通道當「白的比例」（黃金系 B≈0、白 B=255），只處理 R>200 且 G>150 的黃白系像素，紅綠 K 線自然排除
+
 ---
 
 ## 五、煙霧測試（唯一入口）
@@ -218,6 +243,8 @@ Kit 鐵律另跑：`python3 <sela-deploy>/assets/kit-check.py . --version V1.15.
 
 | 版本 | 重點 |
 |------|------|
+| V1.15.2 | 換上 app 專屬 logo：底色校正成 `#FED902`、128 色調色盤壓縮；favicon、手機主畫面圖示、登入頁與側欄都換新；四頁補 `theme-color`；manifest 名稱改為「自動選股系統」|
+| V1.15.1 | 瘦身、功能不變：刪 20 個整檔死碼（含 `cli.py`、舊版搜尋模組、一次性腳本）與檔內未用或被覆蓋的函式，Python 少 3,762 行、JS 少 3,236 行（程式碼總計少約 22%），前端 static 748 KB → 510 KB；`compare.html` 改轉址到 dashboard 同功能；logo 換 Kit 正式 256px 檔（74 KB → 7 KB）；移除 `rich`、`pytest` 套件；修「踢出全部」打錯路徑 |
 | V1.15.0 | 對齊 Kit V4.16.0：`VERSION` 單一真相 + 免登入 `/_health`；畫面 emoji 換 Font Awesome 線條圖示、LINE 推播改單色符號、log 與文件去 emoji；`tests/smoke.py`（含 API 契約檢查）；`.commander.json` 接賈維斯；補回 `.gitignore`；管理後台與比較頁禁止雙指放大；刪 debug 輸出；修正文件裡寫錯的兩個環境變數名 |
 | V1.14.0 | 排程簡化為週一~週六 06:00 單一批次；移除管理員登入觸發更新與訂閱源排程；`force=True` 終於對股票生效 |
 | V1.13.3 | 實作 `/kick`、`/kick-all`、`/remove-admin`；修 `set-admin` 缺 query、追蹤清單匯入 FormData → JSON；cagr XSS |
@@ -226,19 +253,18 @@ Kit 鐵律另跑：`python3 <sela-deploy>/assets/kit-check.py . --version V1.15.
 | V1.13.0 | 首次 Kit 對齊（Kit V1.8.1）：SELA favicon 套組、CLAUDE.md 九章格式、handoff |
 | V1.12.3 | 修復情緒指數顯示：`data.data?.stock` 改回 `data.stock` |
 | V1.12.2 | JS 語法修復；資安強化；重構（Bearer 解析、sync_db_session）；情緒指數多來源 |
-| V1.12.1 | 修復啟動 crash（`NameError: User`）|
-| V1.12 | 前端診斷日誌（`/auth/debug-log`）；管理後台診斷區塊 |
 
 ---
 
 ## 七、下版候選工作（按優先序）
 
-1. **確認 06:00 批次真的有跑** — Railway deploy log 找「每日批次更新完成」，追蹤清單的價格時間應是當天 06:00
-2. **追蹤清單載入性能診斷** — 用戶反映開啟慢，查是 API 慢還是前端渲染
-3. **動態 API 測試** — 審稿建議的「登入 → 追蹤 CRUD → 交易 CRUD → 券商 → 持股 → admin 權限」流程測試，補 smoke 只比路徑形狀的不足
-4. 背景任務錯誤在管理後台可見（坑 #12）
-5. Tailwind 改建置版（瀏覽器 console 的 CDN 警告）
-6. `compare.html` 走勢比較頁的 LINE Login 狀態同步
+1. **修「重設參數」按鈕**：設定頁的 `resetParams()` 從 V1.14.0 前就沒有定義，按了沒反應（V1.15.1 掃描發現，不是這版造成）
+2. **確認 06:00 批次真的有跑** — Railway deploy log 找「每日批次更新完成」，追蹤清單的價格時間應是當天 06:00
+3. **追蹤清單載入性能診斷** — 用戶反映開啟慢，查是 API 慢還是前端渲染
+4. **動態 API 測試** — 審稿建議的「登入 → 追蹤 CRUD → 交易 CRUD → 券商 → 持股 → admin 權限」流程測試，補 smoke 只比路徑形狀的不足
+5. 背景任務錯誤在管理後台可見（坑 #12）
+6. 管理功能有兩套介面：設定頁下方的管理卡片（settings.js）與「管理後台」區塊（admin.js），加上獨立的 `admin.html`（唯一有診斷日誌、設定／移除管理員的地方）——要不要合併成一套
+7. Tailwind 改建置版（瀏覽器 console 的 CDN 警告）
 
 ---
 
@@ -279,4 +305,4 @@ Kit 鐵律另跑：`python3 <sela-deploy>/assets/kit-check.py . --version V1.15.
 
 ## 九、一句話總結
 
-V1.15.0 對齊 Kit V4.16.0：版號單一真相、免登入 `/_health`、畫面改線條圖示、`tests/smoke.py` 一個入口含 API 契約檢查並接上賈維斯；累積 14 條專案坑，下版第一優先是確認 06:00 批次真的有跑。
+V1.15.2 換上 app 專屬 logo（黃底壁虎 + K 線）；累積 18 條專案坑，下版第一優先是修原本就壞的「重設參數」按鈕。

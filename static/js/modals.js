@@ -607,28 +607,6 @@
         container.innerHTML = html;
     }
 
-    /**
-     * 動態載入單一 Modal（按需載入）
-     */
-    function loadModal(modalKey) {
-        if (!MODAL_TEMPLATES[modalKey]) {
-            console.error(`Modal "${modalKey}" 不存在`);
-            return null;
-        }
-
-        const existingModal = document.getElementById(modalKey);
-        if (existingModal) {
-            return existingModal;
-        }
-
-        const container = initModalContainer();
-        const temp = document.createElement('div');
-        temp.innerHTML = MODAL_TEMPLATES[modalKey];
-        const modal = temp.firstElementChild;
-        container.appendChild(modal);
-        
-        return modal;
-    }
 
     // ============================================================
     // 目標價方向選擇樣式更新
@@ -669,7 +647,6 @@
     // ============================================================
 
     window.initAllModals = initAllModals;
-    window.loadModal = loadModal;
 
     // 自動初始化（當 DOM 載入完成時）
     if (document.readyState === 'loading') {

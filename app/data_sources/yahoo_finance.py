@@ -560,61 +560,7 @@ class YahooFinanceClient:
             logger.error(f"Ã¥Ââ€“Ã¥Â¾â€”Ã¦Å’â€¡Ã¦â€¢Â¸Ã¨Â³â€¡Ã¦â€“â„¢Ã¥Â¤Â±Ã¦â€¢â€” {symbol}: {e}")
             return None
     
-    def get_all_indices(self, period: str = "10y") -> Dict[str, pd.DataFrame]:
-        """
-        Ã¥Ââ€“Ã¥Â¾â€”Ã¦â€°â‚¬Ã¦Å“â€°Ã¤Â¸â€°Ã¥Â¤Â§Ã¦Å’â€¡Ã¦â€¢Â¸Ã¨Â³â€¡Ã¦â€“â„¢
-        
-        Returns:
-            {symbol: DataFrame}
-        """
-        indices = ["^GSPC", "^DJI", "^IXIC"]
-        result = {}
-        
-        for symbol in indices:
-            df = self.get_index_data(symbol, period)
-            if df is not None:
-                result[symbol] = df
-        
-        return result
     
-    def get_stock_history_extended(
-        self,
-        symbol: str,
-        years: int = 10,
-    ) -> Optional[pd.DataFrame]:
-        """
-        Ã¥Ââ€“Ã¥Â¾â€”Ã¨â€šÂ¡Ã§Â¥Â¨Ã¥Â»Â¶Ã¤Â¼Â¸Ã¦Â­Â·Ã¥ÂÂ²Ã¨Â³â€¡Ã¦â€“â„¢Ã¯Â¼Ë†Ã¦â€Â¯Ã¦ÂÂ´Ã¦â€ºÂ´Ã©â€¢Â·Ã¦â„¢â€šÃ©â€“â€œÃ¯Â¼â€°
-        
-        Args:
-            symbol: Ã¨â€šÂ¡Ã§Â¥Â¨Ã¤Â»Â£Ã¨â„¢Å¸
-            years: Ã¥Â¹Â´Ã¦â€¢Â¸ (1, 3, 5, 10)
-            
-        Returns:
-            Ã¥Å’â€¦Ã¥ÂÂ« OHLCV Ã§Å¡â€ž DataFrame
-        """
-        period_map = {
-            1: "1y",
-            2: "2y",
-            3: "3y",  # yfinance Ã¤Â¸ÂÃ¦â€Â¯Ã¦ÂÂ´ 3yÃ¯Â¼Å’Ã§â€Â¨ 5y Ã¤Â»Â£Ã¦â€ºÂ¿
-            5: "5y",
-            10: "10y",
-        }
-        
-        period = period_map.get(years, "10y")
-        if years == 3:
-            period = "5y"  # Ã§â€žÂ¶Ã¥Â¾Å’Ã¥Å“Â¨Ã§Â¨â€¹Ã¥Â¼ÂÃ¤Â¸Â­Ã©ÂÅ½Ã¦Â¿Â¾
-        
-        df = self.get_stock_history(symbol, period=period)
-        
-        if df is None:
-            return None
-        
-        # Ã¥Â¦â€šÃ¦Å¾Å“Ã¦ËœÂ¯ 3 Ã¥Â¹Â´Ã¯Â¼Å’Ã©Å“â‚¬Ã¨Â¦ÂÃ©ÂÅ½Ã¦Â¿Â¾
-        if years == 3:
-            cutoff_date = datetime.now().date() - timedelta(days=3 * 365)
-            df = df[df["date"] >= cutoff_date]
-        
-        return df
 
 
 # Ã¥Â»ÂºÃ§Â«â€¹Ã¥â€¦Â¨Ã¥Å¸Å¸Ã¥Â®Â¢Ã¦Ë†Â¶Ã§Â«Â¯Ã¥Â¯Â¦Ã¤Â¾â€¹

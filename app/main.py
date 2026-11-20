@@ -194,18 +194,6 @@ def clear_expired_caches():
         logger.error(f"快取清除錯誤: {e}")
 
 
-def fetch_subscription_sources():
-    """抓取訂閱源"""
-    from app.services.subscription_service import SubscriptionService
-    logger.info("[排程] 抓取訂閱源...")
-    try:
-        with sync_db_session() as db:
-            result = SubscriptionService(db).fetch_all_sources()
-            logger.info(f"訂閱源抓取完成: {result}")
-    except Exception as e:
-        logger.error(f"訂閱源抓取錯誤: {e}")
-
-
 # ============================================================
 # 應用程式生命週期
 # ============================================================
@@ -356,6 +344,8 @@ async def get_version():
         "version": settings.APP_VERSION,
         "app": settings.APP_NAME,
         "features": [
+            "V1.15.2: 換上 app 專屬 logo",
+            "V1.15.1: 瘦身：移除死碼與重複程式，功能不變",
             "V1.15.0: 對齊 SELA Starter Kit V4.16.0",
             "V1.14.0: 排程簡化為每日 06:00 單一批次",
             "V1.12.3: 修復情緒指數顯示",

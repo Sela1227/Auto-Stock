@@ -192,42 +192,11 @@
         showToast('已更新');
     }
     
-    /**
-     * 管理員：手動抓取訂閱（回溯 30 天）
-     */
-    async function adminFetchSubscriptions(backfill = true) {
-        const btn = event?.target?.closest('button');
-        if (btn) btn.disabled = true;
-        
-        showToast('正在抓取訂閱內容...');
-        
-        try {
-            const res = await apiRequest(`/api/subscription/admin/fetch?backfill=${backfill}`, { 
-                method: 'POST' 
-            });
-            const data = await res.json();
-            
-            
-            if (data.success) {
-                const result = data.data || {};
-                showToast(`抓取完成：新增 ${result.total_new || 0}，更新 ${result.total_updated || 0}`);
-                await loadSubscriptionPicks();
-            } else {
-                showToast(data.detail || '抓取失敗');
-            }
-        } catch (e) {
-            console.error('抓取訂閱失敗:', e);
-            showToast('抓取失敗: ' + e.message);
-        } finally {
-            if (btn) btn.disabled = false;
-        }
-    }
     
     // 導出到全域
     window.loadSubscriptionData = loadSubscriptionData;
     window.loadSubscriptionPicks = loadSubscriptionPicks;
     window.toggleSubscription = toggleSubscription;
     window.refreshSubscriptionPicks = refreshSubscriptionPicks;
-    window.adminFetchSubscriptions = adminFetchSubscriptions;
     
 })();

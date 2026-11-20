@@ -119,15 +119,6 @@ class CompareService:
         else:
             return "stock"
     
-    def _get_period_days(self, period: str) -> int:
-        """取得時間週期對應的天數"""
-        period_map = {
-            "1y": 365,
-            "3y": 365 * 3,
-            "5y": 365 * 5,
-            "10y": 365 * 10,
-        }
-        return period_map.get(period, 365)
     
     async def _fetch_price_data(
         self,
@@ -536,13 +527,6 @@ class ComparisonCRUD:
         )
         return result.scalars().all()
     
-    async def get_comparison_by_id(self, comparison_id: int, user_id: int) -> Optional[Comparison]:
-        """取得單一比較組合"""
-        result = await self.db.execute(
-            select(Comparison)
-            .where(and_(Comparison.id == comparison_id, Comparison.user_id == user_id))
-        )
-        return result.scalar_one_or_none()
     
     async def create_comparison(
         self,
@@ -588,13 +572,6 @@ class ComparisonCRUD:
         await self.db.commit()
         return True
     
-    async def count_user_comparisons(self, user_id: int) -> int:
-        """計算用戶的比較組合數量"""
-        result = await self.db.execute(
-            select(Comparison)
-            .where(Comparison.user_id == user_id)
-        )
-        return len(result.scalars().all())
 
 
 # 單例

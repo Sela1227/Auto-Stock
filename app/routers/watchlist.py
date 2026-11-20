@@ -10,7 +10,7 @@
 - 新增 target_direction 欄位（above/below）
 - 支援「高於時提醒」和「低於時提醒」兩種模式
 """
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -30,7 +30,6 @@ from app.schemas.schemas import (
     WatchlistItem,
     WatchlistResponse,
     WatchlistListResponse,
-    WatchlistOverviewResponse,
     ResponseBase,
 )
 from app.models.user import User

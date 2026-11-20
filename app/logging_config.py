@@ -75,7 +75,3 @@ def setup_logging(log_level: str = "INFO", log_to_file: bool = True):
     if log_to_file:
         root_logger.info(f"日誌檔案: {log_dir.absolute()}")
 
-
-def get_logger(name: str) -> logging.Logger:
-    """取得 logger"""
-    return logging.getLogger(name)

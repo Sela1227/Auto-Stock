@@ -151,10 +151,6 @@ function adminRenderUsers(users) {
     `).join('');
 }
 
-function adminChangePage(delta) {
-    adminCurrentPage += delta;
-    adminLoadUsers();
-}
 
 // ==================== 用戶操作 ====================
 async function adminBlockUser(userId) {
@@ -221,7 +217,7 @@ async function adminKickAllUsers() {
     if (!confirm('確定要踢出所有用戶？此操作將使所有用戶重新登入。')) return;
     
     try {
-        const data = await adminApiRequest('/api/admin/users/kick-all', {
+        const data = await adminApiRequest('/api/admin/kick-all', {
             method: 'POST'
         });
         
@@ -450,16 +446,6 @@ async function adminBackfillSubscriptions() {
 }
 
 // ==================== 工具函數 ====================
-function adminFormatDate(dateStr) {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    return date.toLocaleString('zh-TW', {
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
 
 function adminEscapeHtml(str) {
     if (!str) return '';

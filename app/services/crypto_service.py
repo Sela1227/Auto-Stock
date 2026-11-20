@@ -419,11 +419,3 @@ class CryptoService:
         except Exception as e:
             logger.error(f"儲存情緒指數失敗: {e}")
     
-    def get_supported_cryptos(self) -> List[Dict[str, str]]:
-        """取得支援的加密貨幣列表"""
-        from app.data_sources.coingecko import CRYPTO_MAP
-        return [
-            {"symbol": symbol, "id": coin_id}
-            for symbol, coin_id in CRYPTO_MAP.items()
-            if symbol not in ("BITCOIN", "ETHEREUM")  # 排除別名
-        ]

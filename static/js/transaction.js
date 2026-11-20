@@ -242,32 +242,6 @@
     }
 
     // V1.09 手動複製上次美股價格
-    async function copyLastUsPrice() {
-        const symbol = $('usSymbol')?.value?.trim().toUpperCase();
-        if (!symbol) {
-            showToast('請先輸入股票代碼');
-            return;
-        }
-        
-        try {
-            const res = await apiRequest(`/api/portfolio/transactions/last-price/${symbol}`);
-            const data = await res.json();
-            
-            if (data.success && data.price) {
-                const priceInput = $('usPrice');
-                if (priceInput) {
-                    priceInput.value = data.price;
-                    priceInput.classList.add('bg-yellow-50');
-                    setTimeout(() => priceInput.classList.remove('bg-yellow-50'), 1000);
-                    showToast(`已填入上次價格: ${data.price}`);
-                }
-            } else {
-                showToast('查無此股票的歷史交易');
-            }
-        } catch (e) {
-            showToast('查詢失敗');
-        }
-    }
 
     async function submitTwTransaction() {
         const editId = $('twEditId')?.value;
@@ -338,50 +312,6 @@
         }
     }
 
-    async function editTwTransaction(id) {
-        try {
-            const res = await apiRequest(`/api/portfolio/transactions/${id}`);
-            const data = await res.json();
-
-            if (data.success) {
-                const t = data.data;
-                $('twEditId').value = t.id;
-                $('twModalTitle').textContent = '編輯台股交易';
-                setTwType(t.transaction_type);
-
-                $('twSymbol').value = t.symbol.replace('.TW', '').replace('.TWO', '');
-                $('twName').value = t.name || '';
-
-                const nameDisplay = $('twNameDisplay');
-                if (nameDisplay) {
-                    nameDisplay.innerHTML = t.name
-                        ? `<span class="text-gray-800">${t.name}</span>`
-                        : '<span class="text-gray-400">--</span>';
-                }
-
-                const lots = Math.floor(t.quantity / 1000);
-                const oddLot = t.quantity % 1000;
-                $('twLots').value = lots || '';
-                $('twOddLot').value = oddLot || '';
-                updateTwQuantity();
-
-                $('twPrice').value = t.price;
-                $('twFee').value = t.fee || '';
-                $('twTax').value = t.tax || '';
-                $('twDate').value = t.transaction_date;
-                $('twNote').value = t.note || '';
-
-                const modal = $('twTransactionModal');
-                if (modal) {
-                    modal.classList.remove('hidden');
-                    modal.classList.add('flex');
-                }
-            }
-        } catch (e) {
-            console.error('載入交易失敗:', e);
-            showToast('載入失敗');
-        }
-    }
 
     // ============================================================
     // 美股交易
@@ -547,45 +477,6 @@
         }
     }
 
-    async function editUsTransaction(id) {
-        try {
-            const res = await apiRequest(`/api/portfolio/transactions/${id}`);
-            const data = await res.json();
-
-            if (data.success) {
-                const t = data.data;
-                $('usEditId').value = t.id;
-                $('usModalTitle').textContent = '編輯美股交易';
-                setUsType(t.transaction_type);
-
-                $('usSymbol').value = t.symbol;
-                $('usName').value = t.name || '';
-
-                const nameDisplay = $('usNameDisplay');
-                if (nameDisplay) {
-                    nameDisplay.innerHTML = t.name
-                        ? `<span class="text-gray-800">${t.name}</span>`
-                        : '<span class="text-gray-400">--</span>';
-                }
-
-                $('usQuantity').value = t.quantity;
-                $('usPrice').value = t.price;
-                $('usFee').value = t.fee || '';
-                $('usTax').value = t.tax || '';
-                $('usDate').value = t.transaction_date;
-                $('usNote').value = t.note || '';
-
-                const modal = $('usTransactionModal');
-                if (modal) {
-                    modal.classList.remove('hidden');
-                    modal.classList.add('flex');
-                }
-            }
-        } catch (e) {
-            console.error('載入交易失敗:', e);
-            showToast('載入失敗');
-        }
-    }
 
     // ============================================================
     // 快速交易（覆寫 portfolio.js 的版本）
@@ -642,14 +533,12 @@
     window.updateTwQuantity = updateTwQuantity;
     window.lookupTwStock = lookupTwStock;
     window.submitTwTransaction = submitTwTransaction;
-    window.editTwTransaction = editTwTransaction;
 
     window.showAddUsModal = showAddUsModal;
     window.closeUsModal = closeUsModal;
     window.setUsType = setUsType;
     window.lookupUsStock = lookupUsStock;
     window.submitUsTransaction = submitUsTransaction;
-    window.editUsTransaction = editUsTransaction;
 
     window.quickTrade = quickTrade;
 
@@ -659,6 +548,5 @@
 
     // V1.09 複製上次價格
     window.copyLastTwPrice = copyLastTwPrice;
-    window.copyLastUsPrice = copyLastUsPrice;
 
 })();

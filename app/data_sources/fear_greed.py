@@ -207,29 +207,6 @@ class FearGreedClient:
     
     # ==================== 通用方法 ====================
     
-    def get_all_sentiment(self) -> Dict[str, Any]:
-        """
-        取得所有市場情緒
-        
-        Returns:
-            {
-                "stock": {...},
-                "crypto": {...}
-            }
-        """
-        result = {}
-        
-        # 美股情緒
-        stock_sentiment = self.get_stock_fear_greed()
-        if stock_sentiment:
-            result["stock"] = stock_sentiment
-        
-        # 加密貨幣情緒
-        crypto_sentiment = self.get_crypto_fear_greed()
-        if crypto_sentiment:
-            result["crypto"] = crypto_sentiment
-        
-        return result
     
     def _get_classification(self, value: int) -> str:
         """取得英文分類"""
@@ -257,18 +234,6 @@ class FearGreedClient:
         else:
             return "極度貪婪"
     
-    def get_sentiment_advice(self, value: int) -> str:
-        """根據情緒值取得建議"""
-        if value <= 25:
-            return "市場極度恐懼，可能是買入機會，但需謹慎"
-        elif value <= 45:
-            return "市場偏恐懼，留意潛在機會"
-        elif value <= 55:
-            return "市場中性，觀望為主"
-        elif value <= 75:
-            return "市場偏樂觀，留意風險"
-        else:
-            return "市場極度貪婪，可能是獲利了結時機"
     
     def get_crypto_fear_greed_history(self, days: int = 365) -> List[Dict[str, Any]]:
         """

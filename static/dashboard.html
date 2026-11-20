@@ -7,6 +7,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon/apple-touch-icon.png">
     <link rel="manifest" href="/static/favicon/site.webmanifest">
+    <meta name="theme-color" content="#FA7A35">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SELA 自動選股系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,7 +19,7 @@
 <body class="bg-gray-100">
     <div id="loading-screen" class="fixed inset-0 bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center z-50">
         <div class="text-center">
-            <img src="/static/logo.png" alt="SELA" class="w-24 h-24 mx-auto mb-4 rounded-xl">
+            <img src="/static/logo.png" alt="自動選股系統" class="w-24 h-24 mx-auto mb-4 rounded-xl">
             <p class="text-white text-lg">載入中...</p>
             <i class="fas fa-spinner fa-spin text-white text-2xl mt-4"></i>
             <!-- V1.12 調試狀態（直接顯示在畫面上） -->
@@ -32,7 +33,7 @@
         <aside id="mobileSidebar" class="mobile-sidebar">
             <div class="p-4 border-b flex items-center justify-between">
                 <div class="flex items-center">
-                    <img src="/static/logo.png" alt="SELA" class="w-10 h-10 rounded-lg mr-2">
+                    <img src="/static/logo.png" alt="自動選股系統" class="w-10 h-10 rounded-lg mr-2">
                     <span class="font-bold text-lg">SELA</span><span id="sidebarVersion" class="ml-2 text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">--</span>
                 </div>
                 <button onclick="closeMobileSidebar()" class="p-2 text-gray-500 hover:text-gray-700">
@@ -101,7 +102,7 @@
                 </button>
                 
                 <div class="flex items-center">
-                    <img src="/static/logo.png" alt="SELA" class="w-8 h-8 rounded-lg mr-2">
+                    <img src="/static/logo.png" alt="自動選股系統" class="w-8 h-8 rounded-lg mr-2">
                     <span class="font-bold text-lg text-gray-800 hidden sm:inline">自動選股系統</span><span id="headerVersion" class="ml-2 text-xs text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded hidden sm:inline">--</span>
                     <span class="font-bold text-lg text-gray-800 sm:hidden">SELA</span><span id="mobileVersion" class="ml-1 text-xs text-orange-500 sm:hidden">--</span>
                 </div>
@@ -1298,7 +1299,6 @@
     <script src="/static/js/modals.js"></script>
     <script src="/static/js/dashboard.js"></script>
     <script src="/static/js/search.js"></script>
-    <script src="/static/js/chart-fix.js"></script>
     <script src="/static/js/tags.js"></script>
     <script src="/static/js/watchlist.js"></script>
     <script src="/static/js/portfolio.js"></script>

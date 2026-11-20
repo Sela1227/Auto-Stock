@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/assets/sela.svg" alt="SELA logo" width="80">
+  <img src="static/assets/app-logo-256.png" alt="自動選股系統" width="96">
 </p>
 
 # AutoStock — 自動選股系統
@@ -9,11 +9,19 @@
 
 ---
 
-## 目前版本：V1.15.0
+## 目前版本：V1.15.2
 
 ---
 
 ## 版本歷程
+
+### V1.15.2（2026-11-20）新 logo
+- 換上 app 專屬 logo（黃底壁虎 + K 線），分頁圖示、手機主畫面、登入頁與側欄都已更新
+
+### V1.15.1（2026-11-20）瘦身
+- 功能不變下移除死碼與重複程式：刪 20 個整檔，Python 少 3,762 行、JS 少 3,236 行，前端檔案 748 KB → 510 KB
+- `compare.html` 改轉址到 dashboard 的報酬率比較；logo 檔 74 KB → 7 KB
+- 修管理後台「踢出全部」打錯路徑
 
 ### V1.15.0（2026-11-20）Kit 對齊
 - 對齊 SELA Starter Kit V4.16.0；版號單一來源 `app/config.py` 的 `VERSION`
@@ -111,3 +119,7 @@
 ```bash
 python3 tests/smoke.py
 ```
+
+---
+
+<p align="right"><img src="static/assets/sela.svg" alt="SELA" width="28"> by SELA</p>

@@ -238,14 +238,6 @@ class SubscriptionService:
             SubscriptionSource.id.in_(source_ids)
         ).all()
     
-    def is_subscribed(self, user_id: int, source_id: int) -> bool:
-        """檢查用戶是否已訂閱"""
-        return self.db.query(UserSubscription).filter(
-            and_(
-                UserSubscription.user_id == user_id,
-                UserSubscription.source_id == source_id
-            )
-        ).first() is not None
     
     # ============================================================
     # 查詢精選
@@ -290,11 +282,3 @@ class SubscriptionService:
         
         return results
     
-    def get_pick_by_symbol(self, source_id: int, symbol: str) -> Optional[AutoPick]:
-        """根據來源和代碼取得精選"""
-        return self.db.query(AutoPick).filter(
-            and_(
-                AutoPick.source_id == source_id,
-                AutoPick.symbol == symbol
-            )
-        ).first()

@@ -239,27 +239,6 @@
         }
     }
     
-    /**
-     * 清空比較
-     */
-    function clearCompare() {
-        const input = document.getElementById('compareSymbols');
-        if (input) input.value = '';
-        updateSelectedSymbols();
-        
-        const placeholder = document.getElementById('compareChartPlaceholder');
-        const container = document.getElementById('compareChartContainer');
-        const resultTable = document.getElementById('compareResultTable');
-        
-        if (placeholder) placeholder.classList.remove('hidden');
-        if (container) container.classList.add('hidden');
-        if (resultTable) resultTable.classList.add('hidden');
-        
-        if (compareChart) {
-            compareChart.destroy();
-            compareChart = null;
-        }
-    }
     
     // 初始化：監聽輸入變化
     document.addEventListener('DOMContentLoaded', () => {
@@ -274,6 +253,5 @@
     window.removeCompareSymbol = removeCompareSymbol;
     window.updateSelectedSymbols = updateSelectedSymbols;
     window.loadCompareChart = loadCompareChart;
-    window.clearCompare = clearCompare;
     
 })();

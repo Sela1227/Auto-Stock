@@ -3,7 +3,6 @@
 支援 SQLite (開發) 和 PostgreSQL (生產)
 
 修復版本 - 2026-01-16
-新增 get_sync_db 別名
 
 效能優化 - 2026-01-16
 新增 stock_prices 歷史資料表
@@ -261,25 +260,10 @@ async def get_async_session():
             await session.close()
 
 
-def get_sync_session():
-    """CLI 用同步 Session"""
-    session = SyncSessionLocal()
-    try:
-        return session
-    except Exception:
-        session.close()
-        raise
-
-
 async def init_db():
     """初始化資料庫（建立所有表格）"""
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-
-def init_db_sync():
-    """同步初始化資料庫"""
-    Base.metadata.create_all(bind=sync_engine)
 
 
 # FastAPI 依賴注入用（同步版本，用於某些 API）
@@ -295,4 +279,3 @@ def get_db():
 # ============================================================
 # 新增別名 - 修復 stock.py ImportError
 # ============================================================
-get_sync_db = get_db

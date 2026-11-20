@@ -478,33 +478,6 @@
     }
     
     // 管理員更新
-    async function triggerAdminUpdates() {
-        const token = localStorage.getItem('token');
-        
-        try {
-            fetch('/api/admin/update-indices', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            }).then(r => r.json()).then(d => {
-            });
-            
-            fetch('/api/admin/update-price-cache', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            }).then(r => r.json()).then(d => {
-            });
-            
-            loadBtcPrice();
-            
-            fetch('/api/admin/update-exchange-rate', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            }).then(r => r.json()).then(d => {
-            });
-        } catch (e) {
-            console.error('管理員更新觸發失敗:', e);
-        }
-    }
 
     function createGaugeSVG(id, value) {
         const angle = -90 + (value / 100) * 180;
@@ -624,6 +597,5 @@
     window.openSentimentModal = openSentimentModal;
     window.closeSentimentModal = closeSentimentModal;
     window.loadSentimentModalChart = loadSentimentModalChart;
-    window.triggerAdminUpdates = triggerAdminUpdates;
     
 })();

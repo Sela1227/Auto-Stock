@@ -91,15 +91,6 @@
         return html;
     }
 
-    function getMAAdvancedSummary(ma) {
-        if (!ma) return '';
-        const parts = [];
-        if (ma.alignment_detail) parts.push(ma.alignment_detail);
-        if (ma.golden_cross_20_50) parts.push(`MA20/50黃金交叉(${ma.golden_cross_20_50_days}天前)`);
-        if (ma.death_cross_20_50) parts.push(`MA20/50死亡交叉(${ma.death_cross_20_50_days}天前)`);
-        return parts.slice(0, 2).join('，');
-    }
 
     window.renderMAAdvanced = renderMAAdvanced;
-    window.getMAAdvancedSummary = getMAAdvancedSummary;
 })();

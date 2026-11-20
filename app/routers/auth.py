@@ -2,7 +2,7 @@
 認證 API 路由
 LINE Login 整合
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 import secrets
@@ -14,7 +14,7 @@ import logging
 
 from app.database import get_async_session
 from app.services.auth_service import AuthService
-from app.schemas.schemas import LoginResponse, UserResponse, ErrorResponse
+from app.schemas.schemas import UserResponse
 from app.dependencies import get_current_user as _get_current_user
 from app.config import settings
 
@@ -131,7 +131,6 @@ async def line_login():
 @router.get("/line/callback", summary="LINE 登入回調")
 async def line_callback(
     request: Request,
-    background_tasks: BackgroundTasks,  # 加入 BackgroundTasks
     code: str = Query(..., description="授權碼"),
     state: str = Query(..., description="State"),
     db: AsyncSession = Depends(get_async_session),

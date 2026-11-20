@@ -82,14 +82,6 @@
         return el;
     }
     
-    /**
-     * 清除 DOM 快取
-     * 當 DOM 結構變化時調用（如動態載入內容後）
-     */
-    function clearDomCache() {
-        _domCache.clear();
-        _querySelectorCache.clear();
-    }
     
     /**
      * 預載入常用 DOM 元素到快取
@@ -159,27 +151,6 @@
         });
     }
     
-    /**
-     * 使用 DocumentFragment 批量添加子元素
-     * 比多次 appendChild 效能好 10 倍
-     * @param {string} containerId - 容器元素 ID
-     * @param {Array} items - 要添加的項目
-     * @param {Function} renderFn - 渲染函數 (item) => HTMLElement
-     */
-    function appendBatch(containerId, items, renderFn) {
-        const container = $(containerId);
-        if (!container) return;
-        
-        const fragment = document.createDocumentFragment();
-        items.forEach(item => {
-            const el = renderFn(item);
-            if (el) fragment.appendChild(el);
-        });
-        
-        requestAnimationFrame(() => {
-            container.appendChild(fragment);
-        });
-    }
     
     // ============================================================
     // 全域變數
@@ -379,6 +350,12 @@
             if (typeof loadDashboard === 'function') {
                 loadDashboard();
             }
+
+            // 網址帶 #區塊名（例：舊書籤 compare.html 轉來的 #cagr）就直接開到該區塊
+            const hashSection = location.hash.slice(1);
+            if (hashSection && $(`section-${hashSection}`)) {
+                showSection(hashSection);
+            }
             
             debugLog('[checkAuth] 完成');
             
@@ -452,9 +429,6 @@
         return currentUser;
     }
     
-    function getToken() {
-        return token;
-    }
     
     // ============================================================
     // 手機版選單
@@ -614,21 +588,6 @@
     // 工具函數
     // ============================================================
     
-    /**
-     * 摺疊面板切換
-     */
-    function toggleCollapsible(button) {
-        const content = button.nextElementSibling;
-        const icon = button.querySelector('i');
-        
-        if (content.style.maxHeight) {
-            content.style.maxHeight = null;
-            if (icon) icon.style.transform = '';
-        } else {
-            content.style.maxHeight = content.scrollHeight + 'px';
-            if (icon) icon.style.transform = 'rotate(180deg)';
-        }
-    }
     
     // ============================================================
     // 初始化
@@ -685,17 +644,14 @@
         // DOM 工具
         $,
         $q,
-        clearDomCache,
         preloadDomCache,
         
         // 批量更新
         batchUpdate,
         setHtml,
-        appendBatch,
         
         // 狀態 (P1: AppState 在 state.js 中)
         getCurrentUser,
-        getToken,
         deviceInfo,
         
         // API
@@ -716,7 +672,6 @@
     window.API_BASE = API_BASE;
     window.apiRequest = apiRequest;
     window.getCurrentUser = getCurrentUser;
-    window.getToken = getToken;
     window.checkAuth = checkAuth;
     window.logout = logout;
     window.clearAllUserData = clearAllUserData;
@@ -726,7 +681,6 @@
     window.mobileNavTo = mobileNavTo;
     window.showToast = showToast;
     window.deviceInfo = deviceInfo;
-    window.toggleCollapsible = toggleCollapsible;
     
     // 兼容舊代碼
     window.token = token;
@@ -735,7 +689,6 @@
     // 新增：導出 DOM 快取工具供其他模組使用
     window.$ = $;
     window.$q = $q;
-    window.clearDomCache = clearDomCache;
     window.batchUpdate = batchUpdate;
     window.setHtml = setHtml;
     

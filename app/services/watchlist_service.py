@@ -293,31 +293,6 @@ class WatchlistService:
         
         return items
     
-    async def get_watchlist_symbols(self, user_id: int) -> Dict[str, List[str]]:
-        """
-        取得用戶追蹤的代號列表（用於通知系統）
-        
-        Returns:
-            {
-                "stocks": ["AAPL", "TSLA"],
-                "crypto": ["BTC", "ETH"]
-            }
-        """
-        watchlists = await self.get_watchlist(user_id)
-        
-        stocks = []
-        cryptos = []
-        
-        for item in watchlists:
-            if item.asset_type == "stock":
-                stocks.append(item.symbol)
-            else:
-                cryptos.append(item.symbol)
-        
-        return {
-            "stocks": stocks,
-            "crypto": cryptos,
-        }
     
     async def _get_watchlist_item(
         self,
