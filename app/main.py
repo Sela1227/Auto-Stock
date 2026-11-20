@@ -344,6 +344,7 @@ async def get_version():
         "version": settings.APP_VERSION,
         "app": settings.APP_NAME,
         "features": [
+            "V1.15.3: 修正線上啟動崩潰（資料庫驅動）、鎖定套件版本",
             "V1.15.2: 換上 app 專屬 logo",
             "V1.15.1: 瘦身：移除死碼與重複程式，功能不變",
             "V1.15.0: 對齊 SELA Starter Kit V4.16.0",

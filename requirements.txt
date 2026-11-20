@@ -1,30 +1,32 @@
+# 直接依賴全部鎖版本（2026-08-26 V1.14.0 線上實際安裝、驗證正常的組合）
+# 升級任何一個都要單獨一版、跑 tests/smoke.py 並看 Railway 啟動 log（坑 #19）
+
 # Core Framework
-fastapi>=0.109.0
-uvicorn[standard]>=0.27.0
-python-dotenv>=1.0.0
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-dotenv==1.2.3
 
 # Database
-sqlalchemy>=2.0.0
-aiosqlite>=0.19.0
-greenlet>=3.0.0
-asyncpg>=0.29.0        # PostgreSQL async driver
-psycopg2-binary>=2.9.9  # PostgreSQL sync driver
+sqlalchemy==2.0.52
+aiosqlite==0.22.1
+greenlet==3.5.5
+asyncpg==0.31.0          # PostgreSQL async driver
+psycopg2-binary==2.9.12  # PostgreSQL sync driver（database.py 明確指定 +psycopg2）
 
 # Data Sources
-yfinance>=0.2.36
-requests>=2.31.0
+yfinance==1.6.0
+requests==2.34.2
+feedparser==6.0.14
 
 # Data Processing
-pandas>=2.2.0
-numpy>=1.26.0
+pandas==3.0.5
+numpy==2.4.6
 
 # Authentication
-python-jose[cryptography]>=3.3.0
-httpx>=0.26.0
+python-jose[cryptography]==3.5.0
+httpx==0.28.1
 
 # Utilities
-pydantic>=2.5.0
-pydantic-settings>=2.1.0
-
-apscheduler>=3.10.0
-feedparser
+pydantic==2.13.4
+pydantic-settings==2.15.0
+apscheduler==3.11.3

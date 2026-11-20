@@ -8,7 +8,7 @@ AutoStock 煙霧測試（唯一驗證入口）
 檢查項目：
 1. Python 語法（app/ 全部）
 2. JavaScript 語法（static/ 的 .js 與 HTML 內嵌 <script>；沒有 node 就跳過）
-3. FastAPI 啟動 import（裝了 requirements 才跑；攔 NameError 這類語法正確但啟動才炸的錯）
+3. FastAPI 啟動 import，SQLite 與 PostgreSQL 連線字串各一次（裝了 requirements 才跑）
 4. API 契約：前端呼叫的每個 /api、/auth 路徑，後端都有對應路由
 5. 版號對帳：config.VERSION = CLAUDE.md〇 = README = 版本歷程有這一版；handoff 落後幾版
 """
@@ -97,14 +97,24 @@ def check_import():
     except ImportError:
         warn("沒裝 requirements，跳過 FastAPI import 檢查（pip install -r requirements.txt 後會跑）")
         return
-    env = dict(os.environ, APP_ENV="development")
     code = "from app.main import app; print(len(app.openapi()['paths']))"
-    r = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, env=env, timeout=120)
-    if r.returncode:
-        last = (r.stderr.strip().splitlines() or ["?"])[-1]
-        fail(f"FastAPI import 失敗：{last}")
-    else:
-        ok(f"FastAPI import（OpenAPI {r.stdout.strip().splitlines()[-1]} 個路徑）")
+    # 兩種資料庫都要能啟動：本機 SQLite、正式站 PostgreSQL（只建立引擎、不真的連線）
+    # 只測 SQLite 曾漏掉「SQLAlchemy 2.1 預設驅動改 psycopg」的線上崩潰（坑 #19）
+    for label, db in (("SQLite", None), ("PostgreSQL", "postgres://smoke:smoke@127.0.0.1:1/smoke")):
+        env = dict(os.environ, APP_ENV="development")
+        if db:
+            env["DATABASE_URL"] = db
+        else:
+            env.pop("DATABASE_URL", None)
+        r = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, env=env, timeout=120)
+        if r.returncode:
+            last = (r.stderr.strip().splitlines() or ["?"])[-1]
+            fail(f"FastAPI import（{label}）失敗：{last}")
+        else:
+            ok(f"FastAPI import（{label}，OpenAPI {r.stdout.strip().splitlines()[-1]} 個路徑）")
+    # 用完清掉匯入時自動建立的資料夾
+    for d in ("logs", "charts", "data"):
+        shutil.rmtree(ROOT / d, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------

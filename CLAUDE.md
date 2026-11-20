@@ -21,7 +21,7 @@
 
 ## 〇、當前狀態
 
-- **版本：** V1.15.2
+- **版本：** V1.15.3
 - **正式網址：** https://web-production-c219.up.railway.app/
 - **已對齊 Kit：** V4.16.0
 - **狀態：** 上線中（Railway 專案「自動選股系統」、服務 Stock、region europe-west4）
@@ -57,11 +57,11 @@
 
 | 位置 | 說明 |
 |------|------|
-| `app/config.py` → `VERSION = 'V1.15.2'` | **唯一要改的地方**；`APP_VERSION`、`/api/version`、`/_health`、畫面四處版號都從這裡來 |
+| `app/config.py` → `VERSION = 'V1.15.3'` | **唯一要改的地方**；`APP_VERSION`、`/api/version`、`/_health`、畫面四處版號都從這裡來 |
 | `CLAUDE.md` 〇「版本」與六章版本歷程 | 手改 |
 | `README.md`「目前版本」與版本歷程 | 手改 |
 | `app/main.py` `/api/version` 的 features 清單 | 手改（只是說明文字）|
-| zip 檔名與資料夾名 | `AutoStock V1.15.2` |
+| zip 檔名與資料夾名 | `AutoStock V1.15.3` |
 
 前端顯示直接用 API 回的字串（已含 `V`），**不要再自己加 `v` 前綴**——`tests/smoke.py` 會擋。
 
@@ -93,6 +93,10 @@ from app.dependencies import get_current_user, get_admin_user, get_optional_user
 ### 技術指標欄位名（全小寫）
 
 `ma5`, `ma10`, `ma20`, `ma60`, `ma120`, `ma240`, `rsi`, `macd_dif`, `macd_dea`, `macd_hist`, `kd_k`, `kd_d`, `bb_upper`, `bb_middle`, `bb_lower`, `obv`
+
+### 套件版本（V1.15.3 起全部鎖定）
+
+`requirements.txt` 的直接依賴全用 `==`，數值取自 2026-08-26 V1.14.0 在 Railway 實際安裝並正常運作的組合（Python 3.11）。升級任何套件都要單獨一版，並用 Python 3.11 跑 `tests/smoke.py`、部署後看 Railway 啟動 log。資料庫連線字串在 `database.py` 明確指定 `+psycopg2` 與 `+asyncpg`，不靠 SQLAlchemy 預設驅動。
 
 ### 環境變數名（文件曾寫錯兩個，以程式為準）
 
@@ -224,6 +228,11 @@ from app.dependencies import get_current_user, get_admin_user, get_optional_user
 - 原因：公式假設圖裡只有底色與白；這張有越往下越深的金色漸層，加上紅綠 K 線
 - 做法：用藍色通道當「白的比例」（黃金系 B≈0、白 B=255），只處理 R>200 且 G>150 的黃白系像素，紅綠 K 線自然排除
 
+**#19. 套件沒鎖版本，一改 requirements 就整批升級，線上啟動即崩潰**
+- 症狀：V1.15.0–V1.15.2 部署後服務 CRASHED，登入卡住；log 為 `ModuleNotFoundError: No module named 'psycopg'`
+- 原因：`sqlalchemy>=2.0.0` 沒上限；V1.15.1 改了 requirements，Railway 重新安裝全部套件，裝到 SQLAlchemy 2.1（`postgresql://` 預設驅動改成 psycopg 第 3 版，本專案只裝 psycopg2）；同時 FastAPI、pandas、yfinance 也一起跳版。V1.15.0 沒改 requirements 也崩，是因為那次一樣觸發重裝
+- 做法：`database.py` 明確寫 `postgresql+psycopg2://`；直接依賴全部鎖在 8 月驗證過的版本；smoke 加上「用 PostgreSQL 連線字串匯入一次」（只用 SQLite 測不出這類錯）；推上 GitHub 後要看 Railway 部署狀態是 SUCCESS，不是只看推送成功
+
 ---
 
 ## 五、煙霧測試（唯一入口）
@@ -233,7 +242,7 @@ pip install -r requirements.txt   # 第一次；沒裝也能跑，只是跳過 i
 python3 tests/smoke.py            # 全綠才能打包；失敗回傳非 0
 ```
 
-檢查：Python 語法、JS 語法（含 HTML 內嵌 script）、FastAPI 實際 import 與 OpenAPI、前後端 API 契約、版號對帳（config = CLAUDE.md = README = 版本歷程）、handoff 落後幾版。
+檢查：Python 語法、JS 語法（含 HTML 內嵌 script）、FastAPI 實際 import 與 OpenAPI（SQLite 與 PostgreSQL 連線字串各一次；要跟 Railway 一樣用 Python 3.11）、前後端 API 契約、版號對帳（config = CLAUDE.md = README = 版本歷程）、handoff 落後幾版。
 
 Kit 鐵律另跑：`python3 <sela-deploy>/assets/kit-check.py . --version V1.15.0`
 
@@ -243,6 +252,7 @@ Kit 鐵律另跑：`python3 <sela-deploy>/assets/kit-check.py . --version V1.15.
 
 | 版本 | 重點 |
 |------|------|
+| V1.15.3 | 緊急修正：V1.15.0–V1.15.2 線上啟動崩潰（SQLAlchemy 2.1 預設驅動改 psycopg）；同步引擎明確指定 `+psycopg2`；套件全部鎖定 8 月驗證過的版本；smoke 加 PostgreSQL 連線字串匯入檢查 |
 | V1.15.2 | 換上 app 專屬 logo：底色校正成 `#FED902`、128 色調色盤壓縮；favicon、手機主畫面圖示、登入頁與側欄都換新；四頁補 `theme-color`；manifest 名稱改為「自動選股系統」|
 | V1.15.1 | 瘦身、功能不變：刪 20 個整檔死碼（含 `cli.py`、舊版搜尋模組、一次性腳本）與檔內未用或被覆蓋的函式，Python 少 3,762 行、JS 少 3,236 行（程式碼總計少約 22%），前端 static 748 KB → 510 KB；`compare.html` 改轉址到 dashboard 同功能；logo 換 Kit 正式 256px 檔（74 KB → 7 KB）；移除 `rich`、`pytest` 套件；修「踢出全部」打錯路徑 |
 | V1.15.0 | 對齊 Kit V4.16.0：`VERSION` 單一真相 + 免登入 `/_health`；畫面 emoji 換 Font Awesome 線條圖示、LINE 推播改單色符號、log 與文件去 emoji；`tests/smoke.py`（含 API 契約檢查）；`.commander.json` 接賈維斯；補回 `.gitignore`；管理後台與比較頁禁止雙指放大；刪 debug 輸出；修正文件裡寫錯的兩個環境變數名 |
@@ -252,7 +262,6 @@ Kit 鐵律另跑：`python3 <sela-deploy>/assets/kit-check.py . --version V1.15.
 | V1.13.1 | 外部審稿 P0/P1：交易列表路徑、`broker_id` 漏接與所有權驗證、`escapeHTML()`、production fail-fast、CORS、admin cooldown |
 | V1.13.0 | 首次 Kit 對齊（Kit V1.8.1）：SELA favicon 套組、CLAUDE.md 九章格式、handoff |
 | V1.12.3 | 修復情緒指數顯示：`data.data?.stock` 改回 `data.stock` |
-| V1.12.2 | JS 語法修復；資安強化；重構（Bearer 解析、sync_db_session）；情緒指數多來源 |
 
 ---
 
@@ -279,7 +288,7 @@ Kit 鐵律另跑：`python3 <sela-deploy>/assets/kit-check.py . --version V1.15.
 □ 打包：zip -r "AutoStock V<x.y.z>.zip" "AutoStock V<x.y.z>" -x "*/.git/*" "*/__pycache__/*" "*/venv/*" "*.pyc" "*/.env" "*.log" "*/.DS_Store"
 □ unzip -l 確認 .gitignore、.commander.json、tests/smoke.py 都在（坑 #13）
 □ 部署前用 Railway 部署紀錄或 /_health 比線上版號，絕不拿舊的蓋新的
-□ SELA 推 GitHub；部署後 /_health 回新版號、登入、追蹤清單、情緒指數數值正確
+□ SELA 推 GitHub；Railway 部署狀態要是 SUCCESS（不是 CRASHED），/_health 回新版號、登入、追蹤清單、情緒指數數值正確
 ```
 
 ### 環境變數（新環境必設）
@@ -305,4 +314,4 @@ Kit 鐵律另跑：`python3 <sela-deploy>/assets/kit-check.py . --version V1.15.
 
 ## 九、一句話總結
 
-V1.15.2 換上 app 專屬 logo（黃底壁虎 + K 線）；累積 18 條專案坑，下版第一優先是修原本就壞的「重設參數」按鈕。
+V1.15.3 修正 V1.15.0 起的線上啟動崩潰並鎖定套件版本；累積 19 條專案坑，下版第一優先是修原本就壞的「重設參數」按鈕。

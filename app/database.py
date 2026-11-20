@@ -31,11 +31,15 @@ def get_async_url(url: str) -> str:
 
 
 def get_sync_url(url: str) -> str:
-    """確保是同步格式的 URL"""
+    """確保是同步格式的 URL，PostgreSQL 明確指定 psycopg2 驅動"""
     url = url.replace("+aiosqlite", "").replace("+asyncpg", "")
     # 修正 Railway 的 postgres:// 格式
     if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://")
+        url = url.replace("postgres://", "postgresql://", 1)
+    # SQLAlchemy 2.1 起 postgresql:// 預設改用 psycopg（第 3 版），本專案裝的是 psycopg2，
+    # 不寫明驅動會在啟動時 ModuleNotFoundError（V1.15.0–V1.15.2 線上崩潰，坑 #19）
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
     return url
 
 
